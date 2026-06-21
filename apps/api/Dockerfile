@@ -19,6 +19,7 @@ COPY apps/api/package.json ./apps/api/package.json
 COPY apps/client/package.json ./apps/client/package.json
 COPY apps/docs/package.json ./apps/docs/package.json
 COPY apps/web/package.json ./apps/web/package.json
+
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
   pnpm install --frozen-lockfile
 
@@ -26,6 +27,7 @@ FROM deps AS development
 ENV NODE_ENV=development
 
 COPY apps/api ./apps/api
+
 USER node
 
 CMD ["pnpm", "--filter", "nestjs-boilerplate", "start:dev"]
@@ -34,13 +36,21 @@ FROM deps AS builder
 ENV NODE_ENV=production
 
 COPY . .
+
 RUN pnpm --filter nestjs-boilerplate build
+
 RUN pnpm --filter nestjs-boilerplate deploy --prod --legacy /prod/api
+
+RUN mkdir -p /prod/api/public
+RUN cp -r apps/api/dist /prod/api/dist
 
 FROM base AS production
 ENV NODE_ENV=production
 
-RUN mkdir -p /app/storage/public /app/storage/private /app/storage/avatars \
+RUN mkdir -p \
+  /app/storage/public \
+  /app/storage/private \
+  /app/storage/avatars \
   && chown -R node:node /app
 
 COPY --chown=node:node --from=builder /prod/api/package.json ./package.json
@@ -49,7 +59,9 @@ COPY --chown=node:node --from=builder /prod/api/dist ./dist
 COPY --chown=node:node --from=builder /prod/api/public ./public
 
 USER node
+
 EXPOSE 3000
 
 ENTRYPOINT ["dumb-init", "--"]
+
 CMD ["node", "dist/main.js"]
