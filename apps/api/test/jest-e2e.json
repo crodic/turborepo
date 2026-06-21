@@ -1,0 +1,24 @@
+{
+  "displayName": "e2e",
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.ts$": [
+      "ts-jest",
+      {
+        "tsconfig": "<rootDir>/../tsconfig.spec.json",
+        "diagnostics": false
+      }
+    ]
+  },
+  "moduleNameMapper": {
+    "^@/(.*)$": "<rootDir>/../src/$1",
+    "^uuid$": "<rootDir>/mocks/uuid.js"
+  },
+  "setupFiles": ["../setup-jest.mjs"],
+  "cacheDirectory": "../.jest-cache/e2e",
+  "clearMocks": true,
+  "testTimeout": 120000
+}

@@ -1,17 +1,50 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
+  "globalEnv": [
+    "ADMIN_PANEL_*",
+    "API_PREFIX",
+    "APP_*",
+    "AUTH_*",
+    "AWS_*",
+    "BULL_BOARD_PATH",
+    "DATABASE_*",
+    "DEV",
+    "FILESYSTEM_DISK",
+    "GOOGLE_*",
+    "MAIL_*",
+    "MODE",
+    "NEST_LENS_ENABLED",
+    "NODE_ENV",
+    "NOTIFICATION_RETENTION_DAYS",
+    "PORT",
+    "PROD",
+    "REDIS_*",
+    "SENTRY_*",
+    "USER_AUTH_*",
+    "VERCEL_URL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"]
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "!.next/dev/**",
+        "dist/**",
+        "build/**"
+      ]
     },
     "lint": {
       "dependsOn": ["^lint"]
     },
     "check-types": {
       "dependsOn": ["^check-types"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
     },
     "dev": {
       "cache": false,

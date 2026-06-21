@@ -1,0 +1,9 @@
+{
+  "name": "@repo/commitlint-config",
+  "version": "0.0.0",
+  "private": true,
+  "main": "index.cjs",
+  "dependencies": {
+    "@commitlint/config-conventional": "^20.5.0"
+  }
+}

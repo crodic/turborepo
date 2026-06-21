@@ -3,6 +3,20 @@
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
+  "exports": {
+    "./base": "./base.json",
+    "./base.json": "./base.json",
+    "./nestjs": "./nestjs.json",
+    "./nestjs.json": "./nestjs.json",
+    "./nextjs": "./nextjs.json",
+    "./nextjs.json": "./nextjs.json",
+    "./react-library": "./react-library.json",
+    "./react-library.json": "./react-library.json",
+    "./vite-node": "./vite-node.json",
+    "./vite-node.json": "./vite-node.json",
+    "./vite-react": "./vite-react.json",
+    "./vite-react.json": "./vite-react.json"
+  },
   "publishConfig": {
     "access": "public"
   }

@@ -1,0 +1,53 @@
+{
+  "displayName": "unit",
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "src",
+  "roots": ["<rootDir>"],
+  "testRegex": ".*\\.spec\\.ts$",
+  "transform": {
+    "^.+\\.ts$": [
+      "ts-jest",
+      {
+        "tsconfig": "<rootDir>/../tsconfig.spec.json",
+        "diagnostics": false
+      }
+    ]
+  },
+  "testPathIgnorePatterns": ["/node_modules/", "/dist/"],
+  "collectCoverageFrom": ["**/*.(t|j)s", "!**/*.spec.(t|j)s"],
+  "coveragePathIgnorePatterns": [
+    "/node_modules/",
+    "<rootDir>/database/(factories|migrations|seeds)/",
+    "<rootDir>/main.ts",
+    "(.+).module.ts"
+  ],
+  "coverageDirectory": "../coverage",
+  "testEnvironment": "node",
+  "moduleNameMapper": {
+    "^@/api(.*)$": "<rootDir>/api$1",
+    "^@/background(.*)$": "<rootDir>/background$1",
+    "^@/common(.*)$": "<rootDir>/common$1",
+    "^@/config(.*)$": "<rootDir>/config$1",
+    "^@/constants(.*)$": "<rootDir>/constants$1",
+    "^@/database(.*)$": "<rootDir>/database$1",
+    "^@/decorators(.*)$": "<rootDir>/decorators$1",
+    "^@/exceptions(.*)$": "<rootDir>/exceptions$1",
+    "^@/filters(.*)$": "<rootDir>/filters$1",
+    "^@/generated(.*)$": "<rootDir>/generated$1",
+    "^@/guards(.*)$": "<rootDir>/guards$1",
+    "^@/interceptors(.*)$": "<rootDir>/interceptors$1",
+    "^@/libs(.*)$": "<rootDir>/libs$1",
+    "^@/mail(.*)$": "<rootDir>/mail$1",
+    "^@/redis(.*)$": "<rootDir>/redis$1",
+    "^@/shared(.*)$": "<rootDir>/shared$1",
+    "^@/utils(.*)$": "<rootDir>/utils$1",
+    "^@/storage(.*)$": "<rootDir>/storage$1",
+    "^@/pipes(.*)$": "<rootDir>/pipes$1",
+    "^uuid$": "<rootDir>/../test/mocks/uuid.js",
+    "^@/(.*)$": "<rootDir>/$1"
+  },
+  "setupFiles": ["../setup-jest.mjs"],
+  "cacheDirectory": "../.jest-cache",
+  "clearMocks": true,
+  "testTimeout": 120000
+}

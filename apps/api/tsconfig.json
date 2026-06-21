@@ -1,0 +1,32 @@
+{
+  "extends": "@repo/typescript-config/nestjs",
+  "ts-node": {
+    "require": ["tsconfig-paths/register"] // configuration for typeorm migration
+  },
+  "compilerOptions": {
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "paths": {
+      "@/api/*": ["src/api/*"],
+      "@/background/*": ["src/background/*"],
+      "@/common/*": ["src/common/*"],
+      "@/config/*": ["src/config/*"],
+      "@/constants/*": ["src/constants/*"],
+      "@/database/*": ["src/database/*"],
+      "@/decorators/*": ["src/decorators/*"],
+      "@/exceptions/*": ["src/exceptions/*"],
+      "@/filters/*": ["src/filters/*"],
+      "@/generated/*": ["src/generated/*"],
+      "@/guards/*": ["src/guards/*"],
+      "@/interceptors/*": ["src/interceptors/*"],
+      "@/libs/*": ["src/libs/*"],
+      "@/mail/*": ["src/mail/*"],
+      "@/redis/*": ["src/redis/*"],
+      "@/shared/*": ["src/shared/*"],
+      "@/utils/*": ["src/utils/*"],
+      "@/pipes/*": ["src/pipes/*"],
+      "@/*": ["src/*"]
+    },
+    "types": ["jest", "node"]
+  }
+}

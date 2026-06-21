@@ -1,0 +1,294 @@
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+    tags:
+      - 'v*.*.*'
+
+concurrency:
+  group: ci-cd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  API_IMAGE_NAME: ${{ github.repository }}-api
+  WEB_IMAGE_NAME: ${{ github.repository }}-web
+  CLIENT_IMAGE_NAME: ${{ github.repository }}-client
+
+jobs:
+  api:
+    name: API quality and Docker build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: boilerplate_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d boilerplate_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mailpit:
+        image: axllent/mailpit:latest
+        ports:
+          - 1025:1025
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint API
+        run: pnpm --filter nestjs-boilerplate lint
+
+      - name: Type check API
+        run: pnpm --filter nestjs-boilerplate check-types
+
+      - name: Unit tests API
+        run: pnpm --filter nestjs-boilerplate test:ci
+
+      - name: E2E tests API
+        run: pnpm --filter nestjs-boilerplate test:e2e
+
+      - name: Build API
+        run: pnpm --filter nestjs-boilerplate build
+
+      - name: Validate API Docker build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          target: production
+          push: false
+
+  web:
+    name: Web quality and Docker build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint web
+        run: pnpm --filter admin-template lint
+
+      - name: Type check web
+        run: pnpm --filter admin-template check-types
+
+      - name: Test web with coverage
+        run: pnpm --filter admin-template test:coverage
+
+      - name: Build web
+        run: pnpm --filter admin-template build
+
+      - name: Upload web build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: apps/web/dist
+          if-no-files-found: error
+
+      - name: Upload web coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-coverage
+          path: apps/web/coverage
+          if-no-files-found: ignore
+
+      - name: Validate web Docker build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          target: production
+          push: false
+
+  client:
+    name: Client quality and Docker build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint client
+        run: pnpm --filter client lint
+
+      - name: Type check client
+        run: pnpm --filter client check-types
+
+      - name: Test client
+        run: pnpm --filter client test:ci
+
+      - name: Build client
+        run: pnpm --filter client build
+
+      - name: Validate client Docker build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/client/Dockerfile
+          target: production
+          push: false
+
+  docker:
+    name: Publish Docker images
+    runs-on: ubuntu-latest
+    needs:
+      - api
+      - web
+      - client
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Normalize image names
+        id: images
+        run: |
+          echo "api=${REGISTRY}/${API_IMAGE_NAME,,}" >> "$GITHUB_OUTPUT"
+          echo "web=${REGISTRY}/${WEB_IMAGE_NAME,,}" >> "$GITHUB_OUTPUT"
+          echo "client=${REGISTRY}/${CLIENT_IMAGE_NAME,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract API Docker metadata
+        id: api-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.images.outputs.api }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix=sha-
+
+      - name: Extract web Docker metadata
+        id: web-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.images.outputs.web }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix=sha-
+
+      - name: Extract client Docker metadata
+        id: client-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.images.outputs.client }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix=sha-
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          target: production
+          push: true
+          tags: ${{ steps.api-meta.outputs.tags }}
+          labels: ${{ steps.api-meta.outputs.labels }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Build and push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          target: production
+          push: true
+          tags: ${{ steps.web-meta.outputs.tags }}
+          labels: ${{ steps.web-meta.outputs.labels }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      - name: Build and push client image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/client/Dockerfile
+          target: production
+          push: true
+          tags: ${{ steps.client-meta.outputs.tags }}
+          labels: ${{ steps.client-meta.outputs.labels }}
+          cache-from: type=gha,scope=client
+          cache-to: type=gha,mode=max,scope=client

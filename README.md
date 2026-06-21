@@ -1,159 +1,313 @@
-# Turborepo starter
+# Boilerplate Turborepo
 
-This Turborepo starter is maintained by the Turborepo core team.
+Monorepo for the backend API, admin portal, shared configs, and shared packages.
 
-## Using this example
+## Workspaces
 
-Run the following command:
+- `apps/api`: NestJS API, PostgreSQL, Redis, queues, mail, storage, admin/user auth.
+- `apps/client`: Next.js client-facing website with i18n.
+- `apps/web`: Vite React admin portal.
+- `apps/docs`: Next.js docs app from the base Turborepo template.
+- `packages/ui`: Shared React UI package.
+- `packages/eslint-config`: Shared ESLint configs.
+- `packages/typescript-config`: Shared TypeScript configs.
+- `packages/prettier-config`: Shared Prettier configs.
+- `packages/commitlint-config`: Shared commitlint config.
 
-```sh
-npx create-turbo@latest
+## Requirements
+
+- Node.js `20.19.0`
+- pnpm `10.30.3`
+- Docker Desktop or Docker Engine, optional but recommended for API dependencies
+
+Use the repo-pinned versions:
+
+```bash
+nvm use
+corepack enable
+corepack prepare pnpm@10.30.3 --activate
 ```
 
-## What's inside?
+## Install
 
-This Turborepo includes the following packages/apps:
+Always install from the repository root:
 
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```bash
+pnpm install
 ```
 
-Without global `turbo`, use your package manager:
+The repo uses one root `pnpm-lock.yaml`. Do not run a separate install that creates nested lockfiles inside `apps/api`, `apps/client`, or `apps/web`.
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+## One-command Setup
+
+For a new local machine that should use Docker for local infrastructure, run:
+
+```bash
+pnpm run setup
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+The setup script will:
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+- Copy `apps/api/.env.example` to `apps/api/.env` when missing.
+- Copy `apps/client/.env.example` to `apps/client/.env` when missing.
+- Copy `apps/web/.env.example` to `apps/web/.env` when missing.
+- Install dependencies.
+- Start PostgreSQL, Redis, Mailpit, and pgAdmin with Docker Compose when Docker is available.
+- Create the database when it does not exist.
+- Run migrations.
+- Run seeds.
+- Sync permissions from source constants.
+- Run type checks.
 
-```sh
-turbo build --filter=docs
+The script is safe to run more than once. It does not overwrite existing `.env` files, TypeORM skips applied migrations, and database creation skips existing databases.
+
+## Setup Without Docker
+
+Use this flow when your machine already has the required services installed and running locally, for example PostgreSQL and Redis.
+
+```bash
+pnpm run config
 ```
 
-Without global `turbo`:
+The config script will:
 
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+- Copy `apps/api/.env.example` to `apps/api/.env` when missing.
+- Copy `apps/client/.env.example` to `apps/client/.env` when missing.
+- Copy `apps/web/.env.example` to `apps/web/.env` when missing.
+- Install dependencies.
+- Use the service connection values from `apps/api/.env`.
+- Create the database when it does not exist.
+- Run migrations.
+- Run seeds.
+- Sync permissions from source constants.
+- Run type checks.
+
+This script never starts Docker services. Before running it, make sure local PostgreSQL and Redis are already running and that `apps/api/.env` points to the correct host, port, username, password, and database name. It is safe to run more than once for the same reasons as `pnpm run setup`.
+
+## Environment Setup
+
+Copy env examples for the apps you want to run:
+
+```bash
+cp apps/api/.env.example apps/api/.env
+cp apps/client/.env.example apps/client/.env
+cp apps/web/.env.example apps/web/.env
 ```
 
-### Develop
+For API tests, `apps/api/.env.testing` is already included.
 
-To develop all apps and packages, run the following command:
+## Run Locally
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+Run everything through Turborepo:
 
-```sh
-cd my-turborepo
-turbo dev
+```bash
+pnpm dev
 ```
 
-Without global `turbo`, use your package manager:
+Run only one app:
 
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
+```bash
+pnpm --filter nestjs-boilerplate start:dev
+pnpm --filter client dev
+pnpm --filter admin-template dev
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+Common app URLs:
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+- API: `http://localhost:8000` when `APP_PORT=8000`
+- Client website: `http://localhost:3000`
+- Admin portal: `http://localhost:5173`
+- Mailpit UI from Docker compose: `http://localhost:8025`
+- pgAdmin from Docker compose: `http://localhost:5050`
 
-```sh
-turbo dev --filter=web
+## API Dependencies With Docker
+
+The API compose file lives in `apps/api`, but it is monorepo-aware and builds from the repository root.
+
+Start API + PostgreSQL + Redis + Mailpit + pgAdmin:
+
+```bash
+docker compose -f apps/api/docker-compose.yml up --build
 ```
 
-Without global `turbo`:
+Start only infrastructure services and run the API on the host:
 
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+```bash
+docker compose -f apps/api/docker-compose.yml up postgres redis mailpit pgadmin
+pnpm --filter nestjs-boilerplate start:dev
 ```
 
-### Remote Caching
+Production compose expects a prebuilt API image:
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
+```bash
+APP_IMAGE=ghcr.io/<owner>/<repo>-api:<tag> \
+docker compose -f apps/api/docker-compose.prod.yml up -d
 ```
 
-Without global `turbo`, use your package manager:
+## Build
 
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
+Build everything:
+
+```bash
+pnpm build
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+Build one app:
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
+```bash
+pnpm --filter nestjs-boilerplate build
+pnpm --filter client build
+pnpm --filter admin-template build
 ```
 
-Without global `turbo`:
+## Lint, Type Check, Test
 
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
+Run all workspace checks:
+
+```bash
+pnpm lint
+pnpm check-types
+pnpm test
 ```
 
-## Useful Links
+Run app-specific checks:
 
-Learn more about the power of Turborepo:
+```bash
+pnpm --filter nestjs-boilerplate lint
+pnpm --filter nestjs-boilerplate check-types
+pnpm --filter nestjs-boilerplate test:ci
+pnpm --filter nestjs-boilerplate test:e2e
 
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+pnpm --filter client lint
+pnpm --filter client check-types
+pnpm --filter client test:ci
+
+pnpm --filter admin-template lint
+pnpm --filter admin-template check-types
+pnpm --filter admin-template test:coverage
+```
+
+Use fix scripts when you intentionally want automated edits:
+
+```bash
+pnpm --filter nestjs-boilerplate lint:fix
+pnpm --filter client lint:fix
+pnpm --filter admin-template lint:fix
+pnpm format
+```
+
+## Database Tasks
+
+Run API database commands with the API workspace filter:
+
+```bash
+pnpm --filter nestjs-boilerplate db:create
+pnpm --filter nestjs-boilerplate migration:run
+pnpm --filter nestjs-boilerplate seed:run:relational
+pnpm --filter nestjs-boilerplate permissions:sync
+```
+
+Production commands:
+
+```bash
+pnpm --filter nestjs-boilerplate build
+pnpm --filter nestjs-boilerplate migration:run:prod
+pnpm --filter nestjs-boilerplate seed:run:relational:prod
+pnpm --filter nestjs-boilerplate permissions:sync:prod
+```
+
+## Docker Images
+
+Build API image from the repo root:
+
+```bash
+docker build -f apps/api/Dockerfile --target production -t boilerplate-api .
+```
+
+Build web image from the repo root:
+
+```bash
+docker build -f apps/web/Dockerfile --target production -t boilerplate-web .
+```
+
+Build client website image from the repo root:
+
+```bash
+docker build -f apps/client/Dockerfile --target production -t boilerplate-client .
+```
+
+The API image runs `node dist/main.js`. The web image serves `apps/web/dist` with nginx.
+The client image runs the Next.js standalone server on port `3000`.
+
+## CI/CD
+
+GitHub Actions workflow:
+
+- `.github/workflows/ci-cd.yml`
+
+The workflow runs:
+
+- API lint, type-check, unit tests, e2e tests, build, Docker build validation.
+- Web lint, type-check, coverage tests, build, artifact upload, Docker build validation.
+- Docker image publishing to GHCR on `main` or version tags.
+
+Published images:
+
+- `ghcr.io/<owner>/<repo>-api`
+- `ghcr.io/<owner>/<repo>-client`
+- `ghcr.io/<owner>/<repo>-web`
+
+Deployment instructions are documented in [DELOYMENT.md](./DELOYMENT.md).
+
+## Adding Packages
+
+Install runtime dependencies for one app:
+
+```bash
+pnpm --filter nestjs-boilerplate add <package>
+pnpm --filter client add <package>
+pnpm --filter admin-template add <package>
+```
+
+Install dev dependencies for one app:
+
+```bash
+pnpm --filter nestjs-boilerplate add -D <package>
+pnpm --filter client add -D <package>
+pnpm --filter admin-template add -D <package>
+```
+
+Install a root-level dev tool:
+
+```bash
+pnpm add -D -w <package>
+```
+
+Install a dependency for a shared package:
+
+```bash
+pnpm --filter @repo/eslint-config add -D <package>
+pnpm --filter @repo/prettier-config add <package>
+```
+
+Create a new workspace package under `packages/<name>` and add it to an app:
+
+```bash
+pnpm --filter admin-template add @repo/<name>@workspace:*
+```
+
+## Git Hooks
+
+Husky runs from the root:
+
+- `pre-commit`: `pnpm exec lint-staged`
+- `commit-msg`: `pnpm exec commitlint --edit "$1"`
+
+Commit messages follow conventional commits.
+
+## Notes
+
+- Keep shared config in `packages/*`.
+- Keep app-specific runtime code inside `apps/api`, `apps/client`, or `apps/web`.
+- Keep one lockfile at the root.
+- Docker builds must use the repository root as build context.

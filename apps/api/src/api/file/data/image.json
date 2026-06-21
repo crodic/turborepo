@@ -1,0 +1,126 @@
+{
+  "image": {
+    "width": {
+      "pattern": "w_{number}",
+      "example": "w_300",
+      "description": "Đặt chiều rộng của ảnh."
+    },
+    "height": {
+      "pattern": "h_{number}",
+      "example": "h_200",
+      "description": "Đặt chiều cao của ảnh."
+    },
+    "crop": {
+      "pattern": "c_{mode}",
+      "example": "c_fill",
+      "modes": [
+        "fill",
+        "cover",
+        "fit",
+        "crop",
+        "limit",
+        "pad",
+        "lfill",
+        "thumb"
+      ],
+      "description": "Chế độ cắt ảnh."
+    },
+    "gravity": {
+      "pattern": "g_{direction}",
+      "example": "g_face",
+      "directions": [
+        "north",
+        "south",
+        "east",
+        "west",
+        "center",
+        "face",
+        "auto"
+      ],
+      "description": "Vị trí ưu tiên khi crop dạng cover hoặc thumb."
+    },
+    "format": {
+      "pattern": "f_{format}",
+      "example": "f_webp",
+      "formats": ["jpg", "jpeg", "png", "webp"],
+      "description": "Định dạng output."
+    },
+    "quality": {
+      "pattern": "q_{1-100}",
+      "example": "q_80",
+      "description": "Chất lượng ảnh output (1–100)."
+    },
+    "aspect_ratio": {
+      "pattern": "ar_{ratio}",
+      "example": "ar_16:9",
+      "description": "Thay đổi aspect ratio của ảnh."
+    },
+    "overlay": {
+      "pattern": "l_{value}",
+      "examples": [
+        "l_logo",
+        "l_text:Hello",
+        "l_fetch:https://domain.com/wm.png"
+      ],
+      "description": "Overlay logo, text hoặc URL (xử lý ở ImageTransformer)."
+    },
+    "effect": {
+      "pattern": "e_{type}:{value?}",
+      "examples": ["e_blur:100", "e_sharpen:50", "e_grayscale"],
+      "types": [
+        "blur",
+        "sharpen",
+        "pixelate",
+        "grayscale",
+        "brightness",
+        "contrast",
+        "gamma",
+        "colorize"
+      ],
+      "description": "Áp dụng hiệu ứng lên ảnh."
+    },
+    "rotation": {
+      "pattern": "a_{degrees}",
+      "example": "a_90",
+      "description": "Xoay ảnh theo độ (90,180,270...)."
+    },
+    "flip": {
+      "pattern": "a_vflip or a_hflip",
+      "examples": ["a_vflip", "a_hflip"],
+      "description": "Lật ảnh dọc hoặc ngang."
+    },
+    "auto_orient": {
+      "pattern": "a_auto",
+      "example": "a_auto",
+      "description": "Tự xoay ảnh theo EXIF."
+    },
+    "background": {
+      "pattern": "b_{value}",
+      "examples": ["b_black", "b_auto", "b_rgb:ff00aa"],
+      "description": "Màu nền khi flatten hoặc pad."
+    }
+  },
+
+  "video": {
+    "bitrate": {
+      "pattern": "br_{value}",
+      "example": "br_500k",
+      "description": "Bitrate cho video."
+    },
+    "fps": {
+      "pattern": "fps_{number}",
+      "example": "fps_30",
+      "description": "Frame per second."
+    },
+    "start": {
+      "pattern": "start_{seconds}",
+      "example": "start_1.25",
+      "description": "Thời điểm bắt đầu cắt video."
+    },
+    "duration": {
+      "pattern": "dur_{seconds}",
+      "example": "dur_2.5",
+      "description": "Độ dài đoạn cần xử lý."
+    }
+  }
+}

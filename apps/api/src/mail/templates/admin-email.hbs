@@ -1,0 +1,147 @@
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <meta http-equiv='Content-Type' content='text/html; charset=UTF-8' />
+    <title>{{subject}}</title>
+    <style>
+      @media only screen and (max-width: 680px) {
+        .email-shell {
+          padding: 24px 12px !important;
+        }
+        .email-card {
+          border-radius: 18px !important;
+        }
+        .email-section {
+          padding-left: 22px !important;
+          padding-right: 22px !important;
+        }
+        .email-title {
+          font-size: 27px !important;
+          line-height: 34px !important;
+        }
+      }
+    </style>
+  </head>
+  <body
+    style='margin:0;padding:0;background:#eef2f7;font-family:Arial,Helvetica,sans-serif;color:#111827;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;'
+  >
+    <span
+      style='display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;max-height:0;max-width:0;overflow:hidden;mso-hide:all;'
+    >
+      {{subject}}
+    </span>
+
+    <table
+      role='presentation'
+      width='100%'
+      cellspacing='0'
+      cellpadding='0'
+      style='background:#eef2f7;'
+    >
+      <tr>
+        <td align='center' class='email-shell' style='padding:40px 16px;'>
+          <table
+            role='presentation'
+            width='100%'
+            cellspacing='0'
+            cellpadding='0'
+            class='email-card'
+            style='max-width:700px;background:#ffffff;border:1px solid #dbe3ef;border-radius:24px;overflow:hidden;box-shadow:0 20px 50px rgba(15,23,42,0.10);'
+          >
+            <tr>
+              <td
+                class='email-section'
+                style='padding:28px 34px;background:#0f172a;'
+              >
+                <table
+                  role='presentation'
+                  width='100%'
+                  cellspacing='0'
+                  cellpadding='0'
+                >
+                  <tr>
+                    <td style='vertical-align:middle;'>
+                      {{#if logoUrl}}
+                        <img
+                          src='{{logoUrl}}'
+                          alt='Portal logo'
+                          style='display:block;max-height:54px;max-width:180px;border:0;outline:none;text-decoration:none;'
+                        />
+                      {{else}}
+                        <div
+                          style='display:inline-block;width:40px;height:40px;border-radius:12px;background:#2563eb;text-align:center;line-height:40px;color:#ffffff;font-size:18px;font-weight:700;'
+                        >
+                          C
+                        </div>
+                      {{/if}}
+                    </td>
+                    <td align='right' style='vertical-align:middle;'>
+                      <span
+                        style='display:inline-block;border:1px solid rgba(255,255,255,0.20);border-radius:999px;color:#bfdbfe;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:8px 12px;'
+                      >
+                        Portal message
+                      </span>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td class='email-section' style='padding:34px 34px 12px;'>
+                <h1
+                  class='email-title'
+                  style='margin:0;color:#111827;font-size:32px;line-height:40px;font-weight:800;letter-spacing:-0.02em;'
+                >
+                  {{subject}}
+                </h1>
+                <p
+                  style='margin:12px 0 0;color:#6b7280;font-size:14px;line-height:22px;'
+                >
+                  You have received a message from the portal administration
+                  team.
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td class='email-section' style='padding:18px 34px 34px;'>
+                <table
+                  role='presentation'
+                  width='100%'
+                  cellspacing='0'
+                  cellpadding='0'
+                  style='background:#ffffff;border:1px solid #e5e7eb;border-radius:18px;'
+                >
+                  <tr>
+                    <td
+                      style='padding:26px;color:#111827;font-size:15px;line-height:1.7;'
+                    >
+                      {{{body}}}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td
+                class='email-section'
+                style='padding:22px 34px;background:#f8fafc;border-top:1px solid #e5e7eb;'
+              >
+                <p
+                  style='margin:0;color:#6b7280;font-size:12px;line-height:20px;'
+                >
+                  This email was sent by the portal administration team. Please
+                  contact support if you believe this message was sent by
+                  mistake.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
