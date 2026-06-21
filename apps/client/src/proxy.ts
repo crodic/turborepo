@@ -13,6 +13,11 @@ const AUTH_ROUTE = [
   "/auth/forgot-password",
   "/auth/reset-password",
   "/auth/oauth/callback",
+  "/auth/impersonation/callback",
+];
+const AUTH_CALLBACK_ROUTE = [
+  "/auth/oauth/callback",
+  "/auth/impersonation/callback",
 ];
 const PRIVATE_ROUTE = ["/client-profile"];
 const handleI18nRouting = createMiddleware(routing);
@@ -32,7 +37,11 @@ export async function proxy(request: NextRequest) {
 
     console.log(">>> Entered middleware with pathname: ", pathname);
 
-    if (AUTH_ROUTE.includes(pathname) && refreshToken) {
+    if (
+      AUTH_ROUTE.includes(pathname) &&
+      !AUTH_CALLBACK_ROUTE.includes(pathname) &&
+      refreshToken
+    ) {
       return NextResponse.redirect(
         new URL(`/${locale}/client-profile`, request.url),
         { headers: intlResponse.headers }

@@ -5,6 +5,7 @@ export enum CacheKey {
   PASSWORD_RESET = 'auth:token:%s:password', // %s: userId
   SOCIAL_OAUTH_STATE = 'auth:social:state:%s', // %s: state
   SOCIAL_OAUTH_EXCHANGE = 'auth:social:exchange:%s', // %s: exchange token
+  IMPERSONATION_EXCHANGE = 'auth:impersonation:exchange:%s', // %s: exchange token
   SYSTEM_HAS_ADMIN = 'system:hasAdmin',
   SYSTEM_HAS_ROLE = 'system:hasRole',
   FORGOT_PASSWORD = 'auth:token:%s:forgot-password', // %s: userId

@@ -15,6 +15,7 @@
     "MAIL_*",
     "MODE",
     "NEST_LENS_ENABLED",
+    "NEXT_PUBLIC_*",
     "NODE_ENV",
     "NOTIFICATION_RETENTION_DAYS",
     "PORT",
@@ -22,7 +23,8 @@
     "REDIS_*",
     "SENTRY_*",
     "USER_AUTH_*",
-    "VERCEL_URL"
+    "VERCEL_URL",
+    "VITE_*"
   ],
   "tasks": {
     "build": {

@@ -38,6 +38,14 @@ export class UserResDto {
   hasPassword: boolean;
 
   @BooleanField()
+  @Expose()
+  isImpersonating: boolean;
+
+  @StringFieldOptional()
+  @Expose()
+  impersonatedBy?: string;
+
+  @BooleanField()
   @Transform(({ value }) => !!value)
   @Expose()
   verifiedAt?: boolean;

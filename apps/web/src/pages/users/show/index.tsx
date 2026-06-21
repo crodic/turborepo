@@ -81,11 +81,14 @@ export function PageUserShow() {
   }
 
   const handleImpersonate = () => {
+    const clientUrl = import.meta.env.VITE_CLIENT_URL || 'http://localhost:3000'
+    const callbackUrl =
+      import.meta.env.VITE_IMPERSONATION_CALLBACK_URL ||
+      `${clientUrl}/auth/impersonation/callback`
+
     impersonateMutation.mutate({
       userId: id,
-      callbackUrl:
-        import.meta.env.VITE_IMPERSONATION_CALLBACK_URL ||
-        window.location.origin,
+      callbackUrl,
     })
   }
 

@@ -75,6 +75,7 @@ import { ResendEmailVerifyResDto } from '../dto/resend-email-verify.res.dto';
 import { ResetPasswordReqDto } from '../dto/reset-password.req.dto';
 import { ResetPasswordResDto } from '../dto/reset-password.res.dto';
 import { SessionResDto } from '../dto/session.res.dto';
+import { LoginResDto } from '../dto/users/login.res.dto';
 import { VerifyAccountResDto } from '../dto/verify-account.req.dto';
 import { JwtForgotPasswordPayload } from '../types/jwt-forgot-password-payload';
 import { JwtPayloadType } from '../types/jwt-payload.type';
@@ -836,6 +837,22 @@ export class AdminAuthService {
       ),
     ]);
 
+    const exchangeToken = crypto.randomUUID();
+    await this.cacheManager.set<LoginResDto>(
+      createCacheKey(CacheKey.IMPERSONATION_EXCHANGE, exchangeToken),
+      plainToInstance(LoginResDto, {
+        userId: user.id,
+        accessToken,
+        refreshToken,
+        tokenExpires,
+      }),
+      ms('5m'),
+    );
+
+    const redirectUrl = dto.callbackUrl
+      ? this.buildRedirectUrl(dto.callbackUrl, { token: exchangeToken })
+      : undefined;
+
     return plainToInstance(
       ImpersonateUserResDto,
       {
@@ -847,7 +864,7 @@ export class AdminAuthService {
         tokenExpires,
         expiresAt,
         callbackUrl: dto.callbackUrl,
-        redirectUrl: dto.callbackUrl,
+        redirectUrl,
       },
       { excludeExtraneousValues: true },
     );
@@ -1200,6 +1217,16 @@ export class AdminAuthService {
     } catch {
       throw new HttpException('URL không còn khả dụng', HttpStatus.GONE);
     }
+  }
+
+  private buildRedirectUrl(url: string, query: Record<string, string>) {
+    const redirectUrl = new URL(url);
+
+    Object.entries(query).forEach(([key, value]) => {
+      redirectUrl.searchParams.set(key, value);
+    });
+
+    return redirectUrl.toString();
   }
 }
 

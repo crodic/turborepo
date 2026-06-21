@@ -218,6 +218,17 @@ export class UserAuthenticationController {
     return this.userAuthService.exchangeSocialLogin(dto);
   }
 
+  @ApiPublic({
+    type: LoginResDto,
+    summary: 'Exchange impersonation login token',
+  })
+  @Post('impersonation/exchange')
+  async exchangeImpersonationLogin(
+    @Body() dto: SocialExchangeReqDto,
+  ): Promise<LoginResDto> {
+    return this.userAuthService.exchangeImpersonationLogin(dto);
+  }
+
   @ApiAuth({
     type: SocialLinkUrlResDto,
     summary: 'Create Google link account URL',
@@ -277,9 +288,9 @@ export class UserAuthenticationController {
   @SkipThrottle()
   @Get('me')
   async getCurrentUser(
-    @CurrentUser('id') userId: AutoIncrementID,
+    @CurrentUser() userToken: JwtPayloadType,
   ): Promise<UserResDto> {
-    return await this.userAuthService.me(userId);
+    return await this.userAuthService.me(userToken);
   }
 
   @Put('me')

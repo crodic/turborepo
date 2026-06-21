@@ -359,6 +359,21 @@ export class UserAuthService {
     return plainToInstance(LoginResDto, cached);
   }
 
+  async exchangeImpersonationLogin(
+    dto: SocialExchangeReqDto,
+  ): Promise<LoginResDto> {
+    const cacheKey = createCacheKey(CacheKey.IMPERSONATION_EXCHANGE, dto.token);
+    const cached = await this.cacheManager.get<LoginResDto>(cacheKey);
+
+    if (!cached) {
+      throw new UnauthorizedException();
+    }
+
+    await this.cacheManager.del(cacheKey);
+
+    return plainToInstance(LoginResDto, cached);
+  }
+
   async createGoogleLinkUrl(
     userToken: JwtPayloadType,
   ): Promise<SocialLinkUrlResDto> {
@@ -748,9 +763,11 @@ export class UserAuthService {
     }
   }
 
-  async me(id: AutoIncrementID): Promise<UserResDto> {
-    assert(id, 'id is required');
-    const user = await this.userRepository.findOneBy({ id });
+  async me(userToken: JwtPayloadType): Promise<UserResDto> {
+    assert(userToken.id, 'id is required');
+    const user = await this.userRepository.findOneBy({
+      id: userToken.id as AutoIncrementID,
+    });
 
     if (!user) {
       throw new ForbiddenException('Forbidden');
@@ -761,6 +778,8 @@ export class UserAuthService {
       {
         ...user,
         hasPassword: !!user.password,
+        isImpersonating: !!userToken.impersonatedBy,
+        impersonatedBy: userToken.impersonatedBy,
       },
       { excludeExtraneousValues: true },
     );

@@ -53,6 +53,8 @@ Review every value before deploying. Important API variables:
 Important client website variables are listed in `apps/client/.env.example`.
 Important admin portal variables are listed in `apps/web/.env.example`.
 
+For admin impersonation, set `VITE_CLIENT_URL` and `VITE_IMPERSONATION_CALLBACK_URL` in the admin portal env to the public client website origin and `/auth/impersonation/callback` URL.
+
 ## Install and Validate
 
 ```bash
