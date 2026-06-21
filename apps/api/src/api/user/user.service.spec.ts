@@ -1,4 +1,11 @@
+import { CacheKey } from '@/constants/cache.constant';
 import { ErrorCode } from '@/constants/error-code.constant';
+import { JobName, QueueName } from '@/constants/job.constant';
+import { createCacheKey } from '@/utils/cache.util';
+import { getQueueToken } from '@nestjs/bullmq';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ClsService } from 'nestjs-cls';
@@ -11,6 +18,9 @@ describe('UserService', () => {
   let userRepositoryValue: Partial<
     Record<keyof Repository<UserEntity>, jest.Mock>
   >;
+  let jwtServiceMock: { signAsync: jest.Mock };
+  let cacheManagerMock: { set: jest.Mock };
+  let emailQueueMock: { add: jest.Mock };
 
   beforeAll(async () => {
     userRepositoryValue = {
@@ -18,6 +28,15 @@ describe('UserService', () => {
       findOneByOrFail: jest.fn(),
       save: jest.fn(),
       softRemove: jest.fn(),
+    };
+    jwtServiceMock = {
+      signAsync: jest.fn(),
+    };
+    cacheManagerMock = {
+      set: jest.fn(),
+    };
+    emailQueueMock = {
+      add: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -34,6 +53,31 @@ describe('UserService', () => {
             set: jest.fn(),
           },
         },
+        {
+          provide: ConfigService,
+          useValue: {
+            getOrThrow: jest.fn((key: string) => {
+              const values = {
+                'auth.userConfirmEmailSecret': 'user-confirm-secret',
+                'auth.userConfirmEmailExpires': '1d',
+              };
+
+              return values[key];
+            }),
+          },
+        },
+        {
+          provide: JwtService,
+          useValue: jwtServiceMock,
+        },
+        {
+          provide: CACHE_MANAGER,
+          useValue: cacheManagerMock,
+        },
+        {
+          provide: getQueueToken(QueueName.EMAIL, 'auth'),
+          useValue: emailQueueMock,
+        },
       ],
     }).compile();
 
@@ -42,6 +86,7 @@ describe('UserService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jwtServiceMock.signAsync.mockResolvedValue('verify-token');
   });
 
   it('should be defined', () => {
@@ -78,6 +123,26 @@ describe('UserService', () => {
           email: dto.email,
           password: dto.password,
         }),
+      );
+      expect(jwtServiceMock.signAsync).toHaveBeenCalledWith(
+        { id: savedUser.id },
+        {
+          secret: 'user-confirm-secret',
+          expiresIn: '1d',
+        },
+      );
+      expect(cacheManagerMock.set).toHaveBeenCalledWith(
+        createCacheKey(CacheKey.EMAIL_VERIFICATION, savedUser.id),
+        'verify-token',
+        expect.any(Number),
+      );
+      expect(emailQueueMock.add).toHaveBeenCalledWith(
+        JobName.USER_EMAIL_VERIFICATION,
+        {
+          email: savedUser.email,
+          token: 'verify-token',
+        },
+        { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
       );
       expect(result).toEqual(expect.objectContaining({ email: dto.email }));
     });
