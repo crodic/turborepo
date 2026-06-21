@@ -75,7 +75,7 @@ describe('UserService', () => {
           useValue: cacheManagerMock,
         },
         {
-          provide: getQueueToken(QueueName.EMAIL, 'auth'),
+          provide: getQueueToken(QueueName.EMAIL),
           useValue: emailQueueMock,
         },
       ],
