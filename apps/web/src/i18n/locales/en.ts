@@ -306,6 +306,10 @@ export default {
   'auth.signIn.messageSignIn': 'Sign In',
   'auth.signIn.messageForgotPassword': 'Forgot Password?',
   'auth.signIn.messageLoginSuccess': 'Login successfully.',
+  'auth.signIn.messageVerifySuccess':
+    'Your admin account has been verified. You can sign in now.',
+  'auth.signIn.messageVerifyFailed':
+    'We could not verify your admin account. The link may be invalid or expired.',
   'auth.signIn.messageNoAccount': "Don't have an account? {{link}}",
   'auth.signIn.messageTerms':
     'By continuing, you agree to the Terms of Service and Privacy Policy.',

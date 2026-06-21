@@ -304,6 +304,10 @@ export default {
   'auth.signIn.messageSignIn': 'Đăng nhập',
   'auth.signIn.messageForgotPassword': 'Quên mật khẩu?',
   'auth.signIn.messageLoginSuccess': 'Đăng nhập thành công.',
+  'auth.signIn.messageVerifySuccess':
+    'Tài khoản quản trị của bạn đã được xác minh. Bạn có thể đăng nhập ngay.',
+  'auth.signIn.messageVerifyFailed':
+    'Không thể xác minh tài khoản quản trị. Liên kết có thể không hợp lệ hoặc đã hết hạn.',
   'auth.signIn.messageNoAccount': 'Chưa có tài khoản? {{link}}',
   'auth.signIn.messageTerms':
     'Bằng việc tiếp tục, bạn đồng ý với Điều khoản dịch vụ và Chính sách bảo mật.',

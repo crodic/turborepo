@@ -1,7 +1,7 @@
 import { IsMs } from '@/decorators/validators/is-ms.decorator';
 import validateConfig from '@/utils/validate-config';
 import { registerAs } from '@nestjs/config';
-import { IsNotEmpty, IsString, IsUrl } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUrl } from 'class-validator';
 import { AuthConfig } from './auth-config.type';
 
 class EnvironmentVariablesValidator {
@@ -41,6 +41,11 @@ class EnvironmentVariablesValidator {
   @IsNotEmpty()
   @IsMs()
   AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN: string;
+
+  @IsString()
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  AUTH_PORTAL_URL: string;
 
   @IsString()
   @IsNotEmpty()
@@ -110,6 +115,10 @@ export default registerAs<AuthConfig>('auth', () => {
     forgotExpires: process.env.AUTH_FORGOT_TOKEN_EXPIRES_IN,
     confirmEmailSecret: process.env.AUTH_CONFIRM_EMAIL_SECRET,
     confirmEmailExpires: process.env.AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN,
+    portalUrl:
+      process.env.AUTH_PORTAL_URL ||
+      getOriginFromUrl(process.env.AUTH_PORTAL_RESET_PASSWORD_URL) ||
+      'http://localhost:5173',
     portalResetPasswordUrl: process.env.AUTH_PORTAL_RESET_PASSWORD_URL,
 
     // GUARD USER
@@ -130,3 +139,15 @@ export default registerAs<AuthConfig>('auth', () => {
     adminPanelPassword: process.env.ADMIN_PANEL_PASSWORD,
   };
 });
+
+function getOriginFromUrl(url?: string) {
+  if (!url) {
+    return undefined;
+  }
+
+  try {
+    return new URL(url).origin;
+  } catch {
+    return undefined;
+  }
+}

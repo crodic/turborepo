@@ -29,13 +29,16 @@ import {
   Put,
   Query,
   Req,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
 import { AdminUserLoginReqDto } from '../dto/admin-users/admin-user-login.req.dto';
 import { AdminUserLoginResDto } from '../dto/admin-users/admin-user-login.res.dto';
 import { AdminUserRegisterReqDto } from '../dto/admin-users/admin-user-register.req.dto';
@@ -71,7 +74,10 @@ import { JwtPayloadType } from '../types/jwt-payload.type';
 })
 @UseGuards(AdminAuthGuard, PoliciesGuard, ProdOnlyThrottleGuard)
 export class AdminAuthenticationController {
-  constructor(private readonly adminAuthService: AdminAuthService) {}
+  constructor(
+    private readonly adminAuthService: AdminAuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @ApiPublic({
     type: AdminUserLoginResDto,
@@ -204,8 +210,13 @@ export class AdminAuthenticationController {
   @ApiQuery({ name: 'token', type: 'string' })
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Get('verify')
-  async verifyAccount(@Query('token') token: string) {
-    return await this.adminAuthService.verifyAccount(token);
+  async verifyAccount(@Query('token') token: string, @Res() res: Response) {
+    try {
+      await this.adminAuthService.verifyAccount(token);
+      return res.redirect(this.getVerificationRedirectUrl('success'));
+    } catch {
+      return res.redirect(this.getVerificationRedirectUrl('failed'));
+    }
   }
 
   @ApiPublic({
@@ -351,5 +362,31 @@ export class AdminAuthenticationController {
     @Body() reqDto: ChangePasswordReqDto,
   ): Promise<ChangePasswordResDto> {
     return this.adminAuthService.changePassword(userId, reqDto);
+  }
+
+  private getVerificationRedirectUrl(status: 'success' | 'failed') {
+    const portalUrl =
+      this.configService.get<string>('auth.portalUrl') ||
+      this.getOriginFromUrl(
+        this.configService.get<string>('auth.portalResetPasswordUrl'),
+      ) ||
+      'http://localhost:5173';
+    const url = new URL('/sign-in', portalUrl);
+
+    url.searchParams.set('verification', status);
+
+    return url.toString();
+  }
+
+  private getOriginFromUrl(url?: string) {
+    if (!url) {
+      return null;
+    }
+
+    try {
+      return new URL(url).origin;
+    } catch {
+      return null;
+    }
   }
 }

@@ -1,5 +1,7 @@
+import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
+import { toast } from 'sonner'
 import {
   Card,
   CardContent,
@@ -13,8 +15,35 @@ import { UserAuthForm } from './user-auth-form'
 
 export function SignIn() {
   const { t } = useTranslation()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const redirect = searchParams.get('redirect') || '/'
+  const verification = searchParams.get('verification')
+  const handledVerificationRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (
+      !verification ||
+      handledVerificationRef.current === verification ||
+      (verification !== 'success' && verification !== 'failed')
+    ) {
+      return
+    }
+
+    handledVerificationRef.current = verification
+
+    if (verification === 'success') {
+      toast.success(t('auth.signIn.messageVerifySuccess'))
+    }
+
+    if (verification === 'failed') {
+      toast.error(t('auth.signIn.messageVerifyFailed'))
+    }
+
+    const nextSearchParams = new URLSearchParams(searchParams)
+
+    nextSearchParams.delete('verification')
+    setSearchParams(nextSearchParams, { replace: true })
+  }, [searchParams, setSearchParams, t, verification])
 
   return (
     <AuthLayout>
