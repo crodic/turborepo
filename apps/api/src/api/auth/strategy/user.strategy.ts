@@ -73,6 +73,9 @@ export class UserJwtStrategy extends PassportStrategy(Strategy, 'user-jwt') {
     return {
       ...payload,
       impersonatedBy: session?.impersonatedBy,
+      impersonationExpiresAt: session?.impersonatedBy
+        ? session.expiresAt
+        : undefined,
     };
   }
 }

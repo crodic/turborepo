@@ -15,6 +15,7 @@ export type User = {
   hasPassword: boolean;
   isImpersonating?: boolean;
   impersonatedBy?: string;
+  impersonationExpiresAt?: string;
   verifiedAt: string | null;
   createdAt: string;
   updatedAt: string;

@@ -780,6 +780,7 @@ export class UserAuthService {
         hasPassword: !!user.password,
         isImpersonating: !!userToken.impersonatedBy,
         impersonatedBy: userToken.impersonatedBy,
+        impersonationExpiresAt: userToken.impersonationExpiresAt,
       },
       { excludeExtraneousValues: true },
     );

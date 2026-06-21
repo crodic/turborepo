@@ -7,6 +7,17 @@ import { ArrowLeftIcon, EditIcon, ShieldIcon, TrashIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -143,14 +154,38 @@ export function PageUserShow() {
               {t('buttons.edit')}
             </Button>
             <Authorize action='impersonate' subject='USER'>
-              <Button
-                variant='secondary'
-                onClick={handleImpersonate}
-                disabled={impersonateMutation.isPending}
-              >
-                <ShieldIcon className='h-4 w-4' />
-                Impersonate
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant='secondary'
+                    disabled={impersonateMutation.isPending}
+                  >
+                    <ShieldIcon className='h-4 w-4' />
+                    Impersonate
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Start impersonation?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      You are about to open a new client tab and act as{' '}
+                      {data.fullName || data.email}. This session is temporary
+                      and all actions should be treated as sensitive.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={impersonateMutation.isPending}>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      disabled={impersonateMutation.isPending}
+                      onClick={handleImpersonate}
+                    >
+                      Start impersonating
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </Authorize>
             <Button
               variant='destructive'

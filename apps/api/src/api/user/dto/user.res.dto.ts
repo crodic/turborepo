@@ -2,6 +2,7 @@ import { AutoIncrementID } from '@/common/types/common.type';
 import {
   BooleanField,
   ClassField,
+  DateFieldOptional,
   StringField,
   StringFieldOptional,
 } from '@/decorators/field.decorators';
@@ -44,6 +45,10 @@ export class UserResDto {
   @StringFieldOptional()
   @Expose()
   impersonatedBy?: string;
+
+  @DateFieldOptional()
+  @Expose()
+  impersonationExpiresAt?: Date;
 
   @BooleanField()
   @Transform(({ value }) => !!value)
