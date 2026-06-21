@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "isolatedModules": true,
-    "incremental": false
+    "incremental": false,
+    "allowJs": true
   }
 }
