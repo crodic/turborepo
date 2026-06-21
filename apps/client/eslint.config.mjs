@@ -16,6 +16,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "src/components/ui/auto-form/**",
+    "src/components/ui/minimal-tiptap/**",
+    "src/components/ui/ui-builder/**",
+    "src/lib/ui-builder/**",
+    "src/hooks/use-copy-to-clipboard.tsx",
+    "src/hooks/use-keyboard-shortcuts.tsx",
+    "src/hooks/use-store.ts",
   ]),
   ...pluginQuery.configs["flat/recommended"],
   {

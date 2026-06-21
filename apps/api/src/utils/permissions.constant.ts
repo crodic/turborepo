@@ -6,6 +6,7 @@ export enum AppSubjects {
   ImpersonateLog = 'IMPERSONATE_LOG',
   Email = 'EMAIL',
   EmailLog = 'EMAIL_LOG',
+  Page = 'PAGE',
 
   All = 'all',
 }
@@ -183,6 +184,36 @@ export const ALL_PERMISSIONS = [
     'Email',
     'View email logs',
     'Review all email delivery logs and failures.',
+  ),
+
+  // CMS Pages
+  permissionMeta(
+    AppActions.Read,
+    AppSubjects.Page,
+    'Page Builder',
+    'View pages',
+    'View page builder pages and SEO settings.',
+  ),
+  permissionMeta(
+    AppActions.Create,
+    AppSubjects.Page,
+    'Page Builder',
+    'Create pages',
+    'Create page builder pages for the client website.',
+  ),
+  permissionMeta(
+    AppActions.Update,
+    AppSubjects.Page,
+    'Page Builder',
+    'Update pages',
+    'Edit page content, publication status, and SEO settings.',
+  ),
+  permissionMeta(
+    AppActions.Delete,
+    AppSubjects.Page,
+    'Page Builder',
+    'Delete pages',
+    'Remove page builder pages from the client website.',
   ),
 
   // SUPER

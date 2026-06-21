@@ -1,0 +1,917 @@
+// @ts-nocheck
+'use client'
+
+import { forwardRef, useCallback, useMemo, useState } from 'react'
+import {
+  Eye,
+  FileUp,
+  Redo,
+  Undo,
+  SunIcon,
+  MoonIcon,
+  CheckIcon,
+  X,
+  PlusIcon,
+  Monitor,
+  Tablet,
+  Smartphone,
+  Maximize,
+  MoreVertical,
+  PanelLeft,
+  PanelRight,
+} from 'lucide-react'
+import { useTheme } from 'next-themes'
+import { useStore } from 'zustand'
+import {
+  SHORTCUTS,
+  toKeyboardShortcut,
+} from '@/lib/ui-builder/shortcuts/shortcut-registry'
+import {
+  type EditorStore,
+  useEditorStore,
+} from '@/lib/ui-builder/store/editor-store'
+import { useLayerStore } from '@/lib/ui-builder/store/layer-store'
+import { cn } from '@/lib/utils'
+import {
+  type KeyCombination,
+  useKeyboardShortcuts,
+} from '@/hooks/use-keyboard-shortcuts'
+import { Button } from '@/components/ui/button'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+  CommandShortcut,
+} from '@/components/ui/command'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { CodePanel } from '@/components/ui/ui-builder/components/code-panel'
+import LayerRenderer from '@/components/ui/ui-builder/layer-renderer'
+import type {
+  ComponentRegistry,
+  ComponentLayer,
+} from '@/components/ui/ui-builder/types'
+
+// @ts-nocheck
+
+const Z_INDEX = 1000
+
+export interface NavBarProps {
+  leftChildren?: React.ReactNode
+  rightChildren?: React.ReactNode
+  /** Whether to show the Export button. Defaults to true. */
+  showExport?: boolean
+}
+
+export function NavBar({
+  leftChildren,
+  rightChildren,
+  showExport = true,
+}: NavBarProps = {}) {
+  const selectedPageId = useLayerStore((state) => state.selectedPageId)
+  const findLayerById = useLayerStore((state) => state.findLayerById)
+  const componentRegistry = useEditorStore((state) => state.registry)
+  const incrementRevision = useEditorStore((state) => state.incrementRevision)
+
+  // Panel visibility state
+  const showLeftPanel = useEditorStore((state) => state.showLeftPanel)
+  const setShowLeftPanel = useEditorStore((state) => state.setShowLeftPanel)
+  const showRightPanel = useEditorStore((state) => state.showRightPanel)
+  const setShowRightPanel = useEditorStore((state) => state.setShowRightPanel)
+
+  // Fix: Subscribe to temporal state changes using useStoreWithEqualityFn
+  const pastStates = useStore(
+    useLayerStore.temporal,
+    (state) => state.pastStates
+  )
+  const futureStates = useStore(
+    useLayerStore.temporal,
+    (state) => state.futureStates
+  )
+  const { undo, redo } = useLayerStore.temporal.getState()
+
+  const page = findLayerById(selectedPageId) as ComponentLayer
+
+  const canUndo = !!pastStates.length
+  const canRedo = !!futureStates.length
+
+  // **Lifted State for Modals**
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false)
+
+  const handleUndo = useCallback(() => {
+    undo()
+    // Increment revision counter to trigger form revalidation
+    incrementRevision()
+  }, [undo, incrementRevision])
+
+  const handleRedo = useCallback(() => {
+    redo()
+    // Increment revision counter to trigger form revalidation
+    incrementRevision()
+  }, [redo, incrementRevision])
+
+  const keyCombinations = useMemo<KeyCombination[]>(
+    () => [
+      // Use shortcut registry for undo/redo
+      toKeyboardShortcut('undo', (e) => {
+        e.preventDefault()
+        handleUndo()
+      }),
+      toKeyboardShortcut('redo', (e) => {
+        e.preventDefault()
+        handleRedo()
+      }),
+      // Debug shortcuts (not in registry)
+      {
+        keys: { metaKey: true, shiftKey: true },
+        key: '9',
+        handler: (e: KeyboardEvent) => {
+          e.preventDefault()
+          const elements = document.querySelectorAll('*')
+          elements.forEach((element) => {
+            element.classList.add('animate-spin', 'origin-center')
+          })
+        },
+      },
+      {
+        keys: { metaKey: true, shiftKey: true },
+        key: '0',
+        handler: (e: KeyboardEvent) => {
+          e.preventDefault()
+          const elements = document.querySelectorAll('*')
+          elements.forEach((element) => {
+            element.classList.remove('animate-spin', 'origin-center')
+          })
+        },
+      },
+    ],
+    [handleUndo, handleRedo]
+  )
+
+  useKeyboardShortcuts(keyCombinations)
+
+  const handleOpenPreview = useCallback(() => {
+    setIsPreviewModalOpen(true)
+  }, [])
+  const handleOpenExport = useCallback(() => {
+    setIsExportModalOpen(true)
+  }, [])
+
+  const handleToggleLeftPanel = useCallback(() => {
+    setShowLeftPanel(!showLeftPanel)
+  }, [showLeftPanel, setShowLeftPanel])
+
+  const handleToggleRightPanel = useCallback(() => {
+    setShowRightPanel(!showRightPanel)
+  }, [showRightPanel, setShowRightPanel])
+
+  const style = useMemo(() => ({ zIndex: Z_INDEX }), [])
+
+  return (
+    <div
+      className='bg-background flex items-center justify-between border-b px-2 py-4 md:px-6'
+      style={style}
+    >
+      <div className='flex items-center gap-2'>
+        {leftChildren}
+        {leftChildren && (
+          <div className='bg-border hidden h-10 w-px md:flex'></div>
+        )}
+        <div className='hidden md:contents'>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={handleToggleLeftPanel}
+                variant={showLeftPanel ? 'secondary' : 'outline'}
+                size='icon'
+                className='flex flex-col justify-center'
+              >
+                <span className='sr-only'>Toggle Left Panel</span>
+                <PanelLeft className='h-4 w-4' />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {showLeftPanel ? 'Hide' : 'Show'} Left Panel
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={handleToggleRightPanel}
+                variant={showRightPanel ? 'secondary' : 'outline'}
+                size='icon'
+                className='flex flex-col justify-center'
+              >
+                <span className='sr-only'>Toggle Right Panel</span>
+                <PanelRight className='h-4 w-4' />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {showRightPanel ? 'Hide' : 'Show'} Right Panel
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        <div className='bg-border hidden h-10 w-px md:flex'></div>
+        <PagesPopover />
+        <PreviewModeToggle />
+      </div>
+
+      <div className='flex w-full items-center justify-end gap-2'>
+        {/* Action Buttons for Larger Screens */}
+        <div className='hidden space-x-2 md:flex'>
+          <ActionButtons
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            onOpenPreview={handleOpenPreview}
+            onOpenExport={handleOpenExport}
+            showExport={showExport}
+          />
+          <div className='bg-border flex h-10 w-px'></div>
+        </div>
+
+        <ModeToggle />
+
+        {/* Dropdown for Smaller Screens */}
+        <div className='flex space-x-2 md:hidden'>
+          <div className='bg-border flex h-10 w-px'></div>
+          <ResponsiveDropdown
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            onOpenPreview={handleOpenPreview}
+            onOpenExport={handleOpenExport}
+            showExport={showExport}
+          >
+            {rightChildren}
+          </ResponsiveDropdown>
+        </div>
+        {/* Right children - hidden on mobile (shown in dropdown instead) */}
+        {rightChildren && (
+          <div className='hidden items-center gap-2 md:flex'>
+            <div className='bg-border h-10 w-px'></div>
+            {rightChildren}
+          </div>
+        )}
+      </div>
+
+      {/* **Dialogs Controlled by NavBar State** */}
+      <PreviewDialog
+        isOpen={isPreviewModalOpen}
+        onOpenChange={setIsPreviewModalOpen}
+        page={page}
+        componentRegistry={componentRegistry}
+      />
+      {showExport && (
+        <CodeDialog
+          isOpen={isExportModalOpen}
+          onOpenChange={setIsExportModalOpen}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Reusable Action Buttons Component
+ */
+interface ActionButtonsProps {
+  canUndo: boolean
+  canRedo: boolean
+  onUndo: () => void
+  onRedo: () => void
+  onOpenPreview: () => void
+  onOpenExport: () => void
+  showExport?: boolean
+}
+
+const ActionButtons: React.FC<ActionButtonsProps> = ({
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  onOpenPreview,
+  onOpenExport,
+  showExport = true,
+}) => {
+  return (
+    <>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            onClick={onUndo}
+            variant='secondary'
+            size='icon'
+            disabled={!canUndo}
+            className='flex flex-col justify-center'
+          >
+            <span className='sr-only'>Undo</span>
+            <Undo className='h-4 w-4' />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent className='flex items-center gap-2'>
+          Undo
+          <CommandShortcut className='ml-0 text-sm leading-3'>
+            {SHORTCUTS.undo.shortcutDisplay}
+          </CommandShortcut>
+        </TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            onClick={onRedo}
+            variant='secondary'
+            size='icon'
+            disabled={!canRedo}
+            className='flex flex-col justify-center'
+          >
+            <span className='sr-only'>Redo</span>
+            <Redo className='h-4 w-4' />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent className='flex items-center gap-2'>
+          Redo
+          <CommandShortcut className='ml-0 text-sm leading-3'>
+            {SHORTCUTS.redo.shortcutDisplay}
+          </CommandShortcut>
+        </TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            onClick={onOpenPreview}
+            variant='secondary'
+            size='icon'
+            className='flex flex-col justify-center'
+          >
+            <span className='sr-only'>Preview</span>
+            <Eye className='h-4 w-4' />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent className='flex items-center gap-2'>
+          Preview
+          <CommandShortcut className='ml-0 text-sm leading-3'>
+            ⌘+⇧+P
+          </CommandShortcut>
+        </TooltipContent>
+      </Tooltip>
+
+      {showExport && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={onOpenExport}
+              variant='secondary'
+              size='icon'
+              className='flex flex-col justify-center'
+            >
+              <span className='sr-only'>Export</span>
+              <FileUp className='h-4 w-4' />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent className='flex items-center gap-2'>
+            Export Code
+            <CommandShortcut className='ml-0 text-sm leading-3'>
+              ⌘+⇧+E
+            </CommandShortcut>
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </>
+  )
+}
+
+/**
+ * Dropdown containing Action Buttons for Smaller Screens
+ */
+interface ResponsiveDropdownProps {
+  canUndo: boolean
+  canRedo: boolean
+  onUndo: () => void
+  onRedo: () => void
+  onOpenPreview: () => void
+  onOpenExport: () => void
+  showExport?: boolean
+  /** Content to render at the bottom of the dropdown (for rightChildren on mobile) */
+  children?: React.ReactNode
+}
+
+const ResponsiveDropdown: React.FC<ResponsiveDropdownProps> = ({
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  onOpenPreview,
+  onOpenExport,
+  showExport = true,
+  children,
+}) => {
+  const style = useMemo(() => ({ zIndex: Z_INDEX + 1 }), [])
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant='outline' size='icon'>
+          <span className='sr-only'>Actions</span>
+          <MoreVertical className='h-4 w-4' />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align='end' style={style}>
+        <DropdownMenuItem
+          className='gap-2'
+          onClick={onUndo}
+          disabled={!canUndo}
+        >
+          <Undo className='h-4 w-4' />
+          Undo
+          <span className='text-muted-foreground ml-auto text-xs'>
+            {SHORTCUTS.undo.shortcutDisplay}
+          </span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className='gap-2'
+          onClick={onRedo}
+          disabled={!canRedo}
+        >
+          <Redo className='h-4 w-4' />
+          Redo
+          <span className='text-muted-foreground ml-auto text-xs'>
+            {SHORTCUTS.redo.shortcutDisplay}
+          </span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className='gap-2' onClick={onOpenPreview}>
+          <Eye className='h-4 w-4' />
+          Preview
+          <span className='text-muted-foreground ml-auto text-xs'>⌘+⇧+P</span>
+        </DropdownMenuItem>
+        {showExport && (
+          <DropdownMenuItem className='gap-2' onClick={onOpenExport}>
+            <FileUp className='h-4 w-4' />
+            Export
+            <span className='text-muted-foreground ml-auto text-xs'>⌘+⇧+E</span>
+          </DropdownMenuItem>
+        )}
+        {children && (
+          <>
+            <DropdownMenuSeparator />
+            <div className='p-2'>{children}</div>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+/**
+ * Preview Dialog Component
+ */
+interface PreviewDialogProps {
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+  page: ComponentLayer
+  componentRegistry: ComponentRegistry
+}
+
+const PreviewDialog: React.FC<PreviewDialogProps> = ({
+  isOpen,
+  onOpenChange,
+  page,
+  componentRegistry,
+}) => {
+  const style = useMemo(() => ({ zIndex: Z_INDEX + 1 }), [])
+
+  const shortcuts = useMemo(
+    () => [
+      {
+        keys: { metaKey: true, shiftKey: true },
+        key: 'p',
+        handler: (e: KeyboardEvent) => {
+          e.preventDefault()
+          onOpenChange(true)
+        },
+      },
+    ],
+    [onOpenChange]
+  )
+
+  useKeyboardShortcuts(shortcuts)
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogTrigger />
+      <DialogContentWithZIndex
+        className='max-h-[calc(100dvh)] max-w-[calc(100dvw)] gap-0 overflow-auto p-0'
+        style={style}
+      >
+        <DialogHeader>
+          <DialogTitle className='bg-yellow-600 py-3 text-center'>
+            <span className='text-lg font-semibold'>Page Preview</span>
+          </DialogTitle>
+        </DialogHeader>
+        <LayerRenderer
+          className='flex h-full w-full flex-col overflow-x-hidden'
+          page={page}
+          componentRegistry={componentRegistry}
+        />
+      </DialogContentWithZIndex>
+    </Dialog>
+  )
+}
+
+/**
+ * Code Dialog Component
+ */
+interface CodeDialogProps {
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+const CodeDialog: React.FC<CodeDialogProps> = ({ isOpen, onOpenChange }) => {
+  const style = useMemo(() => ({ zIndex: Z_INDEX + 1 }), [])
+
+  const shortcuts = useMemo(
+    () => [
+      {
+        keys: { metaKey: true, shiftKey: true },
+        key: 'e',
+        handler: (e: KeyboardEvent) => {
+          e.preventDefault()
+          onOpenChange(true)
+        },
+      },
+    ],
+    [onOpenChange]
+  )
+
+  useKeyboardShortcuts(shortcuts)
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogTrigger />
+      <DialogContentWithZIndex
+        className='max-h-[625px] sm:max-w-[625px]'
+        style={style}
+      >
+        <DialogHeader>
+          <DialogTitle>Generated Code</DialogTitle>
+        </DialogHeader>
+        <CodePanel />
+      </DialogContentWithZIndex>
+    </Dialog>
+  )
+}
+
+function ModeToggle() {
+  const { setTheme } = useTheme()
+
+  const style = useMemo(() => ({ zIndex: Z_INDEX + 1 }), [])
+
+  const handleSetLightTheme = useCallback(() => {
+    setTheme('light')
+  }, [setTheme])
+  const handleSetDarkTheme = useCallback(() => {
+    setTheme('dark')
+  }, [setTheme])
+  const handleSetSystemTheme = useCallback(() => {
+    setTheme('system')
+  }, [setTheme])
+
+  return (
+    <DropdownMenu>
+      <Tooltip>
+        <DropdownMenuTrigger asChild>
+          <TooltipTrigger asChild>
+            <Button variant='outline' size='icon'>
+              <SunIcon className='h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90' />
+              <MoonIcon className='absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0' />
+              <span className='sr-only'>Toggle theme</span>
+            </Button>
+          </TooltipTrigger>
+        </DropdownMenuTrigger>
+        <TooltipContent>Toggle theme</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent align='end' style={style}>
+        <DropdownMenuItem onClick={handleSetLightTheme}>Light</DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSetDarkTheme}>Dark</DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSetSystemTheme}>
+          System
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function PagesPopover() {
+  const { pages, selectedPageId, addPageLayer, selectPage } = useLayerStore()
+  const [open, setOpen] = useState(false)
+  const [inputValue, setInputValue] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [selectedPage, setSelectedPage] = useState<string | null>(
+    selectedPageId
+  )
+  const [textInputValue, setTextInputValue] = useState('')
+  const allowPagesCreation = useEditorStore((state) => state.allowPagesCreation)
+
+  const selectedPageData = useMemo(() => {
+    return pages.find((page) => page.id === selectedPageId)
+  }, [pages, selectedPageId])
+
+  const handleSelect = useCallback(
+    (pageId: string) => {
+      setSelectedPage(pageId)
+      selectPage(pageId)
+      setOpen(false)
+    },
+    [selectPage, setOpen]
+  )
+
+  const handleAddPageLayer = useCallback(
+    (pageName: string) => {
+      addPageLayer(pageName)
+      setTextInputValue('')
+    },
+    [addPageLayer, setTextInputValue]
+  )
+
+  const handleSubmit = useCallback(
+    (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault()
+      handleAddPageLayer(textInputValue)
+    },
+    [handleAddPageLayer, textInputValue]
+  )
+
+  const handleTextInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setTextInputValue(e.target.value)
+    },
+    [setTextInputValue]
+  )
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        handleAddPageLayer(textInputValue)
+      }
+    },
+    [handleAddPageLayer, textInputValue]
+  )
+
+  const style = useMemo(() => ({ zIndex: Z_INDEX + 1 }), [])
+
+  const textInputForm = (
+    <form className='w-full' onSubmit={handleSubmit}>
+      <div className='flex w-full items-center space-x-2'>
+        <Input
+          className='w-full flex-grow'
+          placeholder='New page name...'
+          value={textInputValue}
+          onChange={handleTextInputChange}
+          onKeyDown={handleKeyDown}
+        />
+        <Button type='submit' variant='secondary'>
+          <PlusIcon className='h-4 w-4' />
+        </Button>
+      </div>
+    </form>
+  )
+  return (
+    <div className='relative flex justify-center'>
+      <Popover open={open} onOpenChange={setOpen}>
+        <Tooltip>
+          <PopoverTrigger asChild>
+            <TooltipTrigger asChild>
+              <Button
+                variant='outline'
+                size='default'
+                className='max-w-30 overflow-hidden'
+              >
+                {selectedPageData?.name}
+              </Button>
+            </TooltipTrigger>
+          </PopoverTrigger>
+          <TooltipContent>Select page</TooltipContent>
+        </Tooltip>
+        <PopoverContent className='w-[300px] p-0' style={style}>
+          <Command>
+            <CommandInput
+              placeholder='Select page or create new...'
+              value={inputValue}
+              onValueChange={setInputValue}
+            />
+            <CommandList>
+              <CommandEmpty>
+                No pages found
+                {allowPagesCreation && textInputForm}
+              </CommandEmpty>
+              {pages.map((page) => (
+                <PageItem
+                  key={page.id}
+                  selectedPageId={selectedPageId}
+                  page={page}
+                  onSelect={handleSelect}
+                />
+              ))}
+              <CommandSeparator />
+              {allowPagesCreation && (
+                <CommandGroup heading='Create new page'>
+                  <CommandItem>{textInputForm}</CommandItem>
+                </CommandGroup>
+              )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
+}
+
+const PageItem = ({
+  selectedPageId,
+  page,
+  onSelect,
+}: {
+  selectedPageId: string
+  page: ComponentLayer
+  onSelect: (pageId: string) => void
+}) => {
+  const handleSelect = useCallback(() => {
+    onSelect(page.id)
+  }, [onSelect, page.id])
+
+  return (
+    <CommandItem
+      value={page.name}
+      onSelect={handleSelect}
+      className={cn(selectedPageId === page.id && 'font-bold')}
+    >
+      {selectedPageId === page.id ? (
+        <CheckIcon className='mr-2 h-4 w-4' />
+      ) : null}
+      {page.name}
+    </CommandItem>
+  )
+}
+
+const DialogContentWithZIndex = forwardRef<
+  React.ElementRef<typeof DialogContent>,
+  React.ComponentPropsWithoutRef<typeof DialogContent>
+>(({ className, children, ...props }, ref) => {
+  const style = useMemo(() => ({ zIndex: Z_INDEX + 1 }), [])
+  return (
+    <DialogPortal>
+      <DialogOverlay style={style} />
+      <DialogContent
+        ref={ref}
+        className={cn(
+          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] fixed top-[50%] left-[50%] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border p-6 shadow-lg duration-200 sm:rounded-lg',
+          className
+        )}
+        {...props}
+      >
+        {children}
+        <DialogClose className='ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:pointer-events-none'>
+          <X className='h-4 w-4 rounded-full p-1' />
+          <span className='sr-only'>Close</span>
+        </DialogClose>
+      </DialogContent>
+    </DialogPortal>
+  )
+})
+
+DialogContentWithZIndex.displayName = 'DialogContentWithZIndex'
+
+const PreviewModeToggle = () => {
+  const { previewMode, setPreviewMode } = useEditorStore()
+
+  const handleSelect = useCallback(
+    (mode: EditorStore['previewMode']) => {
+      setPreviewMode(mode)
+    },
+    [setPreviewMode]
+  )
+
+  const style = useMemo(() => ({ zIndex: Z_INDEX + 1 }), [])
+
+  const previewModeIcon = useMemo(() => {
+    return {
+      mobile: <Smartphone className='h-4 w-4' />,
+      tablet: <Tablet className='h-4 w-4' />,
+      desktop: <Monitor className='h-4 w-4' />,
+      responsive: <Maximize className='h-4 w-4' />,
+    }[previewMode]
+  }, [previewMode])
+
+  const handleSelectMobile = useCallback(() => {
+    handleSelect('mobile')
+  }, [handleSelect])
+  const handleSelectTablet = useCallback(() => {
+    handleSelect('tablet')
+  }, [handleSelect])
+  const handleSelectDesktop = useCallback(() => {
+    handleSelect('desktop')
+  }, [handleSelect])
+  const handleSelectResponsive = useCallback(() => {
+    handleSelect('responsive')
+  }, [handleSelect])
+
+  return (
+    <DropdownMenu>
+      <Tooltip>
+        <DropdownMenuTrigger asChild>
+          <TooltipTrigger asChild>
+            <Button variant='outline' size='icon'>
+              {previewModeIcon}
+              <span className='sr-only'>Select screen size</span>
+            </Button>
+          </TooltipTrigger>
+        </DropdownMenuTrigger>
+        <TooltipContent>Select screen size</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent align='end' style={style}>
+        <DropdownMenuItem
+          onSelect={handleSelectMobile}
+          className={
+            previewMode === 'mobile'
+              ? 'bg-secondary text-secondary-foreground'
+              : ''
+          }
+        >
+          <Smartphone className='mr-2 h-4 w-4' />
+          <span>Mobile</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={handleSelectTablet}
+          className={
+            previewMode === 'tablet'
+              ? 'bg-secondary text-secondary-foreground'
+              : ''
+          }
+        >
+          <Tablet className='mr-2 h-4 w-4' />
+          <span>Tablet</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={handleSelectDesktop}
+          className={
+            previewMode === 'desktop'
+              ? 'bg-secondary text-secondary-foreground'
+              : ''
+          }
+        >
+          <Monitor className='mr-2 h-4 w-4' />
+          <span>Desktop</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={handleSelectResponsive}
+          className={
+            previewMode === 'responsive'
+              ? 'bg-secondary text-secondary-foreground'
+              : ''
+          }
+        >
+          <Maximize className='mr-2 h-4 w-4' />
+          <span>Responsive</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}

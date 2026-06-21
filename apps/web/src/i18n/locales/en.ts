@@ -13,6 +13,7 @@ export default {
   'navigation.management.users': 'Users',
   'navigation.management.roles': 'Roles',
   'navigation.management.permissions': 'Permissions',
+  'navigation.management.pages': 'Pages',
   'navigation.orders.title': 'Orders',
   'navigation.orders.myEmails': 'My Emails',
   'navigation.other.title': 'Other',

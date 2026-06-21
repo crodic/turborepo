@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AdminUserModule } from './admin-user/admin-user.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { AuthModule } from './auth/auth.module';
+import { CmsPageModule } from './cms-page/cms-page.module';
 import { EmailModule } from './email/email.module';
 import { FileModule } from './file/file.module';
 import { HealthModule } from './health/health.module';
@@ -20,6 +21,7 @@ import { UserModule } from './user/user.module';
     UserModule,
     HealthModule,
     AuthModule,
+    CmsPageModule,
     HomeModule,
     AuditLogModule,
     ImpersonateLogModule,

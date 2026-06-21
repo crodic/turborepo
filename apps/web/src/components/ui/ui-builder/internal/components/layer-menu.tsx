@@ -1,0 +1,95 @@
+// @ts-nocheck
+import React, { useMemo, useState } from 'react'
+import { Plus, Trash, Copy } from 'lucide-react'
+import { useGlobalLayerActions } from '@/lib/ui-builder/hooks/use-layer-actions'
+import { useEditorStore } from '@/lib/ui-builder/store/editor-store'
+import { useLayerStore } from '@/lib/ui-builder/store/layer-store'
+import { canComponentAcceptChildren } from '@/lib/ui-builder/store/schema-utils'
+import { cn } from '@/lib/utils'
+import { buttonVariants } from '@/components/ui/button'
+import { AddComponentsPopover } from '@/components/ui/ui-builder/internal/components/add-component-popover'
+
+interface MenuProps {
+  layerId: string
+}
+
+export const LayerMenu: React.FC<MenuProps> = ({ layerId }) => {
+  const selectedLayer = useLayerStore((state) => state.findLayerById(layerId))
+  const isLayerAPage = useLayerStore((state) => state.isLayerAPage(layerId))
+  const [popoverOpen, setPopoverOpen] = useState(false)
+  const componentRegistry = useEditorStore((state) => state.registry)
+
+  // Use global layer actions (includes permission checks)
+  const { canDuplicate, canDelete, handleDuplicate, handleDelete } =
+    useGlobalLayerActions(layerId)
+
+  const buttonVariantsValues = useMemo(() => {
+    return buttonVariants({ variant: 'ghost', size: 'sm' })
+  }, [])
+
+  const buttonClass =
+    'p-2 h-6 w-6 cursor-pointer [&_svg]:size-3 bg-blue-500 rounded-lg text-white hover:bg-white hover:text-black'
+
+  const canRenderAddChild = useMemo(() => {
+    if (!selectedLayer) return false
+
+    const componentDef =
+      componentRegistry[selectedLayer.type as keyof typeof componentRegistry]
+    if (!componentDef) return false
+
+    return canComponentAcceptChildren(componentDef.schema)
+  }, [selectedLayer, componentRegistry])
+
+  return (
+    <>
+      <div
+        className={cn(
+          'flex flex-nowrap overflow-hidden rounded-lg bg-blue-500 text-white transition-all duration-200 ease-in-out'
+        )}
+      >
+        {canRenderAddChild && (
+          <AddComponentsPopover
+            parentLayerId={layerId}
+            className='inline-flex w-min flex-shrink'
+            onOpenChange={setPopoverOpen}
+          >
+            <div
+              className={cn(
+                buttonVariantsValues,
+                buttonClass,
+                popoverOpen ? 'bg-white text-black' : ''
+              )}
+            >
+              <span className='sr-only'>Add Component</span>
+              <Plus className='size-3' />
+            </div>
+          </AddComponentsPopover>
+        )}
+        {canDuplicate && (
+          <div
+            className={cn(buttonVariantsValues, buttonClass)}
+            onClick={handleDuplicate}
+            data-testid='duplicate-button'
+          >
+            <span className='sr-only'>
+              Duplicate {isLayerAPage ? 'Page' : 'Component'}
+            </span>
+            <Copy className='size-3' data-testid='duplicate-icon' />
+          </div>
+        )}
+        {canDelete && (
+          <div
+            className={cn(buttonVariantsValues, buttonClass)}
+            onClick={handleDelete}
+            data-testid='delete-button'
+          >
+            <span className='sr-only'>
+              Delete {isLayerAPage ? 'Page' : 'Component'}
+            </span>
+            <Trash className='size-3' data-testid='delete-icon' />
+          </div>
+        )}
+      </div>
+    </>
+  )
+}

@@ -14,6 +14,7 @@ import {
   Globe,
   Mail,
   MailSearch,
+  PanelsTopLeft,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -72,6 +73,12 @@ export const sidebarLink: SidebarData = {
           icon: ShieldCheck,
           url: '/permissions',
           permission: 'ROLE',
+        },
+        {
+          title: 'navigation.management.pages',
+          icon: PanelsTopLeft,
+          url: '/cms-pages',
+          permission: 'PAGE',
         },
         {
           title: 'navigation.management.users',
