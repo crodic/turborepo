@@ -146,6 +146,8 @@ export class UserAuthService {
 
     // Register user
     const user = await this.userRepository.save({
+      firstName: dto.firstName,
+      lastName: dto.lastName,
       email: dto.email,
       password: dto.password,
     });

@@ -17,10 +17,13 @@ import {
   Put,
   Query,
   Request,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
 import { ForgotPasswordReqDto } from '../dto/forgot-password.req.dto';
 import { ForgotPasswordResDto } from '../dto/forgot-password.res.dto';
 import { RefreshReqDto } from '../dto/refresh.req.dto';
@@ -46,7 +49,10 @@ import { JwtPayloadType } from '../types/jwt-payload.type';
 })
 @UseGuards(UserAuthGuard, ProdOnlyThrottleGuard)
 export class UserAuthenticationController {
-  constructor(private readonly userAuthService: UserAuthService) {}
+  constructor(
+    private readonly userAuthService: UserAuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @ApiPublic({
     type: LoginResDto,
@@ -152,8 +158,13 @@ export class UserAuthenticationController {
   @ApiQuery({ name: 'token', type: 'string' })
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Get('verify/email')
-  async verifyEmail(@Query('token') token: string) {
-    return await this.userAuthService.verifyAccount(token);
+  async verifyEmail(@Query('token') token: string, @Res() res: Response) {
+    try {
+      await this.userAuthService.verifyAccount(token);
+      return res.redirect(this.getVerificationRedirectUrl('success'));
+    } catch {
+      return res.redirect(this.getVerificationRedirectUrl('failed'));
+    }
   }
 
   @ApiPublic({
@@ -215,5 +226,29 @@ export class UserAuthenticationController {
     @Body() reqDto: UpdateAuthUserMeReqDto,
   ): Promise<{ message: string }> {
     return await this.userAuthService.updateMe(userId, reqDto);
+  }
+
+  private getVerificationRedirectUrl(status: 'success' | 'failed') {
+    const clientUrl =
+      this.getOriginFromUrl(
+        this.configService.get<string>('auth.clientResetPasswordUrl'),
+      ) || 'http://localhost:3000';
+    const url = new URL('/auth/login', clientUrl);
+
+    url.searchParams.set('verification', status);
+
+    return url.toString();
+  }
+
+  private getOriginFromUrl(url?: string) {
+    if (!url) {
+      return null;
+    }
+
+    try {
+      return new URL(url).origin;
+    } catch {
+      return null;
+    }
   }
 }

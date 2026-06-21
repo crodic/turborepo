@@ -1,20 +1,27 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import {
-  ClassField,
+  ClassFieldOptional,
   EmailField,
   PasswordField,
+  StringField,
   StringFieldOptional,
 } from '@/decorators/field.decorators';
 
 export class RegisterReqDto {
+  @StringField()
+  firstName!: string;
+
+  @StringFieldOptional()
+  lastName?: string;
+
   @EmailField()
   email!: string;
 
   @PasswordField()
   password!: string;
 
-  @ClassField(() => String)
-  roleId!: AutoIncrementID;
+  @ClassFieldOptional(() => String)
+  roleId?: AutoIncrementID;
 
   @StringFieldOptional()
   username?: string;

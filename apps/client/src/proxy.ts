@@ -6,7 +6,13 @@ import { JWTPayload } from "jose";
 import createMiddleware from "next-intl/middleware";
 import { routing } from "./i18n/routing";
 
-const AUTH_ROUTE = ["/auth/login", "/auth/register"];
+const AUTH_ROUTE = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/sign-up",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+];
 const PRIVATE_ROUTE = ["/client-profile"];
 const handleI18nRouting = createMiddleware(routing);
 

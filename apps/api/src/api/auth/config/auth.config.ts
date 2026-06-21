@@ -92,7 +92,7 @@ class EnvironmentVariablesValidator {
   @IsString()
   @IsNotEmpty()
   @IsUrl({ require_tld: false })
-  AUTH_CLIENT_RESET_PASSWORD_URL: string;
+  USER_AUTH_CLIENT_RESET_PASSWORD_URL: string;
 
   @IsString()
   ADMIN_PANEL_USERNAME: string;
@@ -131,9 +131,7 @@ export default registerAs<AuthConfig>('auth', () => {
     userConfirmEmailSecret: process.env.USER_AUTH_CONFIRM_EMAIL_SECRET,
     userConfirmEmailExpires:
       process.env.USER_AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN,
-    clientResetPasswordUrl:
-      process.env.USER_AUTH_CLIENT_RESET_PASSWORD_URL ||
-      process.env.AUTH_CLIENT_RESET_PASSWORD_URL,
+    clientResetPasswordUrl: process.env.USER_AUTH_CLIENT_RESET_PASSWORD_URL,
 
     adminPanelUsername: process.env.ADMIN_PANEL_USERNAME,
     adminPanelPassword: process.env.ADMIN_PANEL_PASSWORD,

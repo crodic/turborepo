@@ -39,7 +39,7 @@ describe('UserAuthService', () => {
     'auth.userExpires': '2m',
     'auth.userRefreshSecret': 'refresh-secret',
     'auth.userRefreshExpires': '365d',
-    'auth.clientResetPasswordUrl': 'http://localhost:3000/reset-password',
+    'auth.clientResetPasswordUrl': 'http://localhost:3000/auth/reset-password',
   };
 
   beforeAll(async () => {
@@ -113,6 +113,8 @@ describe('UserAuthService', () => {
 
   describe('signUp', () => {
     const dto = {
+      firstName: 'Test',
+      lastName: 'User',
       email: 'user@example.com',
       password: 'secret1',
       roleId: '1' as any,
@@ -128,6 +130,8 @@ describe('UserAuthService', () => {
       const result = await service.signUp(dto);
 
       expect(userRepository.save).toHaveBeenCalledWith({
+        firstName: dto.firstName,
+        lastName: dto.lastName,
         email: dto.email,
         password: dto.password,
       });
@@ -178,7 +182,7 @@ describe('UserAuthService', () => {
         { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
       );
       expect(result.redirect).toBe(
-        'http://localhost:3000/reset-password?token=forgot-token',
+        'http://localhost:3000/auth/reset-password?token=forgot-token',
       );
     });
   });

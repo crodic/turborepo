@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -21,10 +23,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { LoginResponseData } from "@/types/apis";
 import xior, { XiorError } from "xior";
 import { http } from "@/lib/http";
+import { Link } from "@/i18n/navigation";
 
 const loginFormSchema = z.object({
   email: z.string(),
@@ -37,6 +40,8 @@ type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 export default function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const handledMessageRef = useRef<string | null>(null);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -45,6 +50,39 @@ export default function LoginForm() {
       password: "12345678",
     },
   });
+
+  useEffect(() => {
+    const verification = searchParams.get("verification");
+    const reset = searchParams.get("reset");
+    const messageKey = verification ?? reset;
+
+    if (!messageKey || handledMessageRef.current === messageKey) {
+      return;
+    }
+
+    handledMessageRef.current = messageKey;
+
+    if (verification === "success") {
+      toast.success("Your account has been verified. You can sign in now.");
+    }
+
+    if (verification === "failed") {
+      toast.error(
+        "We could not verify your account. The link may be invalid or expired."
+      );
+    }
+
+    if (reset === "success") {
+      toast.success("Your password has been reset. Please sign in.");
+    }
+
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    nextSearchParams.delete("verification");
+    nextSearchParams.delete("reset");
+    const nextQuery = nextSearchParams.toString();
+
+    router.replace(nextQuery ? `/auth/login?${nextQuery}` : "/auth/login");
+  }, [router, searchParams]);
 
   async function onSubmit(values: LoginFormValues) {
     try {
@@ -61,7 +99,9 @@ export default function LoginForm() {
       router.push("/client-profile");
     } catch (error) {
       if (error instanceof XiorError) {
-        console.log(error.message);
+        toast.error(
+          error.response?.data?.message || "Login failed. Please try again."
+        );
       }
     }
   }
@@ -104,6 +144,14 @@ export default function LoginForm() {
                   </FormItem>
                 )}
               />
+              <div className="flex justify-end">
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-primary text-sm hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <Button
                 type="submit"
                 className="w-full"
@@ -117,9 +165,9 @@ export default function LoginForm() {
         <CardFooter className="flex justify-center">
           <p className="text-muted-foreground text-sm">
             Don&apos;t have an account?{" "}
-            <a href="#" className="text-primary hover:underline">
+            <Link href="/auth/sign-up" className="text-primary hover:underline">
               Sign up
-            </a>
+            </Link>
           </p>
         </CardFooter>
       </Card>
