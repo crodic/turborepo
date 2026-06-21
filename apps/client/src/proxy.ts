@@ -96,12 +96,11 @@ const refreshTokenMiddleware = async (
 ) => {
   const refreshToken = request.cookies.get("refreshToken")?.value || "";
   try {
-    const { data } = await xior.post(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/v1/user/auth/refresh`,
-      {
-        refreshToken: refreshToken,
-      }
-    );
+    const apiUrl =
+      process.env.SERVER_API_URL || process.env.NEXT_PUBLIC_API_URL;
+    const { data } = await xior.post(`${apiUrl}/api/v1/user/auth/refresh`, {
+      refreshToken: refreshToken,
+    });
     const { accessToken: newAccessToken, refreshToken: newRefreshToken } = data;
 
     const { exp: expAccessToken } = decodeToken(newAccessToken) as JWTPayload;

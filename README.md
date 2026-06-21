@@ -120,6 +120,44 @@ Common app URLs:
 - Mailpit UI from Docker compose: `http://localhost:8025`
 - pgAdmin from Docker compose: `http://localhost:5050`
 
+## Docker Development
+
+The root compose file runs the full local stack as services:
+
+- API: `http://localhost:8000`
+- Admin portal: `http://localhost:5173`
+- Client website: `http://localhost:3000`
+- Mailpit UI: `http://localhost:8025`
+- pgAdmin: `http://localhost:5050`
+- PostgreSQL: `localhost:5432`
+- Redis: `localhost:6379`
+
+Start everything:
+
+```bash
+pnpm docker:dev
+```
+
+Or use Docker Compose directly:
+
+```bash
+docker compose up --build
+```
+
+Stop the stack:
+
+```bash
+pnpm docker:down
+```
+
+The root compose file uses the app env files:
+
+- `apps/api/.env`
+- `apps/web/.env`
+- `apps/client/.env`
+
+For the Next.js client, `NEXT_PUBLIC_API_URL` remains `http://localhost:8000` for browser requests, while `SERVER_API_URL` can point to the internal Docker service URL for server-side middleware calls. The root compose file sets `SERVER_API_URL=http://api:8000` automatically.
+
 ## API Dependencies With Docker
 
 The API compose file lives in `apps/api`, but it is monorepo-aware and builds from the repository root.

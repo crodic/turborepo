@@ -1,0 +1,177 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: development
+    image: turborepo-workspace:development
+    env_file:
+      - apps/api/.env
+    environment:
+      NODE_ENV: development
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redispass}
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+    ports:
+      - '8000:8000'
+    volumes:
+      - .:/app
+      - root_node_modules:/app/node_modules
+      - api_node_modules:/app/apps/api/node_modules
+      - client_node_modules:/app/apps/client/node_modules
+      - web_node_modules:/app/apps/web/node_modules
+    command: pnpm --filter nestjs-boilerplate start:dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: development
+    image: turborepo-workspace:development
+    env_file:
+      - apps/web/.env
+    environment:
+      VITE_API_URL: http://localhost:8000/api/v1
+      VITE_SOCKET_URL: http://localhost:8000
+    ports:
+      - '5173:5173'
+    volumes:
+      - .:/app
+      - root_node_modules:/app/node_modules
+      - api_node_modules:/app/apps/api/node_modules
+      - client_node_modules:/app/apps/client/node_modules
+      - web_node_modules:/app/apps/web/node_modules
+    command: pnpm --filter admin-template dev --host 0.0.0.0
+    depends_on:
+      - api
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  client:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: development
+    image: turborepo-workspace:development
+    env_file:
+      - apps/client/.env
+    environment:
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_SOCKET_URL: http://localhost:8000
+      SERVER_API_URL: http://api:8000
+    ports:
+      - '3000:3000'
+    volumes:
+      - .:/app
+      - root_node_modules:/app/node_modules
+      - api_node_modules:/app/apps/api/node_modules
+      - client_node_modules:/app/apps/client/node_modules
+      - web_node_modules:/app/apps/web/node_modules
+    command: pnpm --filter client dev --hostname 0.0.0.0
+    depends_on:
+      - api
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-boilerplate}
+      POSTGRES_USER: ${DATABASE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-postgres}
+      TZ: ${TZ:-UTC}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      sh -c 'if [ -n "$$REDIS_PASSWORD" ]; then
+      redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD";
+      else redis-server --appendonly yes; fi'
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redispass}
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'if [ -n "$$REDIS_PASSWORD" ]; then redis-cli -a "$$REDIS_PASSWORD" ping; else redis-cli ping; fi',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:latest
+    environment:
+      MP_MAX_MESSAGES: ${MAILPIT_MAX_MESSAGES:-5000}
+    ports:
+      - '8025:8025'
+      - '1025:1025'
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-change-me}
+    ports:
+      - '5050:80'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  root_node_modules:
+  api_node_modules:
+  client_node_modules:
+  web_node_modules:
+  postgres_data:
+  redis_data:
+  pgadmin_data:
+
+networks:
+  app-network:
+    driver: bridge

@@ -12,6 +12,8 @@
     "test": "turbo run test",
     "config": "bash ./config.sh",
     "setup": "bash ./setup.sh",
+    "docker:dev": "docker compose up --build",
+    "docker:down": "docker compose down",
     "prepare": "husky"
   },
   "devDependencies": {
