@@ -71,6 +71,9 @@ main() {
   command -v node >/dev/null 2>&1 || fail "Node.js is required."
   command -v pnpm >/dev/null 2>&1 || fail "pnpm is required. Run: corepack enable && corepack prepare pnpm@10.30.3 --activate"
 
+  export TS_NODE_COMPILER_OPTIONS='{"module":"CommonJS","moduleResolution":"node","experimentalDecorators":true,"emitDecoratorMetadata":true,"strictPropertyInitialization":false}'
+  export TS_NODE_TRANSPILE_ONLY=true
+
   log "Preparing env files"
   copy_env_if_missing "$API_DIR/.env.example" "$API_DIR/.env"
   copy_env_if_missing "$CLIENT_DIR/.env.example" "$CLIENT_DIR/.env"
