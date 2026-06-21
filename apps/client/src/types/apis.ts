@@ -6,12 +6,13 @@ export type LoginResponseData = {
 };
 
 export type User = {
-  _id: string;
-  username: string;
+  id: string;
   email: string;
-  displayName: string;
-  role: "USER" | "ADMIN";
-  active: boolean;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  avatar: string | null;
+  verifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

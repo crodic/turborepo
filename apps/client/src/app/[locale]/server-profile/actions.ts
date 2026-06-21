@@ -13,12 +13,13 @@ export const updateProfileFormServerAction = async (formData: FormData) => {
   await validateAuthActionRequest();
 
   const token = cookie.get("accessToken")?.value;
-  const displayName = formData.get("displayName") as string;
+  const firstName = formData.get("firstName") as string;
+  const lastName = formData.get("lastName") as string;
   //* Call update user api (express server)
   await xior
     .put(
       `${process.env.NEXT_PUBLIC_API_URL}/api/v1/user/auth/me`,
-      { displayName },
+      { firstName, lastName },
       { headers: { Authorization: `Bearer ${token}` } }
     )
     .catch((error) => {

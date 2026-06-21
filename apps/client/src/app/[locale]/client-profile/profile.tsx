@@ -34,8 +34,9 @@ export default function Profile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await http.get<{ user: User }>("/api/v1/user/auth/me");
-        setProfile(response.data.user);
+        const response = await http.get<User>("/api/v1/user/auth/me");
+        console.log(response);
+        setProfile(response.data);
       } catch (error) {
         console.error(">>> Error fetching profile:", error);
       }
@@ -46,7 +47,11 @@ export default function Profile() {
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center gap-4">
       <p className="w-80 overflow-hidden">
-        {profile?.username} - {profile?.displayName} - {profile?.email}
+        {profile && (
+          <>
+            <b>This is user fetch on Client:</b> {profile.fullName}
+          </>
+        )}
       </p>
       <Button asChild>
         <Link href="/update-profile">Update Profile In Client</Link>

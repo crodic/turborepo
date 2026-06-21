@@ -4,6 +4,7 @@ import { UserResDto } from '@/api/user/dto/user.res.dto';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { CurrentUser } from '@/decorators/current-user.decorator';
 import { ApiAuth, ApiPublic } from '@/decorators/http.decorators';
+import { SkipPolicies } from '@/decorators/skip-policies.decorator';
 import { GoogleOAuthGuard } from '@/guards/google-oauth.guard';
 import { UserAuthGuard } from '@/guards/user-auth.guard';
 import {
@@ -88,6 +89,7 @@ export class UserAuthenticationController {
     errorResponses: [304, 500, 401, 403],
   })
   @SkipThrottle()
+  @SkipPolicies()
   @Post('logout')
   async logout(@CurrentUser() userToken: JwtPayloadType): Promise<void> {
     await this.userAuthService.logout(userToken);
