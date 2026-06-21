@@ -25,6 +25,7 @@ export default function Profile() {
           credentials: "same-origin",
         }
       );
+      window.dispatchEvent(new Event("auth:tokens-updated"));
       router.push("/auth/login");
     } catch (error) {
       console.error(">>> Error signing out:", error);

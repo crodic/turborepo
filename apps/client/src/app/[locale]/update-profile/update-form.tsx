@@ -56,10 +56,10 @@ export default function UpdateForm() {
     const signal = controller.signal;
     const fetchProfile = async () => {
       try {
-        const response = await http.get<{ user: User }>("/users/me", {
+        const response = await http.get<User>("/users/me", {
           signal,
         });
-        setProfile(response.data.user);
+        setProfile(response.data);
       } catch (error) {
         console.error(">>> Error fetching profile:", error);
       }
@@ -74,7 +74,7 @@ export default function UpdateForm() {
       <CardHeader>
         <CardTitle className="text-2xl">Change DisplayName</CardTitle>
         <CardDescription>
-          Change DisplayName For Account - {profile?.displayName}
+          Change DisplayName For Account - {profile?.fullName}
         </CardDescription>
       </CardHeader>
       <CardContent>

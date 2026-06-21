@@ -57,6 +57,7 @@ export default function LoginForm() {
         accessToken,
         refreshToken,
       });
+      window.dispatchEvent(new Event("auth:tokens-updated"));
       router.push("/client-profile");
     } catch (error) {
       if (error instanceof XiorError) {
