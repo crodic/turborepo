@@ -1,3 +1,4 @@
+import type { Config } from "jest";
 import nextJest from "next/jest.js";
 
 const createJestConfig = nextJest({
@@ -6,8 +7,7 @@ const createJestConfig = nextJest({
 });
 
 // Add any custom config to be passed to Jest
-/** @type {import('jest').Config} */
-const config = {
+const config: Config = {
   coverageProvider: "v8",
   testEnvironment: "jsdom",
   modulePathIgnorePatterns: ["<rootDir>/.next/"],
