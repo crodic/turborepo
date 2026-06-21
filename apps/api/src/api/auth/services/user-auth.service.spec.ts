@@ -14,6 +14,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { SessionEntity } from '../entities/session.entity';
+import { UserSocialAccountEntity } from '../entities/user-social-account.entity';
 import { UserAuthService } from './user-auth.service';
 
 jest.mock('@/utils/password.util', () => ({
@@ -25,6 +26,9 @@ describe('UserAuthService', () => {
   let userRepository: Partial<Record<keyof Repository<UserEntity>, jest.Mock>>;
   let sessionRepository: Partial<
     Record<keyof Repository<SessionEntity>, jest.Mock>
+  >;
+  let socialAccountRepository: Partial<
+    Record<keyof Repository<UserSocialAccountEntity>, jest.Mock>
   >;
   let jwtService: { signAsync: jest.Mock; verify: jest.Mock };
   let cacheManager: { get: jest.Mock; set: jest.Mock; del: jest.Mock };
@@ -56,6 +60,11 @@ describe('UserAuthService', () => {
       findOneBy: jest.fn(),
       save: jest.fn(),
       update: jest.fn(),
+    };
+    socialAccountRepository = {
+      find: jest.fn(),
+      findOne: jest.fn(),
+      save: jest.fn(),
     };
     jwtService = {
       signAsync: jest.fn(),
@@ -90,6 +99,10 @@ describe('UserAuthService', () => {
         {
           provide: getRepositoryToken(SessionEntity),
           useValue: sessionRepository,
+        },
+        {
+          provide: getRepositoryToken(UserSocialAccountEntity),
+          useValue: socialAccountRepository,
         },
         {
           provide: getQueueToken(QueueName.EMAIL),

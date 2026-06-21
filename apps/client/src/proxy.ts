@@ -12,6 +12,7 @@ const AUTH_ROUTE = [
   "/auth/sign-up",
   "/auth/forgot-password",
   "/auth/reset-password",
+  "/auth/oauth/callback",
 ];
 const PRIVATE_ROUTE = ["/client-profile"];
 const handleI18nRouting = createMiddleware(routing);

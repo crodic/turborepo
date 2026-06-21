@@ -18,7 +18,9 @@ export type AuthConfig = {
   userForgotExpires: string;
   userConfirmEmailSecret: string;
   userConfirmEmailExpires: string;
+  clientUrl: string;
   clientResetPasswordUrl: string;
+  googleOAuthCallbackUrl: string;
 
   adminPanelUsername: string;
   adminPanelPassword: string;

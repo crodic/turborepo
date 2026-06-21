@@ -34,6 +34,10 @@ export class UserResDto {
   avatar?: string;
 
   @BooleanField()
+  @Expose()
+  hasPassword: boolean;
+
+  @BooleanField()
   @Transform(({ value }) => !!value)
   @Expose()
   verifiedAt?: boolean;

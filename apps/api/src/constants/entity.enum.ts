@@ -19,3 +19,7 @@ export enum EEmailLogStatus {
   FAILED = 'failed',
   CANCELLED = 'cancelled',
 }
+
+export enum EOAuthProvider {
+  GOOGLE = 'google',
+}

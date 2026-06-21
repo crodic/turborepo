@@ -37,6 +37,10 @@ import { SessionResDto } from '../dto/session.res.dto';
 import { LoginReqDto } from '../dto/users/login.req.dto';
 import { LoginResDto } from '../dto/users/login.res.dto';
 import { RegisterReqDto } from '../dto/users/register.req.dto';
+import { SetupInitialPasswordReqDto } from '../dto/users/setup-initial-password.req.dto';
+import { SocialAccountResDto } from '../dto/users/social-account.res.dto';
+import { SocialExchangeReqDto } from '../dto/users/social-exchange.req.dto';
+import { SocialLinkUrlResDto } from '../dto/users/social-link-url.res.dto';
 import { UpdateAuthUserMeReqDto } from '../dto/users/update-me.req.dto';
 import { ProdOnlyThrottleGuard } from '../guards/ProdOnlyThrottle.guard';
 import { UserAuthService } from '../services/user-auth.service';
@@ -179,14 +183,63 @@ export class UserAuthenticationController {
     return this.userAuthService.resendVerifyEmail(dto);
   }
 
-  @Get('google')
+  @ApiPublic({ summary: 'Start Google OAuth login' })
+  @Get('social/google')
   @UseGuards(GoogleOAuthGuard)
-  async googleAuth() {}
+  async googleAuth() {
+    return;
+  }
 
-  @Get('google-redirect')
+  @ApiPublic({ summary: 'Handle Google OAuth callback' })
+  @Get('social/google/callback')
   @UseGuards(GoogleOAuthGuard)
-  googleAuthRedirect(@Request() req) {
-    return this.userAuthService.googleLogin(req);
+  async googleAuthRedirect(@Request() req, @Res() res: Response) {
+    try {
+      const redirectUrl = await this.userAuthService.handleSocialLoginCallback(
+        req.user,
+        req.query?.state,
+        {
+          ipAddress: req.ip,
+          userAgent: req.headers?.['user-agent'],
+        },
+      );
+
+      return res.redirect(redirectUrl);
+    } catch {
+      return res.redirect(this.getSocialRedirectUrl('failed'));
+    }
+  }
+
+  @ApiPublic({ type: LoginResDto, summary: 'Exchange social login token' })
+  @Post('social/exchange')
+  async exchangeSocialLogin(
+    @Body() dto: SocialExchangeReqDto,
+  ): Promise<LoginResDto> {
+    return this.userAuthService.exchangeSocialLogin(dto);
+  }
+
+  @ApiAuth({
+    type: SocialLinkUrlResDto,
+    summary: 'Create Google link account URL',
+  })
+  @SkipThrottle()
+  @Post('me/social/google/link')
+  async createGoogleLinkUrl(
+    @CurrentUser() userToken: JwtPayloadType,
+  ): Promise<SocialLinkUrlResDto> {
+    return this.userAuthService.createGoogleLinkUrl(userToken);
+  }
+
+  @ApiAuth({
+    type: SocialAccountResDto,
+    summary: 'List linked social accounts',
+  })
+  @SkipThrottle()
+  @Get('me/social-accounts')
+  async listSocialAccounts(
+    @CurrentUser() userToken: JwtPayloadType,
+  ): Promise<SocialAccountResDto[]> {
+    return this.userAuthService.listSocialAccounts(userToken);
   }
 
   @ApiAuth({
@@ -201,6 +254,20 @@ export class UserAuthenticationController {
     @Body() reqDto: UserChangePasswordReqDto,
   ): Promise<UserChangePasswordResDto> {
     return this.userAuthService.changePassword(userId, reqDto);
+  }
+
+  @ApiAuth({
+    type: UserChangePasswordResDto,
+    summary: 'Setup initial password for social-login users',
+    errorResponses: [400, 401, 403, 404, 500],
+  })
+  @SkipThrottle()
+  @Post('me/setup-password')
+  async setupInitialPassword(
+    @CurrentUser('id') userId: AutoIncrementID,
+    @Body() reqDto: SetupInitialPasswordReqDto,
+  ): Promise<UserChangePasswordResDto> {
+    return this.userAuthService.setupInitialPassword(userId, reqDto);
   }
 
   @ApiAuth({
@@ -236,6 +303,17 @@ export class UserAuthenticationController {
     const url = new URL('/auth/login', clientUrl);
 
     url.searchParams.set('verification', status);
+
+    return url.toString();
+  }
+
+  private getSocialRedirectUrl(status: 'failed') {
+    const clientUrl =
+      this.configService.get<string>('auth.clientUrl') ||
+      'http://localhost:3000';
+    const url = new URL('/auth/login', clientUrl);
+
+    url.searchParams.set('social', status);
 
     return url.toString();
   }

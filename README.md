@@ -96,6 +96,33 @@ cp apps/web/.env.example apps/web/.env
 
 For API tests, `apps/api/.env.testing` is already included.
 
+## User Google OAuth
+
+The client user app supports Google sign-in and linking one Google account to an existing user account.
+
+Configure these API variables in `apps/api/.env`:
+
+```bash
+USER_AUTH_CLIENT_URL=http://localhost:3000
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_OAUTH_CALLBACK_URL=http://localhost:8000/api/v1/user/auth/social/google/callback
+```
+
+Register this authorized redirect URI in Google Cloud Console for local development:
+
+```text
+http://localhost:8000/api/v1/user/auth/social/google/callback
+```
+
+Google OAuth behavior:
+
+- New users can register/sign in with Google when Google returns a verified email.
+- Existing users can sign in with Google when the verified Google email matches their account email.
+- Logged-in users can link one Google account from the client profile page.
+- Linking rejects Google accounts whose email differs from the current user email, which avoids accidentally merging two identities.
+- Users created through Google have no password by default; they can configure an initial password from the client profile page and then sign in with either Google or email/password.
+
 ## Run Locally
 
 Run everything through Turborepo:

@@ -54,7 +54,8 @@ export default function LoginForm() {
   useEffect(() => {
     const verification = searchParams.get("verification");
     const reset = searchParams.get("reset");
-    const messageKey = verification ?? reset;
+    const social = searchParams.get("social");
+    const messageKey = verification ?? reset ?? social;
 
     if (!messageKey || handledMessageRef.current === messageKey) {
       return;
@@ -76,9 +77,14 @@ export default function LoginForm() {
       toast.success("Your password has been reset. Please sign in.");
     }
 
+    if (social === "failed") {
+      toast.error("Google sign-in failed. Please try again.");
+    }
+
     const nextSearchParams = new URLSearchParams(searchParams.toString());
     nextSearchParams.delete("verification");
     nextSearchParams.delete("reset");
+    nextSearchParams.delete("social");
     const nextQuery = nextSearchParams.toString();
 
     router.replace(nextQuery ? `/auth/login?${nextQuery}` : "/auth/login");
@@ -158,6 +164,16 @@ export default function LoginForm() {
                 disabled={form.formState.isSubmitting}
               >
                 {form.formState.isSubmitting ? "Loading..." : "Login"}
+              </Button>
+              <Button
+                type="button"
+                className="w-full"
+                variant="outline"
+                onClick={() => {
+                  window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/user/auth/social/google`;
+                }}
+              >
+                Continue with Google
               </Button>
             </form>
           </Form>

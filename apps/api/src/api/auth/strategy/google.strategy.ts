@@ -1,33 +1,32 @@
+import { AllConfigType } from '@/config/config.type';
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy, VerifyCallback } from 'passport-google-oauth20';
+import { Profile, Strategy } from 'passport-google-oauth20';
+import { GoogleOAuthAdapter } from '../social/google-oauth.adapter';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
-  constructor() {
+  constructor(
+    configService: ConfigService<AllConfigType>,
+    private readonly googleOAuthAdapter: GoogleOAuthAdapter,
+  ) {
     super({
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: 'http://localhost:3000/auth/google-redirect',
+      clientID: process.env.GOOGLE_CLIENT_ID || 'missing-google-client-id',
+      clientSecret:
+        process.env.GOOGLE_CLIENT_SECRET || 'missing-google-client-secret',
+      callbackURL: configService.getOrThrow('auth.googleOAuthCallbackUrl', {
+        infer: true,
+      }),
       scope: ['email', 'profile'],
     });
   }
-  async validate(
-    accessToken: string,
-    refreshToken: string,
-    profile: any,
-    _done: VerifyCallback,
-  ): Promise<any> {
-    const { name, emails, photos } = profile;
-    const user = {
-      email: emails[0].value,
-      firstName: name.givenName,
-      lastName: name.familyName,
-      picture: photos[0].value,
-      accessToken,
-      refreshToken,
-    };
 
-    return user;
+  async validate(
+    _accessToken: string,
+    _refreshToken: string,
+    profile: Profile,
+  ) {
+    return this.googleOAuthAdapter.normalize(profile);
   }
 }

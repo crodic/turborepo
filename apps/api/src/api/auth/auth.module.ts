@@ -12,14 +12,22 @@ import { UserEntity } from '../user/entities/user.entity';
 import { AdminAuthenticationController } from './controllers/admin-auth.controller';
 import { UserAuthenticationController } from './controllers/user-auth.controller';
 import { SessionEntity } from './entities/session.entity';
+import { UserSocialAccountEntity } from './entities/user-social-account.entity';
 import { AdminAuthService } from './services/admin-auth.service';
 import { UserAuthService } from './services/user-auth.service';
+import { GoogleOAuthAdapter } from './social/google-oauth.adapter';
 import { AdminJwtStrategy } from './strategy/admin.strategy';
+import { GoogleStrategy } from './strategy/google.strategy';
 import { UserJwtStrategy } from './strategy/user.strategy';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserEntity, AdminUserEntity, SessionEntity]),
+    TypeOrmModule.forFeature([
+      UserEntity,
+      AdminUserEntity,
+      SessionEntity,
+      UserSocialAccountEntity,
+    ]),
     NotificationModule,
     JwtModule.register({}),
     BullModule.registerQueue({
@@ -50,6 +58,8 @@ import { UserJwtStrategy } from './strategy/user.strategy';
     UserAuthService,
     AdminJwtStrategy,
     UserJwtStrategy,
+    GoogleStrategy,
+    GoogleOAuthAdapter,
   ],
   exports: [AdminAuthService, UserAuthService],
 })

@@ -1,4 +1,5 @@
 import { SessionEntity } from '@/api/auth/entities/session.entity';
+import { UserSocialAccountEntity } from '@/api/auth/entities/user-social-account.entity';
 import { UserChangePasswordReqDto } from '@/api/user/dto/user-change-password.req.dto';
 import { UserChangePasswordResDto } from '@/api/user/dto/user-change-password.res.dto';
 import { UserResDto } from '@/api/user/dto/user.res.dto';
@@ -12,7 +13,7 @@ import { AutoIncrementID } from '@/common/types/common.type';
 import { Branded } from '@/common/types/types';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
-import { ESessionUserType } from '@/constants/entity.enum';
+import { EOAuthProvider, ESessionUserType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { JobName, QueueName } from '@/constants/job.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
@@ -54,8 +55,13 @@ import { SessionResDto } from '../dto/session.res.dto';
 import { LoginReqDto } from '../dto/users/login.req.dto';
 import { LoginResDto } from '../dto/users/login.res.dto';
 import { RegisterReqDto } from '../dto/users/register.req.dto';
+import { SetupInitialPasswordReqDto } from '../dto/users/setup-initial-password.req.dto';
+import { SocialAccountResDto } from '../dto/users/social-account.res.dto';
+import { SocialExchangeReqDto } from '../dto/users/social-exchange.req.dto';
+import { SocialLinkUrlResDto } from '../dto/users/social-link-url.res.dto';
 import { UpdateAuthUserMeReqDto } from '../dto/users/update-me.req.dto';
 import { VerifyAccountResDto } from '../dto/verify-account.req.dto';
+import { OAuthProviderProfile } from '../social/oauth-provider-profile.type';
 import { JwtForgotPasswordPayload } from '../types/jwt-forgot-password-payload';
 import { JwtPayloadType } from '../types/jwt-payload.type';
 import { JwtRefreshPayloadType } from '../types/jwt-refresh-payload.type';
@@ -74,6 +80,11 @@ type SessionRequestInfo = {
   userAgent?: string | string[];
 };
 
+type OAuthStateValue = {
+  mode: 'link';
+  userId: AutoIncrementID;
+};
+
 @Injectable()
 export class UserAuthService {
   private readonly logger = new Logger(UserAuthService.name);
@@ -85,6 +96,8 @@ export class UserAuthService {
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(SessionEntity)
     private readonly sessionRepository: Repository<SessionEntity>,
+    @InjectRepository(UserSocialAccountEntity)
+    private readonly socialAccountRepository: Repository<UserSocialAccountEntity>,
     @InjectQueue(QueueName.EMAIL)
     private readonly emailQueue: Queue<IEmailJob, any, string>,
     @Inject(CACHE_MANAGER)
@@ -108,31 +121,7 @@ export class UserAuthService {
       throw new BadRequestException({ message: 'Invalid credentials' });
     }
 
-    const hash = crypto
-      .createHash('sha256')
-      .update(randomStringGenerator())
-      .digest('hex');
-
-    const session = new SessionEntity({
-      hash,
-      userId: user.id,
-      userType: ESessionUserType.USER,
-      ipAddress: requestInfo?.ipAddress,
-      userAgent: normalizeUserAgent(requestInfo?.userAgent),
-    });
-    await this.sessionRepository.save(session);
-    await this.clearSessionBlacklist(session.id);
-
-    const token = await this.createToken({
-      id: user.id,
-      sessionId: session.id,
-      hash,
-    });
-
-    return plainToInstance(LoginResDto, {
-      userId: user.id,
-      ...token,
-    });
+    return this.createLoginResponse(user, requestInfo);
   }
 
   async signUp(dto: RegisterReqDto): Promise<RegisterResDto> {
@@ -147,7 +136,7 @@ export class UserAuthService {
     // Register user
     const user = await this.userRepository.save({
       firstName: dto.firstName,
-      lastName: dto.lastName,
+      lastName: dto.lastName || '',
       email: dto.email,
       password: dto.password,
     });
@@ -354,6 +343,111 @@ export class UserAuthService {
     return plainToInstance(ResetPasswordResDto, {
       success: true,
       message: 'Reset password successfully. Please login to continue website',
+    });
+  }
+
+  async exchangeSocialLogin(dto: SocialExchangeReqDto): Promise<LoginResDto> {
+    const cacheKey = createCacheKey(CacheKey.SOCIAL_OAUTH_EXCHANGE, dto.token);
+    const cached = await this.cacheManager.get<LoginResDto>(cacheKey);
+
+    if (!cached) {
+      throw new UnauthorizedException();
+    }
+
+    await this.cacheManager.del(cacheKey);
+
+    return plainToInstance(LoginResDto, cached);
+  }
+
+  async createGoogleLinkUrl(
+    userToken: JwtPayloadType,
+  ): Promise<SocialLinkUrlResDto> {
+    const state = crypto.randomUUID();
+
+    await this.cacheManager.set<OAuthStateValue>(
+      createCacheKey(CacheKey.SOCIAL_OAUTH_STATE, state),
+      {
+        mode: 'link',
+        userId: userToken.id as AutoIncrementID,
+      },
+      ms('10m'),
+    );
+
+    const url = new URL(
+      '/api/v1/user/auth/social/google',
+      this.configService.getOrThrow('app.url', { infer: true }),
+    );
+    url.searchParams.set('state', state);
+
+    return plainToInstance(SocialLinkUrlResDto, { url: url.toString() });
+  }
+
+  async handleSocialLoginCallback(
+    profile: OAuthProviderProfile,
+    state?: string,
+    requestInfo?: SessionRequestInfo,
+  ): Promise<string> {
+    if (!profile.email || !profile.providerAccountId) {
+      throw new BadRequestException('Social account profile is incomplete');
+    }
+
+    const oauthState = state ? await this.consumeOAuthState(state) : undefined;
+
+    if (oauthState?.mode === 'link') {
+      await this.linkSocialAccount(oauthState.userId, profile);
+      return this.buildClientRedirectUrl('/client-profile', {
+        social: 'linked',
+      });
+    }
+
+    const loginResponse = await this.signInOrRegisterSocialUser(
+      profile,
+      requestInfo,
+    );
+    const exchangeToken = await this.createOAuthExchangeToken(loginResponse);
+
+    return this.buildClientRedirectUrl('/auth/oauth/callback', {
+      token: exchangeToken,
+    });
+  }
+
+  async listSocialAccounts(
+    userToken: JwtPayloadType,
+  ): Promise<SocialAccountResDto[]> {
+    const accounts = await this.socialAccountRepository.find({
+      where: { userId: userToken.id as AutoIncrementID },
+      order: { createdAt: 'DESC' },
+    });
+
+    return plainToInstance(SocialAccountResDto, accounts, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  async setupInitialPassword(
+    userId: AutoIncrementID,
+    dto: SetupInitialPasswordReqDto,
+  ): Promise<UserChangePasswordResDto> {
+    if (dto.password !== dto.confirmPassword) {
+      throw new BadRequestException('Passwords do not match');
+    }
+
+    const user = await this.userRepository.findOneByOrFail({ id: userId });
+
+    if (user.password) {
+      throw new BadRequestException('Password has already been configured');
+    }
+
+    user.password = dto.password;
+    await this.userRepository.save(user);
+
+    return plainToInstance(UserChangePasswordResDto, {
+      message: 'Password configured successfully',
+      user: plainToInstance(
+        UserResDto,
+        { ...user, hasPassword: true },
+        { excludeExtraneousValues: true },
+      ),
     });
   }
 
@@ -654,17 +748,6 @@ export class UserAuthService {
     }
   }
 
-  async googleLogin(req) {
-    if (!req.user) {
-      return 'No user from google';
-    }
-
-    return {
-      message: 'User information from google',
-      user: req.user,
-    };
-  }
-
   async me(id: AutoIncrementID): Promise<UserResDto> {
     assert(id, 'id is required');
     const user = await this.userRepository.findOneBy({ id });
@@ -673,7 +756,14 @@ export class UserAuthService {
       throw new ForbiddenException('Forbidden');
     }
 
-    return user.toDto(UserResDto);
+    return plainToInstance(
+      UserResDto,
+      {
+        ...user,
+        hasPassword: !!user.password,
+      },
+      { excludeExtraneousValues: true },
+    );
   }
 
   async changePassword(
@@ -694,7 +784,11 @@ export class UserAuthService {
 
     return plainToInstance(UserChangePasswordResDto, {
       message: 'Change password successfully',
-      user: user.toDto(UserResDto),
+      user: plainToInstance(
+        UserResDto,
+        { ...user, hasPassword: true },
+        { excludeExtraneousValues: true },
+      ),
     });
   }
 
@@ -718,8 +812,193 @@ export class UserAuthService {
       message: 'success',
     };
   }
+
+  private async createLoginResponse(
+    user: UserEntity,
+    requestInfo?: SessionRequestInfo,
+  ): Promise<LoginResDto> {
+    const hash = crypto
+      .createHash('sha256')
+      .update(randomStringGenerator())
+      .digest('hex');
+
+    const session = new SessionEntity({
+      hash,
+      userId: user.id,
+      userType: ESessionUserType.USER,
+      ipAddress: requestInfo?.ipAddress,
+      userAgent: normalizeUserAgent(requestInfo?.userAgent),
+    });
+    await this.sessionRepository.save(session);
+    await this.clearSessionBlacklist(session.id);
+
+    const token = await this.createToken({
+      id: user.id,
+      sessionId: session.id,
+      hash,
+    });
+
+    return plainToInstance(LoginResDto, {
+      userId: user.id,
+      ...token,
+    });
+  }
+
+  private async consumeOAuthState(state: string): Promise<OAuthStateValue> {
+    const cacheKey = createCacheKey(CacheKey.SOCIAL_OAUTH_STATE, state);
+    const value = await this.cacheManager.get<OAuthStateValue>(cacheKey);
+
+    if (!value) {
+      throw new BadRequestException('Invalid or expired OAuth state');
+    }
+
+    await this.cacheManager.del(cacheKey);
+
+    return value;
+  }
+
+  private async createOAuthExchangeToken(loginResponse: LoginResDto) {
+    const exchangeToken = crypto.randomUUID();
+    await this.cacheManager.set<LoginResDto>(
+      createCacheKey(CacheKey.SOCIAL_OAUTH_EXCHANGE, exchangeToken),
+      loginResponse,
+      ms('5m'),
+    );
+
+    return exchangeToken;
+  }
+
+  private async signInOrRegisterSocialUser(
+    profile: OAuthProviderProfile,
+    requestInfo?: SessionRequestInfo,
+  ): Promise<LoginResDto> {
+    const existingAccount = await this.socialAccountRepository.findOne({
+      where: {
+        provider: profile.provider,
+        providerAccountId: profile.providerAccountId,
+      },
+    });
+
+    if (existingAccount) {
+      const user = await this.userRepository.findOneByOrFail({
+        id: existingAccount.userId,
+      });
+
+      return this.createLoginResponse(user, requestInfo);
+    }
+
+    if (!profile.emailVerified) {
+      throw new BadRequestException('Google email must be verified');
+    }
+
+    let user = await this.userRepository.findOne({
+      where: { email: profile.email },
+    });
+
+    if (!user) {
+      user = await this.userRepository.save({
+        firstName: profile.firstName || profile.displayName || 'User',
+        lastName: profile.lastName || '',
+        email: profile.email,
+        avatar: profile.avatarUrl,
+        verifiedAt: new Date(),
+      });
+    } else if (!user.verifiedAt) {
+      user.verifiedAt = new Date();
+      await this.userRepository.save(user);
+    }
+
+    await this.createSocialAccount(user.id, profile);
+
+    return this.createLoginResponse(user, requestInfo);
+  }
+
+  private async linkSocialAccount(
+    userId: AutoIncrementID,
+    profile: OAuthProviderProfile,
+  ): Promise<void> {
+    if (!profile.emailVerified) {
+      throw new BadRequestException('Google email must be verified');
+    }
+
+    const user = await this.userRepository.findOneByOrFail({ id: userId });
+
+    if (normalizeEmail(user.email) !== normalizeEmail(profile.email)) {
+      throw new BadRequestException(
+        'Google account email must match your account email',
+      );
+    }
+
+    const providerAccount = await this.socialAccountRepository.findOne({
+      where: {
+        provider: profile.provider,
+        providerAccountId: profile.providerAccountId,
+      },
+    });
+
+    if (providerAccount && providerAccount.userId !== user.id) {
+      throw new BadRequestException(
+        'This Google account is already linked to another user',
+      );
+    }
+
+    const existingUserProvider = await this.socialAccountRepository.findOne({
+      where: {
+        userId: user.id,
+        provider: profile.provider,
+      },
+    });
+
+    if (
+      existingUserProvider &&
+      existingUserProvider.providerAccountId !== profile.providerAccountId
+    ) {
+      throw new BadRequestException('A Google account is already linked');
+    }
+
+    if (!existingUserProvider) {
+      await this.createSocialAccount(user.id, profile);
+    }
+  }
+
+  private async createSocialAccount(
+    userId: AutoIncrementID,
+    profile: OAuthProviderProfile,
+  ) {
+    return this.socialAccountRepository.save(
+      new UserSocialAccountEntity({
+        userId,
+        provider: profile.provider || EOAuthProvider.GOOGLE,
+        providerAccountId: profile.providerAccountId,
+        email: profile.email,
+        emailVerified: profile.emailVerified,
+        displayName: profile.displayName,
+        avatarUrl: profile.avatarUrl,
+      }),
+    );
+  }
+
+  private buildClientRedirectUrl(
+    pathname: string,
+    query: Record<string, string>,
+  ) {
+    const url = new URL(
+      pathname,
+      this.configService.getOrThrow('auth.clientUrl', { infer: true }),
+    );
+
+    Object.entries(query).forEach(([key, value]) => {
+      url.searchParams.set(key, value);
+    });
+
+    return url.toString();
+  }
 }
 
 function normalizeUserAgent(userAgent?: string | string[]) {
   return Array.isArray(userAgent) ? userAgent.join(', ') : userAgent;
+}
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
 }

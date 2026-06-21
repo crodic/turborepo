@@ -92,7 +92,17 @@ class EnvironmentVariablesValidator {
   @IsString()
   @IsNotEmpty()
   @IsUrl({ require_tld: false })
+  USER_AUTH_CLIENT_URL: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsUrl({ require_tld: false })
   USER_AUTH_CLIENT_RESET_PASSWORD_URL: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsUrl({ require_tld: false })
+  GOOGLE_OAUTH_CALLBACK_URL: string;
 
   @IsString()
   ADMIN_PANEL_USERNAME: string;
@@ -131,7 +141,9 @@ export default registerAs<AuthConfig>('auth', () => {
     userConfirmEmailSecret: process.env.USER_AUTH_CONFIRM_EMAIL_SECRET,
     userConfirmEmailExpires:
       process.env.USER_AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN,
+    clientUrl: process.env.USER_AUTH_CLIENT_URL,
     clientResetPasswordUrl: process.env.USER_AUTH_CLIENT_RESET_PASSWORD_URL,
+    googleOAuthCallbackUrl: process.env.GOOGLE_OAUTH_CALLBACK_URL,
 
     adminPanelUsername: process.env.ADMIN_PANEL_USERNAME,
     adminPanelPassword: process.env.ADMIN_PANEL_PASSWORD,
