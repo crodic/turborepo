@@ -130,7 +130,7 @@ export function PageCmsPageShow() {
             <CardContent>
               <div className='overflow-auto rounded-md border'>
                 <ServerLayerRenderer
-                  page={data.content as any}
+                  page={data.content[0] as any}
                   componentRegistry={pageBuilderComponentRegistry}
                   variables={(data.variables ?? []) as any}
                 />

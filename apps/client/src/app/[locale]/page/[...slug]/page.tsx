@@ -10,7 +10,7 @@ import { pageBuilderComponentRegistry } from "@/components/page-builder/registry
 type CmsPage = {
   title: string;
   slug: string;
-  content: ComponentLayer;
+  content: unknown;
   variables?: Variable[];
   seoTitle?: string | null;
   seoDescription?: string | null;
@@ -69,10 +69,106 @@ export default async function CmsDynamicPage({ params }: PageProps) {
 
   return (
     <ServerLayerRenderer
-      page={page.content}
+      page={normalizeLayer(page.content)}
       componentRegistry={pageBuilderComponentRegistry}
       variables={page.variables ?? []}
     />
+  );
+}
+
+const DEFAULT_PAGE_CONTENT: ComponentLayer = {
+  id: "page-root",
+  type: "section",
+  name: "Page",
+  props: {
+    className: "mx-auto max-w-5xl px-6 py-20",
+  },
+  children: [
+    {
+      id: "page-title",
+      type: "h1",
+      name: "Title",
+      props: {
+        className: "text-4xl font-bold tracking-tight",
+      },
+      children: "Page content is unavailable.",
+    },
+  ],
+};
+
+function isLayerLike(value: unknown) {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { id?: unknown }).id === "string" &&
+    typeof (value as { type?: unknown }).type === "string"
+  );
+}
+
+function normalizeLayer(
+  value: unknown,
+  fallback: ComponentLayer = DEFAULT_PAGE_CONTENT
+): ComponentLayer {
+  if (Array.isArray(value)) {
+    const directLayer = value.find(isLayerLike);
+    if (directLayer) {
+      return normalizeLayer(directLayer, fallback);
+    }
+
+    const nestedLayer = value.find(
+      (item) => isRecord(item) && getNestedLayerInput(item) !== undefined
+    );
+    return nestedLayer ? normalizeLayer(nestedLayer, fallback) : fallback;
+  }
+
+  if (isRecord(value)) {
+    const nestedContent = getNestedLayerInput(value);
+
+    if (nestedContent !== undefined && nestedContent !== value) {
+      return normalizeLayer(nestedContent, fallback);
+    }
+  }
+
+  if (!isLayerLike(value)) {
+    return fallback;
+  }
+
+  const layer = value as ComponentLayer;
+  const children = Array.isArray(layer.children)
+    ? layer.children.map((child, index) =>
+        normalizeLayer(child, {
+          id: `${layer.id}-child-${index}`,
+          type: "div",
+          name: "Recovered layer",
+          props: {},
+          children: [],
+        })
+      )
+    : layer.children;
+
+  return {
+    ...layer,
+    props:
+      typeof layer.props === "object" && layer.props !== null
+        ? layer.props
+        : {},
+    children,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getNestedLayerInput(value: Record<string, unknown>) {
+  return (
+    value.content ??
+    value.page ??
+    value.root ??
+    value.layer ??
+    value.data ??
+    value.layers ??
+    value.pages
   );
 }
 
@@ -93,5 +189,19 @@ async function getCmsPage(slug: string) {
     throw new Error("Failed to load page");
   }
 
-  return (await response.json()) as CmsPage;
+  return unwrapCmsPage(await response.json());
+}
+
+function unwrapCmsPage(payload: unknown): CmsPage {
+  if (isRecord(payload)) {
+    if (isRecord(payload.data)) {
+      return payload.data as CmsPage;
+    }
+
+    if (Array.isArray(payload.data) && isRecord(payload.data[0])) {
+      return payload.data[0] as CmsPage;
+    }
+  }
+
+  return payload as CmsPage;
 }

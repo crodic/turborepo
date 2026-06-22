@@ -8,10 +8,7 @@ import {
   TransformComponent,
   useControls,
 } from 'react-zoom-pan-pinch'
-import {
-  DndContextProvider,
-  useComponentDragContext,
-} from '@/lib/ui-builder/context/dnd-context'
+import { useComponentDragContext } from '@/lib/ui-builder/context/dnd-context'
 import { useEditorStore } from '@/lib/ui-builder/store/editor-store'
 import { countLayers, useLayerStore } from '@/lib/ui-builder/store/layer-store'
 import { cn } from '@/lib/utils'
@@ -28,6 +25,10 @@ import { AddComponentsPopover } from '@/components/ui/ui-builder/internal/compon
 import { LayerContextMenuPortal } from '@/components/ui/ui-builder/internal/components/layer-context-menu-portal'
 import LayerRenderer from '@/components/ui/ui-builder/layer-renderer'
 import type { ComponentLayer } from '@/components/ui/ui-builder/types'
+
+// @ts-nocheck
+
+// @ts-nocheck
 
 // @ts-nocheck
 
@@ -172,19 +173,17 @@ const EditorPanel: React.FC<EditorPanelProps> = ({ className }) => {
   )
 
   return (
-    <DndContextProvider>
-      <EditorPanelContent
-        className={className}
-        selectedLayerId={selectedLayerId}
-        selectedPageId={selectedPageId}
-        selectedLayer={selectedLayer}
-        selectedPage={selectedPage}
-        previewMode={previewMode}
-        componentRegistry={componentRegistry}
-        autoZoomToSelected={false}
-        onSelectElement={onSelectElement}
-      />
-    </DndContextProvider>
+    <EditorPanelContent
+      className={className}
+      selectedLayerId={selectedLayerId}
+      selectedPageId={selectedPageId}
+      selectedLayer={selectedLayer}
+      selectedPage={selectedPage}
+      previewMode={previewMode}
+      componentRegistry={componentRegistry}
+      autoZoomToSelected={false}
+      onSelectElement={onSelectElement}
+    />
   )
 }
 

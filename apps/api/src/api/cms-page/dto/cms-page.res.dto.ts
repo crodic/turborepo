@@ -2,11 +2,10 @@ import {
   ClassField,
   DateFieldOptional,
   EnumField,
-  JsonField,
-  JsonFieldOptional,
   StringField,
   StringFieldOptional,
 } from '@/decorators/field.decorators';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
 import { ECmsPageStatus } from '../entities/cms-page.entity';
 
@@ -28,11 +27,11 @@ export class CmsPageResDto {
   @Expose()
   status: ECmsPageStatus;
 
-  @JsonField()
+  @ApiProperty({ type: Object })
   @Expose()
   content: Record<string, unknown>;
 
-  @JsonFieldOptional({ each: true })
+  @ApiPropertyOptional({ type: [Object] })
   @Expose()
   variables?: unknown[];
 

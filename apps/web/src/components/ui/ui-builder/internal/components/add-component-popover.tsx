@@ -226,11 +226,11 @@ export function AddComponentsPopover({
     [onOpenChange]
   )
 
-  // Close popover when drag starts
+  // Keep the popover mounted while dragging. Unmounting the active draggable
+  // during onDragStart can cancel @dnd-kit before it reaches the canvas.
   const handleDragStart = useCallback(() => {
-    setOpen(false)
-    onOpenChange?.(false)
-  }, [onOpenChange])
+    return undefined
+  }, [])
 
   const defaultTab = categories[0] || ''
   const defaultBlockCategory = blockCategories[0] || ''

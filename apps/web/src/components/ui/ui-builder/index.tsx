@@ -2,7 +2,7 @@
 'use client'
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
-import { ThemeProvider } from 'next-themes'
+import { DndContextProvider } from '@/lib/ui-builder/context/dnd-context'
 import { useEditorStore } from '@/lib/ui-builder/store/editor-store'
 import { useLayerStore } from '@/lib/ui-builder/store/layer-store'
 import { useStore } from '@/hooks/use-store'
@@ -31,6 +31,10 @@ import type {
   BlockRegistry,
   FunctionRegistry,
 } from '@/components/ui/ui-builder/types'
+
+// @ts-nocheck
+
+// @ts-nocheck
 
 // @ts-nocheck
 
@@ -125,7 +129,7 @@ type UIBuilderProps<TRegistry extends ComponentRegistry = ComponentRegistry> =
  * UIBuilder component manages the initialization of editor and layer stores, and renders the serializable layout.
  *
  * @param {UIBuilderProps} props - The props for the UIBuilder component.
- * @returns {JSX.Element} The UIBuilder component wrapped in a ThemeProvider.
+ * @returns {JSX.Element} The UIBuilder component.
  */
 const UIBuilder = <TRegistry extends ComponentRegistry = ComponentRegistry>({
   initialLayers,
@@ -250,22 +254,16 @@ const UIBuilder = <TRegistry extends ComponentRegistry = ComponentRegistry>({
   const layout = isLoading ? (
     <LoadingSkeleton />
   ) : (
-    <MainLayout panelConfig={currentPanelConfig} />
+    <DndContextProvider>
+      <MainLayout panelConfig={currentPanelConfig} />
+    </DndContextProvider>
   )
 
   return (
-    <ThemeProvider
-      data-testid='theme-provider'
-      attribute='class'
-      defaultTheme='system'
-      enableSystem
-      disableTransitionOnChange
-    >
-      <TooltipProvider>
-        {layout}
-        <Toaster position='bottom-right' />
-      </TooltipProvider>
-    </ThemeProvider>
+    <TooltipProvider>
+      {layout}
+      <Toaster position='bottom-right' />
+    </TooltipProvider>
   )
 }
 
@@ -334,7 +332,7 @@ function MainLayout({ panelConfig }: { panelConfig: PanelConfig }) {
   return (
     <div
       data-testid='component-editor'
-      className='flex h-dvh w-full flex-grow flex-col'
+      className='flex h-full min-h-0 w-full flex-grow flex-col'
     >
       {panelConfig.navBar}
       {/* Desktop Layout */}

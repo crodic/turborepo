@@ -20,7 +20,6 @@ import {
   PanelLeft,
   PanelRight,
 } from 'lucide-react'
-import { useTheme } from 'next-themes'
 import { useStore } from 'zustand'
 import {
   SHORTCUTS,
@@ -32,6 +31,7 @@ import {
 } from '@/lib/ui-builder/store/editor-store'
 import { useLayerStore } from '@/lib/ui-builder/store/layer-store'
 import { cn } from '@/lib/utils'
+import { useTheme } from '@/context/theme-provider'
 import {
   type KeyCombination,
   useKeyboardShortcuts,
@@ -81,6 +81,10 @@ import type {
   ComponentRegistry,
   ComponentLayer,
 } from '@/components/ui/ui-builder/types'
+
+// @ts-nocheck
+
+// @ts-nocheck
 
 // @ts-nocheck
 

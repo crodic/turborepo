@@ -3,6 +3,7 @@ import type {
   ComponentLayer,
   ComponentRegistry,
 } from "@/components/ui/ui-builder/types";
+import { shadcnComponentDefinitions } from "@/lib/ui-builder/registry/shadcn-component-definitions";
 import {
   Accordion,
   AccordionContent,
@@ -47,6 +48,8 @@ const primitiveTypes = [
   "article",
   "header",
   "footer",
+  "aside",
+  "nav",
 ] as const;
 
 const primitiveComponentDefinitions = Object.fromEntries(
@@ -135,4 +138,5 @@ const complexComponentDefinitions = {
 export const pageBuilderComponentRegistry = {
   ...primitiveComponentDefinitions,
   ...complexComponentDefinitions,
+  ...shadcnComponentDefinitions,
 };

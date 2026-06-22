@@ -36,13 +36,7 @@ export function PageCmsPageCreate() {
           <ProfileDropdown />
         </div>
       </Header>
-      <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
-        <div>
-          <h2 className='text-2xl font-bold tracking-tight'>Create Page</h2>
-          <p className='text-muted-foreground'>
-            Create a dynamic client page with UI Builder compatible JSON.
-          </p>
-        </div>
+      <Main fixed fluid className='h-[calc(100svh-4rem)] min-h-0 p-0'>
         <CmsPageForm
           isSubmitting={mutation.isPending}
           onSubmit={handleSubmit}
