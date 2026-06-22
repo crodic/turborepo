@@ -44,6 +44,7 @@ export class UserAuthGuard extends AuthGuard('user-jwt') {
       'impersonation',
       user.impersonatedBy
         ? {
+            historyId: user.impersonationHistoryId,
             sessionId: user.sessionId,
             adminId: user.impersonatedBy,
             targetUserId: user.id,

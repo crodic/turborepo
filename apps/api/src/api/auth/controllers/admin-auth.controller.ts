@@ -191,6 +191,8 @@ export class AdminAuthenticationController {
     return this.adminAuthService.impersonateUser(userToken, dto, {
       ipAddress: req.ip,
       userAgent: req.headers?.['user-agent'],
+      method: req.method,
+      endpoint: req.originalUrl || req.url,
     });
   }
 

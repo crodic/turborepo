@@ -1,5 +1,6 @@
 import { SessionEntity } from '@/api/auth/entities/session.entity';
 import { UserSocialAccountEntity } from '@/api/auth/entities/user-social-account.entity';
+import { ImpersonateLogService } from '@/api/impersonate-log/impersonate-log.service';
 import { UserChangePasswordReqDto } from '@/api/user/dto/user-change-password.req.dto';
 import { UserChangePasswordResDto } from '@/api/user/dto/user-change-password.res.dto';
 import { UserResDto } from '@/api/user/dto/user.res.dto';
@@ -78,6 +79,8 @@ type Token = Branded<
 type SessionRequestInfo = {
   ipAddress?: string;
   userAgent?: string | string[];
+  method?: string;
+  endpoint?: string;
 };
 
 type OAuthStateValue = {
@@ -102,6 +105,7 @@ export class UserAuthService {
     private readonly emailQueue: Queue<IEmailJob, any, string>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
+    private readonly impersonateLogService: ImpersonateLogService,
   ) {}
 
   async signIn(
@@ -581,6 +585,7 @@ export class UserAuthService {
 
   async stopImpersonating(
     userToken: JwtPayloadType,
+    requestInfo?: SessionRequestInfo,
   ): Promise<{ message: string }> {
     const session = await this.sessionRepository.findOneBy({
       id: userToken.sessionId as AutoIncrementID,
@@ -593,6 +598,7 @@ export class UserAuthService {
       throw new BadRequestException('Current session is not impersonated');
     }
 
+    const revokedAt = new Date();
     const result = await this.sessionRepository.update(
       {
         id: userToken.sessionId as AutoIncrementID,
@@ -600,7 +606,7 @@ export class UserAuthService {
         userType: ESessionUserType.USER,
         revokedAt: IsNull(),
       },
-      { revokedAt: new Date() },
+      { revokedAt },
     );
 
     if (result.affected === 0) {
@@ -608,6 +614,14 @@ export class UserAuthService {
     }
 
     await this.blacklistSession(userToken.sessionId);
+    await this.impersonateLogService.stopHistory({
+      sessionId: session.id,
+      adminId: session.impersonatedBy,
+      targetUserId: session.userId,
+      stoppedAt: revokedAt,
+      ipAddress: requestInfo?.ipAddress,
+      userAgent: requestInfo?.userAgent,
+    });
 
     return { message: 'Stopped impersonating successfully' };
   }

@@ -1,4 +1,5 @@
 import { SessionEntity } from '@/api/auth/entities/session.entity';
+import { ImpersonateLogHistoryEntity } from '@/api/impersonate-log/entities/impersonate-log-history.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
@@ -21,6 +22,8 @@ export class UserJwtStrategy extends PassportStrategy(Strategy, 'user-jwt') {
     private readonly cache: Cache,
     @InjectRepository(SessionEntity)
     private readonly sessionRepository: Repository<SessionEntity>,
+    @InjectRepository(ImpersonateLogHistoryEntity)
+    private readonly historyRepository: Repository<ImpersonateLogHistoryEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
   ) {
@@ -70,9 +73,20 @@ export class UserJwtStrategy extends PassportStrategy(Strategy, 'user-jwt') {
       throw new UnauthorizedException();
     }
 
+    const impersonationHistoryId = session.impersonatedBy
+      ? (payload.impersonationHistoryId ??
+        (
+          await this.historyRepository.findOne({
+            where: { sessionId: session.id },
+            select: ['id'],
+          })
+        )?.id)
+      : undefined;
+
     return {
       ...payload,
       impersonatedBy: session?.impersonatedBy,
+      impersonationHistoryId,
       impersonationExpiresAt: session?.impersonatedBy
         ? session.expiresAt
         : undefined,

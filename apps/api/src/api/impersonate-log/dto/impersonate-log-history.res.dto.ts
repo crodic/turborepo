@@ -1,4 +1,4 @@
-import { EImpersonateLogStatus } from '@/constants/entity.enum';
+import { EImpersonateHistoryStatus } from '@/constants/entity.enum';
 import {
   ClassField,
   EnumField,
@@ -6,16 +6,13 @@ import {
   StringFieldOptional,
 } from '@/decorators/field.decorators';
 import { Exclude, Expose } from 'class-transformer';
+import { ImpersonateLogResDto } from './impersonate-log.res.dto';
 
 @Exclude()
-export class ImpersonateLogResDto {
+export class ImpersonateLogHistoryResDto {
   @StringField()
   @Expose()
   id: string;
-
-  @StringFieldOptional()
-  @Expose()
-  historyId?: string;
 
   @StringField()
   @Expose()
@@ -31,31 +28,11 @@ export class ImpersonateLogResDto {
 
   @StringField()
   @Expose()
-  action: string;
+  reason: string;
 
-  @StringField()
+  @EnumField(() => EImpersonateHistoryStatus)
   @Expose()
-  method: string;
-
-  @StringField()
-  @Expose()
-  endpoint: string;
-
-  @StringFieldOptional()
-  @Expose()
-  entityType?: string;
-
-  @StringFieldOptional()
-  @Expose()
-  entityId?: string;
-
-  @EnumField(() => EImpersonateLogStatus)
-  @Expose()
-  status: EImpersonateLogStatus;
-
-  @StringFieldOptional()
-  @Expose()
-  errorMessage?: string;
+  status: EImpersonateHistoryStatus;
 
   @StringFieldOptional()
   @Expose()
@@ -65,20 +42,24 @@ export class ImpersonateLogResDto {
   @Expose()
   userAgent?: string;
 
+  @ClassField(() => Date)
   @Expose()
-  input?: any;
+  startedAt: Date;
+
+  @ClassField(() => Date)
+  @Expose()
+  stoppedAt?: Date;
+
+  @ClassField(() => Date)
+  @Expose()
+  expiresAt?: Date;
+
+  @ClassField(() => Date)
+  @Expose()
+  createdAt: Date;
 
   @Expose()
-  output?: any;
-
-  @Expose()
-  before?: any;
-
-  @Expose()
-  after?: any;
-
-  @Expose()
-  changedFields?: any;
+  itemsCount?: number;
 
   @Expose()
   admin?: any;
@@ -86,7 +67,6 @@ export class ImpersonateLogResDto {
   @Expose()
   targetUser?: any;
 
-  @ClassField(() => Date)
   @Expose()
-  createdAt: Date;
+  items?: ImpersonateLogResDto[];
 }

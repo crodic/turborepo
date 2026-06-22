@@ -54,6 +54,7 @@ export class RequestContextInterceptor implements NestInterceptor {
     await repository.save(
       repository.create({
         sessionId: impersonation.sessionId,
+        historyId: impersonation.historyId,
         adminId: impersonation.adminId,
         targetUserId: impersonation.targetUserId,
         action: 'REQUEST_FAILED',

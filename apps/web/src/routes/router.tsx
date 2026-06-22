@@ -25,6 +25,7 @@ import { NotFoundError } from '@/pages/errors/not-found-error'
 import { UnauthorizedError } from '@/pages/errors/unauthorized-error'
 import { PageHelpCenter } from '@/pages/help-center'
 import { PageImpersonationLogOverview } from '@/pages/impersonation-logs'
+import PageImpersonationLogShow from '@/pages/impersonation-logs/show'
 import { PagePermissionOverview } from '@/pages/permissions'
 import { PagePermissionEdit } from '@/pages/permissions/edit'
 import PagePermissionShow from '@/pages/permissions/show'
@@ -311,11 +312,24 @@ const routes: RouteObject[] = [
       },
       {
         path: 'impersonation-logs',
-        element: (
-          <RouteAuthorize action='read' subject='IMPERSONATE_LOG'>
-            <PageImpersonationLogOverview />
-          </RouteAuthorize>
-        ),
+        children: [
+          {
+            index: true,
+            element: (
+              <RouteAuthorize action='read' subject='IMPERSONATE_LOG'>
+                <PageImpersonationLogOverview />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: ':id/show',
+            element: (
+              <RouteAuthorize action='read' subject='IMPERSONATE_LOG'>
+                <PageImpersonationLogShow />
+              </RouteAuthorize>
+            ),
+          },
+        ],
       },
       {
         path: 'emails',

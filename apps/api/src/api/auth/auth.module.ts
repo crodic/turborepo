@@ -7,6 +7,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminUserEntity } from '../admin-user/entities/admin-user.entity';
+import { ImpersonateLogHistoryEntity } from '../impersonate-log/entities/impersonate-log-history.entity';
+import { ImpersonateLogModule } from '../impersonate-log/impersonate-log.module';
 import { NotificationModule } from '../notification/notification.module';
 import { UserEntity } from '../user/entities/user.entity';
 import { AdminAuthenticationController } from './controllers/admin-auth.controller';
@@ -27,7 +29,9 @@ import { UserJwtStrategy } from './strategy/user.strategy';
       AdminUserEntity,
       SessionEntity,
       UserSocialAccountEntity,
+      ImpersonateLogHistoryEntity,
     ]),
+    ImpersonateLogModule,
     NotificationModule,
     JwtModule.register({}),
     BullModule.registerQueue({

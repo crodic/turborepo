@@ -1,4 +1,5 @@
 import { SessionEntity } from '@/api/auth/entities/session.entity';
+import { ImpersonateLogHistoryEntity } from '@/api/impersonate-log/entities/impersonate-log-history.entity';
 import { ImpersonateLogEntity } from '@/api/impersonate-log/entities/impersonate-log.entity';
 import {
   isMutatingMethod,
@@ -27,6 +28,7 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
     AuditLogEntity.name,
     SessionEntity.name,
     ImpersonateLogEntity.name,
+    ImpersonateLogHistoryEntity.name,
   ];
 
   constructor(private dataSource: DataSource) {
@@ -57,9 +59,12 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
     action: 'INSERT' | 'UPDATE' | 'DELETE' | 'RESTORE' | 'SOFT_DELETE',
     event: any,
   ) {
+    const entityId =
+      event.entity?.id ?? event.databaseEntity?.id ?? event.entityId;
+
     if (
       !event.entity ||
-      !event.entityId ||
+      !entityId ||
       this.ignoreEntities.includes(event.metadata.name)
     )
       return;
@@ -80,10 +85,11 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
     }
 
     const userType = cls.get('userType') || 'GuestEntity';
+    const impersonation = cls.get('impersonation');
 
     const log = auditRepo.create({
       entity: event.metadata.name,
-      entityId: event.entity?.id ?? event.databaseEntity?.id ?? event.entityId,
+      entityId,
       action,
       oldValue,
       newValue,
@@ -96,10 +102,11 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
         actorId: userId ?? null,
         roles: currentUser?.roles?.map((role) => role.name) ?? [],
         userType,
+        impersonation: impersonation ?? null,
       },
       description: this.buildDescription(
         action,
-        `${event.metadata.name}:${event.entity?.id ?? event.databaseEntity?.id ?? event.entityId}`,
+        `${event.metadata.name}:${entityId}`,
       ),
     });
 
@@ -125,6 +132,7 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
     const after = sanitizePayload(event.entity);
 
     const log = impersonateLogRepo.create({
+      historyId: impersonation.historyId,
       sessionId: impersonation.sessionId,
       adminId: impersonation.adminId,
       targetUserId: impersonation.targetUserId,
@@ -153,11 +161,7 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
     setImmediate(() => impersonateLogRepo.save(log));
   }
 
-  private buildDescription = (
-    action: string,
-    entityType: string,
-    metadata?: any,
-  ) => {
+  private buildDescription = (action: string, entityType: string) => {
     switch (action) {
       case 'INSERT':
         return `New ${entityType} created`;

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { parseAsArrayOf, parseAsString } from 'nuqs'
+import { useNavigate } from 'react-router'
 import { PaginateQueryBuilder } from '@/lib/query-builder'
 import { sortParser } from '@/lib/utils'
 import { useDataTable } from '@/hooks/use-data-table'
@@ -13,30 +14,30 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { getImpersonationLogsTableColumns } from './columns'
+import { getImpersonationHistoriesTableColumns } from './columns'
 import { useDataImpersonationLogOverview } from './queries'
-import { ColumnKey, type ImpersonationLogSchema } from './schema'
+import { HistoryColumnKey, type ImpersonationLogHistorySchema } from './schema'
 
 const impersonationLogsFilterParsers = {
   sessionId: parseAsString.withDefault(''),
   adminId: parseAsString.withDefault(''),
   targetUserId: parseAsString.withDefault(''),
-  action: parseAsString.withDefault(''),
-  endpoint: parseAsString.withDefault(''),
+  reason: parseAsString.withDefault(''),
   status: parseAsArrayOf(parseAsString, ',').withDefault([]),
 } as const
 
 export function PageImpersonationLogOverview() {
+  const navigate = useNavigate()
   const {
     page,
     perPage,
     sorting: sort,
     filter,
   } = useGetFilterParams<
-    ImpersonationLogSchema,
+    ImpersonationLogHistorySchema,
     typeof impersonationLogsFilterParsers
   >({
-    allowedSorts: [ColumnKey.createdAt],
+    allowedSorts: [HistoryColumnKey.startedAt, HistoryColumnKey.stoppedAt],
     filterParsers: impersonationLogsFilterParsers,
   })
 
@@ -46,13 +47,12 @@ export function PageImpersonationLogOverview() {
     .eq('sessionId', filter.sessionId)
     .eq('adminId', filter.adminId)
     .eq('targetUserId', filter.targetUserId)
-    .ilike('action', filter.action)
-    .ilike('endpoint', filter.endpoint)
+    .ilike('reason', filter.reason)
     .in('status', filter.status || [])
     .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
 
   const { data, isFetching } = useDataImpersonationLogOverview(builder.build())
-  const columns = useMemo(() => getImpersonationLogsTableColumns(), [])
+  const columns = useMemo(() => getImpersonationHistoriesTableColumns(), [])
   const totalPages = data?.meta.totalPages ?? 0
 
   const { table } = useDataTable({
@@ -61,10 +61,14 @@ export function PageImpersonationLogOverview() {
     pageCount: totalPages,
     initialState: {
       columnPinning: { right: [] },
-      sorting: [{ id: ColumnKey.createdAt, desc: true }],
+      sorting: [{ id: HistoryColumnKey.startedAt, desc: true }],
     },
     getRowId: (row) => row.id,
   })
+
+  const handleRowClick = (history: ImpersonationLogHistorySchema) => {
+    navigate(`/impersonation-logs/${history.id}/show`)
+  }
 
   return (
     <>
@@ -81,14 +85,18 @@ export function PageImpersonationLogOverview() {
         <div className='flex flex-wrap items-end justify-between gap-2'>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>
-              Impersonation Logs
+              Impersonation Histories
             </h2>
             <p className='text-muted-foreground'>
-              Review admin impersonation activity and audited user actions.
+              Review each impersonation session and drill into actions.
             </p>
           </div>
         </div>
-        <DataTable table={table} isFetching={isFetching}>
+        <DataTable
+          table={table}
+          onClickRowAction={handleRowClick}
+          isFetching={isFetching}
+        >
           <DataTableToolbar table={table}>
             <DataTableSortList table={table} />
           </DataTableToolbar>

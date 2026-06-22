@@ -8,6 +8,11 @@ export enum EImpersonateLogStatus {
   FAILED = 'failed',
 }
 
+export enum EImpersonateHistoryStatus {
+  ACTIVE = 'active',
+  STOPPED = 'stopped',
+}
+
 export enum EEmailLogSource {
   SYSTEM = 'system',
   ADMIN = 'admin',

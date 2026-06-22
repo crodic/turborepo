@@ -127,6 +127,7 @@ export async function apiRevokeAllSessions() {
 
 export async function apiImpersonateUser(data: {
   userId: string
+  reason: string
   callbackUrl?: string
 }): Promise<ImpersonateUserResponse> {
   const res = await http.post('/auth/impersonate-user', data)

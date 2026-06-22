@@ -135,8 +135,16 @@ export class UserAuthenticationController {
   @ApiAuth({ summary: 'Stop impersonating user' })
   @SkipThrottle()
   @Post('stop-impersonating')
-  async stopImpersonating(@CurrentUser() userToken: JwtPayloadType) {
-    return this.userAuthService.stopImpersonating(userToken);
+  async stopImpersonating(
+    @CurrentUser() userToken: JwtPayloadType,
+    @Request() req: any,
+  ) {
+    return this.userAuthService.stopImpersonating(userToken, {
+      ipAddress: req.ip,
+      userAgent: req.headers?.['user-agent'],
+      method: req.method,
+      endpoint: req.originalUrl || req.url,
+    });
   }
 
   @ApiPublic({ type: ForgotPasswordResDto, summary: 'Forgot password' })

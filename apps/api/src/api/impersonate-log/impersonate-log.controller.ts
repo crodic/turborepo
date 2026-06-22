@@ -13,6 +13,7 @@ import {
   Paginated,
   PaginateQuery,
 } from 'nestjs-paginate';
+import { ImpersonateLogHistoryResDto } from './dto/impersonate-log-history.res.dto';
 import { ImpersonateLogResDto } from './dto/impersonate-log.res.dto';
 import { ImpersonateLogService } from './impersonate-log.service';
 
@@ -24,17 +25,57 @@ export class ImpersonateLogController {
 
   @Get()
   @ApiAuth({
-    type: ImpersonateLogResDto,
+    type: ImpersonateLogHistoryResDto,
     statusCode: 200,
-    summary: 'Get paginated impersonation logs',
+    summary: 'Get paginated impersonation histories',
+    isPaginated: true,
+    paginateOptions: {
+      sortableColumns: ['id', 'startedAt', 'stoppedAt', 'createdAt', 'status'],
+      defaultSortBy: [['startedAt', 'DESC']],
+      filterableColumns: {
+        sessionId: [FilterOperator.EQ],
+        adminId: [FilterOperator.EQ],
+        targetUserId: [FilterOperator.EQ],
+        reason: [FilterOperator.ILIKE],
+        status: [FilterOperator.EQ],
+        startedAt: [FilterOperator.GTE, FilterOperator.LTE],
+        stoppedAt: [FilterOperator.GTE, FilterOperator.LTE],
+      },
+    },
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.ImpersonateLog),
+  )
+  findAll(
+    @Paginate() query: PaginateQuery,
+  ): Promise<Paginated<ImpersonateLogHistoryResDto>> {
+    return this.impersonateLogService.findAllHistories(query);
+  }
+
+  @Get(':id')
+  @ApiAuth({
+    type: ImpersonateLogHistoryResDto,
+    summary: 'Find impersonation history by id',
+  })
+  @ApiParam({ name: 'id', type: 'String' })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.ImpersonateLog),
+  )
+  findOne(
+    @Param('id') id: AutoIncrementID,
+  ): Promise<ImpersonateLogHistoryResDto> {
+    return this.impersonateLogService.findHistory(id);
+  }
+
+  @Get(':id/items')
+  @ApiAuth({
+    type: ImpersonateLogResDto,
+    summary: 'Get paginated impersonation log items',
     isPaginated: true,
     paginateOptions: {
       sortableColumns: ['id', 'createdAt', 'action', 'method', 'status'],
       defaultSortBy: [['createdAt', 'DESC']],
       filterableColumns: {
-        sessionId: [FilterOperator.EQ],
-        adminId: [FilterOperator.EQ],
-        targetUserId: [FilterOperator.EQ],
         action: [FilterOperator.IN],
         status: [FilterOperator.EQ],
         entityType: [FilterOperator.IN],
@@ -44,25 +85,14 @@ export class ImpersonateLogController {
       },
     },
   })
-  @CheckPolicies((ability: AppAbility) =>
-    ability.can(AppActions.Read, AppSubjects.ImpersonateLog),
-  )
-  findAll(
-    @Paginate() query: PaginateQuery,
-  ): Promise<Paginated<ImpersonateLogResDto>> {
-    return this.impersonateLogService.findAll(query);
-  }
-
-  @Get(':id')
-  @ApiAuth({
-    type: ImpersonateLogResDto,
-    summary: 'Find impersonation log by id',
-  })
   @ApiParam({ name: 'id', type: 'String' })
   @CheckPolicies((ability: AppAbility) =>
     ability.can(AppActions.Read, AppSubjects.ImpersonateLog),
   )
-  findOne(@Param('id') id: AutoIncrementID): Promise<ImpersonateLogResDto> {
-    return this.impersonateLogService.findOne(id);
+  findItems(
+    @Param('id') id: AutoIncrementID,
+    @Paginate() query: PaginateQuery,
+  ): Promise<Paginated<ImpersonateLogResDto>> {
+    return this.impersonateLogService.findItems(id, query);
   }
 }

@@ -5,8 +5,12 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
+  Relation,
 } from 'typeorm';
+import { ImpersonateLogHistoryEntity } from './impersonate-log-history.entity';
 
 @Entity('impersonate_logs')
 export class ImpersonateLogEntity {
@@ -15,6 +19,16 @@ export class ImpersonateLogEntity {
     type: 'bigint',
   })
   id: AutoIncrementID;
+
+  @Index('IDX_impersonate_logs_history_id')
+  @Column({ name: 'history_id', type: 'bigint', nullable: true })
+  historyId?: AutoIncrementID;
+
+  @ManyToOne(() => ImpersonateLogHistoryEntity, (history) => history.items, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'history_id' })
+  history?: Relation<ImpersonateLogHistoryEntity>;
 
   @Index('IDX_impersonate_logs_session_id')
   @Column({ name: 'session_id', type: 'bigint' })

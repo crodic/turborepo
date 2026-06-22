@@ -17,6 +17,9 @@ importers:
       '@repo/prettier-config':
         specifier: workspace:*
         version: link:packages/prettier-config
+      '@trivago/prettier-plugin-sort-imports':
+        specifier: ^5.2.2
+        version: 5.2.2(prettier@3.7.4)
       husky:
         specifier: ^9.1.7
         version: 9.1.7
@@ -26,6 +29,12 @@ importers:
       prettier:
         specifier: ^3.7.4
         version: 3.7.4
+      prettier-plugin-organize-imports:
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.7.4)(typescript@5.9.2)
+      prettier-plugin-tailwindcss:
+        specifier: ^0.7.4
+        version: 0.7.4(@trivago/prettier-plugin-sort-imports@5.2.2(prettier@3.7.4))(prettier-plugin-organize-imports@4.3.0(prettier@3.7.4)(typescript@5.9.2))(prettier@3.7.4)
       turbo:
         specifier: ^2.9.18
         version: 2.9.18
@@ -17895,6 +17904,18 @@ snapshots:
 
   '@tokenizer/token@0.3.0': {}
 
+  '@trivago/prettier-plugin-sort-imports@5.2.2(prettier@3.7.4)':
+    dependencies:
+      '@babel/generator': 7.29.7
+      '@babel/parser': 7.29.7
+      '@babel/traverse': 7.29.7
+      '@babel/types': 7.29.7
+      javascript-natural-sort: 0.7.1
+      lodash: 4.18.1
+      prettier: 3.7.4
+    transitivePeerDependencies:
+      - supports-color
+
   '@trivago/prettier-plugin-sort-imports@5.2.2(prettier@3.8.1)':
     dependencies:
       '@babel/generator': 7.29.7
@@ -24470,6 +24491,11 @@ snapshots:
 
   prelude-ls@1.2.1: {}
 
+  prettier-plugin-organize-imports@4.3.0(prettier@3.7.4)(typescript@5.9.2):
+    dependencies:
+      prettier: 3.7.4
+      typescript: 5.9.2
+
   prettier-plugin-organize-imports@4.3.0(prettier@3.8.1)(typescript@5.9.3):
     dependencies:
       prettier: 3.8.1
@@ -24480,6 +24506,13 @@ snapshots:
     dependencies:
       prettier: 3.8.4
       typescript: 5.9.3
+
+  prettier-plugin-tailwindcss@0.7.4(@trivago/prettier-plugin-sort-imports@5.2.2(prettier@3.7.4))(prettier-plugin-organize-imports@4.3.0(prettier@3.7.4)(typescript@5.9.2))(prettier@3.7.4):
+    dependencies:
+      prettier: 3.7.4
+    optionalDependencies:
+      '@trivago/prettier-plugin-sort-imports': 5.2.2(prettier@3.7.4)
+      prettier-plugin-organize-imports: 4.3.0(prettier@3.7.4)(typescript@5.9.2)
 
   prettier-plugin-tailwindcss@0.7.4(@trivago/prettier-plugin-sort-imports@5.2.2(prettier@3.8.1))(prettier-plugin-organize-imports@4.3.0(prettier@3.8.1)(typescript@5.9.3))(prettier@3.8.1):
     dependencies:

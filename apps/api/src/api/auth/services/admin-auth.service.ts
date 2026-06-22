@@ -5,6 +5,7 @@ import { ChangePasswordResDto } from '@/api/admin-user/dto/change-password.res.d
 import { UpdateMeReqDto } from '@/api/admin-user/dto/update-me.req.dto';
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
+import { ImpersonateLogService } from '@/api/impersonate-log/impersonate-log.service';
 import {
   AdminNotificationType,
   NotificationService,
@@ -93,6 +94,8 @@ type Token = Branded<
 type SessionRequestInfo = {
   ipAddress?: string;
   userAgent?: string | string[];
+  method?: string;
+  endpoint?: string;
 };
 
 type TwoFactorSetupPayload = {
@@ -127,6 +130,7 @@ export class AdminAuthService {
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
     private readonly notificationService: NotificationService,
+    private readonly impersonateLogService: ImpersonateLogService,
   ) {}
 
   async login(
@@ -786,6 +790,10 @@ export class AdminAuthService {
       throw new NotFoundException('User not found');
     }
 
+    await this.impersonateLogService.assertAdminCanStartImpersonation(
+      adminToken.id,
+    );
+
     const hash = crypto
       .createHash('sha256')
       .update(randomStringGenerator())
@@ -805,6 +813,17 @@ export class AdminAuthService {
     );
     await this.clearSessionBlacklist(session.id);
 
+    const history = await this.impersonateLogService.createHistory({
+      sessionId: session.id,
+      adminId: adminToken.id,
+      targetUserId: user.id,
+      reason: dto.reason,
+      startedAt: session.createdAt ?? new Date(),
+      expiresAt,
+      ipAddress: requestInfo?.ipAddress,
+      userAgent: requestInfo?.userAgent,
+    });
+
     const tokenExpiresIn = this.configService.getOrThrow('auth.userExpires', {
       infer: true,
     });
@@ -815,6 +834,7 @@ export class AdminAuthService {
           id: user.id,
           sessionId: session.id,
           hash,
+          impersonationHistoryId: history.id,
         },
         {
           secret: this.configService.getOrThrow('auth.userSecret', {

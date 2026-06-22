@@ -21,6 +21,8 @@ import {
 import { AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Authorize } from '@/components/authorize'
 import { DeleteAlertDialog } from '@/components/common/delete-alert-dialog'
 import { DescriptionItem, Descriptions } from '@/components/common/descriptions'
@@ -42,6 +44,7 @@ export function PageUserShow() {
   const params = useParams()
   const id = params.id as string
   const [isShowDeleteDialog, setIsShowDeleteDialog] = useState(false)
+  const [impersonationReason, setImpersonationReason] = useState('')
 
   const { data, isFetching } = useDataGetUserDetail(id)
 
@@ -55,6 +58,8 @@ export function PageUserShow() {
       if (redirectUrl) {
         window.open(redirectUrl, '_blank', 'noopener,noreferrer')
       }
+
+      setImpersonationReason('')
     },
     onError: (error) => {
       if (error instanceof AxiosError) {
@@ -92,6 +97,13 @@ export function PageUserShow() {
   }
 
   const handleImpersonate = () => {
+    const reason = impersonationReason.trim()
+
+    if (!reason) {
+      toast.error('Please enter a reason for impersonation')
+      return
+    }
+
     const clientUrl = import.meta.env.VITE_CLIENT_URL || 'http://localhost:3000'
     const callbackUrl =
       import.meta.env.VITE_IMPERSONATION_CALLBACK_URL ||
@@ -99,6 +111,7 @@ export function PageUserShow() {
 
     impersonateMutation.mutate({
       userId: id,
+      reason,
       callbackUrl,
     })
   }
@@ -173,12 +186,30 @@ export function PageUserShow() {
                       and all actions should be treated as sensitive.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
+                  <div className='grid gap-2'>
+                    <Label htmlFor='impersonation-reason'>
+                      Reason for impersonation
+                    </Label>
+                    <Textarea
+                      id='impersonation-reason'
+                      value={impersonationReason}
+                      onChange={(event) =>
+                        setImpersonationReason(event.target.value)
+                      }
+                      placeholder='Example: Investigating support ticket #1234'
+                      disabled={impersonateMutation.isPending}
+                      maxLength={500}
+                    />
+                  </div>
                   <AlertDialogFooter>
                     <AlertDialogCancel disabled={impersonateMutation.isPending}>
                       Cancel
                     </AlertDialogCancel>
                     <AlertDialogAction
-                      disabled={impersonateMutation.isPending}
+                      disabled={
+                        impersonateMutation.isPending ||
+                        !impersonationReason.trim()
+                      }
                       onClick={handleImpersonate}
                     >
                       Start impersonating
