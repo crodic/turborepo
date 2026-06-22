@@ -15,6 +15,8 @@ import { UserEntity } from '@/api/user/entities/user.entity';
 import {
   IEmailJob,
   IForgotPasswordEmailJob,
+  IUserImpersonationEndedEmailJob,
+  IUserImpersonationStartedEmailJob,
   IVerifyEmailJob,
 } from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';
@@ -864,6 +866,13 @@ export class AdminAuthService {
       ipAddress: requestInfo?.ipAddress,
       userAgent: requestInfo?.userAgent,
     });
+    await this.queueImpersonationEndedEmail({
+      userId,
+      adminId: adminToken.id,
+      startedAt: activeHistory.startedAt,
+      endedAt: revokedAt,
+      historyId: activeHistory.id,
+    });
 
     return { message: 'Stopped impersonating successfully' };
   }
@@ -887,7 +896,12 @@ export class AdminAuthService {
       .createHash('sha256')
       .update(randomStringGenerator())
       .digest('hex');
-    const expiresIn = '1h' as StringValue;
+    const expiresIn = this.configService.getOrThrow(
+      'auth.impersonationSessionExpires',
+      {
+        infer: true,
+      },
+    ) as StringValue;
     const expiresAt = new Date(Date.now() + ms(expiresIn));
     const session = await this.sessionRepository.save(
       this.sessionRepository.create({
@@ -911,6 +925,13 @@ export class AdminAuthService {
       expiresAt,
       ipAddress: requestInfo?.ipAddress,
       userAgent: requestInfo?.userAgent,
+    });
+    await this.queueImpersonationStartedEmail({
+      user,
+      adminId: adminToken.id,
+      reason: dto.reason,
+      startedAt: history.startedAt,
+      expiresAt,
     });
 
     const tokenExpiresIn = this.configService.getOrThrow('auth.userExpires', {
@@ -1048,6 +1069,71 @@ export class AdminAuthService {
   private async clearSessionBlacklist(sessionId: AutoIncrementID | string) {
     await this.cacheManager.del(
       createCacheKey(CacheKey.SESSION_BLACKLIST, sessionId),
+    );
+  }
+
+  private async queueImpersonationStartedEmail(params: {
+    user: UserEntity;
+    adminId: AutoIncrementID | string;
+    reason?: string;
+    startedAt: Date;
+    expiresAt?: Date;
+  }) {
+    const admin = await this.adminUserRepository.findOne({
+      where: { id: params.adminId as AutoIncrementID },
+      select: ['id', 'fullName', 'email'],
+    });
+
+    await this.emailQueue.add(
+      JobName.USER_IMPERSONATION_STARTED,
+      {
+        email: params.user.email,
+        userName: params.user.fullName || params.user.email,
+        adminName: admin?.fullName || admin?.email,
+        reason: params.reason,
+        startedAt: params.startedAt.toISOString(),
+        expiresAt: params.expiresAt?.toISOString(),
+      } as IUserImpersonationStartedEmailJob,
+      { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
+    );
+  }
+
+  private async queueImpersonationEndedEmail(params: {
+    userId: AutoIncrementID | string;
+    adminId: AutoIncrementID | string;
+    historyId?: AutoIncrementID | string;
+    startedAt?: Date;
+    endedAt: Date;
+  }) {
+    const [user, admin, actions] = await Promise.all([
+      this.userRepository.findOne({
+        where: { id: params.userId as AutoIncrementID },
+        select: ['id', 'fullName', 'email'],
+      }),
+      this.adminUserRepository.findOne({
+        where: { id: params.adminId as AutoIncrementID },
+        select: ['id', 'fullName', 'email'],
+      }),
+      this.impersonateLogService.getActionSummariesByHistoryId(
+        params.historyId,
+      ),
+    ]);
+
+    if (!user) {
+      return;
+    }
+
+    await this.emailQueue.add(
+      JobName.USER_IMPERSONATION_ENDED,
+      {
+        email: user.email,
+        userName: user.fullName || user.email,
+        adminName: admin?.fullName || admin?.email,
+        startedAt: params.startedAt?.toISOString(),
+        endedAt: params.endedAt.toISOString(),
+        actions,
+      } as IUserImpersonationEndedEmailJob,
+      { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
     );
   }
 

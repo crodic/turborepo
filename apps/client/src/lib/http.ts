@@ -74,7 +74,25 @@ const refreshTokenApi = async (): Promise<string> => {
   } catch (err) {
     await xior.delete(`${process.env.NEXT_PUBLIC_APP_URL}/api/auth/logout`);
     if (typeof window !== "undefined") {
-      location.href = "/auth/login";
+      const wasImpersonating =
+        window.localStorage.getItem("impersonation:active") === "1";
+      const impersonatedUserId = window.localStorage.getItem(
+        "impersonation:userId"
+      );
+
+      window.localStorage.removeItem("impersonation:active");
+      window.localStorage.removeItem("impersonation:userId");
+
+      if (wasImpersonating) {
+        const adminPortalUrl =
+          process.env.NEXT_PUBLIC_ADMIN_PORTAL_URL || "http://localhost:5173";
+
+        location.href = impersonatedUserId
+          ? `${adminPortalUrl}/users/${impersonatedUserId}/show`
+          : adminPortalUrl;
+      } else {
+        location.href = "/auth/login";
+      }
     }
     throw err;
   } finally {

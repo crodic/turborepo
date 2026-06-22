@@ -34,14 +34,15 @@ export async function proxy(request: NextRequest) {
 
     const refreshToken = request.cookies.get("refreshToken")?.value || "";
     const accessToken = request.cookies.get("accessToken")?.value || "";
+    const isAuthCallbackRoute = AUTH_CALLBACK_ROUTE.includes(pathname);
 
     console.log(">>> Entered middleware with pathname: ", pathname);
 
-    if (
-      AUTH_ROUTE.includes(pathname) &&
-      !AUTH_CALLBACK_ROUTE.includes(pathname) &&
-      refreshToken
-    ) {
+    if (isAuthCallbackRoute) {
+      return NextResponse.next({ headers: intlResponse.headers });
+    }
+
+    if (AUTH_ROUTE.includes(pathname) && refreshToken) {
       return NextResponse.redirect(
         new URL(`/${locale}/client-profile`, request.url),
         { headers: intlResponse.headers }

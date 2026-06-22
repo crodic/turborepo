@@ -1,24 +1,39 @@
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
+import { SessionEntity } from '@/api/auth/entities/session.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
+import { IUserImpersonationEndedEmailJob } from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';
+import { AllConfigType } from '@/config/config.type';
+import { CacheKey } from '@/constants/cache.constant';
 import {
   EImpersonateHistoryStatus,
   EImpersonateLogStatus,
+  ESessionUserType,
 } from '@/constants/entity.enum';
+import { JobName, QueueName } from '@/constants/job.constant';
+import { createCacheKey } from '@/utils/cache.util';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   ConflictException,
+  Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
+import ms, { StringValue } from 'ms';
 import {
   FilterOperator,
   paginate,
   Paginated,
   PaginateQuery,
 } from 'nestjs-paginate';
-import { In, Repository } from 'typeorm';
+import { In, IsNull, LessThanOrEqual, Repository } from 'typeorm';
 import { ImpersonateLogHistoryResDto } from './dto/impersonate-log-history.res.dto';
 import { ImpersonateLogResDto } from './dto/impersonate-log.res.dto';
 import { ImpersonateLogHistoryEntity } from './entities/impersonate-log-history.entity';
@@ -77,9 +92,18 @@ type FailedLogPayload = ImpersonateContext &
     error: unknown;
   };
 
+export type ImpersonationActionSummary = {
+  label: string;
+  status: string;
+  createdAt?: string;
+};
+
 @Injectable()
 export class ImpersonateLogService {
+  private readonly logger = new Logger(ImpersonateLogService.name);
+
   constructor(
+    private readonly configService: ConfigService<AllConfigType>,
     @InjectRepository(ImpersonateLogEntity)
     private readonly impersonateLogRepository: Repository<ImpersonateLogEntity>,
     @InjectRepository(ImpersonateLogHistoryEntity)
@@ -88,6 +112,12 @@ export class ImpersonateLogService {
     private readonly adminUserRepository: Repository<AdminUserEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(SessionEntity)
+    private readonly sessionRepository: Repository<SessionEntity>,
+    @InjectQueue(QueueName.EMAIL)
+    private readonly emailQueue: Queue,
+    @Inject(CACHE_MANAGER)
+    private readonly cacheManager: Cache,
   ) {}
 
   async findAllHistories(
@@ -133,6 +163,33 @@ export class ImpersonateLogService {
         },
       ),
     } as Paginated<ImpersonateLogHistoryResDto>;
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async stopExpiredImpersonationHistories(): Promise<void> {
+    const now = new Date();
+    const histories = await this.historyRepository.find({
+      where: {
+        status: EImpersonateHistoryStatus.ACTIVE,
+        expiresAt: LessThanOrEqual(now),
+      },
+      order: { expiresAt: 'ASC' },
+      take: 50,
+    });
+
+    if (!histories.length) {
+      return;
+    }
+
+    for (const history of histories) {
+      try {
+        await this.stopExpiredHistory(history, now);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to stop expired impersonation history ${history.id}: ${error}`,
+        );
+      }
+    }
   }
 
   async findHistory(id: AutoIncrementID): Promise<ImpersonateLogHistoryResDto> {
@@ -262,6 +319,29 @@ export class ImpersonateLogService {
     });
   }
 
+  async getActionSummariesByHistoryId(
+    historyId: AutoIncrementID | string | undefined,
+  ): Promise<ImpersonationActionSummary[]> {
+    if (!historyId) {
+      return [];
+    }
+
+    const logs = await this.impersonateLogRepository.find({
+      where: { historyId: historyId as AutoIncrementID },
+      order: { createdAt: 'ASC' },
+      take: 20,
+    });
+
+    return logs.map((log) => ({
+      label: this.buildFriendlyActionLabel(log),
+      status:
+        log.status === EImpersonateLogStatus.SUCCESS
+          ? 'Completed'
+          : `Failed${log.errorMessage ? `: ${log.errorMessage}` : ''}`,
+      createdAt: log.createdAt?.toISOString(),
+    }));
+  }
+
   async stopHistory(payload: StopHistoryPayload) {
     const stoppedAt = payload.stoppedAt ?? new Date();
     const history = await this.historyRepository.findOneBy({
@@ -281,6 +361,43 @@ export class ImpersonateLogService {
       normalizeUserAgent(payload.userAgent) ?? history.userAgent;
 
     return this.historyRepository.save(history);
+  }
+
+  private async stopExpiredHistory(
+    history: ImpersonateLogHistoryEntity,
+    stoppedAt: Date,
+  ) {
+    const freshHistory = await this.historyRepository.findOneBy({
+      id: history.id,
+      status: EImpersonateHistoryStatus.ACTIVE,
+    });
+
+    if (!freshHistory) {
+      return;
+    }
+
+    const session = await this.sessionRepository.findOneBy({
+      id: freshHistory.sessionId,
+    });
+
+    if (session && !session.revokedAt) {
+      await this.sessionRepository.update(
+        {
+          id: session.id,
+          userId: freshHistory.targetUserId,
+          userType: ESessionUserType.USER,
+          impersonatedBy: freshHistory.adminId,
+          revokedAt: IsNull(),
+        },
+        { revokedAt: stoppedAt },
+      );
+      await this.blacklistSession(session.id);
+    }
+
+    freshHistory.status = EImpersonateHistoryStatus.STOPPED;
+    freshHistory.stoppedAt = stoppedAt;
+    await this.historyRepository.save(freshHistory);
+    await this.queueImpersonationEndedEmail(freshHistory, stoppedAt);
   }
 
   async createSuccessLog(payload: SuccessLogPayload) {
@@ -354,6 +471,79 @@ export class ImpersonateLogService {
     return history?.id;
   }
 
+  private buildFriendlyActionLabel(log: ImpersonateLogEntity): string {
+    const entity = splitPascalCase(log.entityType || 'record');
+    const action = String(log.action || '').toUpperCase();
+
+    switch (action) {
+      case 'INSERT':
+        return `Created ${entity}${log.entityId ? ` #${log.entityId}` : ''}`;
+      case 'UPDATE':
+        return `Updated ${entity}${log.entityId ? ` #${log.entityId}` : ''}`;
+      case 'DELETE':
+        return `Deleted ${entity}${log.entityId ? ` #${log.entityId}` : ''}`;
+      case 'SOFT_DELETE':
+        return `Archived ${entity}${log.entityId ? ` #${log.entityId}` : ''}`;
+      case 'RESTORE':
+        return `Restored ${entity}${log.entityId ? ` #${log.entityId}` : ''}`;
+      case 'REQUEST_FAILED':
+        return `Tried to use ${log.method} ${log.endpoint || 'an endpoint'}`;
+      default:
+        return `${titleCase(action || log.method || 'Updated')} ${entity}${
+          log.entityId ? ` #${log.entityId}` : ''
+        }`;
+    }
+  }
+
+  private async blacklistSession(sessionId: AutoIncrementID | string) {
+    const refreshExpires = this.configService.getOrThrow(
+      'auth.userRefreshExpires',
+      {
+        infer: true,
+      },
+    );
+
+    await this.cacheManager.set<boolean>(
+      createCacheKey(CacheKey.SESSION_BLACKLIST, sessionId),
+      true,
+      ms(refreshExpires as StringValue),
+    );
+  }
+
+  private async queueImpersonationEndedEmail(
+    history: ImpersonateLogHistoryEntity,
+    endedAt: Date,
+  ) {
+    const [user, admin, actions] = await Promise.all([
+      this.userRepository.findOne({
+        where: { id: history.targetUserId },
+        select: ['id', 'fullName', 'email'],
+      }),
+      this.adminUserRepository.findOne({
+        where: { id: history.adminId },
+        select: ['id', 'fullName', 'email'],
+      }),
+      this.getActionSummariesByHistoryId(history.id),
+    ]);
+
+    if (!user) {
+      return;
+    }
+
+    await this.emailQueue.add(
+      JobName.USER_IMPERSONATION_ENDED,
+      {
+        email: user.email,
+        userName: user.fullName || user.email,
+        adminName: admin?.fullName || admin?.email,
+        startedAt: history.startedAt?.toISOString(),
+        endedAt: endedAt.toISOString(),
+        actions,
+      } as IUserImpersonationEndedEmailJob,
+      { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
+    );
+  }
+
   private async getAdminsById(ids: AutoIncrementID[]) {
     const uniqueIds = [...new Set(ids.filter(Boolean))];
     const admins = uniqueIds.length
@@ -413,4 +603,18 @@ function getFriendlyErrorMessage(error: unknown) {
   }
 
   return 'Request failed';
+}
+
+function splitPascalCase(value: string) {
+  return value
+    .replace(/Entity$/u, '')
+    .replace(/([a-z0-9])([A-Z])/gu, '$1 $2')
+    .toLowerCase();
+}
+
+function titleCase(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/_/gu, ' ')
+    .replace(/\b\w/gu, (char) => char.toUpperCase());
 }

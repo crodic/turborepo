@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import xior from "xior";
@@ -23,6 +23,7 @@ export function ImpersonationBanner() {
   const [profile, setProfile] = useState<User | null>(null);
   const [isStopping, setIsStopping] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const handledExpiryRef = useRef(false);
 
   useEffect(() => {
     let ignore = false;
@@ -52,6 +53,8 @@ export function ImpersonationBanner() {
 
         if (!ignore && data.isImpersonating) {
           setProfile(data);
+          window.localStorage.setItem("impersonation:active", "1");
+          window.localStorage.setItem("impersonation:userId", data.id);
           return;
         }
 
@@ -86,6 +89,21 @@ export function ImpersonationBanner() {
     return () => window.clearInterval(interval);
   }, [profile]);
 
+  useEffect(() => {
+    if (!profile?.impersonationExpiresAt || handledExpiryRef.current) {
+      return;
+    }
+
+    const expiresAt = new Date(profile.impersonationExpiresAt).getTime();
+
+    if (!Number.isNaN(expiresAt) && expiresAt <= now) {
+      handledExpiryRef.current = true;
+      void exitImpersonationClientSession(profile.id, {
+        message: "Impersonation session expired.",
+      });
+    }
+  }, [now, profile]);
+
   const handleStopImpersonating = async () => {
     if (!profile) {
       return;
@@ -95,13 +113,8 @@ export function ImpersonationBanner() {
 
     try {
       await http.post("/api/v1/user/auth/stop-impersonating");
-      await xior.post(`${process.env.NEXT_PUBLIC_APP_URL}/api/auth/logout`);
-      window.dispatchEvent(new Event("auth:tokens-updated"));
       toast.success("Impersonation session stopped.");
-
-      const adminPortalUrl =
-        process.env.NEXT_PUBLIC_ADMIN_PORTAL_URL || "http://localhost:5173";
-      window.location.assign(`${adminPortalUrl}/users/${profile.id}/show`);
+      await exitImpersonationClientSession(profile.id);
     } catch {
       toast.error("Could not stop impersonation. Please try again.");
       setIsStopping(false);
@@ -197,4 +210,30 @@ function formatRemainingTime(expiresAt?: string, now = Date.now()) {
   }
 
   return `${seconds}s`;
+}
+
+async function exitImpersonationClientSession(
+  targetUserId?: string,
+  options?: { message?: string }
+) {
+  const redirectUserId =
+    targetUserId || window.localStorage.getItem("impersonation:userId");
+
+  await xior.post(`${process.env.NEXT_PUBLIC_APP_URL}/api/auth/logout`);
+  window.localStorage.removeItem("impersonation:active");
+  window.localStorage.removeItem("impersonation:userId");
+  window.dispatchEvent(new Event("auth:tokens-updated"));
+
+  if (options?.message) {
+    toast.info(options.message);
+  }
+
+  const adminPortalUrl =
+    process.env.NEXT_PUBLIC_ADMIN_PORTAL_URL || "http://localhost:5173";
+
+  window.location.assign(
+    redirectUserId
+      ? `${adminPortalUrl}/users/${redirectUserId}/show`
+      : adminPortalUrl
+  );
 }

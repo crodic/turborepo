@@ -128,6 +128,83 @@ export class MailService {
     return html;
   }
 
+  renderUserImpersonationStarted(params: {
+    email: string;
+    userName?: string;
+    adminName?: string;
+    reason?: string;
+    startedAt: string;
+    expiresAt?: string;
+  }): string {
+    return this.renderTemplate('user-impersonation-started', {
+      ...params,
+      startedAt: formatEmailDate(params.startedAt),
+      expiresAt: params.expiresAt ? formatEmailDate(params.expiresAt) : '',
+    });
+  }
+
+  async sendUserImpersonationStarted(params: {
+    email: string;
+    userName?: string;
+    adminName?: string;
+    reason?: string;
+    startedAt: string;
+    expiresAt?: string;
+    renderedHtml?: string;
+  }): Promise<string> {
+    const html =
+      params.renderedHtml ?? this.renderUserImpersonationStarted(params);
+
+    await this.mailerService.sendMail({
+      to: params.email,
+      subject: 'An administrator started a support session',
+      html,
+    });
+
+    return html;
+  }
+
+  renderUserImpersonationEnded(params: {
+    email: string;
+    userName?: string;
+    adminName?: string;
+    startedAt?: string;
+    endedAt: string;
+    actions: { label: string; status: string; createdAt?: string }[];
+  }): string {
+    return this.renderTemplate('user-impersonation-ended', {
+      ...params,
+      startedAt: params.startedAt ? formatEmailDate(params.startedAt) : '',
+      endedAt: formatEmailDate(params.endedAt),
+      actions: params.actions.map((action) => ({
+        ...action,
+        createdAt: action.createdAt ? formatEmailDate(action.createdAt) : '',
+      })),
+      hasActions: params.actions.length > 0,
+    });
+  }
+
+  async sendUserImpersonationEnded(params: {
+    email: string;
+    userName?: string;
+    adminName?: string;
+    startedAt?: string;
+    endedAt: string;
+    actions: { label: string; status: string; createdAt?: string }[];
+    renderedHtml?: string;
+  }): Promise<string> {
+    const html =
+      params.renderedHtml ?? this.renderUserImpersonationEnded(params);
+
+    await this.mailerService.sendMail({
+      to: params.email,
+      subject: 'Administrator support session ended',
+      html,
+    });
+
+    return html;
+  }
+
   renderAdminEmail(params: {
     subject: string;
     body: string;
@@ -168,6 +245,8 @@ export class MailService {
       | 'admin-email-reset-password'
       | 'user-email-verification'
       | 'user-email-reset-password'
+      | 'user-impersonation-started'
+      | 'user-impersonation-ended'
       | 'admin-email',
     context: Record<string, unknown>,
   ): string {
@@ -176,4 +255,18 @@ export class MailService {
 
     return Handlebars.compile(template, { strict: true })(context);
   }
+}
+
+function formatEmailDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('en', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(date);
 }

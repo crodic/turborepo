@@ -38,6 +38,8 @@ export default function ImpersonationCallback() {
           refreshToken: data.refreshToken,
         });
 
+        window.localStorage.setItem("impersonation:active", "1");
+        window.localStorage.setItem("impersonation:userId", data.userId);
         window.dispatchEvent(new Event("auth:tokens-updated"));
         toast.success("Impersonation session started.");
         router.replace("/client-profile?impersonating=1");

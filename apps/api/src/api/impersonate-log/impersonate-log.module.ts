@@ -1,5 +1,8 @@
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
+import { SessionEntity } from '@/api/auth/entities/session.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
+import { QueueName, QueuePrefix } from '@/constants/job.constant';
+import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ImpersonateLogHistoryEntity } from './entities/impersonate-log-history.entity';
@@ -14,7 +17,12 @@ import { ImpersonateLogService } from './impersonate-log.service';
       ImpersonateLogHistoryEntity,
       AdminUserEntity,
       UserEntity,
+      SessionEntity,
     ]),
+    BullModule.registerQueue({
+      name: QueueName.EMAIL,
+      prefix: QueuePrefix.AUTH,
+    }),
   ],
   controllers: [ImpersonateLogController],
   providers: [ImpersonateLogService],

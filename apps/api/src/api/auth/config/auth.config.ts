@@ -48,6 +48,11 @@ class EnvironmentVariablesValidator {
   AUTH_PORTAL_URL: string;
 
   @IsString()
+  @IsOptional()
+  @IsMs()
+  AUTH_IMPERSONATION_SESSION_EXPIRES_IN?: string;
+
+  @IsString()
   @IsNotEmpty()
   @IsUrl({ require_tld: false })
   AUTH_PORTAL_RESET_PASSWORD_URL: string;
@@ -130,6 +135,8 @@ export default registerAs<AuthConfig>('auth', () => {
       getOriginFromUrl(process.env.AUTH_PORTAL_RESET_PASSWORD_URL) ||
       'http://localhost:5173',
     portalResetPasswordUrl: process.env.AUTH_PORTAL_RESET_PASSWORD_URL,
+    impersonationSessionExpires:
+      process.env.AUTH_IMPERSONATION_SESSION_EXPIRES_IN || '1h',
 
     // GUARD USER
     userSecret: process.env.USER_AUTH_JWT_SECRET,

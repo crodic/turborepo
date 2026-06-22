@@ -2,6 +2,8 @@ import {
   IAdminSendEmailJob,
   IEmailJob,
   IForgotPasswordEmailJob,
+  IUserImpersonationEndedEmailJob,
+  IUserImpersonationStartedEmailJob,
   IVerifyEmailJob,
 } from '@/common/interfaces/job.interface';
 import { JobName, QueueName } from '@/constants/job.constant';
@@ -52,6 +54,14 @@ export class EmailProcessor extends WorkerHost {
       case JobName.USER_EMAIL_FORGOT_PASSWORD:
         return await this.emailQueueService.sendUserEmailForgotPassword(
           job.data as unknown as IForgotPasswordEmailJob,
+        );
+      case JobName.USER_IMPERSONATION_STARTED:
+        return await this.emailQueueService.sendUserImpersonationStarted(
+          job.data as unknown as IUserImpersonationStartedEmailJob,
+        );
+      case JobName.USER_IMPERSONATION_ENDED:
+        return await this.emailQueueService.sendUserImpersonationEnded(
+          job.data as unknown as IUserImpersonationEndedEmailJob,
         );
       case JobName.EMAIL_VERIFICATION:
         return await this.emailQueueService.sendUserEmailVerification(

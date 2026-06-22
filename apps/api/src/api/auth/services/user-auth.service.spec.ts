@@ -1,3 +1,4 @@
+import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
 import { ImpersonateLogService } from '@/api/impersonate-log/impersonate-log.service';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { CacheKey } from '@/constants/cache.constant';
@@ -25,6 +26,9 @@ jest.mock('@/utils/password.util', () => ({
 describe('UserAuthService', () => {
   let service: UserAuthService;
   let userRepository: Partial<Record<keyof Repository<UserEntity>, jest.Mock>>;
+  let adminUserRepository: Partial<
+    Record<keyof Repository<AdminUserEntity>, jest.Mock>
+  >;
   let sessionRepository: Partial<
     Record<keyof Repository<SessionEntity>, jest.Mock>
   >;
@@ -36,6 +40,7 @@ describe('UserAuthService', () => {
   let emailQueue: { add: jest.Mock };
   let impersonateLogService: {
     stopHistory: jest.Mock;
+    getActionSummariesByHistoryId: jest.Mock;
   };
 
   const configValues: Record<string, string> = {
@@ -57,6 +62,9 @@ describe('UserAuthService', () => {
       findOneByOrFail: jest.fn(),
       findOneOrFail: jest.fn(),
       save: jest.fn(),
+    };
+    adminUserRepository = {
+      findOne: jest.fn(),
     };
     sessionRepository = {
       create: jest.fn((data) => new SessionEntity(data)),
@@ -84,6 +92,7 @@ describe('UserAuthService', () => {
     };
     impersonateLogService = {
       stopHistory: jest.fn(),
+      getActionSummariesByHistoryId: jest.fn().mockResolvedValue([]),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -102,6 +111,10 @@ describe('UserAuthService', () => {
         {
           provide: getRepositoryToken(UserEntity),
           useValue: userRepository,
+        },
+        {
+          provide: getRepositoryToken(AdminUserEntity),
+          useValue: adminUserRepository,
         },
         {
           provide: getRepositoryToken(SessionEntity),

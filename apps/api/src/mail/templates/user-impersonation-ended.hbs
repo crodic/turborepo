@@ -1,0 +1,124 @@
+<html lang='en'>
+  <body
+    style='margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#111827;'
+  >
+    <table
+      role='presentation'
+      width='100%'
+      cellspacing='0'
+      cellpadding='0'
+      style='background:#f1f5f9;'
+    >
+      <tr>
+        <td align='center' style='padding:40px 16px;'>
+          <table
+            role='presentation'
+            width='100%'
+            cellspacing='0'
+            cellpadding='0'
+            style='max-width:640px;background:#ffffff;border:1px solid #dbe3ef;border-radius:24px;overflow:hidden;box-shadow:0 20px 50px rgba(15,23,42,0.10);'
+          >
+            <tr>
+              <td style='padding:30px 36px 24px;background:#0f172a;'>
+                <span
+                  style='display:inline-block;width:40px;height:40px;border-radius:12px;background:#22c55e;text-align:center;line-height:40px;color:#ffffff;font-size:18px;font-weight:800;'
+                >OK</span>
+                <span
+                  style='float:right;border:1px solid rgba(255,255,255,0.20);border-radius:999px;color:#bbf7d0;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:8px 12px;'
+                >Session ended</span>
+              </td>
+            </tr>
+            <tr>
+              <td style='padding:36px 36px 14px;'>
+                <h1
+                  style='margin:0;color:#111827;font-size:34px;line-height:42px;font-weight:800;'
+                >The support session has ended</h1>
+                <p
+                  style='margin:16px 0 0;color:#4b5563;font-size:16px;line-height:26px;'
+                >Hi
+                  {{#if userName}}{{userName}}{{else}}{{email}}{{/if}}, the
+                  temporary administrator support session for your account has
+                  now ended.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style='padding:18px 36px 8px;'>
+                <table
+                  role='presentation'
+                  width='100%'
+                  cellspacing='0'
+                  cellpadding='0'
+                  style='background:#f0fdf4;border:1px solid #bbf7d0;border-radius:16px;'
+                >
+                  <tr>
+                    <td
+                      style='padding:18px 20px;color:#166534;font-size:14px;line-height:23px;'
+                    >
+                      <p style='margin:0 0 8px;'><strong>Administrator:</strong>
+                        {{#if adminName}}{{adminName}}{{else}}Portal
+                          administrator{{/if}}</p>
+                      {{#if startedAt}}<p style='margin:0 0 8px;'><strong
+                          >Started at:</strong>
+                          {{startedAt}}</p>{{/if}}
+                      <p style='margin:0;'><strong>Ended at:</strong>
+                        {{endedAt}}</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style='padding:24px 36px 8px;'>
+                <h2
+                  style='margin:0 0 12px;color:#111827;font-size:18px;line-height:26px;'
+                >Recorded activity</h2>
+                {{#if hasActions}}
+                  <table
+                    role='presentation'
+                    width='100%'
+                    cellspacing='0'
+                    cellpadding='0'
+                    style='border-collapse:separate;border-spacing:0 10px;'
+                  >
+                    {{#each actions}}
+                      <tr>
+                        <td
+                          style='padding:14px 16px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;color:#374151;font-size:14px;line-height:22px;'
+                        >
+                          <strong style='color:#111827;'>{{label}}</strong>
+                          <br />
+                          <span style='color:#6b7280;'>Status:
+                            {{status}}{{#if createdAt}}
+                              ·
+                              {{createdAt}}{{/if}}</span>
+                        </td>
+                      </tr>
+                    {{/each}}
+                  </table>
+                {{else}}
+                  <div
+                    style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:14px;padding:16px 18px;color:#4b5563;font-size:14px;line-height:23px;'
+                  >No account changes were recorded during this support session.</div>
+                {{/if}}
+              </td>
+            </tr>
+            <tr>
+              <td style='padding:20px 36px 34px;'>
+                <p
+                  style='margin:0;color:#4b5563;font-size:15px;line-height:24px;'
+                >If anything in this summary looks unexpected, please contact
+                  support so we can review the session with you.</p>
+              </td>
+            </tr>
+            <tr>
+              <td
+                style='padding:22px 36px;background:#f8fafc;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;line-height:20px;'
+              >Sent by Crodic Portal. Please do not reply to this automated
+                message.</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

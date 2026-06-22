@@ -1,3 +1,4 @@
+import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
 import { UserSocialAccountEntity } from '@/api/auth/entities/user-social-account.entity';
 import { ImpersonateLogService } from '@/api/impersonate-log/impersonate-log.service';
@@ -8,6 +9,7 @@ import { UserEntity } from '@/api/user/entities/user.entity';
 import {
   IEmailJob,
   IForgotPasswordEmailJob,
+  IUserImpersonationEndedEmailJob,
   IVerifyEmailJob,
 } from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';
@@ -97,6 +99,8 @@ export class UserAuthService {
     private readonly jwtService: JwtService,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(AdminUserEntity)
+    private readonly adminUserRepository: Repository<AdminUserEntity>,
     @InjectRepository(SessionEntity)
     private readonly sessionRepository: Repository<SessionEntity>,
     @InjectRepository(UserSocialAccountEntity)
@@ -626,6 +630,13 @@ export class UserAuthService {
       ipAddress: requestInfo?.ipAddress,
       userAgent: requestInfo?.userAgent,
     });
+    await this.queueImpersonationEndedEmail({
+      userId: session.userId,
+      adminId: session.impersonatedBy,
+      historyId: userToken.impersonationHistoryId,
+      startedAt: session.createdAt,
+      endedAt: revokedAt,
+    });
 
     return { message: 'Stopped impersonating successfully' };
   }
@@ -661,6 +672,45 @@ export class UserAuthService {
   private async clearSessionBlacklist(sessionId: AutoIncrementID | string) {
     await this.cacheManager.del(
       createCacheKey(CacheKey.SESSION_BLACKLIST, sessionId),
+    );
+  }
+
+  private async queueImpersonationEndedEmail(params: {
+    userId: AutoIncrementID | string;
+    adminId: AutoIncrementID | string;
+    historyId?: AutoIncrementID | string;
+    startedAt?: Date;
+    endedAt: Date;
+  }) {
+    const [user, admin, actions] = await Promise.all([
+      this.userRepository.findOne({
+        where: { id: params.userId as AutoIncrementID },
+        select: ['id', 'fullName', 'email'],
+      }),
+      this.adminUserRepository.findOne({
+        where: { id: params.adminId as AutoIncrementID },
+        select: ['id', 'fullName', 'email'],
+      }),
+      this.impersonateLogService.getActionSummariesByHistoryId(
+        params.historyId,
+      ),
+    ]);
+
+    if (!user) {
+      return;
+    }
+
+    await this.emailQueue.add(
+      JobName.USER_IMPERSONATION_ENDED,
+      {
+        email: user.email,
+        userName: user.fullName || user.email,
+        adminName: admin?.fullName || admin?.email,
+        startedAt: params.startedAt?.toISOString(),
+        endedAt: params.endedAt.toISOString(),
+        actions,
+      } as IUserImpersonationEndedEmailJob,
+      { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
     );
   }
 
