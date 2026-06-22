@@ -15,6 +15,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -162,7 +163,9 @@ export function SessionManager() {
         destructive
         isLoading={revokeSessionMutation.isPending}
         handleConfirm={() => {
-          if (sessionToRevoke) revokeSessionMutation.mutate(sessionToRevoke.id)
+          if (sessionToRevoke && !sessionToRevoke.isCurrent) {
+            revokeSessionMutation.mutate(sessionToRevoke.id)
+          }
         }}
       />
 
@@ -209,11 +212,18 @@ function SessionRow({
           </div>
           <div className='min-w-0'>
             <p className='font-medium'>{deviceName}</p>
-            <p className='text-muted-foreground text-xs'>
-              {t('settings.security.sessionsSessionNumber', {
-                id: session.id,
-              })}
-            </p>
+            <div className='mt-1 flex flex-wrap items-center gap-2'>
+              <p className='text-muted-foreground text-xs'>
+                {t('settings.security.sessionsSessionNumber', {
+                  id: session.id,
+                })}
+              </p>
+              {session.isCurrent && (
+                <Badge variant='secondary' className='h-5 px-1.5 text-[10px]'>
+                  Current
+                </Badge>
+              )}
+            </div>
             <p className='text-muted-foreground mt-1 truncate text-xs'>
               {session.userAgent || t('settings.security.sessionsUnknownAgent')}
             </p>
@@ -231,7 +241,7 @@ function SessionRow({
           variant='ghost'
           size='sm'
           onClick={onRevoke}
-          disabled={isRevoking}
+          disabled={isRevoking || session.isCurrent}
         >
           <Trash2Icon className='size-4' />
           {t('settings.security.sessionsRevoke')}

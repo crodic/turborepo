@@ -1,5 +1,6 @@
 import { ESessionUserType } from '@/constants/entity.enum';
 import {
+  BooleanField,
   ClassField,
   EnumField,
   StringField,
@@ -44,4 +45,8 @@ export class SessionResDto {
   @ClassField(() => Date)
   @Expose()
   createdAt: Date;
+
+  @BooleanField()
+  @Expose()
+  isCurrent: boolean;
 }

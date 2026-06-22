@@ -21,6 +21,7 @@ export const sessionSchema = z.object({
   expiresAt: z.string().nullish(),
   revokedAt: z.string().nullish(),
   createdAt: z.string(),
+  isCurrent: z.boolean().default(false),
 })
 
 export type SessionSchema = z.infer<typeof sessionSchema>

@@ -706,9 +706,16 @@ export class AdminAuthService {
       order: { createdAt: 'DESC' },
     });
 
-    return plainToInstance(SessionResDto, sessions, {
-      excludeExtraneousValues: true,
-    });
+    return plainToInstance(
+      SessionResDto,
+      sessions.map((session) => ({
+        ...session,
+        isCurrent: String(session.id) === String(userToken.sessionId),
+      })),
+      {
+        excludeExtraneousValues: true,
+      },
+    );
   }
 
   async revokeSession(
