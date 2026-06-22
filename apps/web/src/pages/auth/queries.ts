@@ -135,3 +135,15 @@ export async function apiImpersonateUser(data: {
 
   return impersonateUserSchema.parse(res.data)
 }
+
+export async function apiGetActiveUserImpersonationSession(
+  userId: string
+): Promise<SessionSchema | null> {
+  const res = await http.get(`/auth/impersonate-user/${userId}/active-session`)
+
+  return res.data ? sessionSchema.parse(res.data) : null
+}
+
+export async function apiStopUserImpersonation(userId: string) {
+  return await http.post(`/auth/impersonate-user/${userId}/stop`)
+}

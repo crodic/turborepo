@@ -786,6 +786,88 @@ export class AdminAuthService {
     return { message: 'Sessions revoked successfully' };
   }
 
+  async findActiveUserImpersonationSession(
+    adminToken: JwtPayloadType,
+    userId: AutoIncrementID,
+  ): Promise<SessionResDto | null> {
+    const activeHistory =
+      await this.impersonateLogService.findActiveHistoryByAdminAndTarget(
+        adminToken.id,
+        userId,
+      );
+
+    if (!activeHistory) {
+      return null;
+    }
+
+    const session = await this.sessionRepository.findOneBy({
+      id: activeHistory.sessionId,
+    });
+
+    return plainToInstance(
+      SessionResDto,
+      {
+        ...(session ?? {
+          id: activeHistory.sessionId,
+          userId,
+          userType: ESessionUserType.USER,
+          impersonatedBy: adminToken.id,
+          expiresAt: activeHistory.expiresAt,
+          createdAt: activeHistory.startedAt,
+        }),
+        isCurrent: false,
+      },
+      { excludeExtraneousValues: true },
+    );
+  }
+
+  async stopUserImpersonation(
+    adminToken: JwtPayloadType,
+    userId: AutoIncrementID,
+    requestInfo?: SessionRequestInfo,
+  ): Promise<{ message: string }> {
+    const activeHistory =
+      await this.impersonateLogService.findActiveHistoryByAdminAndTarget(
+        adminToken.id,
+        userId,
+      );
+
+    if (!activeHistory) {
+      throw new NotFoundException('Active impersonation session not found');
+    }
+
+    const revokedAt = new Date();
+    const session = await this.sessionRepository.findOneBy({
+      id: activeHistory.sessionId,
+    });
+
+    if (session && !session.revokedAt) {
+      await this.sessionRepository.update(
+        {
+          id: session.id,
+          userId,
+          userType: ESessionUserType.USER,
+          impersonatedBy: adminToken.id as AutoIncrementID,
+          revokedAt: IsNull(),
+        },
+        { revokedAt },
+      );
+
+      await this.blacklistSession(session.id);
+    }
+
+    await this.impersonateLogService.stopHistory({
+      sessionId: activeHistory.sessionId,
+      adminId: adminToken.id,
+      targetUserId: userId,
+      stoppedAt: revokedAt,
+      ipAddress: requestInfo?.ipAddress,
+      userAgent: requestInfo?.userAgent,
+    });
+
+    return { message: 'Stopped impersonating successfully' };
+  }
+
   async impersonateUser(
     adminToken: JwtPayloadType,
     dto: ImpersonateUserReqDto,

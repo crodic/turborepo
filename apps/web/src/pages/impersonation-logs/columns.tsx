@@ -25,9 +25,9 @@ function formatLogUser(
     user.fullName ||
     [user.firstName, user.lastName].filter(Boolean).join(' ') ||
     undefined
-  const primary = name || user.email || (user.id ? `#${user.id}` : undefined)
-  const secondary = name && user.email ? user.email : undefined
   const id = user.id || fallbackId
+  const primary = name || user.email || (id ? `#${id}` : undefined)
+  const secondary = name && user.email ? user.email : undefined
 
   return [primary, secondary, id ? `#${id}` : undefined]
     .filter(Boolean)

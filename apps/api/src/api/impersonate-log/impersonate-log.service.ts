@@ -248,6 +248,20 @@ export class ImpersonateLogService {
     });
   }
 
+  async findActiveHistoryByAdminAndTarget(
+    adminId: AutoIncrementID | string,
+    targetUserId: AutoIncrementID | string,
+  ) {
+    return this.historyRepository.findOne({
+      where: {
+        adminId: adminId as AutoIncrementID,
+        targetUserId: targetUserId as AutoIncrementID,
+        status: EImpersonateHistoryStatus.ACTIVE,
+      },
+      order: { startedAt: 'DESC' },
+    });
+  }
+
   async stopHistory(payload: StopHistoryPayload) {
     const stoppedAt = payload.stoppedAt ?? new Date();
     const history = await this.historyRepository.findOneBy({

@@ -41,10 +41,12 @@ function formatLogUser(user: any, fallbackId?: string | null) {
     user.fullName ||
     [user.firstName, user.lastName].filter(Boolean).join(' ') ||
     undefined
+  const id = user.id || fallbackId
+  const primary = name || user.email || (id ? `#${id}` : undefined)
 
   const secondary = name && user.email ? user.email : undefined
 
-  return [name || user.email || `#${user.id}`, secondary, `#${user.id}`]
+  return [primary, secondary, id ? `#${id}` : undefined]
     .filter(Boolean)
     .join(' | ')
 }

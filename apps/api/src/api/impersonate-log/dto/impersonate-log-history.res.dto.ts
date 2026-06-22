@@ -1,6 +1,8 @@
+import { LogUserResDto } from '@/api/audit-log/dto/log-user.res.dto';
 import { EImpersonateHistoryStatus } from '@/constants/entity.enum';
 import {
   ClassField,
+  ClassFieldOptional,
   EnumField,
   StringField,
   StringFieldOptional,
@@ -61,11 +63,13 @@ export class ImpersonateLogHistoryResDto {
   @Expose()
   itemsCount?: number;
 
+  @ClassFieldOptional(() => LogUserResDto, { nullable: true })
   @Expose()
-  admin?: any;
+  admin?: LogUserResDto | null;
 
+  @ClassFieldOptional(() => LogUserResDto, { nullable: true })
   @Expose()
-  targetUser?: any;
+  targetUser?: LogUserResDto | null;
 
   @Expose()
   items?: ImpersonateLogResDto[];

@@ -196,6 +196,46 @@ export class AdminAuthenticationController {
     });
   }
 
+  @ApiAuth({
+    type: SessionResDto,
+    summary: 'Get active impersonation session for user',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Impersonate, AppSubjects.User),
+  )
+  @SkipThrottle()
+  @Get('impersonate-user/:userId/active-session')
+  async getActiveUserImpersonationSession(
+    @CurrentUser() userToken: JwtPayloadType,
+    @Param('userId') userId: AutoIncrementID,
+  ): Promise<SessionResDto | null> {
+    return this.adminAuthService.findActiveUserImpersonationSession(
+      userToken,
+      userId,
+    );
+  }
+
+  @ApiAuth({
+    summary: 'Stop active impersonation session for user',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Impersonate, AppSubjects.User),
+  )
+  @SkipThrottle()
+  @Post('impersonate-user/:userId/stop')
+  async stopUserImpersonation(
+    @CurrentUser() userToken: JwtPayloadType,
+    @Param('userId') userId: AutoIncrementID,
+    @Req() req: any,
+  ) {
+    return this.adminAuthService.stopUserImpersonation(userToken, userId, {
+      ipAddress: req.ip,
+      userAgent: req.headers?.['user-agent'],
+      method: req.method,
+      endpoint: req.originalUrl || req.url,
+    });
+  }
+
   @ApiPublic({
     type: ForgotPasswordResDto,
     summary: 'Forgot password',
