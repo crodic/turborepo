@@ -1,3 +1,4 @@
+import { ImpersonateLogService } from '@/api/impersonate-log/impersonate-log.service';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { CacheKey } from '@/constants/cache.constant';
 import { ESessionUserType } from '@/constants/entity.enum';
@@ -33,6 +34,9 @@ describe('UserAuthService', () => {
   let jwtService: { signAsync: jest.Mock; verify: jest.Mock };
   let cacheManager: { get: jest.Mock; set: jest.Mock; del: jest.Mock };
   let emailQueue: { add: jest.Mock };
+  let impersonateLogService: {
+    stopHistory: jest.Mock;
+  };
 
   const configValues: Record<string, string> = {
     'auth.userConfirmEmailExpires': '1d',
@@ -78,6 +82,9 @@ describe('UserAuthService', () => {
     emailQueue = {
       add: jest.fn(),
     };
+    impersonateLogService = {
+      stopHistory: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -111,6 +118,10 @@ describe('UserAuthService', () => {
         {
           provide: CACHE_MANAGER,
           useValue: cacheManager,
+        },
+        {
+          provide: ImpersonateLogService,
+          useValue: impersonateLogService,
         },
       ],
     }).compile();
