@@ -1,4 +1,5 @@
 import { SessionEntity } from '@/api/auth/entities/session.entity';
+import { EmailLogEntity } from '@/api/email/entities/email-log.entity';
 import { ImpersonateLogHistoryEntity } from '@/api/impersonate-log/entities/impersonate-log-history.entity';
 import { ImpersonateLogEntity } from '@/api/impersonate-log/entities/impersonate-log.entity';
 import {
@@ -6,6 +7,7 @@ import {
   normalizeChangedFields,
   sanitizePayload,
 } from '@/api/impersonate-log/impersonate-log.util';
+import { NotificationEntity } from '@/api/notification/entities/notification.entity';
 import { EImpersonateLogStatus } from '@/constants/entity.enum';
 import { Logger } from '@nestjs/common';
 import { ClsServiceManager } from 'nestjs-cls';
@@ -29,6 +31,8 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
     SessionEntity.name,
     ImpersonateLogEntity.name,
     ImpersonateLogHistoryEntity.name,
+    EmailLogEntity.name,
+    NotificationEntity.name,
   ];
 
   constructor(private dataSource: DataSource) {
