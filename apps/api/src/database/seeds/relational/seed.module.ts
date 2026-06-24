@@ -8,12 +8,14 @@ import databaseConfig from '../../config/database.config';
 import { TypeOrmConfigService } from '../../typeorm-config.service';
 import { AdminSeedModule } from './admin/admin-seed.module';
 import { SettingSeedModule } from './setting/setting-seed.module';
+import { ThemeSeedModule } from './theme/theme-seed.module';
 import { UserSeedModule } from './user/user-seed.module';
 
 @Module({
   imports: [
     UserSeedModule,
     SettingSeedModule,
+    ThemeSeedModule,
     AdminSeedModule,
     ConfigModule.forRoot({
       isGlobal: true,

@@ -8,6 +8,11 @@ import { routing } from "@/i18n/routing";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { dancingScript, geistMono, geistSans } from "@/fonts";
 import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
+import { RuntimeThemeSync } from "@/components/runtime-theme-sync";
+import {
+  generateRuntimeThemeCss,
+  getRuntimeThemeServer,
+} from "@/lib/runtime-theme";
 
 export const metadata: Metadata = {
   title: "Boilerplate Next.js",
@@ -31,6 +36,7 @@ export default async function LocaleLayout({
   // Ensure that the incoming `locale` is valid
   const { locale } = await params;
   const messages = await getMessages();
+  const runtimeTheme = await getRuntimeThemeServer();
 
   if (!hasLocale(routing.locales, locale)) {
     notFound();
@@ -41,6 +47,16 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
+      <head>
+        {runtimeTheme?.styles && (
+          <style
+            id="runtime-theme"
+            dangerouslySetInnerHTML={{
+              __html: generateRuntimeThemeCss(runtimeTheme.styles),
+            }}
+          />
+        )}
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${dancingScript.variable} antialiased`}
       >
@@ -53,6 +69,7 @@ export default async function LocaleLayout({
               disableTransitionOnChange
               storageKey={`${process.env.APP_NAME}-theme`}
             >
+              <RuntimeThemeSync initialTheme={runtimeTheme} />
               <ImpersonationBanner />
               {children}
             </ThemeProvider>

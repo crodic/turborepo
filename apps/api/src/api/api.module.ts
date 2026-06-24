@@ -13,6 +13,7 @@ import { PresenceModule } from './presence/presence.module';
 import { RoleModule } from './role/role.module';
 import { SentryMonitoringModule } from './sentry-monitoring/sentry-monitoring.module';
 import { SettingsModule } from './settings/settings.module';
+import { ThemeModule } from './theme/theme.module';
 import { UserModule } from './user/user.module';
 
 @Module({
@@ -32,6 +33,7 @@ import { UserModule } from './user/user.module';
     FileModule,
     SentryMonitoringModule,
     NotificationModule,
+    ThemeModule,
   ],
 })
 export class ApiModule {}

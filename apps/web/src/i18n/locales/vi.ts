@@ -13,6 +13,7 @@ export default {
   'navigation.management.users': 'Người dùng',
   'navigation.management.roles': 'Vai trò',
   'navigation.management.permissions': 'Quyền hạn',
+  'navigation.management.themes': 'Giao diện',
   'navigation.orders.title': 'Đơn hàng',
   'navigation.orders.myEmails': 'Email của tôi',
   'navigation.other.title': 'Khác',

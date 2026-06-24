@@ -1,5 +1,11 @@
 import { createContext, useContext, useEffect, useState, useMemo } from 'react'
 import { getCookie, setCookie, removeCookie } from '@/lib/cookies'
+import {
+  applyRuntimeThemeStyles,
+  fetchRuntimeTheme,
+  getCachedRuntimeTheme,
+  setCachedRuntimeTheme,
+} from '@/lib/runtime-theme/runtime-theme'
 import { themeColors } from '@/lib/theme-colors'
 
 type Theme = 'dark' | 'light' | 'system'
@@ -59,22 +65,40 @@ export function ThemeProvider({
   useEffect(() => {
     const root = document.documentElement
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const cachedRuntimeTheme = getCachedRuntimeTheme()
     const themeVars = themeColors[colorKey][resolvedTheme]
 
     // Apply dark/light class
     root.classList.remove('light', 'dark')
     root.classList.add(resolvedTheme)
 
-    // Apply color variables
-    Object.entries(themeVars).forEach(([key, value]) => {
-      root.style.setProperty(key, value)
-    })
+    if (cachedRuntimeTheme?.styles) {
+      applyRuntimeThemeStyles(cachedRuntimeTheme.styles, resolvedTheme)
+    } else {
+      // Apply static fallback variables
+      Object.entries(themeVars).forEach(([key, value]) => {
+        root.style.setProperty(key, value)
+      })
+    }
+
+    fetchRuntimeTheme()
+      .then((runtimeTheme) => {
+        setCachedRuntimeTheme(runtimeTheme)
+        if (runtimeTheme?.styles) {
+          applyRuntimeThemeStyles(runtimeTheme.styles, resolvedTheme)
+        }
+      })
+      .catch(() => undefined)
 
     const handleChange = () => {
       if (theme === 'system') {
         const systemTheme = mediaQuery.matches ? 'dark' : 'light'
         root.classList.remove('light', 'dark')
         root.classList.add(systemTheme)
+        const runtimeTheme = getCachedRuntimeTheme()
+        if (runtimeTheme?.styles) {
+          applyRuntimeThemeStyles(runtimeTheme.styles, systemTheme)
+        }
       }
     }
 
