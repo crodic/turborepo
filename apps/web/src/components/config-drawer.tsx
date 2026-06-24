@@ -63,7 +63,7 @@ export function ConfigDrawer() {
         </SheetHeader>
         <div className='space-y-6 overflow-y-auto px-4'>
           <ThemeConfig />
-          <ThemeColorConfig />
+          {/* <ThemeColorConfig /> */}
           <SidebarConfig />
           <LayoutConfig />
           <DirConfig />

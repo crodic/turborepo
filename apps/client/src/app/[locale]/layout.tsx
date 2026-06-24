@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import "../globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import Provider from "@/components/provider";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
