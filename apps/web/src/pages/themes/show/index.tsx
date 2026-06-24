@@ -79,6 +79,8 @@ export default function PageThemeShow() {
     },
   })
 
+  console.log(data)
+
   const setThemeFor = (target: ThemeTarget) => {
     publishMutation.mutate({ id: themeId, target })
   }

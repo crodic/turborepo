@@ -54,5 +54,6 @@ export const ColumnKey = {
   status: 'status',
   runtime: 'runtime',
   updatedAt: 'updatedAt',
+  colors: 'colors',
   actions: 'actions',
 }

@@ -53,6 +53,38 @@ export function getThemesTableColumns(): ColumnDef<ThemeSchema>[] {
       enableColumnFilter: true,
     },
     {
+      id: ColumnKey.colors,
+      accessorFn: (row) => row.styles,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} label='Colors' />
+      ),
+      cell: ({ row }) => {
+        const mainColors = [
+          'primary',
+          'secondary',
+          'accent',
+          'background',
+        ] as const
+
+        return (
+          <div className='flex gap-1'>
+            {mainColors.map((key) => (
+              <div key={key}>
+                <div
+                  className='size-4 rounded-full border shadow-2xl'
+                  style={{
+                    backgroundColor: row.original.styles.light[key],
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        )
+      },
+      enableColumnFilter: false,
+      enableSorting: false,
+    },
+    {
       id: ColumnKey.status,
       accessorFn: (row) => row.status,
       header: ({ column }) => (
