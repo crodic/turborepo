@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import {
   applyRuntimeTheme,
   clearRuntimeThemeStyles,
+  hasPersonalThemeColor,
   setCachedRuntimeTheme,
 } from '@/lib/runtime-theme/runtime-theme'
 import {
@@ -84,7 +85,9 @@ export default function PageThemeShow() {
 
       if (data?.isAdminDefault && !updatedTheme.isAdminDefault) {
         setCachedRuntimeTheme(null)
-        clearRuntimeThemeStyles()
+        if (!hasPersonalThemeColor()) {
+          clearRuntimeThemeStyles()
+        }
       }
 
       toast.success(
@@ -108,7 +111,9 @@ export default function PageThemeShow() {
 
       if (variables.target === 'admin') {
         setCachedRuntimeTheme(updatedTheme)
-        applyRuntimeTheme(updatedTheme)
+        if (!hasPersonalThemeColor()) {
+          applyRuntimeTheme(updatedTheme)
+        }
       }
 
       toast.success(
@@ -133,7 +138,9 @@ export default function PageThemeShow() {
 
       if (variables.target === 'admin') {
         setCachedRuntimeTheme(null)
-        clearRuntimeThemeStyles()
+        if (!hasPersonalThemeColor()) {
+          clearRuntimeThemeStyles()
+        }
       }
 
       toast.success(

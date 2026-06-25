@@ -4,7 +4,8 @@ import { THEME_STYLE_KEYS } from '@/lib/theme-builder/default-theme'
 export const RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:current'
 const ADMIN_RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:admin'
 export const IS_ADMIN_RUNTIME_THEME_ENABLED =
-  import.meta.env.VITE_ENABLE_ADMIN_RUNTIME_THEME === 'true'
+  import.meta.env.VITE_ENABLE_ADMIN_RUNTIME_THEME !== 'false'
+export const PERSONAL_THEME_COLOR_STORAGE_KEY = 'theme-color'
 
 type RuntimeTheme = {
   id: string
@@ -80,6 +81,10 @@ export function getCurrentThemeMode(): ThemeMode {
 export function applyRuntimeTheme(theme: RuntimeTheme | null) {
   if (!theme?.styles) return
   applyRuntimeThemeStyles(theme.styles, getCurrentThemeMode())
+}
+
+export function hasPersonalThemeColor() {
+  return localStorage.getItem(PERSONAL_THEME_COLOR_STORAGE_KEY) !== null
 }
 
 export async function fetchRuntimeTheme() {

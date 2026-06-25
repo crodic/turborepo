@@ -2,10 +2,11 @@ import { createContext, useContext, useEffect, useState, useMemo } from 'react'
 import { getCookie, setCookie, removeCookie } from '@/lib/cookies'
 import {
   applyRuntimeThemeStyles,
-  clearRuntimeThemeStyles,
   fetchRuntimeTheme,
   getCachedRuntimeTheme,
+  hasPersonalThemeColor,
   IS_ADMIN_RUNTIME_THEME_ENABLED,
+  PERSONAL_THEME_COLOR_STORAGE_KEY,
   setCachedRuntimeTheme,
 } from '@/lib/runtime-theme/runtime-theme'
 import { themeColors } from '@/lib/theme-colors'
@@ -49,7 +50,9 @@ export function ThemeProvider({
   )
   const [colorKey, _setColorKey] = useState<ColorKey>(() => {
     return (
-      (localStorage.getItem('theme-color') as ColorKey | null) || defaultColor
+      (localStorage.getItem(
+        PERSONAL_THEME_COLOR_STORAGE_KEY
+      ) as ColorKey | null) || defaultColor
     )
   })
 
@@ -78,24 +81,28 @@ export function ThemeProvider({
     root.classList.remove('light', 'dark')
     root.classList.add(resolvedTheme)
 
-    applyStaticTheme(resolvedTheme)
-
     const cachedRuntimeTheme = IS_ADMIN_RUNTIME_THEME_ENABLED
       ? getCachedRuntimeTheme()
       : null
+    const shouldUsePersonalTheme = hasPersonalThemeColor()
 
-    if (IS_ADMIN_RUNTIME_THEME_ENABLED && cachedRuntimeTheme?.styles) {
+    if (
+      IS_ADMIN_RUNTIME_THEME_ENABLED &&
+      cachedRuntimeTheme?.styles &&
+      !shouldUsePersonalTheme
+    ) {
       applyRuntimeThemeStyles(cachedRuntimeTheme.styles, resolvedTheme)
+    } else {
+      applyStaticTheme(resolvedTheme)
     }
 
     if (IS_ADMIN_RUNTIME_THEME_ENABLED) {
       fetchRuntimeTheme()
         .then((runtimeTheme) => {
           setCachedRuntimeTheme(runtimeTheme)
-          if (runtimeTheme?.styles) {
+          if (runtimeTheme?.styles && !hasPersonalThemeColor()) {
             applyRuntimeThemeStyles(runtimeTheme.styles, resolvedTheme)
-          } else {
-            clearRuntimeThemeStyles()
+          } else if (!runtimeTheme?.styles || hasPersonalThemeColor()) {
             applyStaticTheme(resolvedTheme)
           }
         })
@@ -109,12 +116,17 @@ export function ThemeProvider({
         const systemTheme = mediaQuery.matches ? 'dark' : 'light'
         root.classList.remove('light', 'dark')
         root.classList.add(systemTheme)
-        applyStaticTheme(systemTheme)
         const runtimeTheme = IS_ADMIN_RUNTIME_THEME_ENABLED
           ? getCachedRuntimeTheme()
           : null
-        if (IS_ADMIN_RUNTIME_THEME_ENABLED && runtimeTheme?.styles) {
+        if (
+          IS_ADMIN_RUNTIME_THEME_ENABLED &&
+          runtimeTheme?.styles &&
+          !hasPersonalThemeColor()
+        ) {
           applyRuntimeThemeStyles(runtimeTheme.styles, systemTheme)
+        } else {
+          applyStaticTheme(systemTheme)
         }
       }
     }
@@ -130,12 +142,12 @@ export function ThemeProvider({
 
   const setColorKey = (key: ColorKey) => {
     _setColorKey(key)
-    localStorage.setItem('theme-color', key)
+    localStorage.setItem(PERSONAL_THEME_COLOR_STORAGE_KEY, key)
   }
 
   const resetTheme = () => {
     removeCookie(storageKey)
-    localStorage.removeItem('theme-color')
+    localStorage.removeItem(PERSONAL_THEME_COLOR_STORAGE_KEY)
     _setTheme(DEFAULT_THEME)
     _setColorKey(DEFAULT_COLOR)
   }
