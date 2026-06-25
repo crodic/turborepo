@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useMemo } from 'react'
 import { getCookie, setCookie, removeCookie } from '@/lib/cookies'
+import { applyPersonalFontPreference } from '@/lib/personal-font'
 import {
   applyRuntimeThemeStyles,
   fetchRuntimeTheme,
@@ -80,6 +81,7 @@ export function ThemeProvider({
       Object.entries(themeColors[colorKey][mode]).forEach(([key, value]) => {
         root.style.setProperty(key, value)
       })
+      applyPersonalFontPreference()
     }
 
     // Apply dark/light class

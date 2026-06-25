@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { useEffect } from 'react'
 import {
   BarChart3Icon,
   CreditCardIcon,
@@ -16,9 +17,50 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 function toCssVariables(styles: ThemeStyles, mode: ThemeMode): CSSProperties {
-  return Object.fromEntries(
+  const cssVariables = Object.fromEntries(
     THEME_STYLE_KEYS.map((key) => [`--${key}`, styles[mode][key]])
   ) as CSSProperties
+
+  return {
+    ...cssVariables,
+    fontFamily: styles[mode]['font-sans'],
+    letterSpacing: styles[mode]['letter-spacing'],
+  }
+}
+
+function extractFontFamily(fontFamilyValue: string) {
+  const firstFont = fontFamilyValue.split(',')[0]?.trim().replace(/['"]/g, '')
+  if (!firstFont) return null
+
+  const systemFonts = [
+    'ui-sans-serif',
+    'ui-serif',
+    'ui-monospace',
+    'system-ui',
+    'sans-serif',
+    'serif',
+    'monospace',
+    'cursive',
+    'fantasy',
+  ]
+
+  return systemFonts.includes(firstFont.toLowerCase()) ? null : firstFont
+}
+
+function loadGoogleFont(fontFamilyValue: string) {
+  const family = extractFontFamily(fontFamilyValue)
+  if (!family) return
+
+  const href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(
+    family
+  )}:wght@400;500;600;700&display=swap`
+
+  if (document.querySelector(`link[href="${href}"]`)) return
+
+  const link = document.createElement('link')
+  link.rel = 'stylesheet'
+  link.href = href
+  document.head.appendChild(link)
 }
 
 export function ThemePreview({
@@ -30,6 +72,12 @@ export function ThemePreview({
   mode: ThemeMode
   className?: string
 }) {
+  useEffect(() => {
+    ;(['font-sans', 'font-serif', 'font-mono'] as const).forEach((key) => {
+      loadGoogleFont(styles[mode][key])
+    })
+  }, [mode, styles])
+
   return (
     <div
       className={cn(
@@ -120,6 +168,41 @@ export function ThemePreview({
               </CardContent>
             </Card>
           </div>
+
+          <Card className='mt-4'>
+            <CardHeader>
+              <CardTitle>Typography</CardTitle>
+            </CardHeader>
+            <CardContent className='grid gap-3 md:grid-cols-3'>
+              <div className='bg-muted/40 rounded-md border p-3'>
+                <p className='text-muted-foreground mb-1 text-xs'>Sans</p>
+                <p
+                  className='text-lg font-semibold'
+                  style={{ fontFamily: 'var(--font-sans)' }}
+                >
+                  Interface heading
+                </p>
+              </div>
+              <div className='bg-muted/40 rounded-md border p-3'>
+                <p className='text-muted-foreground mb-1 text-xs'>Serif</p>
+                <p
+                  className='text-lg font-semibold'
+                  style={{ fontFamily: 'var(--font-serif)' }}
+                >
+                  Editorial title
+                </p>
+              </div>
+              <div className='bg-muted/40 rounded-md border p-3'>
+                <p className='text-muted-foreground mb-1 text-xs'>Mono</p>
+                <p
+                  className='text-lg font-semibold'
+                  style={{ fontFamily: 'var(--font-mono)' }}
+                >
+                  const value = 42
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value='cards' className='m-0 h-full overflow-auto p-5'>

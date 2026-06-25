@@ -1,14 +1,12 @@
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
-import { ChevronDownIcon } from '@radix-ui/react-icons'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { fonts } from '@/config/fonts'
 import { useTranslation } from 'react-i18next'
 import { showSubmittedData } from '@/lib/show-submitted-data'
-import { cn } from '@/lib/utils'
 import { useFont } from '@/context/font-provider'
 import { useTheme } from '@/context/theme-provider'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import {
   Field,
   FieldContent,
@@ -25,6 +23,13 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import LanguageSelect from '@/components/common/language-select'
 
 const appearanceFormSchema = z.object({
@@ -38,6 +43,12 @@ export function AppearanceForm() {
   const { t } = useTranslation()
   const { font, setFont } = useFont()
   const { theme, setTheme } = useTheme()
+  const fontLabels = {
+    dynamic: t('settings.appearance.fontOptions.dynamic'),
+    inter: t('settings.appearance.fontOptions.inter'),
+    manrope: t('settings.appearance.fontOptions.manrope'),
+    system: t('settings.appearance.fontOptions.system'),
+  } satisfies Record<(typeof fonts)[number], string>
 
   // This can come from your database or API.
   const defaultValues: Partial<AppearanceFormValues> = {
@@ -66,25 +77,20 @@ export function AppearanceForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t('settings.appearance.font')}</FormLabel>
-              <div className='relative w-max'>
+              <Select value={field.value} onValueChange={field.onChange}>
                 <FormControl>
-                  <select
-                    className={cn(
-                      buttonVariants({ variant: 'outline' }),
-                      'w-50 appearance-none font-normal capitalize',
-                      'dark:bg-background dark:hover:bg-background'
-                    )}
-                    {...field}
-                  >
-                    {fonts.map((font) => (
-                      <option key={font} value={font}>
-                        {font}
-                      </option>
-                    ))}
-                  </select>
+                  <SelectTrigger className='w-56'>
+                    <SelectValue placeholder={t('settings.appearance.font')} />
+                  </SelectTrigger>
                 </FormControl>
-                <ChevronDownIcon className='absolute end-3 top-2.5 h-4 w-4 opacity-50' />
-              </div>
+                <SelectContent>
+                  {fonts.map((font) => (
+                    <SelectItem key={font} value={font}>
+                      {fontLabels[font]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormDescription className='font-manrope'>
                 {t('settings.appearance.fontDescription')}
               </FormDescription>
