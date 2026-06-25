@@ -69,26 +69,26 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20.19.0
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Lint API
-        run: pnpm --filter nestjs-boilerplate lint
+        run: pnpm --filter api lint
 
       - name: Type check API
-        run: pnpm --filter nestjs-boilerplate check-types
+        run: pnpm --filter api check-types
 
       - name: Unit tests API
-        run: pnpm --filter nestjs-boilerplate test:ci
+        run: pnpm --filter api test:ci
 
       - name: E2E tests API
-        run: pnpm --filter nestjs-boilerplate test:e2e
+        run: pnpm --filter api test:e2e
 
       - name: Build API
-        run: pnpm --filter nestjs-boilerplate build
+        run: pnpm --filter api build
 
       - name: Validate API Docker build
         uses: docker/build-push-action@v6
@@ -114,23 +114,26 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20.19.0
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Lint web
-        run: pnpm --filter admin-template lint
+        run: pnpm --filter web-portal lint
 
       - name: Type check web
-        run: pnpm --filter admin-template check-types
+        run: pnpm --filter web-portal check-types
 
       - name: Test web with coverage
-        run: pnpm --filter admin-template test:coverage
+        run: pnpm --filter web-portal test:coverage
 
       - name: Build web
-        run: pnpm --filter admin-template build
+        run: pnpm --filter web-portal build
+
+      - name: Verify web build output
+        run: test -d apps/web/dist && test -f apps/web/dist/index.html
 
       - name: Upload web build artifact
         uses: actions/upload-artifact@v4
@@ -171,7 +174,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20.19.0
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
