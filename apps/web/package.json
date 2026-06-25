@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "start": "pnpm preview",
+    "start": "vite preview --port 5173",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
