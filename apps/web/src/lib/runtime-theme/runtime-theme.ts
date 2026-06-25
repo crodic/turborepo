@@ -3,6 +3,8 @@ import { THEME_STYLE_KEYS } from '@/lib/theme-builder/default-theme'
 
 export const RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:current'
 const ADMIN_RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:admin'
+export const IS_ADMIN_RUNTIME_THEME_ENABLED =
+  import.meta.env.VITE_ENABLE_ADMIN_RUNTIME_THEME === 'true'
 
 type RuntimeTheme = {
   id: string

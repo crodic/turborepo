@@ -50,6 +50,8 @@ import type { ThemeSchema, ThemeStatus, ThemeTarget } from './schema'
 
 const canSetClientRuntimeTheme =
   import.meta.env.VITE_ENABLE_CLIENT_RUNTIME_THEME !== 'false'
+const canSetAdminRuntimeTheme =
+  import.meta.env.VITE_ENABLE_ADMIN_RUNTIME_THEME === 'true'
 
 type RuntimeAction = {
   type: 'set' | 'unset'
@@ -247,20 +249,22 @@ export default function ComponentTableRowActions({
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() =>
-                  setRuntimeAction({
-                    type: theme.isAdminDefault ? 'unset' : 'set',
-                    target: 'admin',
-                  })
-                }
-                disabled={isPending || theme.status !== 'published'}
-              >
-                <MonitorIcon className='size-4' />
-                {theme.isAdminDefault
-                  ? 'Unset admin portal'
-                  : 'Set for admin portal'}
-              </DropdownMenuItem>
+              {canSetAdminRuntimeTheme && (
+                <DropdownMenuItem
+                  onClick={() =>
+                    setRuntimeAction({
+                      type: theme.isAdminDefault ? 'unset' : 'set',
+                      target: 'admin',
+                    })
+                  }
+                  disabled={isPending || theme.status !== 'published'}
+                >
+                  <MonitorIcon className='size-4' />
+                  {theme.isAdminDefault
+                    ? 'Unset admin portal'
+                    : 'Set for admin portal'}
+                </DropdownMenuItem>
+              )}
               {canSetClientRuntimeTheme && (
                 <DropdownMenuItem
                   onClick={() =>

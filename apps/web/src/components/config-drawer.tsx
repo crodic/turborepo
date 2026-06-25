@@ -1,6 +1,6 @@
 import { type SVGProps } from 'react'
 import { Root as Radio, Item } from '@radix-ui/react-radio-group'
-import { CircleCheck, RotateCcw, Settings } from 'lucide-react'
+import { Check, CircleCheck, RotateCcw, Settings } from 'lucide-react'
 import { IconDir } from '@/assets/custom/icon-dir'
 import { IconLayoutCompact } from '@/assets/custom/icon-layout-compact'
 import { IconLayoutDefault } from '@/assets/custom/icon-layout-default'
@@ -11,6 +11,7 @@ import { IconSidebarSidebar } from '@/assets/custom/icon-sidebar-sidebar'
 import { IconThemeDark } from '@/assets/custom/icon-theme-dark'
 import { IconThemeLight } from '@/assets/custom/icon-theme-light'
 import { IconThemeSystem } from '@/assets/custom/icon-theme-system'
+import { themeColors } from '@/lib/theme-colors'
 import { cn } from '@/lib/utils'
 import { useDirection } from '@/context/direction-provider'
 import { type Collapsible, useLayout } from '@/context/layout-provider'
@@ -62,7 +63,7 @@ export function ConfigDrawer() {
         </SheetHeader>
         <div className='space-y-6 overflow-y-auto px-4'>
           <ThemeConfig />
-          {/* <ThemeColorConfig /> */}
+          <ThemeColorConfig />
           <SidebarConfig />
           <LayoutConfig />
           <DirConfig />
@@ -354,32 +355,32 @@ function DirConfig() {
   )
 }
 
-// function ThemeColorConfig() {
-//   const { setColorKey, colorKey } = useTheme()
+function ThemeColorConfig() {
+  const { setColorKey, colorKey } = useTheme()
 
-//   return (
-//     <div className='flex flex-wrap gap-2'>
-//       {Object.entries(themeColors).map(([key, val]) => (
-//         <Button
-//           key={key}
-//           onClick={() => setColorKey(key as keyof typeof themeColors)}
-//           size='icon'
-//           className={cn(
-//             'relative rounded-full transition-all duration-200',
-//             colorKey === key
-//               ? 'ring-foreground scale-110 ring-2'
-//               : 'opacity-80 hover:opacity-100'
-//           )}
-//           style={{
-//             backgroundColor: val.light['--primary'],
-//           }}
-//           title={key}
-//         >
-//           {colorKey === key && (
-//             <Check className='absolute inset-0 m-auto h-4 w-4 text-white drop-shadow' />
-//           )}
-//         </Button>
-//       ))}
-//     </div>
-//   )
-// }
+  return (
+    <div className='flex flex-wrap gap-2'>
+      {Object.entries(themeColors).map(([key, val]) => (
+        <Button
+          key={key}
+          onClick={() => setColorKey(key as keyof typeof themeColors)}
+          size='icon'
+          className={cn(
+            'relative rounded-full transition-all duration-200',
+            colorKey === key
+              ? 'ring-foreground scale-110 ring-2'
+              : 'opacity-80 hover:opacity-100'
+          )}
+          style={{
+            backgroundColor: val.light['--primary'],
+          }}
+          title={key}
+        >
+          {colorKey === key && (
+            <Check className='absolute inset-0 m-auto h-4 w-4 text-white drop-shadow' />
+          )}
+        </Button>
+      ))}
+    </div>
+  )
+}

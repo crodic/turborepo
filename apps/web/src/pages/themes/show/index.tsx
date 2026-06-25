@@ -49,6 +49,8 @@ import type { ThemeStatus, ThemeTarget } from '../schema'
 
 const canSetClientRuntimeTheme =
   import.meta.env.VITE_ENABLE_CLIENT_RUNTIME_THEME !== 'false'
+const canSetAdminRuntimeTheme =
+  import.meta.env.VITE_ENABLE_ADMIN_RUNTIME_THEME === 'true'
 
 type RuntimeAction = {
   type: 'set' | 'unset'
@@ -223,19 +225,21 @@ export default function PageThemeShow() {
                   )}
                   {data.status === 'published' ? 'Move to draft' : 'Publish'}
                 </Button>
-                <Button
-                  variant='outline'
-                  onClick={() =>
-                    setRuntimeAction({
-                      type: data.isAdminDefault ? 'unset' : 'set',
-                      target: 'admin',
-                    })
-                  }
-                  disabled={isPending || data.status !== 'published'}
-                >
-                  <MonitorIcon className='size-4' />
-                  {data.isAdminDefault ? 'Unset admin' : 'Set admin'}
-                </Button>
+                {canSetAdminRuntimeTheme && (
+                  <Button
+                    variant='outline'
+                    onClick={() =>
+                      setRuntimeAction({
+                        type: data.isAdminDefault ? 'unset' : 'set',
+                        target: 'admin',
+                      })
+                    }
+                    disabled={isPending || data.status !== 'published'}
+                  >
+                    <MonitorIcon className='size-4' />
+                    {data.isAdminDefault ? 'Unset admin' : 'Set admin'}
+                  </Button>
+                )}
                 {canSetClientRuntimeTheme && (
                   <Button
                     variant='outline'
