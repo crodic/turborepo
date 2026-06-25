@@ -200,7 +200,7 @@ export default function PageThemeShow() {
             </p>
           </div>
 
-          <div className='flex items-center gap-2'>
+          <div className='flex flex-wrap items-center gap-2'>
             <Button variant='outline' onClick={() => navigate(-1)}>
               <ArrowLeftIcon className='size-4' />
               Back
