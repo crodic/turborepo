@@ -7,6 +7,8 @@ import {
   FileX2Icon,
   GlobeIcon,
   MonitorIcon,
+  MoonIcon,
+  SunIcon,
 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
@@ -17,6 +19,7 @@ import {
   hasPersonalThemeColor,
   setCachedRuntimeTheme,
 } from '@/lib/runtime-theme/runtime-theme'
+import type { ThemeMode } from '@/lib/theme-builder/default-theme'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,6 +71,7 @@ export default function PageThemeShow() {
   const canPublish = ability.can('publish', 'THEME')
   const canUpdate = ability.can('update', 'THEME')
   const [runtimeAction, setRuntimeAction] = useState<RuntimeAction | null>(null)
+  const [previewMode, setPreviewMode] = useState<ThemeMode>('light')
 
   const statusMutation = useMutation({
     mutationFn: apiUpdateThemeStatus,
@@ -300,9 +304,36 @@ export default function PageThemeShow() {
           </Card>
         </div>
 
-        <div className='grid gap-5 xl:grid-cols-2'>
-          <ThemePreview styles={data.styles} mode='light' />
-          <ThemePreview styles={data.styles} mode='dark' />
+        <div className='space-y-3'>
+          <div className='flex flex-wrap items-center justify-between gap-3'>
+            <div>
+              <h2 className='text-lg font-semibold'>Preview</h2>
+              <p className='text-muted-foreground text-sm'>
+                Switch between light and dark tokens for this theme.
+              </p>
+            </div>
+            <div className='flex rounded-md border p-1'>
+              <Button
+                type='button'
+                size='sm'
+                variant={previewMode === 'light' ? 'default' : 'ghost'}
+                onClick={() => setPreviewMode('light')}
+              >
+                <SunIcon className='size-4' />
+                Light
+              </Button>
+              <Button
+                type='button'
+                size='sm'
+                variant={previewMode === 'dark' ? 'default' : 'ghost'}
+                onClick={() => setPreviewMode('dark')}
+              >
+                <MoonIcon className='size-4' />
+                Dark
+              </Button>
+            </div>
+          </div>
+          <ThemePreview styles={data.styles} mode={previewMode} />
         </div>
       </Main>
 

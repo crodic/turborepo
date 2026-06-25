@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { converter, formatHex, type Hsl } from 'culori'
 import {
   AlertCircleIcon,
   CheckIcon,
@@ -40,16 +41,85 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Slider } from '@/components/ui/slider'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
-const shapeKeys: ThemeStyleKey[] = [
-  'radius',
-  'spacing',
-  'shadow-color',
-  'shadow-opacity',
-  'shadow-blur',
-  'shadow-spread',
-  'shadow-offset-x',
-  'shadow-offset-y',
+type HslAdjustment = {
+  hueShift: number
+  saturationScale: number
+  lightnessScale: number
+}
+
+const defaultHslAdjustment: HslAdjustment = {
+  hueShift: 0,
+  saturationScale: 1,
+  lightnessScale: 1,
+}
+
+const hslPresets: (HslAdjustment & { label: string })[] = [
+  {
+    label: 'Hue (-120deg)',
+    hueShift: -120,
+    saturationScale: 1,
+    lightnessScale: 1,
+  },
+  {
+    label: 'Hue (-60deg)',
+    hueShift: -60,
+    saturationScale: 1,
+    lightnessScale: 1,
+  },
+  {
+    label: 'Hue (+60deg)',
+    hueShift: 60,
+    saturationScale: 1,
+    lightnessScale: 1,
+  },
+  {
+    label: 'Hue (+120deg)',
+    hueShift: 120,
+    saturationScale: 1,
+    lightnessScale: 1,
+  },
+  { label: 'Hue invert', hueShift: 180, saturationScale: 1, lightnessScale: 1 },
+  { label: 'Grayscale', hueShift: 0, saturationScale: 0, lightnessScale: 1 },
+  { label: 'Muted', hueShift: 0, saturationScale: 0.6, lightnessScale: 1 },
+  { label: 'Vibrant', hueShift: 0, saturationScale: 1.4, lightnessScale: 1 },
+  { label: 'Dimmer', hueShift: 0, saturationScale: 1, lightnessScale: 0.8 },
+  { label: 'Brighter', hueShift: 0, saturationScale: 1, lightnessScale: 1.2 },
+  {
+    label: 'Warm soft',
+    hueShift: 30,
+    saturationScale: 0.5,
+    lightnessScale: 0.95,
+  },
+  {
+    label: 'Cool vivid',
+    hueShift: -20,
+    saturationScale: 1.2,
+    lightnessScale: 1.05,
+  },
+  {
+    label: 'Fresh muted',
+    hueShift: 20,
+    saturationScale: 0.7,
+    lightnessScale: 0.95,
+  },
+  {
+    label: 'Soft lift',
+    hueShift: -10,
+    saturationScale: 0.75,
+    lightnessScale: 1.1,
+  },
+  {
+    label: 'Bright pop',
+    hueShift: 60,
+    saturationScale: 1.5,
+    lightnessScale: 1.1,
+  },
 ]
 
 type FontCategory =
@@ -356,6 +426,171 @@ function formatEmValue(value: number) {
   return `${Number(value.toFixed(3))}em`
 }
 
+function parseCssNumber(value: string) {
+  const numeric = Number.parseFloat(value.replace(/[^\d.-]/g, ''))
+  return Number.isFinite(numeric) ? numeric : 0
+}
+
+function formatCssUnit(value: number, unit: string) {
+  return `${Number(value.toFixed(3))}${unit}`
+}
+
+function adjustColorByHsl(
+  color: string,
+  hueShift: number,
+  saturationScale: number,
+  lightnessScale: number
+) {
+  const hsl = converter('hsl')(color)
+  const h = hsl?.h
+  const s = hsl?.s
+  const l = hsl?.l
+
+  if (h === undefined || s === undefined || l === undefined) return color
+
+  const out = converter('hsl')({
+    h: (((h + hueShift) % 360) + 360) % 360,
+    s: Math.min(1, Math.max(0, s * saturationScale)),
+    l: Math.min(1, Math.max(0.1, l * lightnessScale)),
+  } as Hsl)
+
+  return out ? formatHex(out) : color
+}
+
+function isDefaultHslAdjustment(adjustment: HslAdjustment) {
+  return (
+    adjustment.hueShift === defaultHslAdjustment.hueShift &&
+    adjustment.saturationScale === defaultHslAdjustment.saturationScale &&
+    adjustment.lightnessScale === defaultHslAdjustment.lightnessScale
+  )
+}
+
+function SliderWithInput({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  unit = 'px',
+  onChange,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step?: number
+  unit?: string
+  onChange: (value: number) => void
+}) {
+  const inputId = `theme-slider-${label.replace(/\s+/g, '-').toLowerCase()}`
+
+  const updateValue = (nextValue: number) => {
+    const normalized = Math.max(min, Math.min(max, nextValue))
+    onChange(normalized)
+  }
+
+  return (
+    <div className='flex items-center gap-2 py-0.5'>
+      <Label
+        htmlFor={inputId}
+        className='text-muted-foreground w-20 shrink-0 text-xs font-medium'
+      >
+        {label}
+      </Label>
+      <Slider
+        value={[value]}
+        min={min}
+        max={max}
+        step={step}
+        className='min-w-0 flex-1'
+        onValueChange={([nextValue]) => updateValue(nextValue ?? min)}
+      />
+      <div className='flex shrink-0 items-center gap-1'>
+        <Input
+          id={inputId}
+          type='number'
+          value={Number(value.toFixed(3))}
+          min={min}
+          max={max}
+          step={step}
+          className='h-8 w-16 px-2 text-xs'
+          onChange={(event) => {
+            const numeric = Number.parseFloat(
+              event.target.value.replace(',', '.')
+            )
+            if (Number.isFinite(numeric)) updateValue(numeric)
+          }}
+        />
+        <span className='text-muted-foreground w-7 text-xs'>{unit}</span>
+      </div>
+    </div>
+  )
+}
+
+function HslPresetButton({
+  preset,
+  currentStyles,
+  selected,
+  onClick,
+}: {
+  preset: HslAdjustment & { label: string }
+  currentStyles: Record<string, string>
+  selected: boolean
+  onClick: () => void
+}) {
+  const previewBg = adjustColorByHsl(
+    currentStyles.background,
+    preset.hueShift,
+    preset.saturationScale,
+    preset.lightnessScale
+  )
+  const previewPrimary = adjustColorByHsl(
+    currentStyles.primary,
+    preset.hueShift,
+    preset.saturationScale,
+    preset.lightnessScale
+  )
+  const previewSecondary = adjustColorByHsl(
+    currentStyles.secondary,
+    preset.hueShift,
+    preset.saturationScale,
+    preset.lightnessScale
+  )
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type='button'
+          variant='outline'
+          size='sm'
+          className={cn(
+            'relative h-9 overflow-hidden rounded-md p-0 shadow-sm transition-all hover:scale-[1.03] hover:shadow-md',
+            selected && 'ring-primary ring-1 ring-offset-1'
+          )}
+          style={{ background: previewBg }}
+          onClick={onClick}
+        >
+          <span className='absolute inset-0 flex'>
+            <span
+              className='h-full w-1/2 rounded-l-md'
+              style={{ background: previewPrimary }}
+            />
+            <span
+              className='h-full w-1/2 rounded-r-md'
+              style={{ background: previewSecondary }}
+            />
+          </span>
+          {selected && (
+            <span className='bg-primary absolute right-1 bottom-1 size-2 rounded-full' />
+          )}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side='bottom'>{preset.label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
 function ColorClassPicker({
   value,
   onChange,
@@ -606,6 +841,249 @@ function LetterSpacingControl({
   )
 }
 
+function HslAdjustmentControl({
+  currentStyles,
+  adjustment,
+  onChange,
+}: {
+  currentStyles: Record<string, string>
+  adjustment: HslAdjustment
+  onChange: (adjustment: HslAdjustment) => void
+}) {
+  const [showAllPresets, setShowAllPresets] = useState(false)
+  const visiblePresets = showAllPresets ? hslPresets : hslPresets.slice(0, 10)
+
+  const handleChange = (key: keyof HslAdjustment, nextValue: number) => {
+    onChange({ ...adjustment, [key]: nextValue })
+  }
+
+  return (
+    <div className='space-y-2'>
+      <div className='grid grid-cols-5 gap-2 sm:grid-cols-7 xl:grid-cols-5 2xl:grid-cols-7'>
+        {visiblePresets.map((preset) => (
+          <HslPresetButton
+            key={preset.label}
+            preset={preset}
+            currentStyles={currentStyles}
+            selected={
+              adjustment.hueShift === preset.hueShift &&
+              adjustment.saturationScale === preset.saturationScale &&
+              adjustment.lightnessScale === preset.lightnessScale
+            }
+            onClick={() => onChange(preset)}
+          />
+        ))}
+      </div>
+      {hslPresets.length > 10 && (
+        <Button
+          type='button'
+          variant='ghost'
+          size='sm'
+          className='text-muted-foreground w-full text-xs'
+          onClick={() => setShowAllPresets((isOpen) => !isOpen)}
+        >
+          {showAllPresets ? 'Hide' : 'Show more'} presets
+          <ChevronDownIcon
+            className={cn(
+              'size-4 transition-transform',
+              showAllPresets && 'rotate-180'
+            )}
+          />
+        </Button>
+      )}
+      <SliderWithInput
+        label='Hue'
+        value={adjustment.hueShift}
+        min={-180}
+        max={180}
+        step={1}
+        unit='deg'
+        onChange={(nextValue) => handleChange('hueShift', nextValue)}
+      />
+      <SliderWithInput
+        label='Saturation'
+        value={adjustment.saturationScale}
+        min={0}
+        max={2}
+        step={0.01}
+        unit='x'
+        onChange={(nextValue) => handleChange('saturationScale', nextValue)}
+      />
+      <SliderWithInput
+        label='Lightness'
+        value={adjustment.lightnessScale}
+        min={0.2}
+        max={2}
+        step={0.01}
+        unit='x'
+        onChange={(nextValue) => handleChange('lightnessScale', nextValue)}
+      />
+    </div>
+  )
+}
+
+function ShapeEffectControls({
+  currentStyles,
+  onChange,
+  onReset,
+}: {
+  currentStyles: Record<string, string>
+  onChange: (key: ThemeStyleKey, value: string) => void
+  onReset: (key: ThemeStyleKey) => void
+}) {
+  return (
+    <div className='space-y-3'>
+      <Collapsible defaultOpen className='group/collapsible'>
+        <CollapsibleTrigger className='bg-muted/50 text-muted-foreground hover:bg-muted flex h-8 items-center gap-1 rounded-md border px-2.5 text-xs font-semibold tracking-wider uppercase transition-colors'>
+          <ChevronDownIcon className='size-3.5 transition-transform group-data-[state=closed]/collapsible:-rotate-90' />
+          Radius
+        </CollapsibleTrigger>
+        <CollapsibleContent className='pt-3'>
+          <SliderWithInput
+            label='Radius'
+            value={parseCssNumber(currentStyles.radius)}
+            min={0}
+            max={2}
+            step={0.01}
+            unit='rem'
+            onChange={(nextValue) =>
+              onChange('radius', formatCssUnit(nextValue, 'rem'))
+            }
+          />
+        </CollapsibleContent>
+      </Collapsible>
+
+      <Collapsible className='group/collapsible'>
+        <CollapsibleTrigger className='bg-muted/50 text-muted-foreground hover:bg-muted flex h-8 items-center gap-1 rounded-md border px-2.5 text-xs font-semibold tracking-wider uppercase transition-colors'>
+          <ChevronDownIcon className='size-3.5 transition-transform group-data-[state=closed]/collapsible:-rotate-90' />
+          Spacing
+        </CollapsibleTrigger>
+        <CollapsibleContent className='pt-3'>
+          <SliderWithInput
+            label='Spacing'
+            value={parseCssNumber(currentStyles.spacing)}
+            min={0}
+            max={1}
+            step={0.01}
+            unit='rem'
+            onChange={(nextValue) =>
+              onChange('spacing', formatCssUnit(nextValue, 'rem'))
+            }
+          />
+        </CollapsibleContent>
+      </Collapsible>
+
+      <Collapsible defaultOpen className='group/collapsible'>
+        <CollapsibleTrigger className='bg-muted/50 text-muted-foreground hover:bg-muted flex h-8 items-center gap-1 rounded-md border px-2.5 text-xs font-semibold tracking-wider uppercase transition-colors'>
+          <ChevronDownIcon className='size-3.5 transition-transform group-data-[state=closed]/collapsible:-rotate-90' />
+          Shadow
+        </CollapsibleTrigger>
+        <CollapsibleContent className='space-y-2 pt-3'>
+          <TokenInput
+            label='Color'
+            value={currentStyles['shadow-color']}
+            common
+            color
+            onChange={(nextValue) => onChange('shadow-color', nextValue)}
+            onReset={() => onReset('shadow-color')}
+          />
+          <SliderWithInput
+            label='Opacity'
+            value={parseCssNumber(currentStyles['shadow-opacity'])}
+            min={0}
+            max={1}
+            step={0.01}
+            unit=''
+            onChange={(nextValue) =>
+              onChange('shadow-opacity', String(nextValue))
+            }
+          />
+          <SliderWithInput
+            label='Blur'
+            value={parseCssNumber(currentStyles['shadow-blur'])}
+            min={0}
+            max={50}
+            step={0.5}
+            unit='px'
+            onChange={(nextValue) =>
+              onChange('shadow-blur', formatCssUnit(nextValue, 'px'))
+            }
+          />
+          <SliderWithInput
+            label='Spread'
+            value={parseCssNumber(currentStyles['shadow-spread'])}
+            min={-50}
+            max={50}
+            step={0.5}
+            unit='px'
+            onChange={(nextValue) =>
+              onChange('shadow-spread', formatCssUnit(nextValue, 'px'))
+            }
+          />
+          <SliderWithInput
+            label='Offset X'
+            value={parseCssNumber(currentStyles['shadow-offset-x'])}
+            min={-50}
+            max={50}
+            step={0.5}
+            unit='px'
+            onChange={(nextValue) =>
+              onChange('shadow-offset-x', formatCssUnit(nextValue, 'px'))
+            }
+          />
+          <SliderWithInput
+            label='Offset Y'
+            value={parseCssNumber(currentStyles['shadow-offset-y'])}
+            min={-50}
+            max={50}
+            step={0.5}
+            unit='px'
+            onChange={(nextValue) =>
+              onChange('shadow-offset-y', formatCssUnit(nextValue, 'px'))
+            }
+          />
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+  )
+}
+
+function getShadowPreview(styles: Record<string, string>) {
+  const color = styles['shadow-color'] || 'oklch(0 0 0)'
+  const opacity = parseCssNumber(styles['shadow-opacity'])
+  const blur = styles['shadow-blur'] || '3px'
+  const spread = styles['shadow-spread'] || '0px'
+  const offsetX = styles['shadow-offset-x'] || '0px'
+  const offsetY = styles['shadow-offset-y'] || '1px'
+
+  return `${offsetX} ${offsetY} ${blur} ${spread} color-mix(in oklch, ${color} ${opacity * 100}%, transparent)`
+}
+
+function applyHslAdjustmentToStyles(
+  styles: ThemeStyles,
+  adjustment: HslAdjustment
+) {
+  const next: ThemeStyles = {
+    light: { ...styles.light },
+    dark: { ...styles.dark },
+  }
+
+  ;(['light', 'dark'] as ThemeMode[]).forEach((themeMode) => {
+    colorTokenGroups.forEach((group) => {
+      group.keys.forEach((key) => {
+        next[themeMode][key] = adjustColorByHsl(
+          styles[themeMode][key],
+          adjustment.hueShift,
+          adjustment.saturationScale,
+          adjustment.lightnessScale
+        )
+      })
+    })
+  })
+
+  return next
+}
+
 function getColorPickerValue(value: string) {
   return colorInputPattern.test(value) ? value : '#000000'
 }
@@ -687,9 +1165,32 @@ export function ThemeTokenEditor({
 }) {
   const currentStyles = value[mode]
   const colorGroups = useMemo(() => colorTokenGroups, [])
+  const hslBaseStylesRef = useRef<ThemeStyles | null>(null)
+  const [hslAdjustment, setHslAdjustment] =
+    useState<HslAdjustment>(defaultHslAdjustment)
 
   const updateToken = (key: ThemeStyleKey, tokenValue: string) => {
     onChange(setThemeStyleValue(value, mode, key, tokenValue))
+  }
+
+  const resetToken = (key: ThemeStyleKey) => {
+    updateToken(key, defaultThemeStyles[mode][key])
+  }
+
+  const updateHslAdjustment = (adjustment: HslAdjustment) => {
+    if (!hslBaseStylesRef.current) {
+      hslBaseStylesRef.current = {
+        light: { ...value.light },
+        dark: { ...value.dark },
+      }
+    }
+
+    setHslAdjustment(adjustment)
+    onChange(applyHslAdjustmentToStyles(hslBaseStylesRef.current, adjustment))
+
+    if (isDefaultHslAdjustment(adjustment)) {
+      hslBaseStylesRef.current = null
+    }
   }
 
   return (
@@ -868,23 +1369,36 @@ export function ThemeTokenEditor({
 
         <TabsContent value='effects' className='m-0 min-h-0 flex-1'>
           <ScrollArea className='h-full'>
-            <div className='grid gap-4 p-4'>
-              {shapeKeys.map((key) => (
-                <TokenInput
-                  key={key}
-                  label={`--${key}`}
-                  value={currentStyles[key]}
-                  common
-                  onChange={(nextValue) => updateToken(key, nextValue)}
-                  onReset={() =>
-                    updateToken(key, defaultThemeStyles[mode][key])
-                  }
-                />
-              ))}
+            <div className='space-y-3 p-4'>
+              <Collapsible defaultOpen className='group/collapsible'>
+                <CollapsibleTrigger className='bg-muted/50 text-muted-foreground hover:bg-muted flex h-8 items-center gap-1 rounded-md border px-2.5 text-xs font-semibold tracking-wider uppercase transition-colors'>
+                  <ChevronDownIcon className='size-3.5 transition-transform group-data-[state=closed]/collapsible:-rotate-90' />
+                  HSL Adjustments
+                </CollapsibleTrigger>
+                <CollapsibleContent className='pt-3'>
+                  <HslAdjustmentControl
+                    currentStyles={currentStyles}
+                    adjustment={hslAdjustment}
+                    onChange={updateHslAdjustment}
+                  />
+                </CollapsibleContent>
+              </Collapsible>
+
+              <ShapeEffectControls
+                currentStyles={currentStyles}
+                onChange={updateToken}
+                onReset={resetToken}
+              />
+
               <div
                 className={cn(
-                  'bg-card text-card-foreground rounded-md border p-4 shadow-md'
+                  'bg-card text-card-foreground rounded-md border p-4'
                 )}
+                style={{
+                  borderRadius: currentStyles.radius,
+                  padding: `calc(${currentStyles.spacing} * 4)`,
+                  boxShadow: getShadowPreview(currentStyles),
+                }}
               >
                 <p className='font-medium'>Effect sample</p>
                 <p className='text-muted-foreground text-sm'>
