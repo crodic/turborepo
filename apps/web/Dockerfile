@@ -23,7 +23,7 @@ FROM deps AS builder
 ENV NODE_ENV=production
 
 COPY . .
-RUN pnpm --filter admin-template build
+RUN pnpm --filter web-portal build
 
 FROM nginx:1.27-alpine AS production
 

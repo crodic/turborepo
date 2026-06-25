@@ -146,9 +146,9 @@ pnpm dev
 Run only one app:
 
 ```bash
-pnpm --filter nestjs-boilerplate start:dev
+pnpm --filter api start:dev
 pnpm --filter client dev
-pnpm --filter admin-template dev
+pnpm --filter web-portal dev
 ```
 
 Common app URLs:
@@ -211,7 +211,7 @@ Start only infrastructure services and run the API on the host:
 
 ```bash
 docker compose -f apps/api/docker-compose.yml up postgres redis mailpit pgadmin
-pnpm --filter nestjs-boilerplate start:dev
+pnpm --filter api start:dev
 ```
 
 Production compose expects a prebuilt API image:
@@ -232,9 +232,9 @@ pnpm build
 Build one app:
 
 ```bash
-pnpm --filter nestjs-boilerplate build
+pnpm --filter api build
 pnpm --filter client build
-pnpm --filter admin-template build
+pnpm --filter web-portal build
 ```
 
 ## Lint, Type Check, Test
@@ -250,26 +250,26 @@ pnpm test
 Run app-specific checks:
 
 ```bash
-pnpm --filter nestjs-boilerplate lint
-pnpm --filter nestjs-boilerplate check-types
-pnpm --filter nestjs-boilerplate test:ci
-pnpm --filter nestjs-boilerplate test:e2e
+pnpm --filter api lint
+pnpm --filter api check-types
+pnpm --filter api test:ci
+pnpm --filter api test:e2e
 
 pnpm --filter client lint
 pnpm --filter client check-types
 pnpm --filter client test:ci
 
-pnpm --filter admin-template lint
-pnpm --filter admin-template check-types
-pnpm --filter admin-template test:coverage
+pnpm --filter web-portal lint
+pnpm --filter web-portal check-types
+pnpm --filter web-portal test:coverage
 ```
 
 Use fix scripts when you intentionally want automated edits:
 
 ```bash
-pnpm --filter nestjs-boilerplate lint:fix
+pnpm --filter api lint:fix
 pnpm --filter client lint:fix
-pnpm --filter admin-template lint:fix
+pnpm --filter web-portal lint:fix
 pnpm format
 ```
 
@@ -278,19 +278,19 @@ pnpm format
 Run API database commands with the API workspace filter:
 
 ```bash
-pnpm --filter nestjs-boilerplate db:create
-pnpm --filter nestjs-boilerplate migration:run
-pnpm --filter nestjs-boilerplate seed:run:relational
-pnpm --filter nestjs-boilerplate permissions:sync
+pnpm --filter api db:create
+pnpm --filter api migration:run
+pnpm --filter api seed:run:relational
+pnpm --filter api permissions:sync
 ```
 
 Production commands:
 
 ```bash
-pnpm --filter nestjs-boilerplate build
-pnpm --filter nestjs-boilerplate migration:run:prod
-pnpm --filter nestjs-boilerplate seed:run:relational:prod
-pnpm --filter nestjs-boilerplate permissions:sync:prod
+pnpm --filter api build
+pnpm --filter api migration:run:prod
+pnpm --filter api seed:run:relational:prod
+pnpm --filter api permissions:sync:prod
 ```
 
 ## Docker Images
@@ -298,13 +298,13 @@ pnpm --filter nestjs-boilerplate permissions:sync:prod
 Build API image from the repo root:
 
 ```bash
-docker build -f apps/api/Dockerfile --target production -t boilerplate-api .
+docker build -f apps/api/Dockerfile --target production -t api .
 ```
 
 Build web image from the repo root:
 
 ```bash
-docker build -f apps/web/Dockerfile --target production -t boilerplate-web .
+docker build -f apps/web/Dockerfile --target production -t web-portal .
 ```
 
 Build client website image from the repo root:
@@ -341,17 +341,17 @@ Deployment instructions are documented in [DELOYMENT.md](./DELOYMENT.md).
 Install runtime dependencies for one app:
 
 ```bash
-pnpm --filter nestjs-boilerplate add <package>
+pnpm --filter api add <package>
 pnpm --filter client add <package>
-pnpm --filter admin-template add <package>
+pnpm --filter web-portal add <package>
 ```
 
 Install dev dependencies for one app:
 
 ```bash
-pnpm --filter nestjs-boilerplate add -D <package>
+pnpm --filter api add -D <package>
 pnpm --filter client add -D <package>
-pnpm --filter admin-template add -D <package>
+pnpm --filter web-portal add -D <package>
 ```
 
 Install a root-level dev tool:
@@ -370,7 +370,7 @@ pnpm --filter @repo/prettier-config add <package>
 Create a new workspace package under `packages/<name>` and add it to an app:
 
 ```bash
-pnpm --filter admin-template add @repo/<name>@workspace:*
+pnpm --filter web-portal add @repo/<name>@workspace:*
 ```
 
 ## Git Hooks
