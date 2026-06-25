@@ -1,12 +1,31 @@
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeftIcon, Edit2Icon, GlobeIcon, MonitorIcon } from 'lucide-react'
+import {
+  ArrowLeftIcon,
+  CheckCircle2Icon,
+  Edit2Icon,
+  FileX2Icon,
+  GlobeIcon,
+  MonitorIcon,
+} from 'lucide-react'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import {
   applyRuntimeTheme,
+  clearRuntimeThemeStyles,
   setCachedRuntimeTheme,
 } from '@/lib/runtime-theme/runtime-theme'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -22,10 +41,19 @@ import { ThemePreview } from '../components/theme-preview'
 import {
   apiPublishTheme,
   apiUnpublishTheme,
+  apiUpdateThemeStatus,
   themeQueryKeys,
   useDataThemeById,
 } from '../queries'
-import type { ThemeTarget } from '../schema'
+import type { ThemeStatus, ThemeTarget } from '../schema'
+
+const canSetClientRuntimeTheme =
+  import.meta.env.VITE_ENABLE_CLIENT_RUNTIME_THEME !== 'false'
+
+type RuntimeAction = {
+  type: 'set' | 'unset'
+  target: ThemeTarget
+}
 
 export default function PageThemeShow() {
   const params = useParams()
@@ -36,6 +64,34 @@ export default function PageThemeShow() {
   const { data, isFetching } = useDataThemeById(themeId)
   const canPublish = ability.can('publish', 'THEME')
   const canUpdate = ability.can('update', 'THEME')
+  const [runtimeAction, setRuntimeAction] = useState<RuntimeAction | null>(null)
+
+  const statusMutation = useMutation({
+    mutationFn: apiUpdateThemeStatus,
+    onSuccess: (updatedTheme) => {
+      queryClient.invalidateQueries({ queryKey: themeQueryKeys.all })
+      queryClient.invalidateQueries({
+        queryKey: themeQueryKeys.detail(themeId),
+      })
+      queryClient.invalidateQueries({
+        queryKey: themeQueryKeys.runtime('admin'),
+      })
+      queryClient.invalidateQueries({
+        queryKey: themeQueryKeys.runtime('client'),
+      })
+
+      if (data?.isAdminDefault && !updatedTheme.isAdminDefault) {
+        setCachedRuntimeTheme(null)
+        clearRuntimeThemeStyles()
+      }
+
+      toast.success(
+        updatedTheme.status === 'published'
+          ? 'Theme published successfully'
+          : 'Theme moved to draft'
+      )
+    },
+  })
 
   const publishMutation = useMutation({
     mutationFn: apiPublishTheme,
@@ -58,6 +114,7 @@ export default function PageThemeShow() {
           ? 'Theme applied to admin portal'
           : 'Theme applied to client site'
       )
+      setRuntimeAction(null)
     },
   })
 
@@ -71,26 +128,46 @@ export default function PageThemeShow() {
       queryClient.invalidateQueries({
         queryKey: themeQueryKeys.runtime(variables.target),
       })
+
+      if (variables.target === 'admin') {
+        setCachedRuntimeTheme(null)
+        clearRuntimeThemeStyles()
+      }
+
       toast.success(
         variables.target === 'admin'
           ? 'Theme removed from admin portal'
           : 'Theme removed from client site'
       )
+      setRuntimeAction(null)
     },
   })
 
-  console.log(data)
-
-  const setThemeFor = (target: ThemeTarget) => {
-    publishMutation.mutate({ id: themeId, target })
+  const updateStatus = (status: ThemeStatus) => {
+    statusMutation.mutate({ id: themeId, status })
   }
 
-  const unsetThemeFor = (target: ThemeTarget) => {
-    unpublishMutation.mutate({ id: themeId, target })
+  const confirmRuntimeAction = () => {
+    if (!runtimeAction) return
+
+    if (runtimeAction.type === 'set') {
+      publishMutation.mutate({ id: themeId, target: runtimeAction.target })
+      return
+    }
+
+    unpublishMutation.mutate({ id: themeId, target: runtimeAction.target })
   }
 
   if (isFetching) return <DataLoader />
   if (!data) return <NotFoundError />
+
+  const isPending =
+    publishMutation.isPending ||
+    unpublishMutation.isPending ||
+    statusMutation.isPending
+  const runtimeLabel =
+    runtimeAction?.target === 'admin' ? 'admin portal' : 'client site'
+  const runtimeVerb = runtimeAction?.type === 'set' ? 'set' : 'unset'
 
   return (
     <>
@@ -133,31 +210,47 @@ export default function PageThemeShow() {
                 <Button
                   variant='outline'
                   onClick={() =>
-                    data.isAdminDefault
-                      ? unsetThemeFor('admin')
-                      : setThemeFor('admin')
+                    updateStatus(
+                      data.status === 'published' ? 'draft' : 'published'
+                    )
                   }
-                  disabled={
-                    publishMutation.isPending || unpublishMutation.isPending
-                  }
+                  disabled={isPending}
                 >
-                  <MonitorIcon className='size-4' />
-                  {data.isAdminDefault ? 'Unset admin' : 'Set admin'}
+                  {data.status === 'published' ? (
+                    <FileX2Icon className='size-4' />
+                  ) : (
+                    <CheckCircle2Icon className='size-4' />
+                  )}
+                  {data.status === 'published' ? 'Move to draft' : 'Publish'}
                 </Button>
                 <Button
                   variant='outline'
                   onClick={() =>
-                    data.isClientDefault
-                      ? unsetThemeFor('client')
-                      : setThemeFor('client')
+                    setRuntimeAction({
+                      type: data.isAdminDefault ? 'unset' : 'set',
+                      target: 'admin',
+                    })
                   }
-                  disabled={
-                    publishMutation.isPending || unpublishMutation.isPending
-                  }
+                  disabled={isPending || data.status !== 'published'}
                 >
-                  <GlobeIcon className='size-4' />
-                  {data.isClientDefault ? 'Unset client' : 'Set client'}
+                  <MonitorIcon className='size-4' />
+                  {data.isAdminDefault ? 'Unset admin' : 'Set admin'}
                 </Button>
+                {canSetClientRuntimeTheme && (
+                  <Button
+                    variant='outline'
+                    onClick={() =>
+                      setRuntimeAction({
+                        type: data.isClientDefault ? 'unset' : 'set',
+                        target: 'client',
+                      })
+                    }
+                    disabled={isPending || data.status !== 'published'}
+                  >
+                    <GlobeIcon className='size-4' />
+                    {data.isClientDefault ? 'Unset client' : 'Set client'}
+                  </Button>
+                )}
               </>
             )}
             {canUpdate && (
@@ -201,6 +294,38 @@ export default function PageThemeShow() {
           <ThemePreview styles={data.styles} mode='dark' />
         </div>
       </Main>
+
+      <AlertDialog
+        open={!!runtimeAction}
+        onOpenChange={(open) => {
+          if (!open) setRuntimeAction(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {runtimeVerb === 'set'
+                ? 'Set runtime theme?'
+                : 'Unset runtime theme?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will {runtimeVerb} "{data.name}" for the {runtimeLabel}.
+              {runtimeAction?.target === 'admin' &&
+                runtimeAction.type === 'unset' &&
+                ' The admin portal will fall back to the static source-code theme.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRuntimeAction}
+              disabled={isPending}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

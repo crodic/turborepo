@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import {
+  IS_RUNTIME_THEME_ENABLED,
   RUNTIME_THEME_STORAGE_KEY,
   RUNTIME_THEME_STYLE_KEYS,
   type RuntimeTheme,
@@ -33,6 +34,12 @@ export function RuntimeThemeSync({
   initialTheme: RuntimeTheme | null;
 }) {
   useEffect(() => {
+    if (!IS_RUNTIME_THEME_ENABLED) {
+      localStorage.removeItem(RUNTIME_THEME_STORAGE_KEY);
+      clearRuntimeTheme();
+      return;
+    }
+
     if (initialTheme) {
       localStorage.setItem(
         RUNTIME_THEME_STORAGE_KEY,

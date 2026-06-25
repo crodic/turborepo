@@ -11,6 +11,7 @@ import {
   themeSchema,
   type ThemeFormSchema,
   type ThemeSchema,
+  type ThemeStatus,
   type ThemeTarget,
 } from './schema'
 
@@ -51,6 +52,17 @@ export async function apiEditTheme({
   data: ThemeFormSchema
 }) {
   const response = await http.put(`/themes/${id}`, themeFormSchema.parse(data))
+  return themeSchema.parse(response.data)
+}
+
+export async function apiUpdateThemeStatus({
+  id,
+  status,
+}: {
+  id: string
+  status: ThemeStatus
+}) {
+  const response = await http.put(`/themes/${id}`, { status })
   return themeSchema.parse(response.data)
 }
 

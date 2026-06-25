@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
 import {
+  CheckCircle2Icon,
   CopyIcon,
   Edit2Icon,
   EyeIcon,
+  FileX2Icon,
   GlobeIcon,
   MonitorIcon,
   MoreHorizontalIcon,
@@ -14,8 +17,19 @@ import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import {
   applyRuntimeTheme,
+  clearRuntimeThemeStyles,
   setCachedRuntimeTheme,
 } from '@/lib/runtime-theme/runtime-theme'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -28,9 +42,19 @@ import {
   apiDeleteTheme,
   apiDuplicateTheme,
   apiPublishTheme,
+  apiUnpublishTheme,
+  apiUpdateThemeStatus,
   themeQueryKeys,
 } from './queries'
-import type { ThemeSchema, ThemeTarget } from './schema'
+import type { ThemeSchema, ThemeStatus, ThemeTarget } from './schema'
+
+const canSetClientRuntimeTheme =
+  import.meta.env.VITE_ENABLE_CLIENT_RUNTIME_THEME !== 'false'
+
+type RuntimeAction = {
+  type: 'set' | 'unset'
+  target: ThemeTarget
+}
 
 export default function ComponentTableRowActions({
   row,
@@ -45,6 +69,7 @@ export default function ComponentTableRowActions({
   const canUpdate = ability.can('update', 'THEME')
   const canDelete = ability.can('delete', 'THEME')
   const canPublish = ability.can('publish', 'THEME')
+  const [runtimeAction, setRuntimeAction] = useState<RuntimeAction | null>(null)
 
   const duplicateMutation = useMutation({
     mutationFn: apiDuplicateTheme,
@@ -62,7 +87,34 @@ export default function ComponentTableRowActions({
     },
   })
 
-  const publishMutation = useMutation({
+  const statusMutation = useMutation({
+    mutationFn: apiUpdateThemeStatus,
+    onSuccess: (updatedTheme) => {
+      queryClient.invalidateQueries({ queryKey: themeQueryKeys.all })
+      queryClient.invalidateQueries({
+        queryKey: themeQueryKeys.detail(theme.id),
+      })
+      queryClient.invalidateQueries({
+        queryKey: themeQueryKeys.runtime('admin'),
+      })
+      queryClient.invalidateQueries({
+        queryKey: themeQueryKeys.runtime('client'),
+      })
+
+      if (theme.isAdminDefault && !updatedTheme.isAdminDefault) {
+        setCachedRuntimeTheme(null)
+        clearRuntimeThemeStyles()
+      }
+
+      toast.success(
+        updatedTheme.status === 'published'
+          ? 'Theme published successfully'
+          : 'Theme moved to draft'
+      )
+    },
+  })
+
+  const setRuntimeMutation = useMutation({
     mutationFn: apiPublishTheme,
     onSuccess: (updatedTheme, variables) => {
       queryClient.invalidateQueries({ queryKey: themeQueryKeys.all })
@@ -83,6 +135,32 @@ export default function ComponentTableRowActions({
           ? 'Theme applied to admin portal'
           : 'Theme applied to client site'
       )
+      setRuntimeAction(null)
+    },
+  })
+
+  const unsetRuntimeMutation = useMutation({
+    mutationFn: apiUnpublishTheme,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: themeQueryKeys.all })
+      queryClient.invalidateQueries({
+        queryKey: themeQueryKeys.detail(theme.id),
+      })
+      queryClient.invalidateQueries({
+        queryKey: themeQueryKeys.runtime(variables.target),
+      })
+
+      if (variables.target === 'admin') {
+        setCachedRuntimeTheme(null)
+        clearRuntimeThemeStyles()
+      }
+
+      toast.success(
+        variables.target === 'admin'
+          ? 'Theme removed from admin portal'
+          : 'Theme removed from client site'
+      )
+      setRuntimeAction(null)
     },
   })
 
@@ -91,68 +169,162 @@ export default function ComponentTableRowActions({
     deleteMutation.mutate(theme.id)
   }
 
-  const publishFor = (target: ThemeTarget) => {
-    publishMutation.mutate({ id: theme.id, target })
+  const updateStatus = (status: ThemeStatus) => {
+    statusMutation.mutate({ id: theme.id, status })
   }
 
+  const confirmRuntimeAction = () => {
+    if (!runtimeAction) return
+
+    if (runtimeAction.type === 'set') {
+      setRuntimeMutation.mutate({ id: theme.id, target: runtimeAction.target })
+      return
+    }
+
+    unsetRuntimeMutation.mutate({
+      id: theme.id,
+      target: runtimeAction.target,
+    })
+  }
+
+  const isPending =
+    setRuntimeMutation.isPending ||
+    unsetRuntimeMutation.isPending ||
+    statusMutation.isPending
+  const runtimeLabel =
+    runtimeAction?.target === 'admin' ? 'admin portal' : 'client site'
+  const runtimeVerb = runtimeAction?.type === 'set' ? 'set' : 'unset'
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant='ghost' size='icon'>
-          <MoreHorizontalIcon className='size-4' />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align='end'>
-        <DropdownMenuItem onClick={() => navigate(`/themes/${theme.id}/show`)}>
-          <EyeIcon className='size-4' />
-          View
-        </DropdownMenuItem>
-        {canUpdate && (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant='ghost' size='icon'>
+            <MoreHorizontalIcon className='size-4' />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align='end'>
           <DropdownMenuItem
-            onClick={() => navigate(`/themes/${theme.id}/edit`)}
+            onClick={() => navigate(`/themes/${theme.id}/show`)}
           >
-            <Edit2Icon className='size-4' />
-            Edit
+            <EyeIcon className='size-4' />
+            View
           </DropdownMenuItem>
-        )}
-        {canCreate && (
-          <DropdownMenuItem onClick={() => duplicateMutation.mutate(theme.id)}>
-            <CopyIcon className='size-4' />
-            Duplicate
-          </DropdownMenuItem>
-        )}
-        {canPublish && (
-          <>
-            <DropdownMenuSeparator />
+          {canUpdate && (
             <DropdownMenuItem
-              onClick={() => publishFor('admin')}
-              disabled={publishMutation.isPending}
+              onClick={() => navigate(`/themes/${theme.id}/edit`)}
             >
-              <MonitorIcon className='size-4' />
-              Set for admin portal
+              <Edit2Icon className='size-4' />
+              Edit
             </DropdownMenuItem>
+          )}
+          {canCreate && (
             <DropdownMenuItem
-              onClick={() => publishFor('client')}
-              disabled={publishMutation.isPending}
+              onClick={() => duplicateMutation.mutate(theme.id)}
             >
-              <GlobeIcon className='size-4' />
-              Set for client site
+              <CopyIcon className='size-4' />
+              Duplicate
             </DropdownMenuItem>
-          </>
-        )}
-        {canDelete && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className='text-destructive focus:text-destructive'
-              onClick={handleDelete}
+          )}
+          {canPublish && (
+            <>
+              <DropdownMenuSeparator />
+              {theme.status === 'published' ? (
+                <DropdownMenuItem
+                  onClick={() => updateStatus('draft')}
+                  disabled={isPending}
+                >
+                  <FileX2Icon className='size-4' />
+                  Move to draft
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  onClick={() => updateStatus('published')}
+                  disabled={isPending}
+                >
+                  <CheckCircle2Icon className='size-4' />
+                  Publish
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() =>
+                  setRuntimeAction({
+                    type: theme.isAdminDefault ? 'unset' : 'set',
+                    target: 'admin',
+                  })
+                }
+                disabled={isPending || theme.status !== 'published'}
+              >
+                <MonitorIcon className='size-4' />
+                {theme.isAdminDefault
+                  ? 'Unset admin portal'
+                  : 'Set for admin portal'}
+              </DropdownMenuItem>
+              {canSetClientRuntimeTheme && (
+                <DropdownMenuItem
+                  onClick={() =>
+                    setRuntimeAction({
+                      type: theme.isClientDefault ? 'unset' : 'set',
+                      target: 'client',
+                    })
+                  }
+                  disabled={isPending || theme.status !== 'published'}
+                >
+                  <GlobeIcon className='size-4' />
+                  {theme.isClientDefault
+                    ? 'Unset client site'
+                    : 'Set for client site'}
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
+          {canDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className='text-destructive focus:text-destructive'
+                onClick={handleDelete}
+              >
+                <Trash2Icon className='size-4' />
+                Delete
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog
+        open={!!runtimeAction}
+        onOpenChange={(open) => {
+          if (!open) setRuntimeAction(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {runtimeVerb === 'set'
+                ? 'Set runtime theme?'
+                : 'Unset runtime theme?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will {runtimeVerb} "{theme.name}" for the {runtimeLabel}.
+              {runtimeAction?.target === 'admin' &&
+                runtimeAction.type === 'unset' &&
+                ' The admin portal will fall back to the static source-code theme.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRuntimeAction}
+              disabled={isPending}
             >
-              <Trash2Icon className='size-4' />
-              Delete
-            </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

@@ -40,12 +40,11 @@ export const themeFormSchema = z.object({
   description: z.string().nullish(),
   styles: themeStylesSchema,
   status: themeStatusSchema,
-  isAdminDefault: z.boolean(),
-  isClientDefault: z.boolean(),
 })
 
 export type ThemeSchema = z.infer<typeof themeSchema>
 export type ThemeFormSchema = z.infer<typeof themeFormSchema>
+export type ThemeStatus = z.infer<typeof themeStatusSchema>
 export type ThemeTarget = z.infer<typeof themeTargetSchema>
 
 export const ColumnKey = {

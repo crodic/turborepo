@@ -8,6 +8,8 @@ export type RuntimeTheme = {
 };
 
 export const RUNTIME_THEME_STORAGE_KEY = "runtime-theme:client";
+export const IS_RUNTIME_THEME_ENABLED =
+  process.env.NEXT_PUBLIC_ENABLE_RUNTIME_THEME !== "false";
 
 export const RUNTIME_THEME_STYLE_KEYS = [
   "background",
@@ -68,6 +70,8 @@ export function generateRuntimeThemeCss(styles: ThemeStyles) {
 }
 
 export async function getRuntimeThemeServer(): Promise<RuntimeTheme | null> {
+  if (!IS_RUNTIME_THEME_ENABLED) return null;
+
   try {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/v1/themes/runtime/current?target=client`,

@@ -37,7 +37,13 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import type { ThemeFormSchema } from '../schema'
 import { ThemePreview } from './theme-preview'
@@ -269,49 +275,26 @@ export function ThemeForm({
 
             <FormField
               control={form.control}
-              name='isAdminDefault'
+              name='status'
               render={({ field }) => (
-                <FormItem className='flex items-center justify-between rounded-lg border p-3'>
-                  <div className='space-y-0.5'>
-                    <FormLabel>Set for admin portal</FormLabel>
-                    <p className='text-muted-foreground text-xs'>
-                      Apply this theme to the admin dashboard immediately after
-                      publish.
-                    </p>
-                  </div>
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
                   <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={(checked) => {
-                        field.onChange(checked)
-                        if (checked) form.setValue('status', 'published')
-                      }}
-                    />
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className='w-full'>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='draft'>Draft</SelectItem>
+                        <SelectItem value='published'>Published</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </FormControl>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name='isClientDefault'
-              render={({ field }) => (
-                <FormItem className='flex items-center justify-between rounded-lg border p-3'>
-                  <div className='space-y-0.5'>
-                    <FormLabel>Set for client site</FormLabel>
-                    <p className='text-muted-foreground text-xs'>
-                      Apply this theme to the public/client Next.js site.
-                    </p>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={(checked) => {
-                        field.onChange(checked)
-                        if (checked) form.setValue('status', 'published')
-                      }}
-                    />
-                  </FormControl>
+                  <p className='text-muted-foreground text-xs'>
+                    Only published themes can be assigned to admin or client
+                    runtime.
+                  </p>
+                  <FormMessage />
                 </FormItem>
               )}
             />

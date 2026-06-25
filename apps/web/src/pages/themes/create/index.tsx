@@ -5,10 +5,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeftIcon } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
-import {
-  applyRuntimeTheme,
-  setCachedRuntimeTheme,
-} from '@/lib/runtime-theme/runtime-theme'
 import { cloneDefaultThemeStyles } from '@/lib/theme-builder/default-theme'
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
@@ -32,8 +28,6 @@ export function PageThemeCreate() {
       description: '',
       styles: cloneDefaultThemeStyles(),
       status: 'draft',
-      isAdminDefault: false,
-      isClientDefault: false,
     },
   })
 
@@ -41,16 +35,6 @@ export function PageThemeCreate() {
     mutationFn: apiCreateTheme,
     onSuccess: (theme) => {
       queryClient.invalidateQueries({ queryKey: themeQueryKeys.all })
-      queryClient.invalidateQueries({
-        queryKey: themeQueryKeys.runtime('admin'),
-      })
-      queryClient.invalidateQueries({
-        queryKey: themeQueryKeys.runtime('client'),
-      })
-      if (theme.isAdminDefault) {
-        setCachedRuntimeTheme(theme)
-        applyRuntimeTheme(theme)
-      }
       toast.success('Theme created successfully')
       navigate(`/themes/${theme.id}/edit`)
     },

@@ -63,6 +63,14 @@ export function applyRuntimeThemeStyles(styles: ThemeStyles, mode: ThemeMode) {
   })
 }
 
+export function clearRuntimeThemeStyles() {
+  const root = document.documentElement
+
+  THEME_STYLE_KEYS.forEach((key) => {
+    root.style.removeProperty(`--${key}`)
+  })
+}
+
 export function getCurrentThemeMode(): ThemeMode {
   return document.documentElement.classList.contains('dark') ? 'dark' : 'light'
 }

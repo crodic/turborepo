@@ -43,7 +43,7 @@ export class ThemeService {
         ...theme,
         isAdminDefault: runtimeThemeIds[EThemeTarget.ADMIN]
           ? String(runtimeThemeIds[EThemeTarget.ADMIN]) === id
-          : theme.isDefault,
+          : false,
         isClientDefault: runtimeThemeIds[EThemeTarget.CLIENT]
           ? String(runtimeThemeIds[EThemeTarget.CLIENT]) === id
           : false,
@@ -135,22 +135,7 @@ export class ThemeService {
 
   private async resolveRuntimeThemeId(target: EThemeTarget) {
     const settings = await this.getRuntimeThemeSettings();
-    const configuredThemeId = settings[target];
-
-    if (configuredThemeId) {
-      return configuredThemeId;
-    }
-
-    if (target === EThemeTarget.CLIENT) {
-      return null;
-    }
-
-    const legacyDefaultTheme = await this.themeRepository.findOne({
-      where: { isDefault: true, status: EThemeStatus.PUBLISHED },
-      order: { updatedAt: 'DESC' },
-    });
-
-    return legacyDefaultTheme?.id ?? null;
+    return settings[target] ?? null;
   }
 
   private async applyRuntimeTargets(
@@ -162,8 +147,13 @@ export class ThemeService {
 
     if (setAdminDefault !== undefined) {
       if (setAdminDefault) {
+        if (theme.status !== EThemeStatus.PUBLISHED) {
+          throw new ValidationException(
+            ErrorCode.V000,
+            'Only published themes can be set for admin portal',
+          );
+        }
         await this.clearDefaultTheme(theme.id);
-        theme.status = EThemeStatus.PUBLISHED;
         theme.isDefault = true;
         await this.setRuntimeTheme(EThemeTarget.ADMIN, theme.id);
       } else {
@@ -179,7 +169,12 @@ export class ThemeService {
 
     if (setClientDefault !== undefined) {
       if (setClientDefault) {
-        theme.status = EThemeStatus.PUBLISHED;
+        if (theme.status !== EThemeStatus.PUBLISHED) {
+          throw new ValidationException(
+            ErrorCode.V000,
+            'Only published themes can be set for client site',
+          );
+        }
         await this.setRuntimeTheme(EThemeTarget.CLIENT, theme.id);
       } else {
         const runtimeThemeId = await this.resolveRuntimeThemeId(
@@ -238,14 +233,13 @@ export class ThemeService {
       return null;
     }
 
-    const theme = runtimeThemeId
-      ? await this.themeRepository.findOne({
-          where: { id: runtimeThemeId, status: EThemeStatus.PUBLISHED },
-        })
-      : await this.themeRepository.findOne({
-          where: { status: EThemeStatus.PUBLISHED },
-          order: { updatedAt: 'DESC' },
-        });
+    if (!runtimeThemeId) {
+      return null;
+    }
+
+    const theme = await this.themeRepository.findOne({
+      where: { id: runtimeThemeId, status: EThemeStatus.PUBLISHED },
+    });
 
     return theme
       ? this.toDto(theme, await this.getRuntimeThemeSettings())
@@ -258,20 +252,13 @@ export class ThemeService {
   ): Promise<ThemeResDto> {
     this.assertThemeStyles(dto.styles);
 
-    if (dto.isDefault || dto.isAdminDefault) {
-      await this.clearDefaultTheme();
-    }
-
     const theme = this.themeRepository.create({
       name: dto.name,
       slug: await this.buildUniqueSlug(dto.name),
       description: dto.description ?? null,
       styles: dto.styles,
-      status:
-        dto.isDefault || dto.isAdminDefault || dto.isClientDefault
-          ? EThemeStatus.PUBLISHED
-          : (dto.status ?? EThemeStatus.DRAFT),
-      isDefault: dto.isDefault ?? dto.isAdminDefault ?? false,
+      status: dto.status ?? EThemeStatus.DRAFT,
+      isDefault: false,
       createdByAdminId: adminId,
       updatedByAdminId: adminId,
     });
@@ -369,7 +356,13 @@ export class ThemeService {
   ): Promise<ThemeResDto> {
     const theme = await this.themeRepository.findOneOrFail({ where: { id } });
 
-    theme.status = EThemeStatus.PUBLISHED;
+    if (theme.status !== EThemeStatus.PUBLISHED) {
+      throw new ValidationException(
+        ErrorCode.V000,
+        'Only published themes can be set for runtime',
+      );
+    }
+
     theme.updatedByAdminId = adminId;
 
     if (target === EThemeTarget.ADMIN) {
@@ -410,16 +403,6 @@ export class ThemeService {
     }
 
     theme.updatedByAdminId = adminId;
-
-    if (!theme.isDefault) {
-      const settings = await this.getRuntimeThemeSettings();
-      if (
-        String(settings[EThemeTarget.ADMIN]) !== String(id) &&
-        String(settings[EThemeTarget.CLIENT]) !== String(id)
-      ) {
-        theme.status = EThemeStatus.DRAFT;
-      }
-    }
 
     return this.toDto(
       await this.themeRepository.save(theme),
