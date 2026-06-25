@@ -143,6 +143,12 @@ Run everything through Turborepo:
 pnpm dev
 ```
 
+Build and start all apps without dev watchers:
+
+```bash
+pnpm start
+```
+
 Run only one app:
 
 ```bash
@@ -235,6 +241,14 @@ Build one app:
 pnpm --filter api build
 pnpm --filter client build
 pnpm --filter web-portal build
+```
+
+Start one built app:
+
+```bash
+pnpm --filter api start
+pnpm --filter client start
+pnpm --filter web-portal start
 ```
 
 ## Lint, Type Check, Test

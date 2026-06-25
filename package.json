@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
+    "start": "pnpm build && turbo run start --filter api --filter client --filter web-portal",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "format": "prettier --write .",
