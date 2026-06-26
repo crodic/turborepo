@@ -30,18 +30,6 @@
     "turbo": "^2.9.18",
     "typescript": "5.9.2"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@swc/core",
-      "@parcel/watcher",
-      "@sentry/cli",
-      "argon2",
-      "better-sqlite3",
-      "esbuild",
-      "msgpackr-extract",
-      "sharp"
-    ]
-  },
   "packageManager": "pnpm@10.30.3",
   "engines": {
     "node": ">=20.19.0"

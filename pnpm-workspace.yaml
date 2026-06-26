@@ -1,3 +1,12 @@
 packages:
-  - "apps/*"
-  - "packages/*"
+  - 'apps/*'
+  - 'packages/*'
+onlyBuiltDependencies:
+  - '@swc/core'
+  - '@parcel/watcher'
+  - '@sentry/cli'
+  - 'argon2'
+  - 'better-sqlite3'
+  - 'esbuild'
+  - 'msgpackr-extract'
+  - 'sharp'
