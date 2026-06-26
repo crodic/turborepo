@@ -29,16 +29,16 @@ COPY apps/api ./apps/api
 
 USER node
 
-CMD ["pnpm", "--filter", "nestjs-boilerplate", "start:dev"]
+CMD ["pnpm", "--filter", "api", "start:dev"]
 
 FROM deps AS builder
 ENV NODE_ENV=production
 
 COPY . .
 
-RUN pnpm --filter nestjs-boilerplate build
+RUN pnpm --filter api build
 
-RUN pnpm --filter nestjs-boilerplate deploy --prod --legacy /prod/api
+RUN pnpm --filter api deploy --prod --legacy /prod/api
 
 RUN mkdir -p /prod/api/public
 RUN cp -r apps/api/dist /prod/api/dist

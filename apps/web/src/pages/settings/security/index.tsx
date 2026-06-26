@@ -33,7 +33,6 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
-import DataLoader from '@/components/layout/data-loader'
 import { PasswordInput } from '@/components/password-input'
 import { ContentSection } from '../components/content-section'
 import {
@@ -144,7 +143,17 @@ export function SettingsSecurity() {
 
   const enabled = statusQuery.data?.enabled ?? false
 
-  if (statusQuery.isFetching) return <DataLoader />
+  if (statusQuery.isFetching)
+    return (
+      <ContentSection
+        title={t('settings.security.title')}
+        desc={t('settings.security.description')}
+      >
+        <div className='flex min-h-40 items-center justify-center'>
+          <Loader2 className='animate-spin' />
+        </div>
+      </ContentSection>
+    )
 
   return (
     <ContentSection

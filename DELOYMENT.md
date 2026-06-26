@@ -61,9 +61,9 @@ For admin impersonation, set `VITE_CLIENT_URL` and `VITE_IMPERSONATION_CALLBACK_
 pnpm install --frozen-lockfile
 pnpm lint
 pnpm check-types
-pnpm --filter nestjs-boilerplate test:ci
+pnpm --filter api test:ci
 pnpm --filter client test:ci
-pnpm --filter admin-template test:coverage
+pnpm --filter web-portal test:coverage
 pnpm build
 ```
 
@@ -72,11 +72,11 @@ pnpm build
 Run these commands after configuring `apps/api/.env` for the target database:
 
 ```bash
-pnpm --filter nestjs-boilerplate build
-pnpm --filter nestjs-boilerplate db:create
-pnpm --filter nestjs-boilerplate migration:run:prod
-pnpm --filter nestjs-boilerplate seed:run:relational:prod
-pnpm --filter nestjs-boilerplate permissions:sync:prod
+pnpm --filter api build
+pnpm --filter api db:create
+pnpm --filter api migration:run:prod
+pnpm --filter api seed:run:relational:prod
+pnpm --filter api permissions:sync:prod
 ```
 
 Notes:
@@ -91,13 +91,13 @@ Notes:
 Build API image from the repository root:
 
 ```bash
-docker build -f apps/api/Dockerfile --target production -t boilerplate-api .
+docker build -f apps/api/Dockerfile --target production -t api .
 ```
 
 Build web image from the repository root:
 
 ```bash
-docker build -f apps/web/Dockerfile --target production -t boilerplate-web .
+docker build -f apps/web/Dockerfile --target production -t web-portal .
 ```
 
 Build client website image from the repository root:
@@ -127,7 +127,7 @@ docker compose -f apps/api/docker-compose.prod.yml up -d
 For the web apps, deploy the published images separately behind your reverse proxy or platform:
 
 ```bash
-docker run -d --name boilerplate-web -p 80:80 ghcr.io/<owner>/<repo>-web:<tag>
+docker run -d --name web-portal -p 80:80 ghcr.io/<owner>/<repo>-web:<tag>
 docker run -d --name boilerplate-client -p 3000:3000 ghcr.io/<owner>/<repo>-client:<tag>
 ```
 
@@ -170,8 +170,8 @@ docker pull ghcr.io/<owner>/<repo>-api:<tag>
 docker pull ghcr.io/<owner>/<repo>-client:<tag>
 docker pull ghcr.io/<owner>/<repo>-web:<tag>
 
-pnpm --filter nestjs-boilerplate migration:run:prod
-pnpm --filter nestjs-boilerplate permissions:sync:prod
+pnpm --filter api migration:run:prod
+pnpm --filter api permissions:sync:prod
 
 APP_IMAGE=ghcr.io/<owner>/<repo>-api:<tag> \
 docker compose -f apps/api/docker-compose.prod.yml up -d
@@ -187,7 +187,7 @@ docker compose -f apps/api/docker-compose.prod.yml up -d
 APP_IMAGE=ghcr.io/<owner>/<repo>-api:<previous-tag> \
 docker compose -f apps/api/docker-compose.prod.yml up -d
 
-docker run -d --name boilerplate-web -p 80:80 ghcr.io/<owner>/<repo>-web:<previous-tag>
+docker run -d --name web-portal -p 80:80 ghcr.io/<owner>/<repo>-web:<previous-tag>
 docker run -d --name boilerplate-client -p 3000:3000 ghcr.io/<owner>/<repo>-client:<previous-tag>
 ```
 

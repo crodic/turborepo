@@ -47,6 +47,92 @@
     />
 
     <meta name="theme-color" content="#fff" />
+    <script>
+      ;(() => {
+        try {
+          const raw =
+            localStorage.getItem('runtime-theme:admin') ||
+            localStorage.getItem('runtime-theme:current')
+          const theme = raw ? JSON.parse(raw) : null
+          const preference =
+            document.cookie
+              .split('; ')
+              .find((row) => row.startsWith('vite-ui-theme='))
+              ?.split('=')[1] || 'system'
+          const mode =
+            preference === 'system'
+              ? window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+              : preference
+
+          document.documentElement.classList.remove('light', 'dark')
+          document.documentElement.classList.add(mode)
+
+          if (!theme?.styles?.[mode]) return
+
+          const requiredKeys = [
+            'background',
+            'foreground',
+            'card',
+            'card-foreground',
+            'popover',
+            'popover-foreground',
+            'primary',
+            'primary-foreground',
+            'secondary',
+            'secondary-foreground',
+            'muted',
+            'muted-foreground',
+            'accent',
+            'accent-foreground',
+            'destructive',
+            'border',
+            'input',
+            'ring',
+            'chart-1',
+            'chart-2',
+            'chart-3',
+            'chart-4',
+            'chart-5',
+            'sidebar',
+            'sidebar-foreground',
+            'sidebar-primary',
+            'sidebar-primary-foreground',
+            'sidebar-accent',
+            'sidebar-accent-foreground',
+            'sidebar-border',
+            'sidebar-ring',
+            'font-sans',
+            'font-serif',
+            'font-mono',
+            'radius',
+            'shadow-color',
+            'shadow-opacity',
+            'shadow-blur',
+            'shadow-spread',
+            'shadow-offset-x',
+            'shadow-offset-y',
+            'letter-spacing',
+            'spacing',
+          ]
+
+          if (
+            !requiredKeys.every(
+              (key) => typeof theme.styles[mode][key] === 'string'
+            )
+          ) {
+            localStorage.removeItem('runtime-theme:admin')
+            localStorage.removeItem('runtime-theme:current')
+            return
+          }
+
+          Object.entries(theme.styles[mode]).forEach(([key, value]) => {
+            document.documentElement.style.setProperty(`--${key}`, value)
+          })
+        } catch {}
+      })()
+    </script>
   </head>
 
   <body>

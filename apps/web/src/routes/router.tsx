@@ -42,6 +42,10 @@ import { SettingsPassword } from '@/pages/settings/password'
 import { SettingsProfile } from '@/pages/settings/profile'
 import { SettingsSecurity } from '@/pages/settings/security'
 import { SettingsWebsite } from '@/pages/settings/website'
+import { PageThemeOverview } from '@/pages/themes'
+import { PageThemeCreate } from '@/pages/themes/create'
+import { PageThemeEdit } from '@/pages/themes/edit'
+import PageThemeShow from '@/pages/themes/show'
 import { PageUserOverview } from '@/pages/users'
 import { PageUserCreate } from '@/pages/users/create'
 import { PageUserEdit } from '@/pages/users/edit'
@@ -251,6 +255,43 @@ const routes: RouteObject[] = [
             <SettingsWebsite />
           </RouteAuthorize>
         ),
+      },
+      {
+        path: '/themes',
+        children: [
+          {
+            index: true,
+            element: (
+              <RouteAuthorize action='read' subject='THEME'>
+                <PageThemeOverview />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: 'create',
+            element: (
+              <RouteAuthorize action='create' subject='THEME'>
+                <PageThemeCreate />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: ':id/edit',
+            element: (
+              <RouteAuthorize action='update' subject='THEME'>
+                <PageThemeEdit />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: ':id/show',
+            element: (
+              <RouteAuthorize action='read' subject='THEME'>
+                <PageThemeShow />
+              </RouteAuthorize>
+            ),
+          },
+        ],
       },
       {
         path: '/users',

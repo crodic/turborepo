@@ -20,6 +20,22 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Dynamic Runtime Theme
+
+The client can consume a published theme selected from the admin portal at runtime.
+
+- `NEXT_PUBLIC_ENABLE_RUNTIME_THEME=true` enables the runtime theme fetch and client-side sync.
+- `NEXT_PUBLIC_ENABLE_RUNTIME_THEME=false` disables runtime theme usage and falls back to the static CSS/theme source code.
+
+If the client app does not need dynamic runtime themes, remove these pieces:
+
+- `src/lib/runtime-theme.ts`
+- `src/components/runtime-theme-sync.tsx`
+- the `RuntimeThemeSync`, `getRuntimeThemeServer`, and `generateRuntimeThemeCss` imports/usages in `src/app/[locale]/layout.tsx`
+- the `NEXT_PUBLIC_ENABLE_RUNTIME_THEME` env variable from deployment config if it is no longer referenced
+
+After removing those pieces, keep the static theme tokens in `src/app/globals.css` and the existing `ThemeProvider` setup.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

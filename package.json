@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
+    "start": "pnpm build && turbo run start --filter api --filter client --filter web-portal",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "format": "prettier --write .",
@@ -28,18 +29,6 @@
     "prettier-plugin-tailwindcss": "^0.7.4",
     "turbo": "^2.9.18",
     "typescript": "5.9.2"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@swc/core",
-      "@parcel/watcher",
-      "@sentry/cli",
-      "argon2",
-      "better-sqlite3",
-      "esbuild",
-      "msgpackr-extract",
-      "sharp"
-    ]
   },
   "packageManager": "pnpm@10.30.3",
   "engines": {

@@ -6,6 +6,7 @@ export enum AppSubjects {
   ImpersonateLog = 'IMPERSONATE_LOG',
   Email = 'EMAIL',
   EmailLog = 'EMAIL_LOG',
+  Theme = 'THEME',
 
   All = 'all',
 }
@@ -16,6 +17,7 @@ export enum AppActions {
   Update = 'update',
   Delete = 'delete',
   Impersonate = 'impersonate',
+  Publish = 'publish',
 
   // ⚡ SUPER
   Manage = 'manage',
@@ -183,6 +185,43 @@ export const ALL_PERMISSIONS = [
     'Email',
     'View email logs',
     'Review all email delivery logs and failures.',
+  ),
+
+  // Theme
+  permissionMeta(
+    AppActions.Read,
+    AppSubjects.Theme,
+    'Theme Management',
+    'View themes',
+    'View website and portal themes.',
+  ),
+  permissionMeta(
+    AppActions.Create,
+    AppSubjects.Theme,
+    'Theme Management',
+    'Create themes',
+    'Create new website and portal themes.',
+  ),
+  permissionMeta(
+    AppActions.Update,
+    AppSubjects.Theme,
+    'Theme Management',
+    'Update themes',
+    'Edit theme metadata and style tokens.',
+  ),
+  permissionMeta(
+    AppActions.Delete,
+    AppSubjects.Theme,
+    'Theme Management',
+    'Delete themes',
+    'Remove themes that are no longer used.',
+  ),
+  permissionMeta(
+    AppActions.Publish,
+    AppSubjects.Theme,
+    'Theme Management',
+    'Publish themes',
+    'Publish a theme as the runtime theme for the portal and client site.',
   ),
 
   // SUPER

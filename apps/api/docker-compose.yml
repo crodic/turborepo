@@ -4,7 +4,7 @@ services:
       context: ../..
       dockerfile: apps/api/Dockerfile
       target: development
-    image: nestjs-boilerplate-api:local
+    image: api:local
     env_file:
       - .env
     environment:
@@ -22,7 +22,7 @@ services:
       - ../..:/app
       - app_node_modules:/app/node_modules
       - api_node_modules:/app/apps/api/node_modules
-    command: pnpm --filter nestjs-boilerplate start:dev
+    command: pnpm --filter api start:dev
     depends_on:
       postgres:
         condition: service_healthy

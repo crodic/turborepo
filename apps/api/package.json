@@ -1,5 +1,5 @@
 {
-  "name": "nestjs-boilerplate",
+  "name": "api",
   "version": "0.0.1",
   "description": "NestJS Boilerplate, Typescript, Postgres, TypeORM",
   "author": "crodic",

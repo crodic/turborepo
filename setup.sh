@@ -48,7 +48,7 @@ wait_for_api_database() {
   local attempts=30
 
   for ((i = 1; i <= attempts; i++)); do
-    if run_pnpm --filter nestjs-boilerplate db:create >/tmp/turborepo-setup-db.log 2>&1; then
+    if run_pnpm --filter api db:create >/tmp/turborepo-setup-db.log 2>&1; then
       cat /tmp/turborepo-setup-db.log
       rm -f /tmp/turborepo-setup-db.log
       return
@@ -92,21 +92,21 @@ main() {
   printf '\n'
 
   log "Running database migrations"
-  run_pnpm --filter nestjs-boilerplate migration:run
+  run_pnpm --filter api migration:run
 
   log "Running relational seeds"
-  run_pnpm --filter nestjs-boilerplate seed:run:relational
+  run_pnpm --filter api seed:run:relational
 
   log "Syncing permissions"
-  run_pnpm --filter nestjs-boilerplate permissions:sync
+  run_pnpm --filter api permissions:sync
 
   log "Running type checks"
   run_pnpm check-types
 
   log "Setup completed successfully"
-  log "API: pnpm --filter nestjs-boilerplate start:dev"
+  log "API: pnpm --filter api start:dev"
   log "Client: pnpm --filter client dev"
-  log "Web: pnpm --filter admin-template dev"
+  log "Web: pnpm --filter web-portal dev"
 }
 
 main "$@"

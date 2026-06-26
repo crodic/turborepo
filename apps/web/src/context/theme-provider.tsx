@@ -1,5 +1,15 @@
 import { createContext, useContext, useEffect, useState, useMemo } from 'react'
 import { getCookie, setCookie, removeCookie } from '@/lib/cookies'
+import { applyPersonalFontPreference } from '@/lib/personal-font'
+import {
+  applyRuntimeThemeStyles,
+  fetchRuntimeTheme,
+  getCachedRuntimeTheme,
+  hasPersonalThemeColor,
+  IS_ADMIN_RUNTIME_THEME_ENABLED,
+  PERSONAL_THEME_COLOR_STORAGE_KEY,
+  setCachedRuntimeTheme,
+} from '@/lib/runtime-theme/runtime-theme'
 import { themeColors } from '@/lib/theme-colors'
 
 type Theme = 'dark' | 'light' | 'system'
@@ -23,8 +33,10 @@ type ThemeProviderState = {
   resolvedTheme: ResolvedTheme
   defaultTheme: Theme
   colorKey: ColorKey
+  hasPersonalColor: boolean
   setTheme: (theme: Theme) => void
   setColorKey: (color: ColorKey) => void
+  clearPersonalColor: () => void
   resetTheme: () => void
 }
 
@@ -41,9 +53,14 @@ export function ThemeProvider({
   )
   const [colorKey, _setColorKey] = useState<ColorKey>(() => {
     return (
-      (localStorage.getItem('theme-color') as ColorKey | null) || defaultColor
+      (localStorage.getItem(
+        PERSONAL_THEME_COLOR_STORAGE_KEY
+      ) as ColorKey | null) || defaultColor
     )
   })
+  const [hasPersonalColor, setHasPersonalColor] = useState(() =>
+    hasPersonalThemeColor()
+  )
 
   // ✅ Resolve dark/light from system or user
   const resolvedTheme = useMemo<ResolvedTheme>(() => {
@@ -59,28 +76,71 @@ export function ThemeProvider({
   useEffect(() => {
     const root = document.documentElement
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    const themeVars = themeColors[colorKey][resolvedTheme]
+
+    const applyStaticTheme = (mode: ResolvedTheme) => {
+      Object.entries(themeColors[colorKey][mode]).forEach(([key, value]) => {
+        root.style.setProperty(key, value)
+      })
+      applyPersonalFontPreference()
+    }
 
     // Apply dark/light class
     root.classList.remove('light', 'dark')
     root.classList.add(resolvedTheme)
 
-    // Apply color variables
-    Object.entries(themeVars).forEach(([key, value]) => {
-      root.style.setProperty(key, value)
-    })
+    const cachedRuntimeTheme = IS_ADMIN_RUNTIME_THEME_ENABLED
+      ? getCachedRuntimeTheme()
+      : null
+    const shouldUsePersonalTheme = hasPersonalColor
+
+    if (
+      IS_ADMIN_RUNTIME_THEME_ENABLED &&
+      cachedRuntimeTheme?.styles &&
+      !shouldUsePersonalTheme
+    ) {
+      applyRuntimeThemeStyles(cachedRuntimeTheme.styles, resolvedTheme)
+    } else {
+      applyStaticTheme(resolvedTheme)
+    }
+
+    if (IS_ADMIN_RUNTIME_THEME_ENABLED) {
+      fetchRuntimeTheme()
+        .then((runtimeTheme) => {
+          setCachedRuntimeTheme(runtimeTheme)
+          if (runtimeTheme?.styles && !hasPersonalColor) {
+            applyRuntimeThemeStyles(runtimeTheme.styles, resolvedTheme)
+          } else if (!runtimeTheme?.styles || hasPersonalColor) {
+            applyStaticTheme(resolvedTheme)
+          }
+        })
+        .catch(() => undefined)
+    } else {
+      setCachedRuntimeTheme(null)
+    }
 
     const handleChange = () => {
       if (theme === 'system') {
         const systemTheme = mediaQuery.matches ? 'dark' : 'light'
         root.classList.remove('light', 'dark')
         root.classList.add(systemTheme)
+        const runtimeTheme = IS_ADMIN_RUNTIME_THEME_ENABLED
+          ? getCachedRuntimeTheme()
+          : null
+        if (
+          IS_ADMIN_RUNTIME_THEME_ENABLED &&
+          runtimeTheme?.styles &&
+          !hasPersonalColor
+        ) {
+          applyRuntimeThemeStyles(runtimeTheme.styles, systemTheme)
+        } else {
+          applyStaticTheme(systemTheme)
+        }
       }
     }
 
     mediaQuery.addEventListener('change', handleChange)
     return () => mediaQuery.removeEventListener('change', handleChange)
-  }, [theme, colorKey, resolvedTheme])
+  }, [theme, colorKey, resolvedTheme, hasPersonalColor])
 
   const setTheme = (t: Theme) => {
     setCookie(storageKey, t, THEME_COOKIE_MAX_AGE)
@@ -89,13 +149,20 @@ export function ThemeProvider({
 
   const setColorKey = (key: ColorKey) => {
     _setColorKey(key)
-    localStorage.setItem('theme-color', key)
+    localStorage.setItem(PERSONAL_THEME_COLOR_STORAGE_KEY, key)
+    setHasPersonalColor(true)
+  }
+
+  const clearPersonalColor = () => {
+    localStorage.removeItem(PERSONAL_THEME_COLOR_STORAGE_KEY)
+    _setColorKey(DEFAULT_COLOR)
+    setHasPersonalColor(false)
   }
 
   const resetTheme = () => {
     removeCookie(storageKey)
+    clearPersonalColor()
     _setTheme(DEFAULT_THEME)
-    _setColorKey(DEFAULT_COLOR)
   }
 
   return (
@@ -105,8 +172,10 @@ export function ThemeProvider({
         resolvedTheme,
         defaultTheme,
         colorKey,
+        hasPersonalColor,
         setTheme,
         setColorKey,
+        clearPersonalColor,
         resetTheme,
       }}
     >

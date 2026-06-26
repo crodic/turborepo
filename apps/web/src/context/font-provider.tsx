@@ -1,10 +1,22 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { fonts } from '@/config/fonts'
-import { getCookie, setCookie, removeCookie } from '@/lib/cookies'
+import type { fonts } from '@/config/fonts'
+import { setCookie, removeCookie } from '@/lib/cookies'
+import {
+  applyPersonalFontPreference,
+  clearPersonalFontPreference,
+  DYNAMIC_THEME_FONT,
+  FONT_COOKIE_NAME,
+  getSavedPersonalFont,
+} from '@/lib/personal-font'
+import {
+  applyRuntimeThemeFont,
+  getCachedRuntimeTheme,
+  getCurrentThemeMode,
+  IS_ADMIN_RUNTIME_THEME_ENABLED,
+} from '@/lib/runtime-theme/runtime-theme'
 
 type Font = (typeof fonts)[number]
 
-const FONT_COOKIE_NAME = 'font'
 const FONT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
 
 type FontContextType = {
@@ -16,31 +28,38 @@ type FontContextType = {
 const FontContext = createContext<FontContextType | null>(null)
 
 export function FontProvider({ children }: { children: React.ReactNode }) {
-  const [font, _setFont] = useState<Font>(() => {
-    const savedFont = getCookie(FONT_COOKIE_NAME)
-    return fonts.includes(savedFont as Font) ? (savedFont as Font) : fonts[0]
-  })
+  const [font, _setFont] = useState<Font>(() => getSavedPersonalFont())
 
   useEffect(() => {
-    const applyFont = (font: string) => {
-      const root = document.documentElement
-      root.classList.forEach((cls) => {
-        if (cls.startsWith('font-')) root.classList.remove(cls)
-      })
-      root.classList.add(`font-${font}`)
+    if (font === DYNAMIC_THEME_FONT) {
+      clearPersonalFontPreference()
+      const runtimeTheme = IS_ADMIN_RUNTIME_THEME_ENABLED
+        ? getCachedRuntimeTheme()
+        : null
+
+      if (runtimeTheme?.styles) {
+        applyRuntimeThemeFont(runtimeTheme.styles, getCurrentThemeMode())
+      }
+
+      return
     }
 
-    applyFont(font)
+    applyPersonalFontPreference(font)
   }, [font])
 
   const setFont = (font: Font) => {
+    if (font === DYNAMIC_THEME_FONT) {
+      resetFont()
+      return
+    }
+
     setCookie(FONT_COOKIE_NAME, font, FONT_COOKIE_MAX_AGE)
     _setFont(font)
   }
 
   const resetFont = () => {
     removeCookie(FONT_COOKIE_NAME)
-    _setFont(fonts[0])
+    _setFont(DYNAMIC_THEME_FONT)
   }
 
   return (

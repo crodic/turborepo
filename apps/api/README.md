@@ -237,14 +237,14 @@ docker compose run --rm app pnpm exec eslint "{src,apps,libs,test}/**/*.ts"
 Build the production image locally:
 
 ```bash
-docker build --target production -t nestjs-boilerplate-api:local .
+docker build --target production -t api:local .
 ```
 
 Run the production image against the local Compose dependencies for a smoke test:
 
 ```bash
 docker compose up -d postgres redis mailpit
-docker run --rm --env-file .env --network web-server-pgsql_app-network -p 3000:3000 nestjs-boilerplate-api:local
+docker run --rm --env-file .env --network web-server-pgsql_app-network -p 3000:3000 api:local
 ```
 
 ## Production Compose

@@ -28,3 +28,13 @@ export enum EEmailLogStatus {
 export enum EOAuthProvider {
   GOOGLE = 'google',
 }
+
+export enum EThemeStatus {
+  DRAFT = 'draft',
+  PUBLISHED = 'published',
+}
+
+export enum EThemeTarget {
+  ADMIN = 'admin',
+  CLIENT = 'client',
+}

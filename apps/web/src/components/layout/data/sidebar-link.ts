@@ -14,6 +14,7 @@ import {
   Globe,
   Mail,
   MailSearch,
+  PaintbrushIcon,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -78,6 +79,12 @@ export const sidebarLink: SidebarData = {
           url: '/users',
           icon: UserLock,
           permission: 'USER',
+        },
+        {
+          title: 'navigation.management.themes',
+          url: '/themes',
+          icon: PaintbrushIcon,
+          permission: 'THEME',
         },
       ],
     },

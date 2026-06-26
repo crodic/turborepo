@@ -24,7 +24,7 @@ services:
       - api_node_modules:/app/apps/api/node_modules
       - client_node_modules:/app/apps/client/node_modules
       - web_node_modules:/app/apps/web/node_modules
-    command: pnpm --filter nestjs-boilerplate start:dev
+    command: pnpm --filter api start:dev
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,7 +55,7 @@ services:
       - api_node_modules:/app/apps/api/node_modules
       - client_node_modules:/app/apps/client/node_modules
       - web_node_modules:/app/apps/web/node_modules
-    command: pnpm --filter admin-template dev --host 0.0.0.0
+    command: pnpm --filter web-portal dev --host 0.0.0.0
     depends_on:
       - api
     networks:
