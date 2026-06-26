@@ -60,9 +60,9 @@ export class FileResDto {
 
   @Expose()
   @IsString()
-  created_at: string;
+  createdAt: string;
 
   @Expose()
   @IsString()
-  updated_at: string;
+  updatedAt: string;
 }

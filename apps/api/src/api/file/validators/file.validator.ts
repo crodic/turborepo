@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { FILE_UPLOAD_MAX_SIZE } from '../config/file.config';
 import {
   UploadFileOptions,
   UploadImageOptions,
@@ -17,27 +18,32 @@ export class FileValidator {
     } = options;
 
     if (file.size > maxFileSize) {
-      throw new Error(`File size exceeds limit: ${maxFileSize}`);
+      throw new BadRequestException(
+        `File size exceeds limit: ${this.formatBytes(maxFileSize)}`,
+      );
     }
 
     const ext = this.detectExt(file.mimetype);
     if (!allowedMimeTypes.includes(ext)) {
-      throw new Error(`Invalid file type: ${file.mimetype}`);
+      throw new BadRequestException(`Invalid file type: ${file.mimetype}`);
     }
   }
 
   validateFile(file: Express.Multer.File, options: UploadFileOptions) {
-    const { maxFileSize = 15 * 1024 * 1024, allowedMimeTypes = [] } = options;
+    const { maxFileSize = FILE_UPLOAD_MAX_SIZE, allowedMimeTypes = [] } =
+      options;
 
     if (file.size > maxFileSize) {
-      throw new Error(`File exceeds limit: ${maxFileSize}`);
+      throw new BadRequestException(
+        `File exceeds limit: ${this.formatBytes(maxFileSize)}`,
+      );
     }
 
     if (
       allowedMimeTypes.length > 0 &&
       !allowedMimeTypes.includes(file.mimetype)
     ) {
-      throw new Error(`Invalid file type: ${file.mimetype}`);
+      throw new BadRequestException(`Invalid file type: ${file.mimetype}`);
     }
   }
 
@@ -45,14 +51,16 @@ export class FileValidator {
     const { maxFileSize = 15 * 1024 * 1024, allowedMimeTypes = [] } = options;
 
     if (file.size > maxFileSize) {
-      throw new Error(`File exceeds limit: ${maxFileSize}`);
+      throw new BadRequestException(
+        `File exceeds limit: ${this.formatBytes(maxFileSize)}`,
+      );
     }
 
     if (
       allowedMimeTypes.length > 0 &&
       !allowedMimeTypes.includes(file.mimetype)
     ) {
-      throw new Error(`Invalid file type: ${file.mimetype}`);
+      throw new BadRequestException(`Invalid file type: ${file.mimetype}`);
     }
   }
 
@@ -60,5 +68,10 @@ export class FileValidator {
     if (mime.includes('png')) return 'png';
     if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpeg';
     return 'webp';
+  }
+
+  private formatBytes(bytes: number): string {
+    const mb = bytes / 1024 / 1024;
+    return `${Number.isInteger(mb) ? mb : mb.toFixed(1)}MB`;
   }
 }

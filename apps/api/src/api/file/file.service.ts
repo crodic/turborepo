@@ -5,18 +5,35 @@ import {
   applyFormat,
   extractExt,
   fullDiskPath,
+  removeDiskPath,
   storagePath,
 } from '@/utils/filesystem';
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import { createHash } from 'crypto';
 import { existsSync } from 'fs';
+import {
+  FilterOperator,
+  paginate,
+  Paginated,
+  PaginateQuery,
+} from 'nestjs-paginate';
 import { join } from 'path';
 import sharp from 'sharp';
 import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
+import { FILE_UPLOAD_MAX_SIZE } from './config/file.config';
 import { FileResDto } from './dto/file.res.dto';
+import { FileFolderResDto } from './dto/folder.dto';
+import { UpdateFileDto } from './dto/update-file.dto';
 import { FileEntity } from './entities/file.entity';
 import { UploadFileOptions, UploadImageOptions } from './types/upload.types';
 import { FileValidator } from './validators/file.validator';
@@ -34,6 +51,158 @@ export class FileService {
     @InjectDisk('public')
     private readonly localDisk: StorageDriver,
   ) {}
+
+  async findAll(query: PaginateQuery): Promise<Paginated<FileResDto>> {
+    const queryBuilder = this.fileRepository.createQueryBuilder('file');
+
+    const result = await paginate(query, queryBuilder, {
+      sortableColumns: [
+        'id',
+        'public_id',
+        'original_name',
+        'folder',
+        'mime',
+        'size',
+        'resource_type',
+        'status',
+        'createdAt',
+        'updatedAt',
+      ],
+      searchableColumns: ['public_id', 'original_name', 'folder', 'mime'],
+      defaultSortBy: [['createdAt', 'DESC']],
+      filterableColumns: {
+        public_id: [FilterOperator.EQ],
+        original_name: [FilterOperator.ILIKE],
+        folder: [FilterOperator.EQ, FilterOperator.ILIKE],
+        mime: [FilterOperator.ILIKE],
+        resource_type: [FilterOperator.EQ, FilterOperator.IN],
+        status: [FilterOperator.EQ, FilterOperator.IN],
+        createdAt: [FilterOperator.GTE, FilterOperator.LTE, FilterOperator.BTW],
+      },
+    });
+
+    return {
+      ...result,
+      data: plainToInstance(FileResDto, result.data, {
+        excludeExtraneousValues: true,
+      }),
+    } as Paginated<FileResDto>;
+  }
+
+  async findOne(publicId: string): Promise<FileResDto> {
+    const file = await this.fileRepository.findOneByOrFail({
+      public_id: publicId,
+    });
+
+    return plainToInstance(FileResDto, file, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  async update(publicId: string, dto: UpdateFileDto): Promise<FileResDto> {
+    const file = await this.fileRepository.findOneByOrFail({
+      public_id: publicId,
+    });
+
+    if (dto.folder !== undefined) {
+      file.folder = this.normalizeFolder(dto.folder);
+    }
+
+    if (dto.status !== undefined) {
+      file.status = dto.status;
+    }
+
+    const saved = await this.fileRepository.save(file);
+
+    return plainToInstance(FileResDto, saved, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  async listFolders(): Promise<FileFolderResDto[]> {
+    const rows = await this.fileRepository
+      .createQueryBuilder('file')
+      .select('file.folder', 'folder')
+      .addSelect('COUNT(file.id)', 'count')
+      .addSelect('COALESCE(SUM(file.size), 0)', 'size')
+      .where('file.folder IS NOT NULL')
+      .andWhere("file.folder <> ''")
+      .groupBy('file.folder')
+      .orderBy('file.folder', 'ASC')
+      .getRawMany<{ folder: string; count: string; size: string }>();
+
+    return plainToInstance(
+      FileFolderResDto,
+      rows.map((row) => ({
+        folder: row.folder,
+        count: Number(row.count),
+        size: Number(row.size),
+      })),
+      { excludeExtraneousValues: true },
+    );
+  }
+
+  createFolder(folder: string): FileFolderResDto {
+    return plainToInstance(
+      FileFolderResDto,
+      {
+        folder: this.assertFolder(folder),
+        count: 0,
+        size: 0,
+      },
+      { excludeExtraneousValues: true },
+    );
+  }
+
+  async renameFolder(from: string, to: string): Promise<FileFolderResDto> {
+    const sourceFolder = this.assertFolder(from);
+    const targetFolder = this.assertFolder(to);
+
+    const count = await this.fileRepository.count({
+      where: { folder: sourceFolder },
+    });
+
+    if (count === 0) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    await this.fileRepository
+      .createQueryBuilder()
+      .update(FileEntity)
+      .set({ folder: targetFolder })
+      .where('folder = :folder', { folder: sourceFolder })
+      .execute();
+
+    const folders = await this.listFolders();
+    const renamed = folders.find((item) => item.folder === targetFolder);
+
+    return renamed ?? this.createFolder(targetFolder);
+  }
+
+  async deleteFolder(
+    folder: string,
+    deleteFiles = false,
+  ): Promise<{ message: string }> {
+    const targetFolder = this.assertFolder(folder);
+    const files = await this.fileRepository.find({
+      where: { folder: targetFolder },
+    });
+
+    if (files.length > 0 && !deleteFiles) {
+      throw new BadRequestException(
+        'Folder is not empty. Enable delete files to remove this folder and its files.',
+      );
+    }
+
+    if (deleteFiles) {
+      await Promise.allSettled(
+        files.map((file) => this.localDisk.delete(file.path)),
+      );
+      await this.fileRepository.delete({ folder: targetFolder });
+    }
+
+    return { message: 'Successfully deleted' };
+  }
 
   async original(
     resourceType: string,
@@ -53,7 +222,7 @@ export class FileService {
       throw new HttpException('Extension mismatch', HttpStatus.NOT_FOUND);
     }
 
-    const absPath = fullDiskPath(this.disk, media.path);
+    const absPath = this.resolveStoredPath(media.path);
 
     if (!existsSync(absPath)) {
       throw new HttpException('File not found', HttpStatus.NOT_FOUND);
@@ -67,9 +236,8 @@ export class FileService {
       throw new HttpException('File not provided', HttpStatus.BAD_REQUEST);
     }
 
-    this.fileValidator.validateImage(file, {
-      maxFileSize: 5 * 1024 * 1024,
-      allowedMimeTypes: ['jpeg', 'png', 'webp'],
+    this.fileValidator.validateFile(file, {
+      maxFileSize: FILE_UPLOAD_MAX_SIZE,
     });
 
     const mime = file.mimetype;
@@ -77,7 +245,10 @@ export class FileService {
     const publicId = uuidv4().replace(/-/g, '').slice(0, 20);
 
     const ext = file.originalname.split('.').pop();
-    const folderPath = folder ? join(resourceType, folder) : join(resourceType);
+    const normalizedFolder = this.normalizeFolder(folder);
+    const folderPath = normalizedFolder
+      ? join(resourceType, normalizedFolder)
+      : join(resourceType);
 
     const disk = this.localDisk.getDiskRoot();
     const storedPath = join(disk, folderPath, `${publicId}.${ext}`);
@@ -105,7 +276,7 @@ export class FileService {
 
     const media = this.fileRepository.create({
       public_id: publicId,
-      folder,
+      folder: normalizedFolder,
       original_name: originalName,
       path: storedPath,
       hash,
@@ -257,6 +428,36 @@ export class FileService {
     return createHash('sha256')
       .update(rand + now + Math.random().toString())
       .digest('hex');
+  }
+
+  private normalizeFolder(folder?: string | null): string | null {
+    if (folder == null) {
+      return null;
+    }
+
+    const normalized = folder.trim().replace(/^\/+|\/+$/g, '');
+    return normalized.length > 0 ? normalized : null;
+  }
+
+  private assertFolder(folder: string): string {
+    const normalized = this.normalizeFolder(folder);
+
+    if (!normalized) {
+      throw new BadRequestException('Folder is required');
+    }
+
+    return normalized;
+  }
+
+  private resolveStoredPath(path: string): string {
+    const relativePath = removeDiskPath(path);
+    const directPath = join(process.cwd(), path);
+
+    if (existsSync(directPath)) {
+      return directPath;
+    }
+
+    return fullDiskPath(this.disk, relativePath);
   }
 
   private detectResourceType(mime: string): string {

@@ -15,6 +15,7 @@ import {
   Mail,
   MailSearch,
   PaintbrushIcon,
+  Files,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -85,6 +86,12 @@ export const sidebarLink: SidebarData = {
           url: '/themes',
           icon: PaintbrushIcon,
           permission: 'THEME',
+        },
+        {
+          title: 'navigation.management.files',
+          url: '/files',
+          icon: Files,
+          permission: 'FILE',
         },
       ],
     },
