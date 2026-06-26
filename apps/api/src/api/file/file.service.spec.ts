@@ -1,6 +1,9 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { mkdtemp, readFile, rm } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { FileEntity } from './entities/file.entity';
 import { FileService } from './file.service';
 import { FileValidator } from './validators/file.validator';
@@ -16,6 +19,7 @@ describe('FileService', () => {
     find: jest.Mock;
     createQueryBuilder: jest.Mock;
   };
+  let diskRoot = 'storage/public';
 
   const createQueryBuilderMock = (
     overrides: Record<string, jest.Mock> = {},
@@ -38,6 +42,7 @@ describe('FileService', () => {
   };
 
   beforeEach(async () => {
+    diskRoot = 'storage/public';
     repository = {
       findOneByOrFail: jest.fn(),
       create: jest.fn(),
@@ -67,7 +72,7 @@ describe('FileService', () => {
         {
           provide: 'FILE_STORAGE_DISK_PUBLIC',
           useValue: {
-            getDiskRoot: jest.fn().mockReturnValue('storage/public'),
+            getDiskRoot: jest.fn(() => diskRoot),
             put: jest.fn(),
             delete: jest.fn(),
           },
@@ -182,5 +187,56 @@ describe('FileService', () => {
       message: 'Successfully deleted',
     });
     expect(repository.delete).toHaveBeenCalledWith({ folder: 'avatars' });
+  });
+
+  it('uploads chunks and merges them into a stored file', async () => {
+    diskRoot = await mkdtemp(join(tmpdir(), 'file-service-'));
+    repository.create.mockImplementation((value) => value);
+    repository.save.mockImplementation(async (value) => ({
+      id: '1',
+      url: 'http://localhost/storage/uploads/raw/public-id.txt',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...value,
+    }));
+
+    try {
+      const session = await service.createUploadSession({
+        originalName: 'hello.txt',
+        mime: 'text/plain',
+        size: 11,
+        folder: 'docs',
+        chunkSize: 4,
+        totalChunks: 3,
+      });
+
+      await service.uploadChunk(session.sessionId, 0, {
+        buffer: Buffer.from('hell'),
+        size: 4,
+      } as Express.Multer.File);
+      await service.uploadChunk(session.sessionId, 1, {
+        buffer: Buffer.from('o wo'),
+        size: 4,
+      } as Express.Multer.File);
+      await service.uploadChunk(session.sessionId, 2, {
+        buffer: Buffer.from('rld'),
+        size: 3,
+      } as Express.Multer.File);
+
+      const result = await service.completeUploadSession(session.sessionId);
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          original_name: 'hello.txt',
+          folder: 'docs',
+          mime: 'text/plain',
+          size: 11,
+          resource_type: 'raw',
+        }),
+      );
+      await expect(readFile(result.path, 'utf8')).resolves.toBe('hello world');
+    } finally {
+      await rm(diskRoot, { recursive: true, force: true });
+    }
   });
 });

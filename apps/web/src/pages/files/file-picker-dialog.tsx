@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Check, ImageIcon, SearchIcon } from 'lucide-react'
+import { Check, SearchIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { PaginateQueryBuilder } from '@/lib/query-builder'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { formatBytes } from './columns'
+import { FilePreviewThumbnail } from './file-preview'
 import { useDataFileOverview } from './queries'
 import type { FileSchema } from './schema'
 
@@ -132,7 +133,7 @@ export function FilePickerDialog(props: FilePickerDialogProps) {
           />
         </div>
 
-        <ScrollArea className='min-h-0 flex-1 rounded-md border'>
+        <ScrollArea className='min-h-0 flex-1 overflow-scroll rounded-md border'>
           <div className='grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-3'>
             {files.map((file) => {
               const selected = selectedFiles.some(
@@ -149,16 +150,7 @@ export function FilePickerDialog(props: FilePickerDialogProps) {
                   onClick={() => toggleFile(file)}
                 >
                   <div className='bg-muted relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded border'>
-                    {file.resource_type === 'image' ? (
-                      <img
-                        src={file.url}
-                        alt={file.original_name}
-                        className='size-full object-cover'
-                        loading='lazy'
-                      />
-                    ) : (
-                      <ImageIcon className='text-muted-foreground size-5' />
-                    )}
+                    <FilePreviewThumbnail file={file} />
                     {selected && (
                       <span className='bg-primary text-primary-foreground absolute top-1 right-1 flex size-5 items-center justify-center rounded-full'>
                         <Check className='size-3' />

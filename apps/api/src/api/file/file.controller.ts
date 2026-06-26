@@ -10,6 +10,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Post,
   Put,
   Query,
@@ -32,10 +33,12 @@ import {
   PaginateQuery,
 } from 'nestjs-paginate';
 import {
+  FILE_UPLOAD_CHUNK_SIZE,
   FILE_UPLOAD_MAX_SIZE,
   memoryStorageConfig,
 } from './config/file.config';
 import { UploadSingle } from './decorators/file.decorator';
+import { CreateChunkUploadSessionDto } from './dto/chunk-upload.dto';
 import { FileResDto } from './dto/file.res.dto';
 import {
   CreateFolderDto,
@@ -166,6 +169,62 @@ export class FileController {
     @Body('folder') folder?: string,
   ) {
     return this.fileService.upload(file, folder);
+  }
+
+  @Post('uploads/sessions')
+  @ApiAuth({ summary: 'Create chunk upload session' })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Create, AppSubjects.File),
+  )
+  createUploadSession(@Body() dto: CreateChunkUploadSessionDto) {
+    return this.fileService.createUploadSession(dto);
+  }
+
+  @Post('uploads/:sessionId/chunks')
+  @ApiAuth({ summary: 'Upload file chunk' })
+  @UseInterceptors(
+    FileInterceptor('chunk', {
+      ...memoryStorageConfig,
+      limits: { fileSize: FILE_UPLOAD_CHUNK_SIZE },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        chunk: { type: 'string', format: 'binary' },
+        index: { type: 'number', example: 0 },
+      },
+    },
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Create, AppSubjects.File),
+  )
+  uploadChunk(
+    @Param('sessionId') sessionId: string,
+    @UploadedFile() chunk: Express.Multer.File,
+    @Body('index', ParseIntPipe) index: number,
+  ) {
+    return this.fileService.uploadChunk(sessionId, index, chunk);
+  }
+
+  @Post('uploads/:sessionId/complete')
+  @ApiAuth({ type: FileResDto, summary: 'Complete chunk upload' })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Create, AppSubjects.File),
+  )
+  completeUpload(@Param('sessionId') sessionId: string): Promise<FileResDto> {
+    return this.fileService.completeUploadSession(sessionId);
+  }
+
+  @Delete('uploads/:sessionId')
+  @ApiAuth({ summary: 'Abort chunk upload' })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Create, AppSubjects.File),
+  )
+  abortUpload(@Param('sessionId') sessionId: string) {
+    return this.fileService.abortUploadSession(sessionId);
   }
 
   @Get(':publicId')

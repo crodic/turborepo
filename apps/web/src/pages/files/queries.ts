@@ -16,6 +16,16 @@ import {
   updateFileSchema,
 } from './schema'
 
+export const MANAGED_FILE_UPLOAD_MAX_SIZE = 500 * 1024 * 1024
+export const FILE_UPLOAD_CHUNK_SIZE = 4 * 1024 * 1024
+
+const chunkUploadSessionSchema = z.object({
+  sessionId: z.string(),
+  chunkSize: z.number(),
+  totalChunks: z.number(),
+  uploadedChunks: z.array(z.number()),
+})
+
 export const fileQueryKeys = {
   all: ['files'] as const,
   list: (params: PaginateQueryParams) => [...fileQueryKeys.all, params],
@@ -41,21 +51,66 @@ export async function apiGetFileByPublicId(publicId: string) {
 export async function apiUploadFile({
   file,
   folder,
+  onProgress,
 }: {
   file: File
   folder?: string | null
+  onProgress?: (progress: number) => void
 }) {
-  const formData = new FormData()
-  formData.append('file', file)
-  if (folder) {
-    formData.append('folder', folder)
-  }
+  return apiUploadFileInChunks({ file, folder, onProgress })
+}
 
-  const response = await http.post('/files/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+async function apiUploadFileInChunks({
+  file,
+  folder,
+  onProgress,
+}: {
+  file: File
+  folder?: string | null
+  onProgress?: (progress: number) => void
+}) {
+  const totalChunks = Math.ceil(file.size / FILE_UPLOAD_CHUNK_SIZE)
+  const sessionResponse = await http.post('/files/uploads/sessions', {
+    originalName: file.name,
+    mime: file.type || 'application/octet-stream',
+    size: file.size,
+    folder,
+    totalChunks,
+    chunkSize: FILE_UPLOAD_CHUNK_SIZE,
   })
+  const session = chunkUploadSessionSchema.parse(sessionResponse.data)
 
-  return fileSchema.parse(response.data)
+  try {
+    for (let index = 0; index < totalChunks; index++) {
+      const start = index * FILE_UPLOAD_CHUNK_SIZE
+      const end = Math.min(start + FILE_UPLOAD_CHUNK_SIZE, file.size)
+      const chunk = file.slice(start, end)
+      const formData = new FormData()
+      formData.append('chunk', chunk, `${file.name}.part-${index}`)
+      formData.append('index', String(index))
+
+      await http.post(`/files/uploads/${session.sessionId}/chunks`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (event) => {
+          const chunkProgress = event.total ? event.loaded / event.total : 0
+          const loaded = start + chunk.size * chunkProgress
+          onProgress?.(Math.min(99, Math.round((loaded / file.size) * 100)))
+        },
+      })
+    }
+
+    const completeResponse = await http.post(
+      `/files/uploads/${session.sessionId}/complete`
+    )
+    onProgress?.(100)
+
+    return fileSchema.parse(completeResponse.data)
+  } catch (error) {
+    await http
+      .delete(`/files/uploads/${session.sessionId}`)
+      .catch(() => undefined)
+    throw error
+  }
 }
 
 export async function apiUpdateFile({

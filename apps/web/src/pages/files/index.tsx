@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import { AxiosError } from 'axios'
 import { format } from 'date-fns'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -6,7 +12,6 @@ import {
   FileIcon,
   Folder,
   FolderPlus,
-  ImageIcon,
   LinkIcon,
   Loader2,
   Pencil,
@@ -17,10 +22,17 @@ import {
   Video,
   X,
 } from 'lucide-react'
-import { parseAsArrayOf, parseAsInteger, parseAsString } from 'nuqs'
+import {
+  parseAsArrayOf,
+  parseAsInteger,
+  parseAsString,
+  useQueryState,
+  useQueryStates,
+} from 'nuqs'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
+import { getSortingStateParser } from '@/lib/parsers'
 import { PaginateQueryBuilder } from '@/lib/query-builder'
 import { restApiErrorHandler } from '@/lib/rest-api-handler'
 import { normalizeDate, sortParser } from '@/lib/utils'
@@ -45,9 +57,9 @@ import { ConfigDrawer } from '@/components/config-drawer'
 import { DataTable } from '@/components/data-table/data-table'
 import { DataTableSortList } from '@/components/data-table/data-table-sort-list'
 import { DataTableToolbar } from '@/components/data-table/data-table-toolbar'
-import AsyncCreatableSelect, {
+import AutoCompleteSelect, {
   type Option,
-} from '@/components/forms/async-paginate-creatable'
+} from '@/components/forms/auto-complete-select'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -55,6 +67,7 @@ import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { formatBytes, getFilesTableColumns } from './columns'
 import { FilePickerDialog } from './file-picker-dialog'
+import { FilePreviewDetail } from './file-preview'
 import {
   apiCreateFolder,
   apiDeleteFile,
@@ -63,6 +76,7 @@ import {
   apiUpdateFile,
   apiUploadFile,
   fileQueryKeys,
+  MANAGED_FILE_UPLOAD_MAX_SIZE,
   useDataFileFolders,
   useDataFileOverview,
 } from './queries'
@@ -77,7 +91,15 @@ const fileFilterParsers = {
   [ColumnKey.createdAt]: parseAsArrayOf(parseAsInteger, ','),
 } as const
 
-const MANAGED_FILE_UPLOAD_MAX_SIZE = 500 * 1024 * 1024
+const fileAllowedSorts = [
+  ColumnKey.originalName,
+  ColumnKey.folder,
+  ColumnKey.resourceType,
+  ColumnKey.mime,
+  ColumnKey.status,
+  ColumnKey.size,
+  ColumnKey.createdAt,
+]
 
 export function PageFileOverview() {
   const { t } = useTranslation()
@@ -95,6 +117,16 @@ export function PageFileOverview() {
   const [deletingFile, setDeletingFile] = useState<FileSchema | null>(null)
   const [deletingFolder, setDeletingFolder] = useState<string | null>(null)
   const [deleteFolderFiles, setDeleteFolderFiles] = useState(false)
+  const [, setPageQuery] = useQueryState('page', parseAsInteger.withDefault(1))
+  const [, setSearchQuery] = useQueryState(
+    'search',
+    parseAsString.withDefault('')
+  )
+  const [, setSortQuery] = useQueryState(
+    'sort',
+    getSortingStateParser<FileSchema>(fileAllowedSorts).withDefault([])
+  )
+  const [, setFilterQuery] = useQueryStates(fileFilterParsers)
 
   const {
     page,
@@ -103,15 +135,7 @@ export function PageFileOverview() {
     filter,
     search,
   } = useGetFilterParams<FileSchema, typeof fileFilterParsers>({
-    allowedSorts: [
-      ColumnKey.originalName,
-      ColumnKey.folder,
-      ColumnKey.resourceType,
-      ColumnKey.mime,
-      ColumnKey.status,
-      ColumnKey.size,
-      ColumnKey.createdAt,
-    ],
+    allowedSorts: fileAllowedSorts,
     filterParsers: fileFilterParsers,
   })
 
@@ -140,7 +164,7 @@ export function PageFileOverview() {
 
   const folders = useMemo(() => {
     const map = new Map<string, FolderSchema>()
-    for (const folder of [...remoteFolders, ...localFolders]) {
+    for (const folder of [...localFolders, ...remoteFolders]) {
       map.set(folder.folder, folder)
     }
     return Array.from(map.values()).sort((a, b) =>
@@ -200,6 +224,36 @@ export function PageFileOverview() {
     getRowId: (row) => row.public_id,
   })
 
+  const handleFolderSelect = useCallback(
+    (folder: string | null) => {
+      if (folder === activeFolder) return
+
+      setActiveFolder(folder)
+      table.setPageIndex(0)
+      table.resetColumnFilters()
+      table.resetSorting()
+      void setPageQuery(1)
+      void setSearchQuery(null)
+      void setSortQuery(null)
+      void setFilterQuery({
+        [ColumnKey.originalName]: null,
+        [ColumnKey.folder]: null,
+        [ColumnKey.resourceType]: null,
+        [ColumnKey.mime]: null,
+        [ColumnKey.status]: null,
+        [ColumnKey.createdAt]: null,
+      })
+    },
+    [
+      activeFolder,
+      table,
+      setPageQuery,
+      setSearchQuery,
+      setSortQuery,
+      setFilterQuery,
+    ]
+  )
+
   return (
     <>
       <Header fixed>
@@ -254,7 +308,7 @@ export function PageFileOverview() {
             folders={folders}
             activeFolder={activeFolder}
             totalFiles={data?.meta.totalItems ?? 0}
-            onSelect={setActiveFolder}
+            onSelect={handleFolderSelect}
             onRename={() => setRenameFolderOpen(true)}
             onDelete={() => setDeletingFolder(activeFolder)}
             canUpdate={ability.can('update', 'FILE')}
@@ -280,11 +334,7 @@ export function PageFileOverview() {
         onOpenChange={setUploadOpen}
         onUploaded={invalidateFiles}
         onCreateLocalFolder={(folder) => {
-          setLocalFolders((current) => [
-            ...current.filter((item) => item.folder !== folder),
-            { folder, count: 0, size: 0 },
-          ])
-          setActiveFolder(folder)
+          handleFolderSelect(folder)
         }}
       />
 
@@ -299,7 +349,7 @@ export function PageFileOverview() {
             ...current.filter((item) => item.folder !== created.folder),
             created,
           ])
-          setActiveFolder(created.folder)
+          handleFolderSelect(created.folder)
         }}
       />
 
@@ -315,7 +365,7 @@ export function PageFileOverview() {
             folder: activeFolder,
             data: { folder },
           })
-          setActiveFolder(renamed.folder)
+          handleFolderSelect(renamed.folder)
           await invalidateFiles()
         }}
       />
@@ -495,6 +545,9 @@ function UploadDialog({
   const { t } = useTranslation()
   const [targetFolder, setTargetFolder] = useState(folder ?? '')
   const [files, setFiles] = useState<File[]>([])
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
+    {}
+  )
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
@@ -508,12 +561,22 @@ function UploadDialog({
           )
         }
 
-        await apiUploadFile({ file, folder: targetFolder || null })
+        const fileKey = getLocalUploadKey(file)
+        await apiUploadFile({
+          file,
+          folder: targetFolder || null,
+          onProgress: (progress) =>
+            setUploadProgress((current) => ({
+              ...current,
+              [fileKey]: progress,
+            })),
+        })
       }
     },
     onSuccess: async () => {
       if (targetFolder) onCreateLocalFolder(targetFolder)
       setFiles([])
+      setUploadProgress({})
       onOpenChange(false)
       await onUploaded()
     },
@@ -570,6 +633,8 @@ function UploadDialog({
                   <UploadFilePreview
                     key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
                     file={file}
+                    progress={uploadProgress[getLocalUploadKey(file)]}
+                    uploading={uploadMutation.isPending}
                     onRemove={() =>
                       setFiles((current) =>
                         current.filter(
@@ -614,9 +679,13 @@ function UploadDialog({
 
 function UploadFilePreview({
   file,
+  progress,
+  uploading,
   onRemove,
 }: {
   file: File
+  progress?: number
+  uploading: boolean
   onRemove: () => void
 }) {
   const isImage = file.type.startsWith('image/')
@@ -662,6 +731,7 @@ function UploadFilePreview({
         <p className='truncate text-sm font-medium'>{file.name}</p>
         <p className='text-muted-foreground text-xs'>
           {formatBytes(file.size)}
+          {uploading && progress != null ? ` - ${progress}%` : ''}
         </p>
       </div>
       <Button
@@ -670,11 +740,16 @@ function UploadFilePreview({
         size='icon'
         className='shrink-0'
         onClick={onRemove}
+        disabled={uploading}
       >
         <X className='size-4' />
       </Button>
     </div>
   )
+}
+
+function getLocalUploadKey(file: File) {
+  return `${file.name}-${file.size}-${file.lastModified}`
 }
 
 function FolderDialog({
@@ -813,16 +888,8 @@ function PreviewDialog({
         </DialogHeader>
         {file && (
           <div className='grid min-h-0 gap-4 overflow-y-auto pr-1 md:grid-cols-[minmax(0,1fr)_minmax(0,240px)]'>
-            <div className='bg-muted flex min-h-[220px] min-w-0 items-center justify-center rounded-md border'>
-              {file.resource_type === 'image' ? (
-                <img
-                  src={file.url}
-                  alt={file.original_name}
-                  className='max-h-[min(420px,60dvh)] max-w-full rounded object-contain'
-                />
-              ) : (
-                <ImageIcon className='text-muted-foreground size-12' />
-              )}
+            <div className='bg-muted flex min-h-[220px] min-w-0 items-center justify-center overflow-hidden rounded-md border'>
+              <FilePreviewDetail file={file} />
             </div>
             <dl className='grid min-w-0 content-start gap-3 text-sm'>
               <Metadata label={t('files.table.folder')}>
@@ -937,47 +1004,57 @@ function FolderCreatableField({
   onChange: (value: string) => void
 }) {
   const { t } = useTranslation()
-  const options = useMemo<Option[]>(
-    () => folders.map((folder) => ({ id: folder.folder, name: folder.folder })),
-    [folders]
-  )
+  const [inputValue, setInputValue] = useState('')
+  const options = useMemo<Option[]>(() => {
+    const baseOptions = folders.map((folder) => ({
+      id: folder.folder,
+      name: folder.folder,
+    }))
+    const normalizedInput = inputValue.trim()
+    const exists = baseOptions.some(
+      (option) => option.name.toLowerCase() === normalizedInput.toLowerCase()
+    )
+
+    if (!normalizedInput || exists) {
+      return baseOptions
+    }
+
+    return [
+      ...baseOptions,
+      {
+        id: normalizedInput,
+        name: t('files.folders.createOption', { folder: normalizedInput }),
+      },
+    ]
+  }, [folders, inputValue, t])
   const selected = value ? { id: value, name: value } : null
 
   return (
     <div className='grid gap-2'>
       <Label>{label}</Label>
-      <AsyncCreatableSelect
+      <AutoCompleteSelect
         isClearable
+        options={options}
         value={selected}
-        defaultOptions={options}
         placeholder={t('files.folders.selectPlaceholder')}
-        noOptionsMessage={() => t('files.folders.noOptions')}
-        formatCreateLabel={(inputValue) =>
-          t('files.folders.createOption', { folder: inputValue })
-        }
-        loadOptions={async (inputValue) => {
-          const keyword = inputValue.trim().toLowerCase()
-          const filtered = keyword
-            ? options.filter((option) =>
-                option.name.toLowerCase().includes(keyword)
-              )
-            : options
-
-          return {
-            options: filtered,
-            hasMore: false,
+        inputValue={inputValue}
+        onInputChange={(newValue, actionMeta) => {
+          if (actionMeta.action === 'input-change') {
+            setInputValue(newValue)
           }
         }}
+        noOptionsMessage={() => t('files.folders.noOptions')}
         onChange={(option) => {
           if (Array.isArray(option)) {
             onChange(option[0] ? String(option[0].id) : '')
+            setInputValue('')
             return
           }
 
           const selectedOption = option as Option | null
           onChange(selectedOption ? String(selectedOption.id) : '')
+          setInputValue('')
         }}
-        onCreateOption={(inputValue) => onChange(inputValue.trim())}
       />
     </div>
   )

@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header'
+import { FilePreviewThumbnail } from './file-preview'
 import { ColumnKey, type FileSchema } from './schema'
 
 type FileTableColumnOptions = {
@@ -54,21 +55,11 @@ export function getFilesTableColumns({
       ),
       cell: ({ row }) => {
         const file = row.original
-        const isImage = file.resource_type === 'image'
 
         return (
           <div className='flex min-w-0 items-center gap-3'>
             <div className='bg-muted flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border'>
-              {isImage ? (
-                <img
-                  src={file.url}
-                  alt={file.original_name}
-                  className='size-full object-cover'
-                  loading='lazy'
-                />
-              ) : (
-                <FileIcon className='text-muted-foreground size-5' />
-              )}
+              <FilePreviewThumbnail file={file} />
             </div>
             <div className='min-w-0'>
               <p className='truncate font-medium'>{file.original_name}</p>
