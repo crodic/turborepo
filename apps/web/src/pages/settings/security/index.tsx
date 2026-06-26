@@ -144,7 +144,17 @@ export function SettingsSecurity() {
 
   const enabled = statusQuery.data?.enabled ?? false
 
-  if (statusQuery.isFetching) return <DataLoader />
+  if (statusQuery.isFetching)
+    return (
+      <ContentSection
+        title={t('settings.security.title')}
+        desc={t('settings.security.description')}
+      >
+        <div className='flex min-h-40 items-center justify-center'>
+          <Loader2 className='animate-spin' />
+        </div>
+      </ContentSection>
+    )
 
   return (
     <ContentSection
