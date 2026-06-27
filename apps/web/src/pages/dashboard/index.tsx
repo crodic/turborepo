@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import { formatDistanceToNow } from 'date-fns'
 import { useQuery } from '@tanstack/react-query'
+import type { ColumnDef } from '@tanstack/react-table'
 import {
   ActivityIcon,
   AlertTriangleIcon,
@@ -19,6 +20,7 @@ import {
 import { useNavigate } from 'react-router'
 import http from '@/lib/http'
 import { useSocket } from '@/context/socket-context'
+import { useDataTable } from '@/hooks/use-data-table'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -30,6 +32,10 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ConfigDrawer } from '@/components/config-drawer'
+import {
+  DataTable,
+  DataTableExpandingCell,
+} from '@/components/data-table/data-table'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -124,6 +130,17 @@ type SentrySummary = {
   }
 }
 
+type WorkflowDemoRow = {
+  id: string
+  name: string
+  kind: 'company' | 'team' | 'workflow'
+  owner: string
+  status: 'healthy' | 'warning' | 'blocked'
+  lastRun: string
+  gross?: string
+  subRows?: WorkflowDemoRow[]
+}
+
 const emptySnapshot: PresenceSnapshot = {
   admins: [],
   users: [],
@@ -136,6 +153,114 @@ const emptySnapshot: PresenceSnapshot = {
 
 const HEALTH_QUERY_KEY = ['system_health'] as const
 const SENTRY_SUMMARY_QUERY_KEY = ['sentry_summary'] as const
+
+const workflowDemoRows: WorkflowDemoRow[] = [
+  {
+    id: 'platform',
+    name: 'Platform (3)',
+    kind: 'company',
+    owner: 'Platform',
+    status: 'healthy',
+    lastRun: 'Now',
+    subRows: [
+      {
+        id: 'platform-media',
+        name: 'Media services (2)',
+        kind: 'team',
+        owner: 'Platform',
+        status: 'healthy',
+        lastRun: '2 minutes ago',
+        subRows: [
+          {
+            id: 'wf-file-processing',
+            name: 'File processing',
+            kind: 'workflow',
+            owner: 'Platform',
+            status: 'healthy',
+            lastRun: '2 minutes ago',
+            gross: '99.99%',
+          },
+          {
+            id: 'wf-storage-sync',
+            name: 'Storage sync',
+            kind: 'workflow',
+            owner: 'Platform',
+            status: 'healthy',
+            lastRun: '5 minutes ago',
+            gross: '99.95%',
+          },
+        ],
+      },
+      {
+        id: 'platform-observability',
+        name: 'Observability (1)',
+        kind: 'team',
+        owner: 'Infra',
+        status: 'warning',
+        lastRun: '11 minutes ago',
+        subRows: [
+          {
+            id: 'wf-health-rollup',
+            name: 'Health rollup',
+            kind: 'workflow',
+            owner: 'Infra',
+            status: 'warning',
+            lastRun: '11 minutes ago',
+            gross: '98.10%',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'operations',
+    name: 'Operations (2)',
+    kind: 'company',
+    owner: 'Growth',
+    status: 'warning',
+    lastRun: '18 minutes ago',
+    subRows: [
+      {
+        id: 'operations-growth',
+        name: 'Growth automation (1)',
+        kind: 'team',
+        owner: 'Growth',
+        status: 'warning',
+        lastRun: '18 minutes ago',
+        subRows: [
+          {
+            id: 'wf-notification',
+            name: 'Notifications',
+            kind: 'workflow',
+            owner: 'Growth',
+            status: 'warning',
+            lastRun: '18 minutes ago',
+            gross: '97.40%',
+          },
+        ],
+      },
+      {
+        id: 'operations-finance',
+        name: 'Finance automation (1)',
+        kind: 'team',
+        owner: 'Finance',
+        status: 'blocked',
+        lastRun: '1 hour ago',
+        subRows: [
+          {
+            id: 'wf-billing-sync',
+            name: 'Billing sync',
+            kind: 'workflow',
+            owner: 'Finance',
+            status: 'blocked',
+            lastRun: '1 hour ago',
+            gross: 'Paused',
+          },
+        ],
+      },
+    ],
+  },
+]
 
 async function apiGetSystemHealth(): Promise<HealthCheckResponse> {
   const apiUrl = new URL(import.meta.env.VITE_API_URL, window.location.origin)
@@ -255,6 +380,8 @@ export function Dashboard() {
           onRefresh={() => sentryQuery.refetch()}
         />
 
+        <ExpandingDataTableDemo />
+
         <div className='grid gap-4 xl:grid-cols-2'>
           <OnlinePresenceList
             title='Admins online'
@@ -273,6 +400,82 @@ export function Dashboard() {
         </div>
       </Main>
     </>
+  )
+}
+
+function ExpandingDataTableDemo() {
+  const columns = useMemo<ColumnDef<WorkflowDemoRow>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: 'Group',
+        cell: ({ row }) => (
+          <DataTableExpandingCell row={row}>
+            <div className='min-w-0'>
+              <p className='truncate font-medium'>{row.original.name}</p>
+              <p className='text-muted-foreground truncate text-xs'>
+                {row.original.kind}
+              </p>
+            </div>
+          </DataTableExpandingCell>
+        ),
+        minSize: 280,
+      },
+      {
+        accessorKey: 'gross',
+        header: 'Gross',
+        cell: ({ row }) => row.original.gross ?? '-',
+      },
+      {
+        accessorKey: 'owner',
+        header: 'Company',
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ row }) => (
+          <Badge variant={getWorkflowStatusVariant(row.original.status)}>
+            {row.original.status}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: 'lastRun',
+        header: 'Last run',
+      },
+    ],
+    []
+  )
+
+  const { table } = useDataTable({
+    data: workflowDemoRows,
+    columns,
+    pageCount: 1,
+    initialState: {
+      pagination: { pageIndex: 0, pageSize: 5 },
+    },
+    queryKeys: {
+      page: 'dashboardSubRowsPage',
+      perPage: 'dashboardSubRowsPerPage',
+      sort: 'dashboardSubRowsSort',
+    },
+    getRowId: (row) => row.id,
+    getSubRows: (row) => row.subRows,
+    enableExpanding: true,
+  })
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>DataTable expanding demo</CardTitle>
+        <CardDescription>
+          Mock tree data using TanStack Table expanding rows with getSubRows.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <DataTable table={table} />
+      </CardContent>
+    </Card>
   )
 }
 
@@ -818,6 +1021,13 @@ function getCrashFreeTone(value?: number | null) {
   }
 
   return 'critical'
+}
+
+function getWorkflowStatusVariant(status: WorkflowDemoRow['status']) {
+  if (status === 'blocked') return 'destructive'
+  if (status === 'warning') return 'outline'
+
+  return 'secondary'
 }
 
 function PresenceMetricCard({

@@ -2,6 +2,7 @@ import * as React from 'react'
 import {
   type ColumnFiltersState,
   getCoreRowModel,
+  getExpandedRowModel,
   getFacetedMinMaxValues,
   getFacetedRowModel,
   getFacetedUniqueValues,
@@ -9,6 +10,7 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   type PaginationState,
+  type ExpandedState,
   type RowSelectionState,
   type SortingState,
   type TableOptions,
@@ -112,6 +114,9 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
 
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>(
     initialState?.rowSelection ?? {}
+  )
+  const [expanded, setExpanded] = React.useState<ExpandedState>(
+    initialState?.expanded ?? {}
   )
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>(initialState?.columnVisibility ?? {})
@@ -277,6 +282,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
       columnVisibility,
       rowSelection,
       columnFilters,
+      expanded,
     },
     defaultColumn: {
       ...tableProps.defaultColumn,
@@ -284,11 +290,13 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     },
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
+    onExpandedChange: setExpanded,
     onPaginationChange,
     onSortingChange,
     onColumnFiltersChange,
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
