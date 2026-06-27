@@ -12,7 +12,6 @@ import { PageAdminShow } from '@/pages/admins/show'
 import { ForgotPassword } from '@/pages/auth/forgot-password'
 import { ResetPassword } from '@/pages/auth/reset-password'
 import { SignIn } from '@/pages/auth/sign-in'
-import { SignUp } from '@/pages/auth/sign-up'
 import { Dashboard } from '@/pages/dashboard'
 import { PageEmailLogOverview } from '@/pages/email-logs'
 import PageEmailLogShow from '@/pages/email-logs/show'
@@ -58,10 +57,6 @@ const routes: RouteObject[] = [
   {
     path: '/sign-in',
     element: <SignIn />,
-  },
-  {
-    path: '/sign-up',
-    element: <SignUp />,
   },
   {
     path: '/forgot-password',
