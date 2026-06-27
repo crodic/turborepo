@@ -1,10 +1,6 @@
 import {
   LayoutDashboard,
   HelpCircle,
-  Palette,
-  Settings,
-  Wrench,
-  UserCog,
   UserCog2,
   Group,
   UserLock,
@@ -98,27 +94,6 @@ export const sidebarLink: SidebarData = {
     {
       title: 'navigation.other.title',
       items: [
-        {
-          title: 'navigation.other.settings',
-          icon: Settings,
-          items: [
-            {
-              title: 'navigation.other.profiles',
-              url: '/settings',
-              icon: UserCog,
-            },
-            {
-              title: 'navigation.other.account',
-              url: '/settings/account',
-              icon: Wrench,
-            },
-            {
-              title: 'navigation.other.appearance',
-              url: '/settings/appearance',
-              icon: Palette,
-            },
-          ],
-        },
         {
           title: 'navigation.orders.myEmails',
           url: '/emails',

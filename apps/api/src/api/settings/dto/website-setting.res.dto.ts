@@ -16,6 +16,44 @@ export class WebsiteSettingResDto {
   site_tagline?: string;
 
   @StringFieldOptional()
+  @Expose()
+  meta_title?: string;
+
+  @StringFieldOptional()
+  @Expose()
+  meta_description?: string;
+
+  @StringFieldOptional()
+  @Expose()
+  canonical_url?: string;
+
+  @StringFieldOptional()
+  @Expose()
+  og_title?: string;
+
+  @StringFieldOptional()
+  @Expose()
+  og_description?: string;
+
+  @StringFieldOptional()
+  @ToFullUrl()
+  @Expose()
+  og_image?: string;
+
+  @StringFieldOptional()
+  @Expose()
+  twitter_title?: string;
+
+  @StringFieldOptional()
+  @Expose()
+  twitter_description?: string;
+
+  @StringFieldOptional()
+  @ToFullUrl()
+  @Expose()
+  twitter_image?: string;
+
+  @StringFieldOptional()
   @ToFullUrl()
   @Expose()
   site_logo?: string;

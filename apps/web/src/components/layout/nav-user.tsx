@@ -1,10 +1,10 @@
 // import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
-  BrickWallIcon,
   ChevronsUpDown,
   Lock,
   LogOut,
+  PaletteIcon,
   UserCheck,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -107,7 +107,7 @@ export function NavUser() {
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to='/settings/appearance'>
-                    <BrickWallIcon />
+                    <PaletteIcon />
                     {t('settings.appearance.title')}
                   </Link>
                 </DropdownMenuItem>

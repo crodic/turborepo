@@ -52,13 +52,31 @@
           }
           const raw = localStorage.getItem('website_settings_cache')
           const settings = raw ? JSON.parse(raw) : null
+          const pick = (...values) =>
+            values.map((value) => value?.trim?.()).find(Boolean)
           const title =
-            settings?.site_title?.trim() ||
-            settings?.site_brand?.trim() ||
-            defaults.title
+            pick(
+              settings?.meta_title,
+              settings?.site_title,
+              settings?.site_brand
+            ) || defaults.title
           const description =
-            settings?.site_tagline?.trim() || defaults.description
+            pick(settings?.meta_description, settings?.site_tagline) ||
+            defaults.description
+          const canonicalUrl = pick(settings?.canonical_url) || ''
+          const ogTitle = pick(settings?.og_title) || title
+          const ogDescription = pick(settings?.og_description) || description
+          const twitterTitle = pick(settings?.twitter_title) || ogTitle
+          const twitterDescription =
+            pick(settings?.twitter_description) || ogDescription
           const favicon = settings?.site_favicon || defaults.favicon
+          const ogImage =
+            settings?.og_image ||
+            settings?.twitter_image ||
+            settings?.site_logo ||
+            settings?.site_favicon ||
+            ''
+          const twitterImage = settings?.twitter_image || ogImage
           const setMeta = (
             selector,
             attributeName,
@@ -88,24 +106,38 @@
             'description',
             description
           )
-          setMeta('meta[property="og:title"]', 'property', 'og:title', title)
+          setMeta('meta[property="og:title"]', 'property', 'og:title', ogTitle)
           setMeta(
             'meta[property="og:description"]',
             'property',
             'og:description',
-            description
+            ogDescription
           )
+          setMeta('meta[property="og:url"]', 'property', 'og:url', canonicalUrl)
+          setMeta('meta[property="og:image"]', 'property', 'og:image', ogImage)
           setMeta(
             'meta[property="twitter:title"]',
             'property',
             'twitter:title',
-            title
+            twitterTitle
           )
           setMeta(
             'meta[property="twitter:description"]',
             'property',
             'twitter:description',
-            description
+            twitterDescription
+          )
+          setMeta(
+            'meta[property="twitter:url"]',
+            'property',
+            'twitter:url',
+            canonicalUrl
+          )
+          setMeta(
+            'meta[property="twitter:image"]',
+            'property',
+            'twitter:image',
+            twitterImage
           )
 
           icon.rel = 'icon'

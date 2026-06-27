@@ -75,6 +75,14 @@ export class SettingsController {
           type: 'string',
           format: 'binary',
         },
+        og_image: {
+          type: 'string',
+          format: 'binary',
+        },
+        twitter_image: {
+          type: 'string',
+          format: 'binary',
+        },
         site_brand: {
           type: 'string',
         },
@@ -82,6 +90,27 @@ export class SettingsController {
           type: 'string',
         },
         site_tagline: {
+          type: 'string',
+        },
+        meta_title: {
+          type: 'string',
+        },
+        meta_description: {
+          type: 'string',
+        },
+        canonical_url: {
+          type: 'string',
+        },
+        og_title: {
+          type: 'string',
+        },
+        og_description: {
+          type: 'string',
+        },
+        twitter_title: {
+          type: 'string',
+        },
+        twitter_description: {
           type: 'string',
         },
         remove_site_logo: {
@@ -93,6 +122,12 @@ export class SettingsController {
         remove_site_favicon: {
           type: 'boolean',
         },
+        remove_og_image: {
+          type: 'boolean',
+        },
+        remove_twitter_image: {
+          type: 'boolean',
+        },
       },
     },
   })
@@ -102,6 +137,8 @@ export class SettingsController {
         { name: 'site_logo', maxCount: 1 },
         { name: 'site_dark_logo', maxCount: 1 },
         { name: 'site_favicon', maxCount: 1 },
+        { name: 'og_image', maxCount: 1 },
+        { name: 'twitter_image', maxCount: 1 },
       ],
       websiteUploadOptions,
     ),
@@ -115,6 +152,8 @@ export class SettingsController {
       site_logo?: Express.Multer.File[];
       site_dark_logo?: Express.Multer.File[];
       site_favicon?: Express.Multer.File[];
+      og_image?: Express.Multer.File[];
+      twitter_image?: Express.Multer.File[];
     } = {},
   ) {
     if (!ValidSettingKey.isValid(key)) {
@@ -132,11 +171,20 @@ export class SettingsController {
       dto.remove_site_dark_logo,
     );
     const removeSiteFavicon = this.isRemoveRequested(dto.remove_site_favicon);
+    const removeOgImage = this.isRemoveRequested(dto.remove_og_image);
+    const removeTwitterImage = this.isRemoveRequested(dto.remove_twitter_image);
 
     const payload = {
       site_brand: dto.site_brand,
       site_title: dto.site_title,
       site_tagline: dto.site_tagline,
+      meta_title: dto.meta_title,
+      meta_description: dto.meta_description,
+      canonical_url: dto.canonical_url,
+      og_title: dto.og_title,
+      og_description: dto.og_description,
+      twitter_title: dto.twitter_title,
+      twitter_description: dto.twitter_description,
       site_logo: this.resolveWebsiteAsset(
         files.site_logo?.[0],
         removeSiteLogo,
@@ -151,6 +199,16 @@ export class SettingsController {
         files.site_favicon?.[0],
         removeSiteFavicon,
         setting.site_favicon,
+      ),
+      og_image: this.resolveWebsiteAsset(
+        files.og_image?.[0],
+        removeOgImage,
+        setting.og_image,
+      ),
+      twitter_image: this.resolveWebsiteAsset(
+        files.twitter_image?.[0],
+        removeTwitterImage,
+        setting.twitter_image,
       ),
     };
 
@@ -203,6 +261,14 @@ export class SettingsController {
       this.deleteUnusedWebsiteAsset(
         currentSetting.site_favicon,
         nextSetting.site_favicon,
+      ),
+      this.deleteUnusedWebsiteAsset(
+        currentSetting.og_image,
+        nextSetting.og_image,
+      ),
+      this.deleteUnusedWebsiteAsset(
+        currentSetting.twitter_image,
+        nextSetting.twitter_image,
       ),
     ]);
   }
@@ -268,6 +334,8 @@ export class SettingsController {
     site_logo?: Express.Multer.File[];
     site_dark_logo?: Express.Multer.File[];
     site_favicon?: Express.Multer.File[];
+    og_image?: Express.Multer.File[];
+    twitter_image?: Express.Multer.File[];
   }): void {
     const uploadedFiles = Object.values(files ?? {}).flatMap(
       (value) => value ?? [],
