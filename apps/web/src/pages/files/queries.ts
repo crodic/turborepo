@@ -1,5 +1,5 @@
 import z from 'zod'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import {
   type ApiMetadata,
   apiMetadataSchema,
@@ -29,6 +29,11 @@ const chunkUploadSessionSchema = z.object({
 export const fileQueryKeys = {
   all: ['files'] as const,
   list: (params: PaginateQueryParams) => [...fileQueryKeys.all, params],
+  infiniteList: (params: PaginateQueryParams) => [
+    ...fileQueryKeys.all,
+    'infinite',
+    params,
+  ],
   detail: (publicId: string) => [...fileQueryKeys.all, publicId],
   folders: ['file-folders'] as const,
 }
@@ -175,6 +180,21 @@ export const useDataFileOverview = (params: PaginateQueryParams) =>
   useQuery({
     queryKey: fileQueryKeys.list(params),
     queryFn: () => apiGetFileListing(params),
+  })
+
+export const useInfiniteDataFileOverview = (params: PaginateQueryParams) =>
+  useInfiniteQuery({
+    queryKey: fileQueryKeys.infiniteList(params),
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      apiGetFileListing({
+        ...params,
+        page: pageParam,
+      }),
+    getNextPageParam: (lastPage) =>
+      lastPage.meta.currentPage < lastPage.meta.totalPages
+        ? lastPage.meta.currentPage + 1
+        : undefined,
   })
 
 export const useDataFileFolders = () =>

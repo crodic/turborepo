@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fileSchema, folderSchema } from './schema'
+import { createFolderSchema, fileSchema, folderSchema } from './schema'
 
 describe('fileSchema', () => {
   it('parses file metadata from the API', () => {
@@ -42,5 +42,14 @@ describe('folderSchema', () => {
         size: 4096,
       })
     ).toEqual({ folder: 'avatars', count: 2, size: 4096 })
+  })
+
+  it('validates flat folder names', () => {
+    expect(createFolderSchema.parse({ folder: '  Ảnh test_2026  ' })).toEqual({
+      folder: 'Ảnh test_2026',
+    })
+
+    expect(() => createFolderSchema.parse({ folder: 'Video 1/raw' })).toThrow()
+    expect(() => createFolderSchema.parse({ folder: '../private' })).toThrow()
   })
 })

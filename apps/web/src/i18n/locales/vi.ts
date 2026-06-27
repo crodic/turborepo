@@ -62,6 +62,8 @@ export default {
   'files.folders.selectPlaceholder': 'Chọn hoặc tạo thư mục...',
   'files.folders.noOptions': 'Không tìm thấy thư mục',
   'files.folders.createOption': 'Tạo "{{folder}}"',
+  'files.folders.invalidName':
+    'Chỉ nhập một tên thư mục. Bắt đầu bằng chữ hoặc số; cho phép chữ, số, khoảng trắng, dấu chấm, gạch dưới và gạch ngang.',
   'files.folders.deleteTitle': 'Xóa thư mục',
   'files.folders.deleteDescription':
     'Xóa thư mục này. Mặc định hệ thống sẽ bảo vệ thư mục đang có tệp.',
@@ -83,6 +85,9 @@ export default {
   'files.picker.description': 'Chọn một tệp từ thư viện media.',
   'files.picker.search': 'Tìm tệp...',
   'files.picker.empty': 'Không tìm thấy tệp.',
+  'files.picker.loadingMore': 'Đang tải thêm tệp...',
+  'files.picker.loadMoreHint': 'Đang hiển thị {{count}} / {{total}} tệp',
+  'files.picker.loadedAll': 'Đã hiển thị toàn bộ {{count}} tệp',
   'files.picker.select': 'Chọn tệp',
   'files.picker.selectCount': 'Chọn {{count}} tệp',
   'files.picker.demoButton': 'Demo chọn tệp',

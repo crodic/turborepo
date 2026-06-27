@@ -138,6 +138,31 @@ describe('FileService', () => {
     );
   });
 
+  it('rejects nested folder names when updating metadata', async () => {
+    repository.findOneByOrFail.mockResolvedValue({
+      id: '1',
+      public_id: 'abc',
+      folder: null,
+      original_name: 'image.png',
+      path: 'image/abc.png',
+      hash: 'hash',
+      mime: 'image/png',
+      size: 100,
+      width: 10,
+      height: 10,
+      duration: null,
+      resource_type: 'image',
+      status: 'active',
+      url: 'http://localhost/storage/uploads/image/abc.png',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await expect(
+      service.update('abc', { folder: 'Video 1/raw' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('renames a folder with a bulk update', async () => {
     const qb = createQueryBuilderMock();
     repository.count.mockResolvedValue(3);
@@ -166,6 +191,12 @@ describe('FileService', () => {
 
     await expect(service.renameFolder('missing', 'new')).rejects.toBeInstanceOf(
       NotFoundException,
+    );
+  });
+
+  it('rejects path traversal folder names', async () => {
+    expect(() => service.createFolder('../private')).toThrow(
+      BadRequestException,
     );
   });
 

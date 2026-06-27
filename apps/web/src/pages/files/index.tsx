@@ -80,7 +80,12 @@ import {
   useDataFileFolders,
   useDataFileOverview,
 } from './queries'
-import { ColumnKey, type FileSchema, type FolderSchema } from './schema'
+import {
+  ColumnKey,
+  isValidFolderName,
+  type FileSchema,
+  type FolderSchema,
+} from './schema'
 
 const fileFilterParsers = {
   [ColumnKey.originalName]: parseAsString,
@@ -769,8 +774,13 @@ function FolderDialog({
 }) {
   const { t } = useTranslation()
   const [folder, setFolder] = useState(defaultValue)
+  const normalizedFolder = folder.trim()
+  const folderError =
+    normalizedFolder && !isValidFolderName(normalizedFolder)
+      ? t('files.folders.invalidName')
+      : null
   const mutation = useMutation({
-    mutationFn: () => onSubmit(folder.trim()),
+    mutationFn: () => onSubmit(normalizedFolder),
     onSuccess: () => {
       setFolder('')
       onOpenChange(false)
@@ -794,6 +804,9 @@ function FolderDialog({
             value={folder}
             onChange={(event) => setFolder(event.target.value)}
           />
+          {folderError && (
+            <p className='text-destructive text-sm'>{folderError}</p>
+          )}
           {mutation.error instanceof AxiosError && (
             <p className='text-destructive text-sm'>
               {mutation.error.response?.data.message ?? mutation.error.message}
@@ -806,7 +819,9 @@ function FolderDialog({
           </Button>
           <Button
             onClick={() => mutation.mutate()}
-            disabled={!folder.trim() || mutation.isPending}
+            disabled={
+              !normalizedFolder || Boolean(folderError) || mutation.isPending
+            }
           >
             {submitLabel}
           </Button>
@@ -1015,7 +1030,7 @@ function FolderCreatableField({
       (option) => option.name.toLowerCase() === normalizedInput.toLowerCase()
     )
 
-    if (!normalizedInput || exists) {
+    if (!normalizedInput || exists || !isValidFolderName(normalizedInput)) {
       return baseOptions
     }
 
@@ -1043,16 +1058,22 @@ function FolderCreatableField({
             setInputValue(newValue)
           }
         }}
-        noOptionsMessage={() => t('files.folders.noOptions')}
+        noOptionsMessage={() =>
+          inputValue.trim() && !isValidFolderName(inputValue.trim())
+            ? t('files.folders.invalidName')
+            : t('files.folders.noOptions')
+        }
         onChange={(option) => {
           if (Array.isArray(option)) {
-            onChange(option[0] ? String(option[0].id) : '')
+            const nextValue = option[0] ? String(option[0].id) : ''
+            onChange(nextValue && isValidFolderName(nextValue) ? nextValue : '')
             setInputValue('')
             return
           }
 
           const selectedOption = option as Option | null
-          onChange(selectedOption ? String(selectedOption.id) : '')
+          const nextValue = selectedOption ? String(selectedOption.id) : ''
+          onChange(nextValue && isValidFolderName(nextValue) ? nextValue : '')
           setInputValue('')
         }}
       />

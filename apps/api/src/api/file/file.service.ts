@@ -42,6 +42,11 @@ import { FileFolderResDto } from './dto/folder.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
 import { FileEntity } from './entities/file.entity';
 import { UploadFileOptions, UploadImageOptions } from './types/upload.types';
+import {
+  FILE_FOLDER_NAME_MESSAGE,
+  isValidFolderName,
+  normalizeFolderName,
+} from './utils/folder-name.util';
 import { FileValidator } from './validators/file.validator';
 
 type ChunkUploadSession = {
@@ -570,12 +575,13 @@ export class FileService {
   }
 
   private normalizeFolder(folder?: string | null): string | null {
-    if (folder == null) {
-      return null;
+    const normalized = normalizeFolderName(folder);
+
+    if (normalized && !isValidFolderName(normalized)) {
+      throw new BadRequestException(FILE_FOLDER_NAME_MESSAGE);
     }
 
-    const normalized = folder.trim().replace(/^\/+|\/+$/g, '');
-    return normalized.length > 0 ? normalized : null;
+    return normalized;
   }
 
   private assertFolder(folder: string): string {

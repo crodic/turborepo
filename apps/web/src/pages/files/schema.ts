@@ -8,6 +8,15 @@ const nullableNumber = z
   .union([z.number(), z.null(), z.undefined()])
   .transform((value) => value ?? null)
 
+const folderNamePattern = /^[\p{L}\p{N}][\p{L}\p{N} ._-]{0,254}$/u
+
+export const folderNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(255)
+  .regex(folderNamePattern)
+
 export const fileStatusSchema = z.enum(['active', 'archived'])
 
 export const fileResourceTypeSchema = z.enum(['image', 'video', 'raw', 'file'])
@@ -38,13 +47,17 @@ export const folderSchema = z.object({
 })
 
 export const updateFileSchema = z.object({
-  folder: z.string().nullable().optional(),
+  folder: folderNameSchema.nullable().optional(),
   status: fileStatusSchema.optional(),
 })
 
 export const createFolderSchema = z.object({
-  folder: z.string().trim().min(1).max(255),
+  folder: folderNameSchema,
 })
+
+export function isValidFolderName(folder: string) {
+  return folderNameSchema.safeParse(folder).success
+}
 
 export type FileSchema = z.infer<typeof fileSchema>
 export type FolderSchema = z.infer<typeof folderSchema>

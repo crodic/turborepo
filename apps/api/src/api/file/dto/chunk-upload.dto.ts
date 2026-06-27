@@ -1,9 +1,10 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsInt,
   IsMimeType,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -12,6 +13,10 @@ import {
   FILE_UPLOAD_CHUNK_SIZE,
   FILE_UPLOAD_MAX_SIZE,
 } from '../config/file.config';
+import {
+  FILE_FOLDER_NAME_MESSAGE,
+  FILE_FOLDER_NAME_PATTERN,
+} from '../utils/folder-name.util';
 
 export class CreateChunkUploadSessionDto {
   @IsString()
@@ -28,8 +33,10 @@ export class CreateChunkUploadSessionDto {
   size: number;
 
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MaxLength(255)
+  @Matches(FILE_FOLDER_NAME_PATTERN, { message: FILE_FOLDER_NAME_MESSAGE })
   folder?: string | null;
 
   @Type(() => Number)

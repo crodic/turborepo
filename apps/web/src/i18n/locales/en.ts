@@ -62,6 +62,8 @@ export default {
   'files.folders.selectPlaceholder': 'Select or create a folder...',
   'files.folders.noOptions': 'No folders found',
   'files.folders.createOption': 'Create "{{folder}}"',
+  'files.folders.invalidName':
+    'Use one folder name only. Start with a letter or number; letters, numbers, spaces, dots, underscores, and hyphens are allowed.',
   'files.folders.deleteTitle': 'Delete folder',
   'files.folders.deleteDescription':
     'Delete this folder. By default, folders with files are protected.',
@@ -85,6 +87,9 @@ export default {
   'files.picker.description': 'Choose a file from the media library.',
   'files.picker.search': 'Search files...',
   'files.picker.empty': 'No files found.',
+  'files.picker.loadingMore': 'Loading more files...',
+  'files.picker.loadMoreHint': 'Showing {{count}} of {{total}} files',
+  'files.picker.loadedAll': 'Showing all {{count}} files',
   'files.picker.select': 'Select file',
   'files.picker.selectCount': 'Select {{count}} file(s)',
   'files.picker.demoButton': 'Demo picker',
