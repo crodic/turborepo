@@ -31,11 +31,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Switch } from '@/components/ui/switch'
 import { ConfigDrawer } from '@/components/config-drawer'
 import {
   DataTable,
   DataTableExpandingCell,
 } from '@/components/data-table/data-table'
+import { DataTableViewOptions } from '@/components/data-table/data-table-view-options'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -138,6 +140,17 @@ type WorkflowDemoRow = {
   status: 'healthy' | 'warning' | 'blocked'
   lastRun: string
   gross?: string
+  priority: 'low' | 'medium' | 'high'
+  region: string
+  environment: string
+  sla: string
+  latency: string
+  errors: number
+  throughput: string
+  storage: string
+  cost: string
+  release: string
+  assignee: string
   subRows?: WorkflowDemoRow[]
 }
 
@@ -154,113 +167,118 @@ const emptySnapshot: PresenceSnapshot = {
 const HEALTH_QUERY_KEY = ['system_health'] as const
 const SENTRY_SUMMARY_QUERY_KEY = ['sentry_summary'] as const
 
-const workflowDemoRows: WorkflowDemoRow[] = [
-  {
-    id: 'platform',
-    name: 'Platform (3)',
-    kind: 'company',
-    owner: 'Platform',
-    status: 'healthy',
-    lastRun: 'Now',
-    subRows: [
-      {
-        id: 'platform-media',
-        name: 'Media services (2)',
+const workflowDemoRows = createWorkflowDemoRows()
+
+function createWorkflowDemoRows(): WorkflowDemoRow[] {
+  const companies = [
+    'Platform',
+    'Operations',
+    'Commerce',
+    'Identity',
+    'Analytics',
+    'Messaging',
+    'Media',
+    'Trust',
+  ]
+  const teams = ['Core', 'Automation', 'Integrations', 'Insights', 'Delivery']
+  const workflows = [
+    'File processing',
+    'Storage sync',
+    'Health rollup',
+    'Notifications',
+    'Billing sync',
+    'Permission audit',
+    'Report export',
+    'Webhook replay',
+    'Search indexing',
+    'Session cleanup',
+  ]
+
+  return companies.map((company, companyIndex) => {
+    const companyChildren = teams.map((team, teamIndex) => {
+      const teamChildren = workflows.map((workflow, workflowIndex) =>
+        makeWorkflowDemoRow({
+          id: `${company}-${team}-${workflow}`
+            .toLowerCase()
+            .replace(/\s/g, '-'),
+          name: workflow,
+          kind: 'workflow',
+          owner: team,
+          seed: companyIndex * 100 + teamIndex * 10 + workflowIndex,
+        })
+      )
+
+      return makeWorkflowDemoRow({
+        id: `${company}-${team}`.toLowerCase().replace(/\s/g, '-'),
+        name: `${team} (${teamChildren.length})`,
         kind: 'team',
-        owner: 'Platform',
-        status: 'healthy',
-        lastRun: '2 minutes ago',
-        subRows: [
-          {
-            id: 'wf-file-processing',
-            name: 'File processing',
-            kind: 'workflow',
-            owner: 'Platform',
-            status: 'healthy',
-            lastRun: '2 minutes ago',
-            gross: '99.99%',
-          },
-          {
-            id: 'wf-storage-sync',
-            name: 'Storage sync',
-            kind: 'workflow',
-            owner: 'Platform',
-            status: 'healthy',
-            lastRun: '5 minutes ago',
-            gross: '99.95%',
-          },
-        ],
-      },
-      {
-        id: 'platform-observability',
-        name: 'Observability (1)',
-        kind: 'team',
-        owner: 'Infra',
-        status: 'warning',
-        lastRun: '11 minutes ago',
-        subRows: [
-          {
-            id: 'wf-health-rollup',
-            name: 'Health rollup',
-            kind: 'workflow',
-            owner: 'Infra',
-            status: 'warning',
-            lastRun: '11 minutes ago',
-            gross: '98.10%',
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'operations',
-    name: 'Operations (2)',
-    kind: 'company',
-    owner: 'Growth',
-    status: 'warning',
-    lastRun: '18 minutes ago',
-    subRows: [
-      {
-        id: 'operations-growth',
-        name: 'Growth automation (1)',
-        kind: 'team',
-        owner: 'Growth',
-        status: 'warning',
-        lastRun: '18 minutes ago',
-        subRows: [
-          {
-            id: 'wf-notification',
-            name: 'Notifications',
-            kind: 'workflow',
-            owner: 'Growth',
-            status: 'warning',
-            lastRun: '18 minutes ago',
-            gross: '97.40%',
-          },
-        ],
-      },
-      {
-        id: 'operations-finance',
-        name: 'Finance automation (1)',
-        kind: 'team',
-        owner: 'Finance',
-        status: 'blocked',
-        lastRun: '1 hour ago',
-        subRows: [
-          {
-            id: 'wf-billing-sync',
-            name: 'Billing sync',
-            kind: 'workflow',
-            owner: 'Finance',
-            status: 'blocked',
-            lastRun: '1 hour ago',
-            gross: 'Paused',
-          },
-        ],
-      },
-    ],
-  },
-]
+        owner: company,
+        seed: companyIndex * 10 + teamIndex,
+        subRows: teamChildren,
+      })
+    })
+
+    return makeWorkflowDemoRow({
+      id: company.toLowerCase(),
+      name: `${company} (${companyChildren.length * workflows.length})`,
+      kind: 'company',
+      owner: company,
+      seed: companyIndex,
+      subRows: companyChildren,
+    })
+  })
+}
+
+function makeWorkflowDemoRow({
+  id,
+  name,
+  kind,
+  owner,
+  seed,
+  subRows,
+}: {
+  id: string
+  name: string
+  kind: WorkflowDemoRow['kind']
+  owner: string
+  seed: number
+  subRows?: WorkflowDemoRow[]
+}): WorkflowDemoRow {
+  const statuses: WorkflowDemoRow['status'][] = [
+    'healthy',
+    'warning',
+    'blocked',
+  ]
+  const priorities: WorkflowDemoRow['priority'][] = ['low', 'medium', 'high']
+  const regions = ['us-east', 'us-west', 'eu-central', 'ap-southeast']
+  const environments = ['production', 'staging', 'preview']
+  const status = kind === 'company' ? statuses[seed % 2] : statuses[seed % 3]
+
+  return {
+    id,
+    name,
+    kind,
+    owner,
+    status,
+    priority: priorities[seed % priorities.length],
+    region: regions[seed % regions.length],
+    environment: environments[seed % environments.length],
+    lastRun: `${(seed % 59) + 1} minutes ago`,
+    gross:
+      status === 'blocked'
+        ? 'Paused'
+        : `${(99.95 - (seed % 18) / 10).toFixed(2)}%`,
+    sla: `${(99.9 - (seed % 8) / 100).toFixed(2)}%`,
+    latency: `${80 + (seed % 37) * 7} ms`,
+    errors: seed % 11,
+    throughput: `${1_200 + seed * 17}/min`,
+    storage: `${12 + (seed % 90)} GB`,
+    cost: `$${(120 + seed * 3.75).toFixed(2)}`,
+    release: `2026.${(seed % 12) + 1}.${(seed % 28) + 1}`,
+    assignee: ['Ada', 'Grace', 'Linus', 'Margaret', 'Ken'][seed % 5],
+    subRows,
+  }
+}
 
 async function apiGetSystemHealth(): Promise<HealthCheckResponse> {
   const apiUrl = new URL(import.meta.env.VITE_API_URL, window.location.origin)
@@ -323,7 +341,7 @@ export function Dashboard() {
   return (
     <>
       {/* ===== Top Heading ===== */}
-      <Header>
+      <Header fixed>
         <div className='ms-auto flex items-center space-x-4'>
           <Search />
           <ThemeSwitch />
@@ -404,6 +422,24 @@ export function Dashboard() {
 }
 
 function ExpandingDataTableDemo() {
+  const [enableExpanding, setEnableExpanding] = useState(true)
+  const [enableVirtualRows, setEnableVirtualRows] = useState(true)
+  const [enableVirtualColumns, setEnableVirtualColumns] = useState(true)
+  const [enableInfinite, setEnableInfinite] = useState(false)
+  const [loadedGroups, setLoadedGroups] = useState(3)
+  const [isLoadingMoreGroups, setIsLoadingMoreGroups] = useState(false)
+  const tableData = useMemo(
+    () =>
+      enableInfinite
+        ? workflowDemoRows.slice(0, loadedGroups)
+        : workflowDemoRows,
+    [enableInfinite, loadedGroups]
+  )
+  const visibleLeafRows = useMemo(
+    () => countWorkflowLeafRows(tableData),
+    [tableData]
+  )
+  const hasMoreGroups = loadedGroups < workflowDemoRows.length
   const columns = useMemo<ColumnDef<WorkflowDemoRow>[]>(
     () => [
       {
@@ -443,16 +479,74 @@ function ExpandingDataTableDemo() {
         accessorKey: 'lastRun',
         header: 'Last run',
       },
+      {
+        accessorKey: 'priority',
+        header: 'Priority',
+        cell: ({ row }) => (
+          <Badge variant='outline'>{row.original.priority}</Badge>
+        ),
+      },
+      {
+        accessorKey: 'region',
+        header: 'Region',
+      },
+      {
+        accessorKey: 'environment',
+        header: 'Environment',
+      },
+      {
+        accessorKey: 'sla',
+        header: 'SLA',
+      },
+      {
+        accessorKey: 'latency',
+        header: 'Latency',
+      },
+      {
+        accessorKey: 'errors',
+        header: 'Errors',
+      },
+      {
+        accessorKey: 'throughput',
+        header: 'Throughput',
+      },
+      {
+        accessorKey: 'storage',
+        header: 'Storage',
+      },
+      {
+        accessorKey: 'cost',
+        header: 'Cost',
+      },
+      {
+        accessorKey: 'release',
+        header: 'Release',
+      },
+      {
+        accessorKey: 'assignee',
+        header: 'Assignee',
+      },
     ],
     []
   )
 
   const { table } = useDataTable({
-    data: workflowDemoRows,
+    data: tableData,
     columns,
     pageCount: 1,
     initialState: {
-      pagination: { pageIndex: 0, pageSize: 5 },
+      pagination: { pageIndex: 0, pageSize: 10 },
+      columnVisibility: {
+        environment: false,
+        sla: false,
+        latency: false,
+        errors: false,
+        throughput: false,
+        storage: false,
+        cost: false,
+        release: false,
+        assignee: false,
+      },
     },
     queryKeys: {
       page: 'dashboardSubRowsPage',
@@ -461,22 +555,120 @@ function ExpandingDataTableDemo() {
     },
     getRowId: (row) => row.id,
     getSubRows: (row) => row.subRows,
-    enableExpanding: true,
+    enableExpanding,
   })
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>DataTable expanding demo</CardTitle>
-        <CardDescription>
-          Mock tree data using TanStack Table expanding rows with getSubRows.
-        </CardDescription>
+    <Card className='min-w-0 overflow-hidden'>
+      <CardHeader className='gap-4'>
+        <div>
+          <CardTitle>DataTable feature playground</CardTitle>
+          <CardDescription>
+            Toggle expanding, virtual rows, virtual columns, and mock infinite
+            loading against a larger tree dataset.
+          </CardDescription>
+        </div>
+        <div className='flex min-w-0 flex-wrap gap-2'>
+          <DemoSwitch
+            label='Expanding'
+            checked={enableExpanding}
+            onCheckedChange={setEnableExpanding}
+          />
+          <DemoSwitch
+            label='Virtual rows'
+            checked={enableVirtualRows}
+            onCheckedChange={setEnableVirtualRows}
+          />
+          <DemoSwitch
+            label='Virtual columns'
+            checked={enableVirtualColumns}
+            onCheckedChange={setEnableVirtualColumns}
+          />
+          <DemoSwitch
+            label='Infinite mock'
+            checked={enableInfinite}
+            onCheckedChange={(checked) => {
+              setEnableInfinite(checked)
+              setLoadedGroups(checked ? 3 : workflowDemoRows.length)
+              setIsLoadingMoreGroups(false)
+            }}
+          />
+        </div>
+        <div className='text-muted-foreground flex flex-wrap gap-2 text-xs'>
+          <Badge variant='secondary'>{tableData.length} groups loaded</Badge>
+          <Badge variant='secondary'>{visibleLeafRows} workflows</Badge>
+          <Badge variant='secondary'>
+            {table.getVisibleLeafColumns().length} / {columns.length} columns
+          </Badge>
+        </div>
       </CardHeader>
-      <CardContent>
-        <DataTable table={table} />
+      <CardContent className='min-w-0 overflow-hidden'>
+        <div className='mb-2 flex min-w-0 items-center justify-between gap-3'>
+          <p className='text-muted-foreground text-xs'>
+            Extra metric columns are hidden by default to keep the dashboard
+            layout stable.
+          </p>
+          <DataTableViewOptions table={table} />
+        </div>
+        <div className='max-w-full min-w-0 overflow-hidden'>
+          <DataTable
+            className='min-w-0'
+            table={table}
+            enableVirtualRows={enableVirtualRows}
+            enableVirtualColumns={enableVirtualColumns}
+            virtualHeight={520}
+            hidePagination={enableVirtualRows || enableInfinite}
+            onVirtualEndReached={
+              enableInfinite && hasMoreGroups && !isLoadingMoreGroups
+                ? () => {
+                    setIsLoadingMoreGroups(true)
+                    window.setTimeout(() => {
+                      setLoadedGroups((current) =>
+                        Math.min(current + 1, workflowDemoRows.length)
+                      )
+                      setIsLoadingMoreGroups(false)
+                    }, 250)
+                  }
+                : undefined
+            }
+          />
+        </div>
+        {enableInfinite && (
+          <p className='text-muted-foreground mt-2 text-center text-xs'>
+            {hasMoreGroups
+              ? isLoadingMoreGroups
+                ? 'Loading more mock groups...'
+                : 'Scroll near the bottom to load more mock groups.'
+              : 'All mock groups loaded.'}
+          </p>
+        )}
       </CardContent>
     </Card>
   )
+}
+
+function DemoSwitch({
+  label,
+  checked,
+  onCheckedChange,
+}: {
+  label: string
+  checked: boolean
+  onCheckedChange: (checked: boolean) => void
+}) {
+  return (
+    <label className='flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm sm:w-[180px]'>
+      <span>{label}</span>
+      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+    </label>
+  )
+}
+
+function countWorkflowLeafRows(rows: WorkflowDemoRow[]): number {
+  return rows.reduce((total, row) => {
+    if (!row.subRows?.length) return total + 1
+    return total + countWorkflowLeafRows(row.subRows)
+  }, 0)
 }
 
 function SentryHealthSection({

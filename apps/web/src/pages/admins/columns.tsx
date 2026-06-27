@@ -127,6 +127,226 @@ export function getAdminsTableColumns({
       enableColumnFilter: true,
     },
     {
+      id: ColumnKey.verifiedAt,
+      accessorFn: (row) => row.verifiedAt,
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('adminUsers.table.emailVerified')}
+        />
+      ),
+      cell: ({ row }) => (
+        <div className='flex items-center'>
+          {row.original.verifiedAt ? (
+            <CheckSquareIcon className='text-green-500' />
+          ) : (
+            <XSquareIcon className='text-destructive' />
+          )}
+        </div>
+      ),
+      enableHiding: false,
+      enableSorting: false,
+      enableColumnFilter: true,
+    },
+    {
+      id: ColumnKey.verifiedAt,
+      accessorFn: (row) => row.verifiedAt,
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('adminUsers.table.emailVerified')}
+        />
+      ),
+      cell: ({ row }) => (
+        <div className='flex items-center'>
+          {row.original.verifiedAt ? (
+            <CheckSquareIcon className='text-green-500' />
+          ) : (
+            <XSquareIcon className='text-destructive' />
+          )}
+        </div>
+      ),
+      enableHiding: false,
+      enableSorting: false,
+      enableColumnFilter: true,
+    },
+    {
+      id: ColumnKey.verifiedAt,
+      accessorFn: (row) => row.verifiedAt,
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('adminUsers.table.emailVerified')}
+        />
+      ),
+      cell: ({ row }) => (
+        <div className='flex items-center'>
+          {row.original.verifiedAt ? (
+            <CheckSquareIcon className='text-green-500' />
+          ) : (
+            <XSquareIcon className='text-destructive' />
+          )}
+        </div>
+      ),
+      enableHiding: false,
+      enableSorting: false,
+      enableColumnFilter: true,
+    },
+    {
+      id: ColumnKey.verifiedAt,
+      accessorFn: (row) => row.verifiedAt,
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('adminUsers.table.emailVerified')}
+        />
+      ),
+      cell: ({ row }) => (
+        <div className='flex items-center'>
+          {row.original.verifiedAt ? (
+            <CheckSquareIcon className='text-green-500' />
+          ) : (
+            <XSquareIcon className='text-destructive' />
+          )}
+        </div>
+      ),
+      enableHiding: false,
+      enableSorting: false,
+      enableColumnFilter: true,
+    },
+    {
+      id: ColumnKey.verifiedAt,
+      accessorFn: (row) => row.verifiedAt,
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('adminUsers.table.emailVerified')}
+        />
+      ),
+      cell: ({ row }) => (
+        <div className='flex items-center'>
+          {row.original.verifiedAt ? (
+            <CheckSquareIcon className='text-green-500' />
+          ) : (
+            <XSquareIcon className='text-destructive' />
+          )}
+        </div>
+      ),
+      enableHiding: false,
+      enableSorting: false,
+      enableColumnFilter: true,
+    },
+    {
+      id: ColumnKey.verifiedAt,
+      accessorFn: (row) => row.verifiedAt,
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('adminUsers.table.emailVerified')}
+        />
+      ),
+      cell: ({ row }) => (
+        <div className='flex items-center'>
+          {row.original.verifiedAt ? (
+            <CheckSquareIcon className='text-green-500' />
+          ) : (
+            <XSquareIcon className='text-destructive' />
+          )}
+        </div>
+      ),
+      enableHiding: false,
+      enableSorting: false,
+      enableColumnFilter: true,
+    },
+    {
+      id: ColumnKey.verifiedAt,
+      accessorFn: (row) => row.verifiedAt,
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('adminUsers.table.emailVerified')}
+        />
+      ),
+      cell: ({ row }) => (
+        <div className='flex items-center'>
+          {row.original.verifiedAt ? (
+            <CheckSquareIcon className='text-green-500' />
+          ) : (
+            <XSquareIcon className='text-destructive' />
+          )}
+        </div>
+      ),
+      enableHiding: false,
+      enableSorting: false,
+      enableColumnFilter: true,
+    },
+    {
+      id: ColumnKey.verifiedAt,
+      accessorFn: (row) => row.verifiedAt,
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('adminUsers.table.emailVerified')}
+        />
+      ),
+      cell: ({ row }) => (
+        <div className='flex items-center'>
+          {row.original.verifiedAt ? (
+            <CheckSquareIcon className='text-green-500' />
+          ) : (
+            <XSquareIcon className='text-destructive' />
+          )}
+        </div>
+      ),
+      enableHiding: false,
+      enableSorting: false,
+      enableColumnFilter: true,
+    },
+    {
+      id: ColumnKey.verifiedAt,
+      accessorFn: (row) => row.verifiedAt,
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('adminUsers.table.emailVerified')}
+        />
+      ),
+      cell: ({ row }) => (
+        <div className='flex items-center'>
+          {row.original.verifiedAt ? (
+            <CheckSquareIcon className='text-green-500' />
+          ) : (
+            <XSquareIcon className='text-destructive' />
+          )}
+        </div>
+      ),
+      enableHiding: false,
+      enableSorting: false,
+      enableColumnFilter: true,
+    },
+    {
+      id: ColumnKey.verifiedAt,
+      accessorFn: (row) => row.verifiedAt,
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('adminUsers.table.emailVerified')}
+        />
+      ),
+      cell: ({ row }) => (
+        <div className='flex items-center'>
+          {row.original.verifiedAt ? (
+            <CheckSquareIcon className='text-green-500' />
+          ) : (
+            <XSquareIcon className='text-destructive' />
+          )}
+        </div>
+      ),
+      enableHiding: false,
+      enableSorting: false,
+      enableColumnFilter: true,
+    },
+    {
       id: 'actions',
       accessorKey: 'actions',
       header: ({ column }) => (
