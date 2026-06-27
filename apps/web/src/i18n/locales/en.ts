@@ -83,6 +83,13 @@ export default {
   'files.upload.failed': 'Upload failed',
   'files.upload.sizeLimitError':
     '{{name}} exceeds the upload limit of {{size}}.',
+  'files.upload.disk': 'Storage disk',
+  'files.upload.diskPublic': 'Public',
+  'files.upload.diskLocal': 'Local (private)',
+  'files.upload.diskPublicHelp':
+    'Public files are stored on the public local disk and can be opened directly by URL.',
+  'files.upload.diskLocalHelp':
+    'Local files are stored on the private local disk. Preview and download require an authenticated admin or user session.',
   'files.move.title': 'Move file',
   'files.delete.title': 'Delete file',
   'files.delete.description':

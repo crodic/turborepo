@@ -166,6 +166,11 @@ export class FileController {
           type: 'string',
           example: 'avatars',
         },
+        disk: {
+          type: 'string',
+          enum: ['local', 'public'],
+          example: 'public',
+        },
       },
     },
   })
@@ -175,8 +180,9 @@ export class FileController {
   async upload(
     @UploadedFile() file: Express.Multer.File,
     @Body('folder') folder?: string,
+    @Body('disk') disk?: string,
   ) {
-    return this.fileService.upload(file, folder);
+    return this.fileService.upload(file, folder, disk);
   }
 
   @Post('uploads/sessions')

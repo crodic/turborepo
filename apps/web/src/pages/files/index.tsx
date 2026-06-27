@@ -74,11 +74,7 @@ import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { formatBytes, getFilesTableColumns } from './columns'
 import { FilePickerDialog } from './file-picker-dialog'
-import {
-  FilePreviewDetail,
-  getAuthenticatedFileUrl,
-  isPreviewableImage,
-} from './file-preview'
+import { FilePreviewDetail, isPreviewableImage } from './file-preview'
 import { FilesTableActionBar } from './file-table-action-bar'
 import {
   apiCreateFolder,
@@ -595,6 +591,7 @@ function UploadDialog({
 }) {
   const { t } = useTranslation()
   const [targetFolder, setTargetFolder] = useState(folder ?? '')
+  const [targetDisk, setTargetDisk] = useState<'local' | 'public'>('public')
   const [files, setFiles] = useState<File[]>([])
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
     {}
@@ -616,6 +613,7 @@ function UploadDialog({
         await apiUploadFile({
           file,
           folder: targetFolder || null,
+          disk: targetDisk,
           onProgress: (progress) =>
             setUploadProgress((current) => ({
               ...current,
@@ -651,6 +649,32 @@ function UploadDialog({
           <DialogDescription>{t('files.upload.description')}</DialogDescription>
         </DialogHeader>
         <div className='grid gap-4'>
+          <div className='grid gap-2'>
+            <Label>{t('files.upload.disk')}</Label>
+            <Select
+              value={targetDisk}
+              onValueChange={(value) =>
+                setTargetDisk(value as 'local' | 'public')
+              }
+            >
+              <SelectTrigger className='w-full'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='public'>
+                  {t('files.upload.diskPublic')}
+                </SelectItem>
+                <SelectItem value='local'>
+                  {t('files.upload.diskLocal')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className='text-muted-foreground text-xs'>
+              {targetDisk === 'local'
+                ? t('files.upload.diskLocalHelp')
+                : t('files.upload.diskPublicHelp')}
+            </p>
+          </div>
           <FolderCreatableField
             label={t('files.table.folder')}
             value={targetFolder}
@@ -935,7 +959,7 @@ function PreviewDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const { t } = useTranslation()
-  const openUrl = file ? getAuthenticatedFileUrl(file.url) : undefined
+  const openUrl = file?.url
   const [transform, setTransform] = useState({
     width: '',
     height: '',
@@ -951,9 +975,7 @@ function PreviewDialog({
       ? buildFileTransformUrl(file.url, transformations)
       : null
   const previewUrl = transformedUrl ?? undefined
-  const previewOpenUrl = transformedUrl
-    ? getAuthenticatedFileUrl(transformedUrl)
-    : openUrl
+  const previewOpenUrl = transformedUrl ?? openUrl
 
   useEffect(() => {
     setTransform({

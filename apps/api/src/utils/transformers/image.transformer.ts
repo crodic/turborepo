@@ -346,31 +346,45 @@ export class ImageTransformer {
    */
   private applyEffect(img: sharp.Sharp, params: ImageTransformOptions) {
     const { type, value } = params.effect;
-    const v = value ? Number(value) : null;
+    const v = this.toFiniteNumber(value);
 
     switch (type) {
       case 'blur':
-        return img.blur(v || 10);
+        return img.blur(this.clamp(v ?? 10, 0.3, 1000));
       case 'pixelate':
         return img.resize({ width: 100 }).resize({
           width: null,
           height: null,
         });
       case 'sharpen':
-        return img.sharpen({ sigma: v || 10 });
+        return img.sharpen({ sigma: this.clamp(v ?? 10, 0.000001, 10000) });
       case 'grayscale':
         return img.grayscale();
       case 'brightness':
-        return img.modulate({ brightness: v || 1 });
+        return img.modulate({ brightness: this.clamp(v ?? 1, 0, 10) });
       case 'contrast':
-        return img.linear(v || 1);
+        return img.linear(this.clamp(v ?? 1, -10, 10));
       case 'gamma':
-        return img.gamma(v || 1);
+        return img.gamma(this.clamp(v ?? 1, 1, 3));
       case 'colorize':
         return img.tint('#ffffff');
       default:
         return img;
     }
+  }
+
+  private toFiniteNumber(value: string | number | null | undefined) {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+
+    const parsed = Number(value);
+
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private clamp(value: number, min: number, max: number) {
+    return Math.min(max, Math.max(min, value));
   }
 
   /**

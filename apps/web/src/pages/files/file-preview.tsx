@@ -43,13 +43,11 @@ export function FilePreviewThumbnail({
   file: FileSchema
   className?: string
 }) {
-  const previewUrl = useAuthenticatedFileUrl(file.url)
-
   if (isPreviewableVideo(file)) {
     return (
       <div className={cn('relative size-full overflow-hidden', className)}>
         <video
-          src={previewUrl}
+          src={file.url}
           className='size-full object-cover'
           muted
           playsInline
@@ -65,7 +63,7 @@ export function FilePreviewThumbnail({
   if (isPreviewableImage(file)) {
     return (
       <img
-        src={previewUrl}
+        src={file.url}
         alt={file.original_name}
         className={cn('size-full object-cover', className)}
         loading='lazy'
@@ -83,7 +81,7 @@ export function FilePreviewDetail({
   file: FileSchema
   url?: string
 }) {
-  const previewUrl = useAuthenticatedFileUrl(url ?? file.url)
+  const previewUrl = url ?? file.url
 
   if (isPreviewableVideo(file)) {
     return (
@@ -112,13 +110,4 @@ export function FilePreviewDetail({
 
 function getFileExtension(value: string) {
   return value.split('?')[0]?.split('.').pop()?.toLowerCase() ?? ''
-}
-
-export function getAuthenticatedFileUrl(url: string, token?: string) {
-  void token
-  return url
-}
-
-function useAuthenticatedFileUrl(url: string) {
-  return getAuthenticatedFileUrl(url)
 }

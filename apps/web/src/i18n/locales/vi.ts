@@ -81,6 +81,13 @@ export default {
   'files.upload.selected': 'Đã chọn {{count}} tệp',
   'files.upload.failed': 'Tải tệp thất bại',
   'files.upload.sizeLimitError': '{{name}} vượt quá giới hạn tải lên {{size}}.',
+  'files.upload.disk': 'Ổ lưu trữ',
+  'files.upload.diskPublic': 'Public',
+  'files.upload.diskLocal': 'Local (riêng tư)',
+  'files.upload.diskPublicHelp':
+    'File public được lưu trên local public disk và có thể mở trực tiếp bằng URL.',
+  'files.upload.diskLocalHelp':
+    'File local được lưu trên local private disk. Preview và download cần phiên đăng nhập admin hoặc user.',
   'files.move.title': 'Di chuyển tệp',
   'files.delete.title': 'Xóa tệp',
   'files.delete.description':

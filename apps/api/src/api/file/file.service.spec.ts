@@ -298,9 +298,10 @@ describe('FileService', () => {
       size: 4,
     } as Express.Multer.File);
 
-    expect(storageService.disk).toHaveBeenCalledWith();
+    expect(storageService.disk).toHaveBeenCalledWith('local');
     expect(repository.create).toHaveBeenCalledWith(
       expect.objectContaining({
+        disk: 'local',
         path: expect.stringMatching(/^image\/.+\.jpg$/),
       }),
     );
@@ -382,6 +383,7 @@ describe('FileService', () => {
         expect.objectContaining({
           original_name: 'hello.txt',
           folder: 'docs',
+          disk: 'public',
           mime: 'text/plain',
           size: 11,
           resource_type: 'raw',

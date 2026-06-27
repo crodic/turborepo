@@ -39,7 +39,13 @@ export class FileStorageAccessGuard extends AuthGuard([
       return true;
     }
 
-    return super.canActivate(context) as boolean | Promise<boolean>;
+    if (this.cls.isActive()) {
+      return super.canActivate(context) as boolean | Promise<boolean>;
+    }
+
+    return this.cls.run(
+      () => super.canActivate(context) as boolean | Promise<boolean>,
+    );
   }
 
   handleRequest(err, user, info, context: ExecutionContext) {
@@ -49,7 +55,10 @@ export class FileStorageAccessGuard extends AuthGuard([
 
     const request = context.switchToHttp().getRequest();
     request.user = user;
-    this.cls.set('user', user);
+
+    if (this.cls.isActive()) {
+      this.cls.set('user', user);
+    }
 
     return user;
   }

@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  IsIn,
   IsInt,
   IsMimeType,
   IsOptional,
@@ -31,6 +32,10 @@ export class CreateChunkUploadSessionDto {
   @Min(1)
   @Max(FILE_UPLOAD_MAX_SIZE)
   size: number;
+
+  @IsOptional()
+  @IsIn(['local', 'public'])
+  disk?: string;
 
   @IsOptional()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))

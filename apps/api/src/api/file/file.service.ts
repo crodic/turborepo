@@ -50,6 +50,7 @@ type ChunkUploadSession = {
   originalName: string;
   mime: string;
   size: number;
+  disk: string;
   folder: string | null;
   totalChunks: number;
   chunkSize: number;
@@ -88,6 +89,22 @@ export class FileService {
 
   private get currentDiskName(): string {
     return (this.storage.config?.default as string | undefined) ?? 'public';
+  }
+
+  private writeDisk(disk?: string | null): StorageDriver {
+    return this.storage.disk(disk || this.currentDiskName);
+  }
+
+  private normalizeUploadDisk(disk?: string | null): string {
+    const targetDisk = disk || this.currentDiskName;
+
+    if (!['local', 'public'].includes(targetDisk)) {
+      throw new BadRequestException(
+        'Only local and public disks are supported',
+      );
+    }
+
+    return targetDisk;
   }
 
   private diskForFile(file: Pick<FileEntity, 'disk'>): StorageDriver {
@@ -278,6 +295,7 @@ export class FileService {
       originalName: dto.originalName,
       mime: dto.mime,
       size: dto.size,
+      disk: this.normalizeUploadDisk(dto.disk),
       folder: this.normalizeFolder(dto.folder),
       totalChunks: dto.totalChunks,
       chunkSize: dto.chunkSize,
@@ -374,17 +392,22 @@ export class FileService {
       throw new BadRequestException('Merged file size mismatch');
     }
 
-    await this.putStorageStream(storedPath, createReadStream(mergedPath), {
-      ContentType: session.mime,
-      visibility: 'public',
-    });
+    await this.putStorageStream(
+      storedPath,
+      createReadStream(mergedPath),
+      {
+        ContentType: session.mime,
+        visibility: 'public',
+      },
+      this.writeDisk(session.disk),
+    );
 
     const media = await this.createFileRecord({
       publicId,
       folder: session.folder,
       originalName: session.originalName,
       path: storedPath,
-      disk: this.currentDiskName,
+      disk: session.disk,
       mime: session.mime,
       size: fileStat.size,
       resourceType,
@@ -487,7 +510,7 @@ export class FileService {
     };
   }
 
-  async upload(file: Express.Multer.File, folder?: string) {
+  async upload(file: Express.Multer.File, folder?: string, disk?: string) {
     if (!file) {
       throw new HttpException('File not provided', HttpStatus.BAD_REQUEST);
     }
@@ -507,7 +530,8 @@ export class FileService {
       : resourceType;
     const storedPath = this.makeStorageKey(folderPath, `${publicId}.${ext}`);
 
-    await this.disk.put(storedPath, file.buffer, {
+    const uploadDiskName = this.normalizeUploadDisk(disk);
+    await this.writeDisk(uploadDiskName).put(storedPath, file.buffer, {
       ContentType: mime,
       visibility: 'public',
     });
@@ -517,7 +541,7 @@ export class FileService {
       folder: normalizedFolder,
       originalName: file.originalname,
       path: storedPath,
-      disk: this.currentDiskName,
+      disk: uploadDiskName,
       mime,
       size: file.size,
       resourceType,
@@ -848,9 +872,10 @@ export class FileService {
     path: string,
     stream: Readable,
     options: { visibility?: 'public' | 'private'; ContentType?: string },
+    disk: StorageDriver = this.disk,
   ): Promise<void> {
-    if (this.disk.putStream) {
-      await this.disk.putStream(path, stream, options);
+    if (disk.putStream) {
+      await disk.putStream(path, stream, options);
       return;
     }
 
@@ -858,6 +883,6 @@ export class FileService {
     for await (const chunk of stream) {
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     }
-    await this.disk.put(path, Buffer.concat(chunks), options);
+    await disk.put(path, Buffer.concat(chunks), options);
   }
 }

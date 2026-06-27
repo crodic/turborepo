@@ -14,10 +14,7 @@ import type { Request } from 'express';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Repository } from 'typeorm';
 import { getAuthCookieNames } from '../utils/auth-cookie.util';
-import {
-  extractCookieToken,
-  extractMediaQueryToken,
-} from '../utils/token-extractor.util';
+import { extractCookieToken } from '../utils/token-extractor.util';
 
 @Injectable()
 export class AdminJwtStrategy extends PassportStrategy(Strategy, 'admin-jwt') {
@@ -35,7 +32,6 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, 'admin-jwt') {
         ExtractJwt.fromAuthHeaderAsBearerToken(),
         (request: Request) =>
           extractCookieToken(request, getAuthCookieNames('admin').access),
-        extractMediaQueryToken,
       ]),
       secretOrKey: configService.getOrThrow<AllConfigType>('auth.secret', {
         infer: true,

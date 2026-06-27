@@ -6,15 +6,6 @@ export function extractCookieToken(request: Request, name: string) {
   return cookies[name] ?? null;
 }
 
-export function extractMediaQueryToken(request: Request) {
-  if (!request.path.startsWith('/storage/uploads')) {
-    return null;
-  }
-
-  const token = request.query.token;
-  return typeof token === 'string' ? token : null;
-}
-
 function parseCookies(cookieHeader?: string) {
   if (!cookieHeader) return {};
 
