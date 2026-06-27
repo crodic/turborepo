@@ -43,11 +43,13 @@ export function FilePreviewThumbnail({
   file: FileSchema
   className?: string
 }) {
+  const previewUrl = useAuthenticatedFileUrl(file.url)
+
   if (isPreviewableVideo(file)) {
     return (
       <div className={cn('relative size-full overflow-hidden', className)}>
         <video
-          src={file.url}
+          src={previewUrl}
           className='size-full object-cover'
           muted
           playsInline
@@ -63,7 +65,7 @@ export function FilePreviewThumbnail({
   if (isPreviewableImage(file)) {
     return (
       <img
-        src={file.url}
+        src={previewUrl}
         alt={file.original_name}
         className={cn('size-full object-cover', className)}
         loading='lazy'
@@ -74,11 +76,19 @@ export function FilePreviewThumbnail({
   return <FileIcon className='text-muted-foreground size-5' />
 }
 
-export function FilePreviewDetail({ file }: { file: FileSchema }) {
+export function FilePreviewDetail({
+  file,
+  url,
+}: {
+  file: FileSchema
+  url?: string
+}) {
+  const previewUrl = useAuthenticatedFileUrl(url ?? file.url)
+
   if (isPreviewableVideo(file)) {
     return (
       <video
-        src={file.url}
+        src={previewUrl}
         className='max-h-[min(520px,60dvh)] max-w-full rounded object-contain'
         controls
         playsInline
@@ -90,7 +100,7 @@ export function FilePreviewDetail({ file }: { file: FileSchema }) {
   if (isPreviewableImage(file)) {
     return (
       <img
-        src={file.url}
+        src={previewUrl}
         alt={file.original_name}
         className='max-h-[min(520px,60dvh)] max-w-full rounded object-contain'
       />
@@ -102,4 +112,13 @@ export function FilePreviewDetail({ file }: { file: FileSchema }) {
 
 function getFileExtension(value: string) {
   return value.split('?')[0]?.split('.').pop()?.toLowerCase() ?? ''
+}
+
+export function getAuthenticatedFileUrl(url: string, token?: string) {
+  void token
+  return url
+}
+
+function useAuthenticatedFileUrl(url: string) {
+  return getAuthenticatedFileUrl(url)
 }

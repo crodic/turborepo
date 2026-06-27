@@ -66,6 +66,7 @@ import { SessionResDto } from '../dto/session.res.dto';
 import { ProdOnlyThrottleGuard } from '../guards/ProdOnlyThrottle.guard';
 import { AdminAuthService } from '../services/admin-auth.service';
 import { JwtPayloadType } from '../types/jwt-payload.type';
+import { clearAuthCookies, setAuthCookies } from '../utils/auth-cookie.util';
 
 @ApiTags('Authentication')
 @Controller({
@@ -88,11 +89,19 @@ export class AdminAuthenticationController {
   async login(
     @Body() adminUserLogin: AdminUserLoginReqDto,
     @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<AdminUserLoginResDto> {
-    return await this.adminAuthService.login(adminUserLogin, {
+    const result = await this.adminAuthService.login(adminUserLogin, {
       ipAddress: req.ip,
       userAgent: req.headers?.['user-agent'],
     });
+    setAuthCookies({
+      res,
+      configService: this.configService,
+      prefix: 'admin',
+      tokens: result,
+    });
+    return result;
   }
 
   @ApiPublic({
@@ -104,11 +113,19 @@ export class AdminAuthenticationController {
   async verifyTwoFactorLogin(
     @Body() dto: VerifyTwoFactorLoginReqDto,
     @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<AdminUserLoginResDto> {
-    return this.adminAuthService.verifyTwoFactorLogin(dto, {
+    const result = await this.adminAuthService.verifyTwoFactorLogin(dto, {
       ipAddress: req.ip,
       userAgent: req.headers?.['user-agent'],
     });
+    setAuthCookies({
+      res,
+      configService: this.configService,
+      prefix: 'admin',
+      tokens: result,
+    });
+    return result;
   }
 
   @ApiPublic({
@@ -129,8 +146,18 @@ export class AdminAuthenticationController {
   })
   @SkipThrottle()
   @Post('refresh')
-  async refresh(@Body() dto: RefreshReqDto): Promise<RefreshResDto> {
-    return await this.adminAuthService.refreshToken(dto);
+  async refresh(
+    @Body() dto: RefreshReqDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<RefreshResDto> {
+    const result = await this.adminAuthService.refreshToken(dto);
+    setAuthCookies({
+      res,
+      configService: this.configService,
+      prefix: 'admin',
+      tokens: result,
+    });
+    return result;
   }
 
   @ApiAuthOptional({
@@ -141,9 +168,19 @@ export class AdminAuthenticationController {
   @SkipThrottle()
   @SkipPolicies()
   @Post('logout')
-  async logout(@CurrentUser() userToken?: JwtPayloadType): Promise<void> {
+  async logout(
+    @CurrentUser() userToken?: JwtPayloadType,
+    @Res({ passthrough: true }) res?: Response,
+  ): Promise<void> {
     if (userToken) {
       await this.adminAuthService.logout(userToken);
+    }
+    if (res) {
+      clearAuthCookies({
+        res,
+        configService: this.configService,
+        prefix: 'admin',
+      });
     }
   }
 

@@ -9,6 +9,7 @@ export class CreateFilesTable1771203054787 implements MigrationInterface {
                 "id" BIGSERIAL NOT NULL,
                 "public_id" character varying NOT NULL,
                 "folder" character varying,
+                "disk" character varying,
                 "original_name" character varying NOT NULL,
                 "path" character varying NOT NULL,
                 "hash" character varying NOT NULL,

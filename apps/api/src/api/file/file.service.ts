@@ -1,13 +1,7 @@
-import { Storage } from '@/constants/app.constant';
-import { InjectDisk } from '@/libs/filesystem/decorators';
 import { StorageDriver } from '@/libs/filesystem/lib/file-storage.interface';
-import {
-  applyFormat,
-  extractExt,
-  fullDiskPath,
-  removeDiskPath,
-  storagePath,
-} from '@/utils/filesystem';
+import { FileStorageService } from '@/libs/filesystem/lib/file-storage.service';
+import { applyFormat, extractExt, removeDiskPath } from '@/utils/filesystem';
+import { ImageTransformer } from '@/utils/transformers/image.transformer';
 import {
   BadRequestException,
   HttpException,
@@ -27,8 +21,9 @@ import {
   Paginated,
   PaginateQuery,
 } from 'nestjs-paginate';
-import { dirname, join } from 'path';
+import { dirname, join, posix as posixPath } from 'path';
 import sharp from 'sharp';
+import { type Readable } from 'stream';
 import { finished } from 'stream/promises';
 import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
@@ -41,6 +36,7 @@ import { FileResDto } from './dto/file.res.dto';
 import { FileFolderResDto } from './dto/folder.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
 import { FileEntity } from './entities/file.entity';
+import { TransformationParser } from './parsers/transformation.parser';
 import { UploadFileOptions, UploadImageOptions } from './types/upload.types';
 import {
   FILE_FOLDER_NAME_MESSAGE,
@@ -61,19 +57,42 @@ type ChunkUploadSession = {
   createdAt: string;
 };
 
+type StoredFileStream = {
+  stream: Readable;
+  mime: string;
+  size: number;
+};
+
+type TransformedFile = {
+  buffer: Buffer;
+  mime: string;
+  size: number;
+};
+
 @Injectable()
 export class FileService {
-  private readonly disk: Storage = Storage.PUBLIC;
-
   private readonly logger = new Logger(FileService.name);
 
   constructor(
     @InjectRepository(FileEntity)
     private readonly fileRepository: Repository<FileEntity>,
     private readonly fileValidator: FileValidator,
-    @InjectDisk('public')
-    private readonly localDisk: StorageDriver,
+    private readonly storage: FileStorageService,
+    private readonly transformationParser: TransformationParser,
+    private readonly imageTransformer: ImageTransformer,
   ) {}
+
+  private get disk(): StorageDriver {
+    return this.storage.disk();
+  }
+
+  private get currentDiskName(): string {
+    return (this.storage.config?.default as string | undefined) ?? 'public';
+  }
+
+  private diskForFile(file: Pick<FileEntity, 'disk'>): StorageDriver {
+    return this.storage.disk(file.disk ?? 'public');
+  }
 
   async findAll(query: PaginateQuery): Promise<Paginated<FileResDto>> {
     const queryBuilder = this.fileRepository.createQueryBuilder('file');
@@ -84,6 +103,7 @@ export class FileService {
         'public_id',
         'original_name',
         'folder',
+        'disk',
         'mime',
         'size',
         'resource_type',
@@ -91,12 +111,19 @@ export class FileService {
         'createdAt',
         'updatedAt',
       ],
-      searchableColumns: ['public_id', 'original_name', 'folder', 'mime'],
+      searchableColumns: [
+        'public_id',
+        'original_name',
+        'folder',
+        'disk',
+        'mime',
+      ],
       defaultSortBy: [['createdAt', 'DESC']],
       filterableColumns: {
         public_id: [FilterOperator.EQ],
         original_name: [FilterOperator.ILIKE],
         folder: [FilterOperator.EQ, FilterOperator.ILIKE],
+        disk: [FilterOperator.EQ, FilterOperator.IN],
         mime: [FilterOperator.ILIKE],
         resource_type: [FilterOperator.EQ, FilterOperator.IN],
         status: [FilterOperator.EQ, FilterOperator.IN],
@@ -219,7 +246,9 @@ export class FileService {
 
     if (deleteFiles) {
       await Promise.allSettled(
-        files.map((file) => this.localDisk.delete(file.path)),
+        files.map((file) =>
+          this.diskForFile(file).delete(this.toStorageKey(file.path)),
+        ),
       );
       await this.fileRepository.delete({ folder: targetFolder });
     }
@@ -319,16 +348,13 @@ export class FileService {
     const publicId = uuidv4().replace(/-/g, '').slice(0, 20);
     const ext = session.originalName.split('.').pop() || 'bin';
     const folderPath = session.folder
-      ? join(resourceType, session.folder)
-      : join(resourceType);
-    const storedPath = join(
-      this.localDisk.getDiskRoot(),
-      folderPath,
-      `${publicId}.${ext}`,
-    );
+      ? posixPath.join(resourceType, session.folder)
+      : resourceType;
+    const storedPath = this.makeStorageKey(folderPath, `${publicId}.${ext}`);
+    const mergedPath = join(this.sessionPath(sessionId), 'merged');
 
-    await mkdir(dirname(storedPath), { recursive: true });
-    const target = createWriteStream(storedPath);
+    await mkdir(dirname(mergedPath), { recursive: true });
+    const target = createWriteStream(mergedPath);
 
     try {
       for (let index = 0; index < session.totalChunks; index++) {
@@ -342,20 +368,27 @@ export class FileService {
 
     await finished(target);
 
-    const fileStat = await stat(storedPath);
+    const fileStat = await stat(mergedPath);
     if (fileStat.size !== session.size) {
-      await rm(storedPath, { force: true });
+      await rm(mergedPath, { force: true });
       throw new BadRequestException('Merged file size mismatch');
     }
+
+    await this.putStorageStream(storedPath, createReadStream(mergedPath), {
+      ContentType: session.mime,
+      visibility: 'public',
+    });
 
     const media = await this.createFileRecord({
       publicId,
       folder: session.folder,
       originalName: session.originalName,
       path: storedPath,
+      disk: this.currentDiskName,
       mime: session.mime,
       size: fileStat.size,
       resourceType,
+      metadataPath: mergedPath,
     });
 
     await this.abortUploadSession(sessionId);
@@ -375,7 +408,7 @@ export class FileService {
     resourceType: string,
     publicId: string,
     ext: string,
-  ): Promise<string> {
+  ): Promise<StoredFileStream> {
     const media = await this.fileRepository.findOneByOrFail({
       public_id: publicId,
     });
@@ -384,18 +417,74 @@ export class FileService {
       throw new HttpException('Invalid resource type', HttpStatus.NOT_FOUND);
     }
 
-    const actualExt = media.path.split('.').pop();
+    const storageKey = this.toStorageKey(media.path);
+    const disk = this.diskForFile(media);
+    const actualExt = storageKey.split('.').pop();
     if (actualExt !== ext) {
       throw new HttpException('Extension mismatch', HttpStatus.NOT_FOUND);
     }
 
-    const absPath = this.resolveStoredPath(media.path);
-
-    if (!existsSync(absPath)) {
+    const exists = await disk.exists(storageKey);
+    if (!exists) {
       throw new HttpException('File not found', HttpStatus.NOT_FOUND);
     }
 
-    return absPath;
+    return {
+      stream: disk.createReadStream(storageKey),
+      mime: media.mime,
+      size: media.size,
+    };
+  }
+
+  async transform(
+    resourceType: string,
+    transformations: string,
+    publicId: string,
+    ext: string,
+  ): Promise<TransformedFile> {
+    const media = await this.fileRepository.findOneByOrFail({
+      public_id: publicId,
+    });
+
+    if (media.resource_type !== resourceType) {
+      throw new HttpException('Invalid resource type', HttpStatus.NOT_FOUND);
+    }
+
+    const storageKey = this.toStorageKey(media.path);
+    const disk = this.diskForFile(media);
+    const actualExt = storageKey.split('.').pop();
+    if (actualExt !== ext) {
+      throw new HttpException('Extension mismatch', HttpStatus.NOT_FOUND);
+    }
+
+    if (media.resource_type !== 'image') {
+      throw new BadRequestException('Only image transformations are supported');
+    }
+
+    const exists = await disk.exists(storageKey);
+    if (!exists) {
+      throw new HttpException('File not found', HttpStatus.NOT_FOUND);
+    }
+
+    const buffer = await disk.get(storageKey);
+    const params = this.transformationParser.parse(transformations);
+    params.format ??= this.normalizeImageFormat(ext);
+    const transformed = await this.imageTransformer.transform(
+      {
+        buffer,
+        mimetype: media.mime,
+        originalname: media.original_name,
+        fieldname: 'file',
+        size: media.size,
+      } as Express.Multer.File,
+      params,
+    );
+
+    return {
+      buffer: transformed.buffer,
+      mime: this.getImageMime(transformed.format),
+      size: transformed.size,
+    };
   }
 
   async upload(file: Express.Multer.File, folder?: string) {
@@ -414,21 +503,21 @@ export class FileService {
     const ext = file.originalname.split('.').pop();
     const normalizedFolder = this.normalizeFolder(folder);
     const folderPath = normalizedFolder
-      ? join(resourceType, normalizedFolder)
-      : join(resourceType);
+      ? posixPath.join(resourceType, normalizedFolder)
+      : resourceType;
+    const storedPath = this.makeStorageKey(folderPath, `${publicId}.${ext}`);
 
-    const disk = this.localDisk.getDiskRoot();
-    const storedPath = join(disk, folderPath, `${publicId}.${ext}`);
-
-    this.localDisk.put(storedPath, file.buffer);
-
-    // this.storage.getDisk(Storage.PUBLIC).put(storedPath, file.buffer);
+    await this.disk.put(storedPath, file.buffer, {
+      ContentType: mime,
+      visibility: 'public',
+    });
 
     const media = await this.createFileRecord({
       publicId,
       folder: normalizedFolder,
       originalName: file.originalname,
       path: storedPath,
+      disk: this.currentDiskName,
       mime,
       size: file.size,
       resourceType,
@@ -445,7 +534,7 @@ export class FileService {
       public_id: publicId,
     });
 
-    await this.localDisk.delete(file.path);
+    await this.diskForFile(file).delete(this.toStorageKey(file.path));
 
     await this.fileRepository.delete({ public_id: publicId });
 
@@ -485,14 +574,15 @@ export class FileService {
     }
 
     const buffer = await img.toBuffer();
-    const targetPath = folder ? `${folder}/${filename}` : filename;
-    const disk = this.localDisk.getDiskRoot();
-    const storedPath = join(disk, targetPath);
+    const targetPath = this.makeStorageKey(folder, filename);
 
-    await this.localDisk.put(storedPath, buffer);
+    await this.disk.put(targetPath, buffer, {
+      ContentType: `image/${ext}`,
+      visibility: 'public',
+    });
 
     const result = {
-      original: storagePath(this.disk, targetPath),
+      original: await this.getStorageUrl(targetPath),
       sizes: {} as Record<string, string>,
       thumbnail: null as string | null,
     };
@@ -505,15 +595,14 @@ export class FileService {
 
       const sizeBuffer = await sharp(file.buffer).resize(size.width).toBuffer();
 
-      await this.localDisk.put(
-        join(disk, `${resizedFolder}/${resizedName}`),
-        sizeBuffer,
-      );
+      const resizedPath = this.makeStorageKey(resizedFolder, resizedName);
 
-      result.sizes[size.name] = storagePath(
-        Storage.PUBLIC,
-        `${resizedFolder}/${resizedName}`,
-      );
+      await this.disk.put(resizedPath, sizeBuffer, {
+        ContentType: `image/${ext}`,
+        visibility: 'public',
+      });
+
+      result.sizes[size.name] = await this.getStorageUrl(resizedPath);
     }
 
     // Thumbnail
@@ -525,15 +614,14 @@ export class FileService {
         .resize(Number(thumbnailWidth))
         .toBuffer();
 
-      await this.localDisk.put(
-        join(disk, `${thumbFolder}/${thumbName}`),
-        thumbnailBuffer,
-      );
+      const thumbnailPath = this.makeStorageKey(thumbFolder, thumbName);
 
-      result.thumbnail = storagePath(
-        Storage.PUBLIC,
-        `${thumbFolder}/${thumbName}`,
-      );
+      await this.disk.put(thumbnailPath, thumbnailBuffer, {
+        ContentType: `image/${ext}`,
+        visibility: 'public',
+      });
+
+      result.thumbnail = await this.getStorageUrl(thumbnailPath);
     }
 
     return result;
@@ -551,11 +639,15 @@ export class FileService {
       ? `${Date.now()}-${base}.${ext}`
       : file.originalname;
 
-    const disk = this.localDisk.getDiskRoot();
-    await this.localDisk.put(join(disk, `${folder}/${filename}`), file.buffer);
+    const storedPath = this.makeStorageKey(folder, filename);
+
+    await this.disk.put(storedPath, file.buffer, {
+      ContentType: file.mimetype,
+      visibility: 'public',
+    });
 
     return {
-      path: storagePath(Storage.PUBLIC, `${folder}/${filename}`),
+      path: await this.getStorageUrl(storedPath),
       size: file.size,
       mimeType: file.mimetype,
     };
@@ -594,35 +686,28 @@ export class FileService {
     return normalized;
   }
 
-  private resolveStoredPath(path: string): string {
-    const relativePath = removeDiskPath(path);
-    const directPath = join(process.cwd(), path);
-
-    if (existsSync(directPath)) {
-      return directPath;
-    }
-
-    return fullDiskPath(this.disk, relativePath);
-  }
-
   private async createFileRecord({
     publicId,
     folder,
+    disk,
     originalName,
     path,
     mime,
     size,
     resourceType,
     buffer,
+    metadataPath,
   }: {
     publicId: string;
     folder: string | null;
+    disk: string;
     originalName: string;
     path: string;
     mime: string;
     size: number;
     resourceType: string;
     buffer?: Buffer;
+    metadataPath?: string;
   }): Promise<FileEntity> {
     let width: number | null = null;
     let height: number | null = null;
@@ -631,7 +716,7 @@ export class FileService {
       try {
         const meta = buffer
           ? await sharp(buffer).metadata()
-          : await sharp(path).metadata();
+          : await sharp(metadataPath ?? path).metadata();
         width = meta.width ?? null;
         height = meta.height ?? null;
       } catch (err) {
@@ -642,6 +727,7 @@ export class FileService {
     const media = this.fileRepository.create({
       public_id: publicId,
       folder,
+      disk,
       original_name: originalName,
       path,
       hash: this.generateHash(),
@@ -658,7 +744,7 @@ export class FileService {
   }
 
   private uploadSessionsRoot(): string {
-    return join(this.localDisk.getDiskRoot(), '.chunks');
+    return join(process.cwd(), 'storage', 'tmp', 'file-uploads');
   }
 
   private sessionPath(sessionId: string): string {
@@ -703,5 +789,75 @@ export class FileService {
     if (mime.includes('image')) return 'image';
     if (mime.includes('video')) return 'video';
     return 'raw';
+  }
+
+  private getImageMime(format: string): string {
+    switch (format) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'jpg':
+      case 'jpeg':
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  private normalizeImageFormat(ext: string): string {
+    const normalized = ext.toLowerCase();
+
+    return normalized === 'jpeg' ? 'jpg' : normalized;
+  }
+
+  private makeStorageKey(...parts: Array<string | null | undefined>): string {
+    return posixPath
+      .join(
+        ...parts
+          .filter((part): part is string => Boolean(part))
+          .map((part) => part.replace(/\\/g, '/')),
+      )
+      .replace(/^\/+/, '');
+  }
+
+  private toStorageKey(path: string): string {
+    const normalized = path.replace(/\\/g, '/');
+    const legacyPrefixes = ['storage/public/', 'storage/private/'];
+    const legacyPrefix = legacyPrefixes.find((prefix) =>
+      normalized.includes(prefix),
+    );
+
+    if (legacyPrefix) {
+      return normalized.slice(
+        normalized.indexOf(legacyPrefix) + legacyPrefix.length,
+      );
+    }
+
+    return removeDiskPath(normalized).replace(/^\/+/, '');
+  }
+
+  private async getStorageUrl(path: string): Promise<string> {
+    if (this.disk.url) {
+      return this.disk.url(path);
+    }
+
+    return path;
+  }
+
+  private async putStorageStream(
+    path: string,
+    stream: Readable,
+    options: { visibility?: 'public' | 'private'; ContentType?: string },
+  ): Promise<void> {
+    if (this.disk.putStream) {
+      await this.disk.putStream(path, stream, options);
+      return;
+    }
+
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    await this.disk.put(path, Buffer.concat(chunks), options);
   }
 }

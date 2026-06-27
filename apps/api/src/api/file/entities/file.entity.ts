@@ -23,6 +23,9 @@ export class FileEntity {
   @Column({ type: 'varchar', nullable: true })
   folder: string | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  disk: string | null;
+
   @Column()
   original_name: string;
 
