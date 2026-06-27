@@ -17,6 +17,7 @@ import {
   UsersIcon,
   XCircleIcon,
 } from 'lucide-react'
+import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router'
 import http from '@/lib/http'
 import { useSocket } from '@/context/socket-context'
@@ -340,6 +341,11 @@ export function Dashboard() {
 
   return (
     <>
+      <Helmet>
+        <title>Dashboard</title>
+        <meta name='description' content='Dashboard' />
+      </Helmet>
+
       {/* ===== Top Heading ===== */}
       <Header fixed>
         <div className='ms-auto flex items-center space-x-4'>

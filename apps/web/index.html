@@ -2,12 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link
-      rel="icon"
-      type="image/png"
-      href="/images/favicon.png"
-      media="(prefers-color-scheme: light)"
-    />
+    <link rel="icon" type="image/png" href="/images/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- Primary Meta Tags -->
@@ -47,6 +42,83 @@
     />
 
     <meta name="theme-color" content="#fff" />
+    <script>
+      ;(() => {
+        try {
+          const defaults = {
+            title: 'ADMIN DASHBOARD',
+            description: 'Admin Dashboard UI built with Shadcn and Vite.',
+            favicon: '/images/favicon.png',
+          }
+          const raw = localStorage.getItem('website_settings_cache')
+          const settings = raw ? JSON.parse(raw) : null
+          const title =
+            settings?.site_title?.trim() ||
+            settings?.site_brand?.trim() ||
+            defaults.title
+          const description =
+            settings?.site_tagline?.trim() || defaults.description
+          const favicon = settings?.site_favicon || defaults.favicon
+          const setMeta = (
+            selector,
+            attributeName,
+            attributeValue,
+            content
+          ) => {
+            let meta = document.head.querySelector(selector)
+
+            if (!meta) {
+              meta = document.createElement('meta')
+              meta.setAttribute(attributeName, attributeValue)
+              document.head.appendChild(meta)
+            }
+
+            meta.content = content
+          }
+          const icons = Array.from(
+            document.head.querySelectorAll('link[rel~="icon"]')
+          )
+          const icon = icons[0] || document.createElement('link')
+
+          document.title = title
+          setMeta('meta[name="title"]', 'name', 'title', title)
+          setMeta(
+            'meta[name="description"]',
+            'name',
+            'description',
+            description
+          )
+          setMeta('meta[property="og:title"]', 'property', 'og:title', title)
+          setMeta(
+            'meta[property="og:description"]',
+            'property',
+            'og:description',
+            description
+          )
+          setMeta(
+            'meta[property="twitter:title"]',
+            'property',
+            'twitter:title',
+            title
+          )
+          setMeta(
+            'meta[property="twitter:description"]',
+            'property',
+            'twitter:description',
+            description
+          )
+
+          icon.rel = 'icon'
+          icon.href = favicon
+          icon.type = favicon.endsWith('.ico') ? 'image/x-icon' : 'image/png'
+          icons.slice(1).forEach((extraIcon) => extraIcon.remove())
+
+          if (!icon.parentElement) {
+            document.head.appendChild(icon)
+          }
+        } catch {}
+      })()
+    </script>
     <script>
       ;(() => {
         try {
