@@ -8,7 +8,6 @@ import {
 import { AxiosError } from 'axios'
 import { format } from 'date-fns'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import type { Table as TanstackTable } from '@tanstack/react-table'
 import {
   FileIcon,
   Folder,
@@ -69,6 +68,7 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { formatBytes, getFilesTableColumns } from './columns'
 import { FilePickerDialog } from './file-picker-dialog'
 import { FilePreviewDetail } from './file-preview'
+import { FilesTableActionBar } from './file-table-action-bar'
 import {
   apiCreateFolder,
   apiDeleteFile,
@@ -341,10 +341,10 @@ export function PageFileOverview() {
             onClickRowAction={setPreviewFile}
             isFetching={isFetching}
             actionBar={
-              <FilesBulkActionBar
+              <FilesTableActionBar
                 table={table}
-                disabled={bulkDeleteFileMutation.isPending}
                 onDelete={(files) => setBulkDeletingFiles(files)}
+                disabled={ability.can('delete', 'FILE') === false}
               />
             }
           >
@@ -469,50 +469,6 @@ export function PageFileOverview() {
         }}
       />
     </>
-  )
-}
-
-function FilesBulkActionBar({
-  table,
-  disabled,
-  onDelete,
-}: {
-  table: TanstackTable<FileSchema>
-  disabled: boolean
-  onDelete: (files: FileSchema[]) => void
-}) {
-  const { t } = useTranslation()
-  const selectedFiles = table
-    .getFilteredSelectedRowModel()
-    .rows.map((row) => row.original)
-
-  if (selectedFiles.length === 0) return null
-
-  return (
-    <div className='bg-background flex flex-wrap items-center justify-between gap-2 rounded-md border p-2 shadow-sm'>
-      <p className='text-muted-foreground px-2 text-sm'>
-        {t('files.bulk.selected', { count: selectedFiles.length })}
-      </p>
-      <div className='flex items-center gap-2'>
-        <Button
-          variant='outline'
-          size='sm'
-          disabled={disabled}
-          onClick={() => table.resetRowSelection()}
-        >
-          {t('buttons.cancel')}
-        </Button>
-        <Button
-          variant='destructive'
-          size='sm'
-          disabled={disabled}
-          onClick={() => onDelete(selectedFiles)}
-        >
-          <Trash2 className='size-4' />
-          {t('files.bulk.delete')}
-        </Button>
-      </div>
-    </div>
   )
 }
 
