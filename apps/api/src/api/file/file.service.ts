@@ -111,6 +111,17 @@ export class FileService {
     return this.storage.disk(file.disk ?? 'public');
   }
 
+  private async deleteStoredFileIfExists(
+    file: Pick<FileEntity, 'disk' | 'path'>,
+  ) {
+    const disk = this.diskForFile(file);
+    const storageKey = this.toStorageKey(file.path);
+
+    if (await disk.exists(storageKey)) {
+      await disk.delete(storageKey);
+    }
+  }
+
   async findAll(query: PaginateQuery): Promise<Paginated<FileResDto>> {
     const queryBuilder = this.fileRepository.createQueryBuilder('file');
 
@@ -558,7 +569,7 @@ export class FileService {
       public_id: publicId,
     });
 
-    await this.diskForFile(file).delete(this.toStorageKey(file.path));
+    await this.deleteStoredFileIfExists(file);
 
     await this.fileRepository.delete({ public_id: publicId });
 

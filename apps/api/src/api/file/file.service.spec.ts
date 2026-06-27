@@ -280,6 +280,23 @@ describe('FileService', () => {
     expect(repository.delete).toHaveBeenCalledWith({ folder: 'avatars' });
   });
 
+  it('deletes the database record when the stored file is already missing', async () => {
+    repository.findOneByOrFail.mockResolvedValue({
+      public_id: 'missing-file',
+      path: 'image/missing-file.png',
+      disk: 'public',
+    });
+    disk.exists.mockResolvedValue(false);
+
+    await expect(service.delete('missing-file')).resolves.toEqual({
+      message: 'Successfully deleted',
+    });
+    expect(disk.delete).not.toHaveBeenCalled();
+    expect(repository.delete).toHaveBeenCalledWith({
+      public_id: 'missing-file',
+    });
+  });
+
   it('stores managed media on the configured default disk', async () => {
     storageService.config.default = 'local';
     repository.create.mockImplementation((value) => value);

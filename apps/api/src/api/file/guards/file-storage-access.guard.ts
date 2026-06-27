@@ -39,6 +39,8 @@ export class FileStorageAccessGuard extends AuthGuard([
       return true;
     }
 
+    this.applyMediaQueryToken(request);
+
     if (this.cls.isActive()) {
       return super.canActivate(context) as boolean | Promise<boolean>;
     }
@@ -61,5 +63,22 @@ export class FileStorageAccessGuard extends AuthGuard([
     }
 
     return user;
+  }
+
+  private applyMediaQueryToken(request: {
+    query?: Record<string, unknown>;
+    headers: Record<string, unknown>;
+  }) {
+    const token = request.query?.token;
+
+    if (
+      typeof token !== 'string' ||
+      token.trim() === '' ||
+      request.headers.authorization
+    ) {
+      return;
+    }
+
+    request.headers.authorization = `Bearer ${token}`;
   }
 }

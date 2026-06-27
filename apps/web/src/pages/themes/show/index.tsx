@@ -20,6 +20,7 @@ import {
   setCachedRuntimeTheme,
 } from '@/lib/runtime-theme/runtime-theme'
 import type { ThemeMode } from '@/lib/theme-builder/default-theme'
+import { useTheme } from '@/context/theme-provider'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,6 +73,7 @@ export default function PageThemeShow() {
   const canUpdate = ability.can('update', 'THEME')
   const [runtimeAction, setRuntimeAction] = useState<RuntimeAction | null>(null)
   const [previewMode, setPreviewMode] = useState<ThemeMode>('light')
+  const { setColorKey, clearPersonalColor } = useTheme()
 
   const statusMutation = useMutation({
     mutationFn: apiUpdateThemeStatus,
@@ -117,6 +119,8 @@ export default function PageThemeShow() {
         setCachedRuntimeTheme(updatedTheme)
         if (!hasPersonalThemeColor()) {
           applyRuntimeTheme(updatedTheme)
+        } else {
+          clearPersonalColor()
         }
       }
 
@@ -144,6 +148,7 @@ export default function PageThemeShow() {
         setCachedRuntimeTheme(null)
         if (!hasPersonalThemeColor()) {
           clearRuntimeThemeStyles()
+          setColorKey('neutral')
         }
       }
 
