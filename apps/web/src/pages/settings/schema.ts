@@ -84,6 +84,15 @@ export const websiteSettingsSchema = z.object({
   site_brand: z.string().max(80).optional(),
   site_title: z.string().max(120).optional(),
   site_tagline: z.string().max(200).optional(),
+  meta_title: z.string().max(120).optional(),
+  meta_description: z.string().max(200).optional(),
+  canonical_url: z.string().max(300).nullish(),
+  og_title: z.string().max(120).optional(),
+  og_description: z.string().max(300).optional(),
+  og_image: z.string().nullish(),
+  twitter_title: z.string().max(120).optional(),
+  twitter_description: z.string().max(300).optional(),
+  twitter_image: z.string().nullish(),
   site_logo: z.string().nullish(),
   site_dark_logo: z.string().nullish(),
   site_favicon: z.string().nullish(),
@@ -96,12 +105,33 @@ export const websiteSettingsFormSchema = z.object({
   site_brand: z.string().max(80, 'Brand must be at most 80 characters'),
   site_title: z.string().max(120, 'Title must be at most 120 characters'),
   site_tagline: z.string().max(200, 'Tagline must be at most 200 characters'),
+  meta_title: z.string().max(120, 'Meta title must be at most 120 characters'),
+  meta_description: z
+    .string()
+    .max(200, 'Meta description must be at most 200 characters'),
+  canonical_url: z
+    .string()
+    .max(300, 'Canonical URL must be at most 300 characters'),
+  og_title: z.string().max(120, 'OG title must be at most 120 characters'),
+  og_description: z
+    .string()
+    .max(300, 'OG description must be at most 300 characters'),
+  twitter_title: z
+    .string()
+    .max(120, 'Twitter title must be at most 120 characters'),
+  twitter_description: z
+    .string()
+    .max(300, 'Twitter description must be at most 300 characters'),
   site_logo: optionalImageFileSchema,
   site_dark_logo: optionalImageFileSchema,
   site_favicon: optionalImageFileSchema,
+  og_image: optionalImageFileSchema,
+  twitter_image: optionalImageFileSchema,
   remove_site_logo: z.boolean(),
   remove_site_dark_logo: z.boolean(),
   remove_site_favicon: z.boolean(),
+  remove_og_image: z.boolean(),
+  remove_twitter_image: z.boolean(),
 })
 
 export type WebsiteSettingsFormSchema = z.infer<

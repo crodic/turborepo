@@ -84,6 +84,13 @@ export async function apiUpdateWebsiteSettings(
   formData.append('site_brand', data.site_brand ?? '')
   formData.append('site_title', data.site_title ?? '')
   formData.append('site_tagline', data.site_tagline ?? '')
+  formData.append('meta_title', data.meta_title ?? '')
+  formData.append('meta_description', data.meta_description ?? '')
+  formData.append('canonical_url', data.canonical_url ?? '')
+  formData.append('og_title', data.og_title ?? '')
+  formData.append('og_description', data.og_description ?? '')
+  formData.append('twitter_title', data.twitter_title ?? '')
+  formData.append('twitter_description', data.twitter_description ?? '')
   formData.append('remove_site_logo', String(data.remove_site_logo ?? false))
   formData.append(
     'remove_site_dark_logo',
@@ -92,6 +99,11 @@ export async function apiUpdateWebsiteSettings(
   formData.append(
     'remove_site_favicon',
     String(data.remove_site_favicon ?? false)
+  )
+  formData.append('remove_og_image', String(data.remove_og_image ?? false))
+  formData.append(
+    'remove_twitter_image',
+    String(data.remove_twitter_image ?? false)
   )
 
   if (data.site_logo instanceof File) {
@@ -104,6 +116,14 @@ export async function apiUpdateWebsiteSettings(
 
   if (data.site_favicon instanceof File) {
     formData.append('site_favicon', data.site_favicon)
+  }
+
+  if (data.og_image instanceof File) {
+    formData.append('og_image', data.og_image)
+  }
+
+  if (data.twitter_image instanceof File) {
+    formData.append('twitter_image', data.twitter_image)
   }
 
   const response = await http.post(

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Lock, LogOutIcon, PaletteIcon, UserCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import useDialogState from '@/hooks/use-dialog-state'
@@ -60,19 +61,27 @@ export function ProfileDropdown() {
           <DropdownMenuGroup>
             <DropdownMenuItem asChild>
               <Link to='/settings/account'>
+                <UserCheck />
                 {t('navigation.other.account')}
                 <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link to='/settings'>
-                {t('navigation.other.settings')}
-                <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
+              <Link to='/settings/appearance'>
+                <PaletteIcon />
+                {t('settings.appearance.title')}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to='/settings/password'>
+                <Lock />
+                {t('settings.password.title')}
               </Link>
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant='destructive' onClick={() => setOpen(true)}>
+            <LogOutIcon />
             {t('common.logout')}
             <DropdownMenuShortcut className='text-current'>
               ⇧⌘Q
