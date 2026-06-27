@@ -7,6 +7,7 @@ export enum AppSubjects {
   Email = 'EMAIL',
   EmailLog = 'EMAIL_LOG',
   Theme = 'THEME',
+  File = 'FILE',
 
   All = 'all',
 }
@@ -222,6 +223,36 @@ export const ALL_PERMISSIONS = [
     'Theme Management',
     'Publish themes',
     'Publish a theme as the runtime theme for the portal and client site.',
+  ),
+
+  // File
+  permissionMeta(
+    AppActions.Read,
+    AppSubjects.File,
+    'File Management',
+    'View files',
+    'View uploaded files and folder metadata.',
+  ),
+  permissionMeta(
+    AppActions.Create,
+    AppSubjects.File,
+    'File Management',
+    'Upload files',
+    'Upload files and create logical folders.',
+  ),
+  permissionMeta(
+    AppActions.Update,
+    AppSubjects.File,
+    'File Management',
+    'Update files',
+    'Move files between folders and update file metadata.',
+  ),
+  permissionMeta(
+    AppActions.Delete,
+    AppSubjects.File,
+    'File Management',
+    'Delete files',
+    'Delete uploaded files and empty logical folders.',
   ),
 
   // SUPER

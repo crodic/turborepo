@@ -15,6 +15,7 @@ interface DeleteAlertDialogProps {
   isLoading: boolean
   title?: string
   description?: string
+  translationValues?: Record<string, string>
   confirmText?: string
   cancelText?: string
   open: boolean
@@ -26,6 +27,7 @@ export function DeleteAlertDialog({
   isLoading,
   title = 'common.popup.deleteTitle',
   description = 'common.popup.deleteDescription',
+  translationValues,
   confirmText = 'buttons.delete',
   cancelText = 'buttons.cancel',
   open,
@@ -37,9 +39,11 @@ export function DeleteAlertDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t(title as any)}</AlertDialogTitle>
+          <AlertDialogTitle>
+            {t(title as any, translationValues)}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            {t(description as any)}
+            {t(description as any, translationValues)}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

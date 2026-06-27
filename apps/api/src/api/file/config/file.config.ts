@@ -1,6 +1,9 @@
 import { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
 import { memoryStorage } from 'multer';
 
+export const FILE_UPLOAD_MAX_SIZE = 500 * 1024 * 1024;
+export const FILE_UPLOAD_CHUNK_SIZE = 6 * 1024 * 1024;
+
 export const memoryStorageConfig: MulterOptions = {
   storage: memoryStorage(),
 };

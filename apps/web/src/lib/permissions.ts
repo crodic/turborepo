@@ -32,6 +32,10 @@ export const groupPermission = [
     permissions: ['create', 'read', 'update', 'delete', 'publish'],
   },
   {
+    group: 'FILE',
+    permissions: ['create', 'read', 'update', 'delete'],
+  },
+  {
     group: 'manage',
     permissions: ['all'],
   },
@@ -74,6 +78,12 @@ export const permissions = [
   { action: 'update', subject: 'THEME' },
   { action: 'delete', subject: 'THEME' },
   { action: 'publish', subject: 'THEME' },
+
+  // FILE
+  { action: 'create', subject: 'FILE' },
+  { action: 'read', subject: 'FILE' },
+  { action: 'update', subject: 'FILE' },
+  { action: 'delete', subject: 'FILE' },
 
   // SUPER
   { action: 'manage', subject: 'all' },

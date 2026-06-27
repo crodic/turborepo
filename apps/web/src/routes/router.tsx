@@ -23,6 +23,7 @@ import { GeneralError } from '@/pages/errors/general-error'
 import { MaintenanceError } from '@/pages/errors/maintenance-error'
 import { NotFoundError } from '@/pages/errors/not-found-error'
 import { UnauthorizedError } from '@/pages/errors/unauthorized-error'
+import { PageFileOverview } from '@/pages/files'
 import { PageHelpCenter } from '@/pages/help-center'
 import { PageImpersonationLogOverview } from '@/pages/impersonation-logs'
 import PageImpersonationLogShow from '@/pages/impersonation-logs/show'
@@ -292,6 +293,14 @@ const routes: RouteObject[] = [
             ),
           },
         ],
+      },
+      {
+        path: '/files',
+        element: (
+          <RouteAuthorize action='read' subject='FILE'>
+            <PageFileOverview />
+          </RouteAuthorize>
+        ),
       },
       {
         path: '/users',
