@@ -44,6 +44,8 @@ export default {
   'files.table.status': 'Status',
   'files.table.createdAt': 'Created At',
   'files.table.actions': 'Actions',
+  'files.table.selectAll': 'Select all files on this page',
+  'files.table.selectRow': 'Select file',
   'files.filters.name': 'Search by name...',
   'files.filters.folder': 'Search by folder...',
   'files.filters.mime': 'Search by MIME...',
@@ -54,6 +56,8 @@ export default {
   'files.actions.delete': 'Delete',
   'files.actions.open': 'Open file',
   'files.actions.createFolder': 'Create folder',
+  'files.bulk.selected': '{{count}} file(s) selected',
+  'files.bulk.delete': 'Delete selected',
   'files.folders.title': 'Folders',
   'files.folders.all': 'All files',
   'files.folders.root': 'Root',
@@ -83,6 +87,10 @@ export default {
   'files.delete.title': 'Delete file',
   'files.delete.description':
     'This will permanently delete the file metadata and stored file.',
+  'files.delete.bulkTitle': 'Delete selected files',
+  'files.delete.bulkDescription':
+    'This will permanently delete {{count}} selected file(s), including metadata and stored files.',
+  'files.delete.bulkSuccess': 'Deleted {{count}} file(s).',
   'files.picker.title': 'Select file',
   'files.picker.description': 'Choose a file from the media library.',
   'files.picker.search': 'Search files...',

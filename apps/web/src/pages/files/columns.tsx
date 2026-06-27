@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,7 +44,32 @@ export function getFilesTableColumns({
   canUpdate,
   canDelete,
 }: FileTableColumnOptions): ColumnDef<FileSchema>[] {
-  return [
+  const selectionColumn: ColumnDef<FileSchema> = {
+    id: 'select',
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && 'indeterminate')
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label={i18n.t('files.table.selectAll')}
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label={i18n.t('files.table.selectRow')}
+      />
+    ),
+    size: 36,
+    enableColumnFilter: false,
+    enableHiding: false,
+    enableSorting: false,
+  }
+
+  const columns: ColumnDef<FileSchema>[] = [
     {
       id: ColumnKey.originalName,
       accessorFn: (row) => row.original_name,
@@ -275,6 +301,8 @@ export function getFilesTableColumns({
       enableSorting: false,
     },
   ]
+
+  return canDelete ? [selectionColumn, ...columns] : columns
 }
 
 export function formatBytes(bytes: number) {

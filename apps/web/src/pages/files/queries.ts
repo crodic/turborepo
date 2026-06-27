@@ -137,6 +137,10 @@ export async function apiDeleteFile(publicId: string) {
   return http.delete(`/files/${publicId}`)
 }
 
+export async function apiDeleteFiles(publicIds: string[]) {
+  return Promise.all(publicIds.map((publicId) => apiDeleteFile(publicId)))
+}
+
 export async function apiGetFileFolders() {
   const response = await http.get('/files/folders')
   return z.array(folderSchema).parse(response.data)

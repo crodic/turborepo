@@ -44,6 +44,8 @@ export default {
   'files.table.status': 'Trạng thái',
   'files.table.createdAt': 'Ngày tạo',
   'files.table.actions': 'Hành động',
+  'files.table.selectAll': 'Chọn tất cả tệp trên trang này',
+  'files.table.selectRow': 'Chọn tệp',
   'files.filters.name': 'Tìm theo tên...',
   'files.filters.folder': 'Tìm theo thư mục...',
   'files.filters.mime': 'Tìm theo MIME...',
@@ -54,6 +56,8 @@ export default {
   'files.actions.delete': 'Xóa',
   'files.actions.open': 'Mở tệp',
   'files.actions.createFolder': 'Tạo thư mục',
+  'files.bulk.selected': 'Đã chọn {{count}} tệp',
+  'files.bulk.delete': 'Xóa các tệp đã chọn',
   'files.folders.title': 'Thư mục',
   'files.folders.all': 'Tất cả tệp',
   'files.folders.root': 'Thư mục gốc',
@@ -81,6 +85,10 @@ export default {
   'files.delete.title': 'Xóa tệp',
   'files.delete.description':
     'Thao tác này sẽ xóa vĩnh viễn metadata và tệp đã lưu.',
+  'files.delete.bulkTitle': 'Xóa các tệp đã chọn',
+  'files.delete.bulkDescription':
+    'Thao tác này sẽ xóa vĩnh viễn {{count}} tệp đã chọn, bao gồm metadata và tệp đã lưu.',
+  'files.delete.bulkSuccess': 'Đã xóa {{count}} tệp.',
   'files.picker.title': 'Chọn tệp',
   'files.picker.description': 'Chọn một tệp từ thư viện media.',
   'files.picker.search': 'Tìm tệp...',

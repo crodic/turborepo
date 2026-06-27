@@ -8,6 +8,7 @@ import {
 import { AxiosError } from 'axios'
 import { format } from 'date-fns'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import type { Table as TanstackTable } from '@tanstack/react-table'
 import {
   FileIcon,
   Folder,
@@ -71,6 +72,7 @@ import { FilePreviewDetail } from './file-preview'
 import {
   apiCreateFolder,
   apiDeleteFile,
+  apiDeleteFiles,
   apiDeleteFolder,
   apiRenameFolder,
   apiUpdateFile,
@@ -120,6 +122,7 @@ export function PageFileOverview() {
   const [pickedUrl, setPickedUrl] = useState<string | null>(null)
   const [movingFile, setMovingFile] = useState<FileSchema | null>(null)
   const [deletingFile, setDeletingFile] = useState<FileSchema | null>(null)
+  const [bulkDeletingFiles, setBulkDeletingFiles] = useState<FileSchema[]>([])
   const [deletingFolder, setDeletingFolder] = useState<string | null>(null)
   const [deleteFolderFiles, setDeleteFolderFiles] = useState(false)
   const [, setPageQuery] = useQueryState('page', parseAsInteger.withDefault(1))
@@ -224,9 +227,21 @@ export function PageFileOverview() {
     columns,
     pageCount: data?.meta.totalPages ?? 0,
     initialState: {
-      columnPinning: { right: ['actions'] },
+      columnPinning: { left: ['select'], right: ['actions'] },
     },
     getRowId: (row) => row.public_id,
+  })
+
+  const bulkDeleteFileMutation = useMutation({
+    mutationFn: (files: FileSchema[]) =>
+      apiDeleteFiles(files.map((file) => file.public_id)),
+    onSuccess: async (_, files) => {
+      table.resetRowSelection()
+      setBulkDeletingFiles([])
+      await invalidateFiles()
+      toast.success(t('files.delete.bulkSuccess', { count: files.length }))
+    },
+    onError: (error) => restApiErrorHandler(error as never),
   })
 
   const handleFolderSelect = useCallback(
@@ -237,6 +252,7 @@ export function PageFileOverview() {
       table.setPageIndex(0)
       table.resetColumnFilters()
       table.resetSorting()
+      table.resetRowSelection()
       void setPageQuery(1)
       void setSearchQuery(null)
       void setSortQuery(null)
@@ -324,6 +340,13 @@ export function PageFileOverview() {
             table={table}
             onClickRowAction={setPreviewFile}
             isFetching={isFetching}
+            actionBar={
+              <FilesBulkActionBar
+                table={table}
+                disabled={bulkDeleteFileMutation.isPending}
+                onDelete={(files) => setBulkDeletingFiles(files)}
+              />
+            }
           >
             <DataTableToolbar table={table}>
               <DataTableSortList table={table} />
@@ -414,6 +437,18 @@ export function PageFileOverview() {
         />
       )}
 
+      {bulkDeletingFiles.length > 0 && (
+        <DeleteAlertDialog
+          open={bulkDeletingFiles.length > 0}
+          onOpenChange={(open) => !open && setBulkDeletingFiles([])}
+          handleDelete={() => bulkDeleteFileMutation.mutate(bulkDeletingFiles)}
+          isLoading={bulkDeleteFileMutation.isPending}
+          title='files.delete.bulkTitle'
+          description='files.delete.bulkDescription'
+          translationValues={{ count: String(bulkDeletingFiles.length) }}
+        />
+      )}
+
       <DeleteFolderDialog
         folder={deletingFolder}
         deleteFiles={deleteFolderFiles}
@@ -434,6 +469,50 @@ export function PageFileOverview() {
         }}
       />
     </>
+  )
+}
+
+function FilesBulkActionBar({
+  table,
+  disabled,
+  onDelete,
+}: {
+  table: TanstackTable<FileSchema>
+  disabled: boolean
+  onDelete: (files: FileSchema[]) => void
+}) {
+  const { t } = useTranslation()
+  const selectedFiles = table
+    .getFilteredSelectedRowModel()
+    .rows.map((row) => row.original)
+
+  if (selectedFiles.length === 0) return null
+
+  return (
+    <div className='bg-background flex flex-wrap items-center justify-between gap-2 rounded-md border p-2 shadow-sm'>
+      <p className='text-muted-foreground px-2 text-sm'>
+        {t('files.bulk.selected', { count: selectedFiles.length })}
+      </p>
+      <div className='flex items-center gap-2'>
+        <Button
+          variant='outline'
+          size='sm'
+          disabled={disabled}
+          onClick={() => table.resetRowSelection()}
+        >
+          {t('buttons.cancel')}
+        </Button>
+        <Button
+          variant='destructive'
+          size='sm'
+          disabled={disabled}
+          onClick={() => onDelete(selectedFiles)}
+        >
+          <Trash2 className='size-4' />
+          {t('files.bulk.delete')}
+        </Button>
+      </div>
+    </div>
   )
 }
 
