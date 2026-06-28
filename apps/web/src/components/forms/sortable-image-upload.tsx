@@ -3,6 +3,18 @@
 import React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  type DragStartEvent,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable'
+import {
   ChevronLeft,
   ChevronRight,
   CircleX,
@@ -15,7 +27,12 @@ import {
   XIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Sortable, SortableItem } from '@/components/ui/sortable'
+import {
+  Sortable,
+  SortableContent,
+  SortableItem,
+  SortableOverlay,
+} from '@/components/ui/sortable'
 import {
   Alert,
   AlertContent,
@@ -36,6 +53,11 @@ interface UploadProgress {
   progress: number
   status: 'uploading' | 'completed' | 'error'
   error?: string
+}
+
+type OverlaySize = {
+  width: number
+  height: number
 }
 
 export interface SortableImageUploadProps {
@@ -87,6 +109,9 @@ export default function SortableImageUpload({
 
   // Fullscreen image preview state
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+
+  // Keep the drag preview the same size as the grid cell being dragged.
+  const [overlaySize, setOverlaySize] = useState<OverlaySize | null>(null)
 
   // Track files for new images (needed for preview URLs)
   const fileMapRef = useRef<Map<string, File>>(new Map())
@@ -631,6 +656,133 @@ export default function SortableImageUpload({
       : null
   const lightboxImage =
     safeLightboxIndex !== null ? uiImages[safeLightboxIndex] : undefined
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const rect = event.active.rect.current.initial
+
+    setOverlaySize(
+      rect
+        ? {
+            width: rect.width,
+            height: rect.height,
+          }
+        : null
+    )
+  }, [])
+  const renderImageTile = useCallback(
+    (item: UIImage, index: number, isOverlay = false) => {
+      const isCover = canSelectCover && index === normalizedCoverIndex
+
+      return (
+        <div
+          className={cn(
+            'bg-accent/50 group border-border hover:bg-accent/70 relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-md border shadow-none transition-all duration-200 hover:z-10 data-[dragging=true]:z-50',
+            isOverlay && 'z-50 shadow-lg'
+          )}
+          style={
+            isOverlay && overlaySize
+              ? {
+                  width: overlaySize.width,
+                  height: overlaySize.height,
+                }
+              : undefined
+          }
+          onClick={isOverlay ? undefined : () => openLightbox(index)}
+        >
+          <img
+            src={item.src || '/placeholder.svg'}
+            className='pointer-events-none h-full w-full rounded-md object-cover'
+            alt={item.alt}
+          />
+
+          {/* Source indicator badge */}
+          <span
+            className={cn(
+              'absolute start-2 bottom-2 rounded-sm px-1.5 py-0.5 text-[10px] font-medium',
+              item.source === 'existing'
+                ? 'bg-background/80 text-foreground'
+                : 'bg-primary/80 text-primary-foreground'
+            )}
+          >
+            {item.source === 'existing' ? 'Saved' : 'New'}
+          </span>
+
+          <div className='bg-background/80 text-muted-foreground pointer-events-none absolute start-2 top-2 flex size-8 items-center justify-center rounded-full opacity-100 shadow-sm sm:size-6 sm:opacity-0 sm:group-hover:opacity-100'>
+            <GripVertical className='size-4 sm:size-3.5' />
+          </div>
+
+          {canSelectCover && !isOverlay && (
+            <Button
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation()
+                onCoverIndexChange?.(index)
+              }}
+              variant={isCover ? 'primary' : 'outline'}
+              size='icon'
+              type='button'
+              disabled={isDisabled}
+              aria-label={
+                isCover ? 'Current cover image' : 'Set as cover image'
+              }
+              className={cn(
+                'absolute end-2 top-2 size-8 rounded-full shadow-sm sm:size-6',
+                !isCover &&
+                  'bg-background/80 opacity-100 sm:opacity-0 sm:group-hover:opacity-100'
+              )}
+            >
+              <Star
+                className={cn('size-4 sm:size-3.5', isCover && 'fill-current')}
+              />
+            </Button>
+          )}
+
+          {/* Remove Button */}
+          {!isDisabled && !isOverlay && (
+            <Button
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation()
+                removeImage(item.id)
+              }}
+              variant='outline'
+              size='icon'
+              type='button'
+              className={cn(
+                'bg-background/80 absolute size-8 rounded-full opacity-100 shadow-sm sm:size-6 sm:opacity-0 sm:group-hover:opacity-100',
+                canSelectCover ? 'end-2 bottom-2' : 'end-2 top-2'
+              )}
+            >
+              <XIcon className='size-4 sm:size-3.5' />
+            </Button>
+          )}
+        </div>
+      )
+    },
+    [
+      canSelectCover,
+      isDisabled,
+      normalizedCoverIndex,
+      onCoverIndexChange,
+      openLightbox,
+      overlaySize,
+      removeImage,
+    ]
+  )
 
   return (
     <div className={cn('w-full max-w-4xl', className)}>
@@ -685,100 +837,40 @@ export default function SortableImageUpload({
             value={uiImages.map((item) => item.id)}
             onValueChange={handleReorder}
             getItemValue={(item) => item}
-            strategy='grid'
-            className={cn(
-              'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-5',
-              gridClassName
-            )}
+            orientation='mixed'
+            strategy={rectSortingStrategy}
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragCancel={() => setOverlaySize(null)}
+            onDragEnd={() => setOverlaySize(null)}
           >
-            {uiImages.map((item, index) => {
-              const isCover = canSelectCover && index === normalizedCoverIndex
-
-              return (
-                <SortableItem
-                  key={item.id}
-                  value={item.id}
-                  disabled={isDisabled}
-                  asHandle
-                >
-                  <div
-                    className='bg-accent/50 group border-border hover:bg-accent/70 relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-md border shadow-none transition-all duration-200 hover:z-10 data-[dragging=true]:z-50'
-                    onClick={() => openLightbox(index)}
+            <SortableContent
+              className={cn(
+                'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-5',
+                gridClassName
+              )}
+            >
+              {uiImages.map((item, index) => {
+                return (
+                  <SortableItem
+                    key={item.id}
+                    value={item.id}
+                    disabled={isDisabled}
+                    asHandle
                   >
-                    <img
-                      src={item.src || '/placeholder.svg'}
-                      className='pointer-events-none h-full w-full rounded-md object-cover'
-                      alt={item.alt}
-                    />
+                    {renderImageTile(item, index)}
+                  </SortableItem>
+                )
+              })}
+            </SortableContent>
+            <SortableOverlay>
+              {({ value }) => {
+                const index = uiImages.findIndex((image) => image.id === value)
+                const item = index >= 0 ? uiImages[index] : undefined
 
-                    {/* Source indicator badge */}
-                    <span
-                      className={cn(
-                        'absolute start-2 bottom-2 rounded-sm px-1.5 py-0.5 text-[10px] font-medium',
-                        item.source === 'existing'
-                          ? 'bg-background/80 text-foreground'
-                          : 'bg-primary/80 text-primary-foreground'
-                      )}
-                    >
-                      {item.source === 'existing' ? 'Saved' : 'New'}
-                    </span>
-
-                    <div className='bg-background/80 text-muted-foreground pointer-events-none absolute start-2 top-2 flex size-8 items-center justify-center rounded-full opacity-100 shadow-sm sm:size-6 sm:opacity-0 sm:group-hover:opacity-100'>
-                      <GripVertical className='size-4 sm:size-3.5' />
-                    </div>
-
-                    {canSelectCover && (
-                      <Button
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          onCoverIndexChange?.(index)
-                        }}
-                        variant={isCover ? 'primary' : 'outline'}
-                        size='icon'
-                        type='button'
-                        disabled={isDisabled}
-                        aria-label={
-                          isCover ? 'Current cover image' : 'Set as cover image'
-                        }
-                        className={cn(
-                          'absolute end-2 top-2 size-8 rounded-full shadow-sm sm:size-6',
-                          !isCover &&
-                            'bg-background/80 opacity-100 sm:opacity-0 sm:group-hover:opacity-100'
-                        )}
-                      >
-                        <Star
-                          className={cn(
-                            'size-4 sm:size-3.5',
-                            isCover && 'fill-current'
-                          )}
-                        />
-                      </Button>
-                    )}
-
-                    {/* Remove Button */}
-                    {!isDisabled && (
-                      <Button
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          removeImage(item.id)
-                        }}
-                        variant='outline'
-                        size='icon'
-                        type='button'
-                        className={cn(
-                          'bg-background/80 absolute size-8 rounded-full opacity-100 shadow-sm sm:size-6 sm:opacity-0 sm:group-hover:opacity-100',
-                          canSelectCover ? 'end-2 bottom-2' : 'end-2 top-2'
-                        )}
-                      >
-                        <XIcon className='size-4 sm:size-3.5' />
-                      </Button>
-                    )}
-                  </div>
-                </SortableItem>
-              )
-            })}
+                return item ? renderImageTile(item, index, true) : null
+              }}
+            </SortableOverlay>
           </Sortable>
         </div>
       )}
