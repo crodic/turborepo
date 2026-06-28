@@ -8,15 +8,8 @@ import { toast } from "sonner";
 import SortableImageUploadField from "@/components/form/sortable-image-upload-field";
 import type { ExistingImage, ImagePayload } from "@/components/form/types";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import CoverUpload from "@/components/form/cover-upload";
+import { Form } from "@/components/ui/form";
+import CoverUploadField from "@/components/form/cover-upload-field";
 
 // Zod schema for ImagePayload validation
 const existingImageSchema = z.object({
@@ -64,7 +57,7 @@ const imagesSchema = z
 const formSchema = z.object({
   images: imagesSchema,
   coverIndex: z.number().int().nonnegative().nullable(),
-  cover: z.instanceof(File, { message: "Must be a valid File" }).nullish(),
+  cover: z.instanceof(File, { message: "Must be a valid File" }).nullable(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -185,6 +178,7 @@ export default function ImageUploadDemo() {
     defaultValues: {
       images: [],
       coverIndex: null,
+      cover: null,
     },
   });
 
@@ -301,22 +295,13 @@ export default function ImageUploadDemo() {
               loading={isLoadingImages}
             />
 
-            <FormField
+            <CoverUploadField
               control={form.control}
               name="cover"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product Cover</FormLabel>
-                  <FormControl>
-                    <CoverUpload
-                      value={field.value}
-                      onChange={field.onChange}
-                      accept="image/png"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Product Cover"
+              description="Upload a cover image, then drag it inside the frame to crop before submit."
+              accept="image/png"
+              disabled={isSavingImages}
             />
 
             <div className="flex justify-center gap-4">
