@@ -283,6 +283,13 @@ export class FileController {
           type: 'array',
           items: { type: 'string', format: 'binary' },
         },
+        coverIndex: {
+          type: 'number',
+          nullable: true,
+          description:
+            'Optional index of the image selected as cover after sorting.',
+          example: 0,
+        },
       },
     },
   })
@@ -295,9 +302,15 @@ export class FileController {
   saveSortableImages(
     @Param('ownerKey') ownerKey: string,
     @Body('items') items: string,
+    @Body('coverIndex') coverIndex?: string,
     @UploadedFiles() files: Express.Multer.File[] = [],
   ) {
-    return this.sortableImageCacheService.save(ownerKey, items, files);
+    return this.sortableImageCacheService.save(
+      ownerKey,
+      items,
+      files,
+      coverIndex,
+    );
   }
 
   @Get(':publicId')

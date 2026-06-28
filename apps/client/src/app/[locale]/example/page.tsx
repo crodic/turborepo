@@ -63,6 +63,7 @@ const imagesSchema = z
 
 const formSchema = z.object({
   images: imagesSchema,
+  coverIndex: z.number().int().nonnegative().nullable(),
   cover: z.instanceof(File, { message: "Must be a valid File" }).nullish(),
 });
 
@@ -77,6 +78,7 @@ type SortableImageApiItem = {
 
 type SortableImageApiResponse = {
   ownerKey: string;
+  coverIndex: number | null;
   images: SortableImageApiItem[];
 };
 
@@ -103,7 +105,8 @@ function toExistingPayloads(images: ExistingImage[]): ImagePayload[] {
 
 function buildSortableImagesFormData(
   images: ImagePayload[],
-  existingImages: ExistingImage[]
+  existingImages: ExistingImage[],
+  coverIndex?: number | null
 ) {
   const formData = new window.FormData();
   const existingImageById = new Map(
@@ -139,6 +142,10 @@ function buildSortableImagesFormData(
       })
     )
   );
+
+  if (typeof coverIndex === "number") {
+    formData.append("coverIndex", String(coverIndex));
+  }
 
   activeImages.forEach((image) => {
     if (image.type === "new") {
@@ -177,6 +184,7 @@ export default function ImageUploadDemo() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       images: [],
+      coverIndex: null,
     },
   });
 
@@ -200,6 +208,7 @@ export default function ImageUploadDemo() {
         setExistingImages(cachedImages);
         form.reset({
           images: toExistingPayloads(cachedImages),
+          coverIndex: data.coverIndex,
           cover: form.getValues("cover"),
         });
       } catch (error) {
@@ -225,7 +234,11 @@ export default function ImageUploadDemo() {
     try {
       const response = await fetch(SORTABLE_IMAGES_API_URL, {
         method: "POST",
-        body: buildSortableImagesFormData(data.images, existingImages),
+        body: buildSortableImagesFormData(
+          data.images,
+          existingImages,
+          data.coverIndex
+        ),
       });
 
       if (!response.ok) {
@@ -238,6 +251,7 @@ export default function ImageUploadDemo() {
       setExistingImages(savedImages);
       form.reset({
         images: toExistingPayloads(savedImages),
+        coverIndex: saved.coverIndex,
         cover: data.cover,
       });
       toast.success("Images saved successfully");
@@ -252,6 +266,7 @@ export default function ImageUploadDemo() {
   const handleReset = () => {
     form.reset({
       images: toExistingPayloads(existingImages),
+      coverIndex: existingImages.length > 0 ? 0 : null,
     });
   };
 
@@ -273,6 +288,7 @@ export default function ImageUploadDemo() {
             <SortableImageUploadField
               control={form.control}
               name="images"
+              coverIndexName="coverIndex"
               label="Product Images"
               description={({ loading }) =>
                 loading

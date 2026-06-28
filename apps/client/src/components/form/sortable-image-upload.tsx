@@ -21,6 +21,7 @@ import {
   GripVertical,
   ImageIcon,
   Plus,
+  Star,
   TriangleAlert,
   XIcon,
 } from "lucide-react";
@@ -51,6 +52,8 @@ export interface SortableImageUploadProps {
   className?: string;
   disabled?: boolean;
   loading?: boolean;
+  coverIndex?: number | null;
+  onCoverIndexChange?: (index: number | null) => void;
 }
 
 export default function SortableImageUpload({
@@ -63,6 +66,8 @@ export default function SortableImageUpload({
   className,
   disabled = false,
   loading = false,
+  coverIndex,
+  onCoverIndexChange,
 }: SortableImageUploadProps) {
   // UI state for display and drag/drop - contains ALL visible images
   const [uiImages, setUiImages] = useState<UIImage[]>([]);
@@ -358,6 +363,16 @@ export default function SortableImageUpload({
         const payload = buildPayload(updatedUiImages, deletedIds);
         onChange?.(payload);
 
+        if (
+          onCoverIndexChange &&
+          updatedUiImages.length > 0 &&
+          (coverIndex === null ||
+            coverIndex === undefined ||
+            coverIndex >= updatedUiImages.length)
+        ) {
+          onCoverIndexChange(0);
+        }
+
         // Simulate upload progress for each new image
         newProgress.forEach((p) => simulateUpload(p.tempId));
       }
@@ -369,6 +384,8 @@ export default function SortableImageUpload({
       buildPayload,
       deletedIds,
       onChange,
+      coverIndex,
+      onCoverIndexChange,
       simulateUpload,
     ]
   );
@@ -376,7 +393,8 @@ export default function SortableImageUpload({
   // Remove an image
   const removeImage = useCallback(
     (id: string) => {
-      const imageToRemove = uiImages.find((img) => img.id === id);
+      const removedIndex = uiImages.findIndex((img) => img.id === id);
+      const imageToRemove = uiImages[removedIndex];
       if (!imageToRemove) return;
 
       // Update UI state
@@ -406,13 +424,35 @@ export default function SortableImageUpload({
       // Sync to form
       const payload = buildPayload(updatedUiImages, updatedDeletedIds);
       onChange?.(payload);
+
+      if (onCoverIndexChange && typeof coverIndex === "number") {
+        if (updatedUiImages.length === 0) {
+          onCoverIndexChange(null);
+        } else if (removedIndex === coverIndex) {
+          onCoverIndexChange(0);
+        } else if (removedIndex < coverIndex) {
+          onCoverIndexChange(coverIndex - 1);
+        } else if (coverIndex >= updatedUiImages.length) {
+          onCoverIndexChange(updatedUiImages.length - 1);
+        }
+      }
     },
-    [uiImages, deletedIds, buildPayload, onChange]
+    [
+      uiImages,
+      deletedIds,
+      buildPayload,
+      onChange,
+      coverIndex,
+      onCoverIndexChange,
+    ]
   );
 
   // Handle reorder after drag/drop
   const handleReorder = useCallback(
     (newOrder: string[]) => {
+      const coverImageId =
+        typeof coverIndex === "number" ? uiImages[coverIndex]?.id : undefined;
+
       // Reconstruct UI images in new order
       const reorderedUiImages = newOrder
         .map((id) => uiImages.find((img) => img.id === id))
@@ -423,8 +463,24 @@ export default function SortableImageUpload({
       // Sync to form with updated order
       const payload = buildPayload(reorderedUiImages, deletedIds);
       onChange?.(payload);
+
+      if (coverImageId && onCoverIndexChange) {
+        const nextCoverIndex = reorderedUiImages.findIndex(
+          (image) => image.id === coverImageId
+        );
+        if (nextCoverIndex >= 0) {
+          onCoverIndexChange(nextCoverIndex);
+        }
+      }
     },
-    [uiImages, deletedIds, buildPayload, onChange]
+    [
+      uiImages,
+      deletedIds,
+      buildPayload,
+      onChange,
+      coverIndex,
+      onCoverIndexChange,
+    ]
   );
 
   // Drag and drop handlers for upload zone
@@ -495,6 +551,13 @@ export default function SortableImageUpload({
 
   const isDisabled = disabled || loading;
   const canAddMore = uiImages.length < maxFiles;
+  const canSelectCover = Boolean(onCoverIndexChange);
+  const normalizedCoverIndex =
+    typeof coverIndex === "number" &&
+    coverIndex >= 0 &&
+    coverIndex < uiImages.length
+      ? coverIndex
+      : null;
 
   return (
     <div className={cn("w-full max-w-4xl", className)}>
@@ -552,55 +615,91 @@ export default function SortableImageUpload({
             strategy="grid"
             className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-5"
           >
-            {uiImages.map((item) => (
-              <SortableItem
-                key={item.id}
-                value={item.id}
-                disabled={isDisabled}
-                asHandle
-              >
-                <div className="bg-accent/50 group border-border hover:bg-accent/70 relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-md border shadow-none transition-all duration-200 hover:z-10 data-[dragging=true]:z-50">
-                  <img
-                    src={item.src || "/placeholder.svg"}
-                    className="pointer-events-none h-full w-full rounded-md object-cover"
-                    alt={item.alt}
-                  />
+            {uiImages.map((item, index) => {
+              const isCover = canSelectCover && index === normalizedCoverIndex;
 
-                  {/* Source indicator badge */}
-                  <span
-                    className={cn(
-                      "absolute start-2 bottom-2 rounded-sm px-1.5 py-0.5 text-[10px] font-medium",
-                      item.source === "existing"
-                        ? "bg-background/80 text-foreground"
-                        : "bg-primary/80 text-primary-foreground"
-                    )}
-                  >
-                    {item.source === "existing" ? "Saved" : "New"}
-                  </span>
+              return (
+                <SortableItem
+                  key={item.id}
+                  value={item.id}
+                  disabled={isDisabled}
+                  asHandle
+                >
+                  <div className="bg-accent/50 group border-border hover:bg-accent/70 relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-md border shadow-none transition-all duration-200 hover:z-10 data-[dragging=true]:z-50">
+                    <img
+                      src={item.src || "/placeholder.svg"}
+                      className="pointer-events-none h-full w-full rounded-md object-cover"
+                      alt={item.alt}
+                    />
 
-                  <div className="bg-background/80 text-muted-foreground pointer-events-none absolute start-2 top-2 flex size-8 items-center justify-center rounded-full opacity-100 shadow-sm sm:size-6 sm:opacity-0 sm:group-hover:opacity-100">
-                    <GripVertical className="size-4 sm:size-3.5" />
-                  </div>
-
-                  {/* Remove Button */}
-                  {!isDisabled && (
-                    <Button
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        removeImage(item.id);
-                      }}
-                      variant="outline"
-                      size="icon"
-                      type="button"
-                      className="bg-background/80 absolute end-2 top-2 size-8 rounded-full opacity-100 shadow-sm sm:size-6 sm:opacity-0 sm:group-hover:opacity-100"
+                    {/* Source indicator badge */}
+                    <span
+                      className={cn(
+                        "absolute start-2 bottom-2 rounded-sm px-1.5 py-0.5 text-[10px] font-medium",
+                        item.source === "existing"
+                          ? "bg-background/80 text-foreground"
+                          : "bg-primary/80 text-primary-foreground"
+                      )}
                     >
-                      <XIcon className="size-4 sm:size-3.5" />
-                    </Button>
-                  )}
-                </div>
-              </SortableItem>
-            ))}
+                      {item.source === "existing" ? "Saved" : "New"}
+                    </span>
+
+                    <div className="bg-background/80 text-muted-foreground pointer-events-none absolute start-2 top-2 flex size-8 items-center justify-center rounded-full opacity-100 shadow-sm sm:size-6 sm:opacity-0 sm:group-hover:opacity-100">
+                      <GripVertical className="size-4 sm:size-3.5" />
+                    </div>
+
+                    {canSelectCover && (
+                      <Button
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onCoverIndexChange?.(index);
+                        }}
+                        variant={isCover ? "primary" : "outline"}
+                        size="icon"
+                        type="button"
+                        disabled={isDisabled}
+                        aria-label={
+                          isCover ? "Current cover image" : "Set as cover image"
+                        }
+                        className={cn(
+                          "absolute end-2 top-2 size-8 rounded-full shadow-sm sm:size-6",
+                          !isCover &&
+                            "bg-background/80 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                        )}
+                      >
+                        <Star
+                          className={cn(
+                            "size-4 sm:size-3.5",
+                            isCover && "fill-current"
+                          )}
+                        />
+                      </Button>
+                    )}
+
+                    {/* Remove Button */}
+                    {!isDisabled && (
+                      <Button
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          removeImage(item.id);
+                        }}
+                        variant="outline"
+                        size="icon"
+                        type="button"
+                        className={cn(
+                          "bg-background/80 absolute size-8 rounded-full opacity-100 shadow-sm sm:size-6 sm:opacity-0 sm:group-hover:opacity-100",
+                          canSelectCover ? "end-2 bottom-2" : "end-2 top-2"
+                        )}
+                      >
+                        <XIcon className="size-4 sm:size-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </SortableItem>
+              );
+            })}
           </Sortable>
         </div>
       )}

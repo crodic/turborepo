@@ -64,6 +64,7 @@ Với `react-hook-form`, ưu tiên dùng `SortableImageUploadField`. Component n
 <SortableImageUploadField
   control={form.control}
   name="images"
+  coverIndexName="coverIndex"
   label="Product Images"
   description={({ loading }) =>
     loading
@@ -77,10 +78,13 @@ Với `react-hook-form`, ưu tiên dùng `SortableImageUploadField`. Component n
 />
 ```
 
+`coverIndexName` là optional. Nếu truyền prop này, field sẽ bind thêm một field number/null trong `react-hook-form` để user chọn ảnh cover bằng nút star trên từng ảnh. Nếu không truyền, component hoạt động như sortable upload bình thường và không hiển thị cover UI.
+
 `SortableImageUploadField` xử lý:
 
 - render `FormField`, `FormItem`, `FormLabel`, `FormControl`, `FormDescription`, `FormMessage`;
 - bind `field.value` và `field.onChange`;
+- bind `coverIndexName` nếu cần chọn ảnh cover;
 - normalize form value thành `ImagePayload[]`;
 - truyền các props upload xuống `SortableImageUpload`.
 
@@ -160,6 +164,7 @@ const imagesSchema = z
 
 const formSchema = z.object({
   images: imagesSchema,
+  coverIndex: z.number().int().nonnegative().nullable(),
 });
 ```
 
@@ -170,6 +175,7 @@ const form = useForm<FormValues>({
   resolver: zodResolver(formSchema),
   defaultValues: {
     images: [],
+    coverIndex: null,
   },
 });
 ```
@@ -187,8 +193,20 @@ function toExistingPayloads(images: ExistingImage[]): ImagePayload[] {
 
 form.reset({
   images: toExistingPayloads(cachedImages),
+  coverIndex: cachedImages.length > 0 ? 0 : null,
 });
 ```
+
+Nếu API có trả cover đã lưu, set `coverIndex` theo vị trí của ảnh cover trong danh sách đã sort. Ví dụ DB lưu `coverImageId` thì map như sau:
+
+```ts
+form.reset({
+  images: toExistingPayloads(cachedImages),
+  coverIndex: cachedImages.findIndex((image) => image.id === coverImageId),
+});
+```
+
+Nếu `findIndex` trả `-1`, normalize về `null`.
 
 ## Load Dữ Liệu Ban Đầu
 
@@ -203,6 +221,7 @@ Response:
 ```json
 {
   "ownerKey": "demo-user",
+  "coverIndex": 0,
   "images": [
     {
       "id": "a1b2c3",
@@ -222,7 +241,10 @@ const data = (await response.json()) as SortableImageApiResponse;
 
 const cachedImages = toExistingImages(data.images);
 setExistingImages(cachedImages);
-form.reset({ images: toExistingPayloads(cachedImages) });
+form.reset({
+  images: toExistingPayloads(cachedImages),
+  coverIndex: data.coverIndex,
+});
 ```
 
 `ownerKey` là key định danh bucket ảnh. Trong demo đang dùng `demo-user`. Production nên dùng key thật, ví dụ:
@@ -243,6 +265,7 @@ Content-Type: multipart/form-data
 Fields:
 
 - `items`: JSON string, là danh sách active images theo đúng thứ tự cuối cùng.
+- `coverIndex`: optional number, vị trí ảnh cover trong danh sách sau khi sort.
 - `files`: các file mới, append theo đúng thứ tự các item `{ type: "new" }`.
 
 Ví dụ `items`:
@@ -269,6 +292,7 @@ Build `FormData`:
 function buildSortableImagesFormData(
   images: ImagePayload[],
   existingImages: ExistingImage[],
+  coverIndex?: number | null,
 ) {
   const formData = new FormData();
   const existingImageById = new Map(
@@ -306,6 +330,10 @@ function buildSortableImagesFormData(
     ),
   );
 
+  if (typeof coverIndex === 'number') {
+    formData.append('coverIndex', String(coverIndex));
+  }
+
   activeImages.forEach((image) => {
     if (image.type === 'new') {
       formData.append('files', image.file, image.file.name);
@@ -321,7 +349,11 @@ Submit:
 ```ts
 const response = await fetch(SORTABLE_IMAGES_API_URL, {
   method: 'POST',
-  body: buildSortableImagesFormData(data.images, existingImages),
+  body: buildSortableImagesFormData(
+    data.images,
+    existingImages,
+    data.coverIndex,
+  ),
 });
 ```
 
@@ -488,8 +520,9 @@ Flow hiện tại:
 
 1. Lấy danh sách hiện tại từ Redis bằng key `sortable-images:${ownerKey}`.
 2. Gọi `sortableImageUploadService.buildNextImages(...)`.
-3. Ghi toàn bộ `nextImages` vào Redis.
-4. Trả response có `order`.
+3. Normalize `coverIndex` nếu FE có gửi.
+4. Ghi toàn bộ `nextImages` và `coverIndex` vào Redis.
+5. Trả response có `order` và `coverIndex`.
 
 Trong thực tế production, thay Redis bằng DB:
 
@@ -518,6 +551,11 @@ type SortableImageCacheItem = {
   alt: string;
   filePublicId?: string;
   path?: string;
+};
+
+type SortableImageCacheState = {
+  images: SortableImageCacheItem[];
+  coverIndex: number | null;
 };
 ```
 
@@ -604,5 +642,5 @@ Production có thể mở rộng:
 8. User submit form.
 9. FE build `FormData`.
 10. API upload file mới vào storage, giữ existing, drop ảnh không còn trong list.
-11. Demo API cache danh sách mới trong Redis; production persist danh sách mới vào DB.
+11. Demo API cache danh sách mới và `coverIndex` trong Redis; production persist danh sách mới và cover vào DB.
 12. FE nhận response, reset form lại thành toàn bộ `existing`.

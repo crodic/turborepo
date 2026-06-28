@@ -20,6 +20,9 @@ export class SortableImageListResDto {
   @ApiProperty({ example: 'demo-user' })
   ownerKey!: string;
 
+  @ApiProperty({ example: 0, nullable: true })
+  coverIndex!: number | null;
+
   @ApiProperty({ type: SortableImageResDto, isArray: true })
   images!: SortableImageResDto[];
 }

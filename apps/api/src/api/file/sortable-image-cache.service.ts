@@ -5,6 +5,11 @@ import {
   SortableImageUploadService,
 } from './sortable-image-upload.service';
 
+type SortableImageCacheState = {
+  images: SortableImageStoredItem[];
+  coverIndex: number | null;
+};
+
 @Injectable()
 export class SortableImageCacheService {
   private readonly cacheKeyPrefix = 'sortable-images';
@@ -15,11 +20,12 @@ export class SortableImageCacheService {
   ) {}
 
   async findAll(ownerKey: string) {
-    const images = await this.getCachedImages(ownerKey);
+    const state = await this.getCachedState(ownerKey);
 
     return {
       ownerKey,
-      images: images.map((image, order) => ({ ...image, order })),
+      coverIndex: state.coverIndex,
+      images: state.images.map((image, order) => ({ ...image, order })),
     };
   }
 
@@ -27,17 +33,27 @@ export class SortableImageCacheService {
     ownerKey: string,
     rawItems: unknown,
     files: Express.Multer.File[] = [],
+    rawCoverIndex?: unknown,
   ) {
+    const currentState = await this.getCachedState(ownerKey);
     const nextImages = await this.sortableImageUploadService.buildNextImages({
-      currentImages: await this.getCachedImages(ownerKey),
+      currentImages: currentState.images,
       rawItems,
       files,
     });
+    const coverIndex = this.normalizeCoverIndex(
+      rawCoverIndex ?? currentState.coverIndex,
+      nextImages.length,
+    );
 
-    await this.cache.set(this.getCacheKey(ownerKey), nextImages);
+    await this.cache.set(this.getCacheKey(ownerKey), {
+      images: nextImages,
+      coverIndex,
+    } satisfies SortableImageCacheState);
 
     return {
       ownerKey,
+      coverIndex,
       images: nextImages.map((image, order) => ({ ...image, order })),
     };
   }
@@ -46,11 +62,53 @@ export class SortableImageCacheService {
     return `${this.cacheKeyPrefix}:${ownerKey}`;
   }
 
-  private async getCachedImages(ownerKey: string) {
-    const cached = await this.cache.get<SortableImageStoredItem[]>(
-      this.getCacheKey(ownerKey),
-    );
+  private async getCachedState(
+    ownerKey: string,
+  ): Promise<SortableImageCacheState> {
+    const cached = await this.cache.get<
+      SortableImageStoredItem[] | SortableImageCacheState
+    >(this.getCacheKey(ownerKey));
 
-    return Array.isArray(cached) ? cached : [];
+    if (Array.isArray(cached)) {
+      return {
+        images: cached,
+        coverIndex: cached.length > 0 ? 0 : null,
+      };
+    }
+
+    if (cached && Array.isArray(cached.images)) {
+      return {
+        images: cached.images,
+        coverIndex: this.normalizeCoverIndex(
+          cached.coverIndex,
+          cached.images.length,
+        ),
+      };
+    }
+
+    return {
+      images: [],
+      coverIndex: null,
+    };
+  }
+
+  private normalizeCoverIndex(rawCoverIndex: unknown, imagesLength: number) {
+    if (imagesLength === 0) {
+      return null;
+    }
+
+    const coverIndex =
+      typeof rawCoverIndex === 'string' ? Number(rawCoverIndex) : rawCoverIndex;
+
+    if (
+      typeof coverIndex === 'number' &&
+      Number.isInteger(coverIndex) &&
+      coverIndex >= 0 &&
+      coverIndex < imagesLength
+    ) {
+      return coverIndex;
+    }
+
+    return 0;
   }
 }
