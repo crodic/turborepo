@@ -5,13 +5,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import SortableImageUpload from "@/components/form/sortable-image-upload";
+import SortableImageUploadField from "@/components/form/sortable-image-upload-field";
 import type { ExistingImage, ImagePayload } from "@/components/form/types";
 import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -271,30 +270,19 @@ export default function ImageUploadDemo() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
+            <SortableImageUploadField
               control={form.control}
               name="images"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product Images</FormLabel>
-                  <FormControl>
-                    <SortableImageUpload
-                      existingImages={existingImages}
-                      value={field.value}
-                      onChange={field.onChange}
-                      maxFiles={200}
-                      disabled={isLoadingImages || isSavingImages}
-                      loading={isLoadingImages}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {isLoadingImages
-                      ? "Loading saved images..."
-                      : "Upload between 1 and 200 images. Drag to reorder."}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Product Images"
+              description={({ loading }) =>
+                loading
+                  ? "Loading saved images..."
+                  : "Upload between 1 and 200 images. Drag to reorder."
+              }
+              existingImages={existingImages}
+              maxFiles={200}
+              disabled={isLoadingImages || isSavingImages}
+              loading={isLoadingImages}
             />
 
             <FormField

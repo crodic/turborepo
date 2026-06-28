@@ -37,7 +37,7 @@ interface UploadProgress {
   error?: string;
 }
 
-interface SortableImageUploadProps {
+export interface SortableImageUploadProps {
   // Existing images from server (initial data for edit flow)
   existingImages?: ExistingImage[];
   // Controlled form value

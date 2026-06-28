@@ -15,6 +15,7 @@ Component hiện dùng cho use case:
 
 Frontend:
 
+- `apps/client/src/components/form/sortable-image-upload-field.tsx`
 - `apps/client/src/components/form/sortable-image-upload.tsx`
 - `apps/client/src/components/form/types.ts`
 - `apps/client/src/components/ui/sortable.tsx`
@@ -55,7 +56,39 @@ export interface ExistingImage {
 
 `ExistingImage[]` là dữ liệu dùng để render ảnh đã lưu. `ImagePayload[]` là form value dùng để submit.
 
-## Dùng Component
+## Dùng Field Component
+
+Với `react-hook-form`, ưu tiên dùng `SortableImageUploadField`. Component này là adapter cho form, giống pattern field component khác:
+
+```tsx
+<SortableImageUploadField
+  control={form.control}
+  name="images"
+  label="Product Images"
+  description={({ loading }) =>
+    loading
+      ? 'Loading saved images...'
+      : 'Upload between 1 and 200 images. Drag to reorder.'
+  }
+  existingImages={existingImages}
+  maxFiles={200}
+  disabled={isLoadingImages || isSavingImages}
+  loading={isLoadingImages}
+/>
+```
+
+`SortableImageUploadField` xử lý:
+
+- render `FormField`, `FormItem`, `FormLabel`, `FormControl`, `FormDescription`, `FormMessage`;
+- bind `field.value` và `field.onChange`;
+- normalize form value thành `ImagePayload[]`;
+- truyền các props upload xuống `SortableImageUpload`.
+
+Field component không fetch API và không submit API. Page hoặc feature hook vẫn chịu trách nhiệm load `existingImages`, submit `FormData`, rồi reset form sau khi save thành công.
+
+## Dùng Core Component
+
+Khi không dùng `react-hook-form`, hoặc cần tự compose field UI, dùng core component trực tiếp:
 
 ```tsx
 <SortableImageUpload
