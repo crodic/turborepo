@@ -1,48 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import SortableImageUpload from "@/components/form/sortable-image-upload";
+import { toast } from "sonner";
+import SortableImageUploadField from "@/components/form/sortable-image-upload-field";
 import type { ExistingImage, ImagePayload } from "@/components/form/types";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import CoverUpload from "@/components/form/cover-upload";
-
-// Simulated existing images from server (edit flow)
-const mockExistingImages: ExistingImage[] = [
-  {
-    id: "server-1",
-    src: "https://picsum.photos/400/300?random=1",
-    alt: "Product view 1",
-  },
-  {
-    id: "server-2",
-    src: "https://picsum.photos/400/300?random=2",
-    alt: "Product view 2",
-  },
-  {
-    id: "server-3",
-    src: "https://picsum.photos/400/300?random=3",
-    alt: "Product view 3",
-  },
-];
+import { Form } from "@/components/ui/form";
+import CoverUploadField from "@/components/form/cover-upload-field";
 
 // Zod schema for ImagePayload validation
 const existingImageSchema = z.object({
@@ -89,42 +56,212 @@ const imagesSchema = z
 
 const formSchema = z.object({
   images: imagesSchema,
-  cover: z.instanceof(File, { message: "Must be a valid File" }).nullish(),
+  coverIndex: z.number().int().nonnegative().nullable(),
+  cover: z.instanceof(File, { message: "Must be a valid File" }).nullable(),
 });
 
-type FormData = z.infer<typeof formSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
-export default function ImageUploadDemo() {
-  const [submittedData, setSubmittedData] = useState<ImagePayload[] | null>(
-    null
+type SortableImageApiItem = {
+  id: string;
+  src: string;
+  alt?: string;
+  order: number;
+};
+
+type SortableImageApiResponse = {
+  ownerKey: string;
+  coverIndex: number | null;
+  images: SortableImageApiItem[];
+};
+
+const SORTABLE_IMAGES_OWNER_KEY = "demo-user";
+const SORTABLE_IMAGES_API_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/files/sortable-images/${SORTABLE_IMAGES_OWNER_KEY}`;
+
+function toExistingImages(images: SortableImageApiItem[]): ExistingImage[] {
+  return [...images]
+    .sort((a, b) => a.order - b.order)
+    .map((image) => ({
+      id: image.id,
+      src: image.src,
+      alt: image.alt ?? "Image",
+    }));
+}
+
+function toExistingPayloads(images: ExistingImage[]): ImagePayload[] {
+  return images.map((image, order) => ({
+    type: "existing",
+    id: image.id,
+    order,
+  }));
+}
+
+function buildSortableImagesFormData(
+  images: ImagePayload[],
+  existingImages: ExistingImage[],
+  coverIndex?: number | null
+) {
+  const formData = new window.FormData();
+  const existingImageById = new Map(
+    existingImages.map((image) => [image.id, image])
+  );
+  const activeImages = images
+    .filter(
+      (image): image is ImagePayload & { type: "existing" | "new" } =>
+        image.type === "existing" || image.type === "new"
+    )
+    .sort((a, b) => a.order - b.order);
+
+  formData.append(
+    "items",
+    JSON.stringify(
+      activeImages.map((image) => {
+        if (image.type === "existing") {
+          const existingImage = existingImageById.get(image.id);
+
+          return {
+            type: "existing",
+            id: image.id,
+            src: existingImage?.src,
+            alt: existingImage?.alt ?? "Image",
+          };
+        }
+
+        return {
+          type: "new",
+          tempId: image.tempId,
+          alt: image.file.name,
+        };
+      })
+    )
   );
 
-  const form = useForm<FormData>({
+  if (typeof coverIndex === "number") {
+    formData.append("coverIndex", String(coverIndex));
+  }
+
+  activeImages.forEach((image) => {
+    if (image.type === "new") {
+      formData.append("files", image.file, image.file.name);
+    }
+  });
+
+  return formData;
+}
+
+async function getErrorMessage(response: Response) {
+  try {
+    const data = await response.json();
+    const message = data?.message;
+
+    if (Array.isArray(message)) {
+      return message.join(", ");
+    }
+
+    if (typeof message === "string") {
+      return message;
+    }
+  } catch {
+    // Keep the fallback below when the response body is empty or not JSON.
+  }
+
+  return `Request failed with status ${response.status}`;
+}
+
+export default function ImageUploadDemo() {
+  const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
+  const [isLoadingImages, setIsLoadingImages] = useState(true);
+  const [isSavingImages, setIsSavingImages] = useState(false);
+
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      images: mockExistingImages.map((img, index) => ({
-        type: "existing" as const,
-        id: img.id,
-        order: index,
-      })),
+      images: [],
+      coverIndex: null,
+      cover: null,
     },
   });
 
-  const currentValue = form.watch("images");
+  useEffect(() => {
+    let isMounted = true;
 
-  const onSubmit = (data: FormData) => {
-    setSubmittedData(data.images);
+    async function loadImages() {
+      try {
+        const response = await fetch(SORTABLE_IMAGES_API_URL, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to load cached images");
+        }
+
+        const data = (await response.json()) as SortableImageApiResponse;
+        if (!isMounted || data.images.length === 0) return;
+
+        const cachedImages = toExistingImages(data.images);
+        setExistingImages(cachedImages);
+        form.reset({
+          images: toExistingPayloads(cachedImages),
+          coverIndex: data.coverIndex,
+          cover: form.getValues("cover"),
+        });
+      } catch (error) {
+        console.error(error);
+        toast.error("Could not load saved images");
+      } finally {
+        if (isMounted) {
+          setIsLoadingImages(false);
+        }
+      }
+    }
+
+    loadImages();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [form]);
+
+  const onSubmit = async (data: FormValues) => {
+    setIsSavingImages(true);
+
+    try {
+      const response = await fetch(SORTABLE_IMAGES_API_URL, {
+        method: "POST",
+        body: buildSortableImagesFormData(
+          data.images,
+          existingImages,
+          data.coverIndex
+        ),
+      });
+
+      if (!response.ok) {
+        throw new Error(await getErrorMessage(response));
+      }
+
+      const saved = (await response.json()) as SortableImageApiResponse;
+      const savedImages = toExistingImages(saved.images);
+
+      setExistingImages(savedImages);
+      form.reset({
+        images: toExistingPayloads(savedImages),
+        coverIndex: saved.coverIndex,
+        cover: data.cover,
+      });
+      toast.success("Images saved successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not save images");
+    } finally {
+      setIsSavingImages(false);
+    }
   };
 
   const handleReset = () => {
     form.reset({
-      images: mockExistingImages.map((img, index) => ({
-        type: "existing" as const,
-        id: img.id,
-        order: index,
-      })),
+      images: toExistingPayloads(existingImages),
+      coverIndex: existingImages.length > 0 ? 0 : null,
     });
-    setSubmittedData(null);
   };
 
   return (
@@ -142,134 +279,47 @@ export default function ImageUploadDemo() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
+            <SortableImageUploadField
               control={form.control}
               name="images"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product Images</FormLabel>
-                  <FormControl>
-                    <SortableImageUpload
-                      existingImages={mockExistingImages}
-                      value={field.value}
-                      onChange={field.onChange}
-                      maxFiles={200}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Upload between 1 and 200 images. Drag to reorder.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
+              coverIndexName="coverIndex"
+              label="Product Images"
+              description={({ loading }) =>
+                loading
+                  ? "Loading saved images..."
+                  : "Upload between 1 and 200 images. Drag to reorder."
+              }
+              existingImages={existingImages}
+              maxFiles={200}
+              disabled={isLoadingImages || isSavingImages}
+              loading={isLoadingImages}
             />
 
-            <FormField
+            <CoverUploadField
               control={form.control}
               name="cover"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product Cover</FormLabel>
-                  <FormControl>
-                    <CoverUpload
-                      value={field.value}
-                      onChange={field.onChange}
-                      accept="image/png"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Product Cover"
+              description="Upload a cover image, then drag it inside the frame to crop before submit."
+              accept="image/png"
+              disabled={isSavingImages}
             />
 
             <div className="flex justify-center gap-4">
-              <Button type="submit" size="lg">
-                Save Changes
+              <Button type="submit" size="lg" disabled={isSavingImages}>
+                {isSavingImages ? "Saving..." : "Save Changes"}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="lg"
                 onClick={handleReset}
+                disabled={isSavingImages}
               >
                 Reset
               </Button>
             </div>
           </form>
         </Form>
-
-        {/* Debug: Show current form value */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Current Form Value</CardTitle>
-            <CardDescription>
-              Real-time view of the ImagePayload[] being tracked by
-              react-hook-form
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <pre className="bg-muted max-h-64 overflow-auto rounded-lg p-4 text-xs">
-              {JSON.stringify(
-                currentValue?.map((p) => {
-                  if (p.type === "new") {
-                    return { ...p, file: `[File: ${p.file.name}]` };
-                  }
-                  return p;
-                }),
-                null,
-                2
-              )}
-            </pre>
-          </CardContent>
-        </Card>
-
-        {/* Show submitted data */}
-        {submittedData && (
-          <Card className="border-green-500/50">
-            <CardHeader>
-              <CardTitle className="text-green-600">
-                Submitted Payload
-              </CardTitle>
-              <CardDescription>
-                This is what would be sent to your server
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <pre className="bg-muted max-h-64 overflow-auto rounded-lg p-4 text-xs">
-                {JSON.stringify(
-                  submittedData.map((p) => {
-                    if (p.type === "new") {
-                      return { ...p, file: `[File: ${p.file.name}]` };
-                    }
-                    return p;
-                  }),
-                  null,
-                  2
-                )}
-              </pre>
-
-              <div className="mt-4 space-y-2 text-sm">
-                <p>
-                  <strong>Summary:</strong>
-                </p>
-                <ul className="text-muted-foreground list-inside list-disc space-y-1">
-                  <li>
-                    Existing images to keep:{" "}
-                    {submittedData.filter((p) => p.type === "existing").length}
-                  </li>
-                  <li>
-                    New images to upload:{" "}
-                    {submittedData.filter((p) => p.type === "new").length}
-                  </li>
-                  <li>
-                    Images to delete:{" "}
-                    {submittedData.filter((p) => p.type === "deleted").length}
-                  </li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </main>
   );

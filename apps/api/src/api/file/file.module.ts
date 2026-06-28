@@ -7,6 +7,8 @@ import { FileController } from './file.controller';
 import { FileService } from './file.service';
 import { FileStorageAccessGuard } from './guards/file-storage-access.guard';
 import { TransformationParser } from './parsers/transformation.parser';
+import { SortableImageCacheService } from './sortable-image-cache.service';
+import { SortableImageUploadService } from './sortable-image-upload.service';
 import { TransformController } from './transform.controller';
 import { FileValidator } from './validators/file.validator';
 
@@ -19,6 +21,9 @@ import { FileValidator } from './validators/file.validator';
     TransformationParser,
     ImageTransformer,
     FileValidator,
+    SortableImageUploadService,
+    SortableImageCacheService,
   ],
+  exports: [FileService, SortableImageUploadService],
 })
 export class FileModule {}

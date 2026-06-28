@@ -1,4 +1,4 @@
-import { ApiAuth } from '@/decorators/http.decorators';
+import { ApiAuth, ApiPublic } from '@/decorators/http.decorators';
 import { CheckPolicies } from '@/decorators/policies.decorator';
 import { AdminAuthGuard } from '@/guards/admin-auth.guard';
 import { PoliciesGuard } from '@/guards/policies.guard';
@@ -15,10 +15,11 @@ import {
   Put,
   Query,
   UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiBody,
   ApiConsumes,
@@ -45,14 +46,19 @@ import {
   FileFolderResDto,
   RenameFolderDto,
 } from './dto/folder.dto';
+import { SortableImageListResDto } from './dto/sortable-image.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
 import { FileService } from './file.service';
+import { SortableImageCacheService } from './sortable-image-cache.service';
 
 @ApiTags('Files')
 @Controller({ path: 'files', version: '1' })
 @UseGuards(AdminAuthGuard, PoliciesGuard)
 export class FileController {
-  constructor(private readonly fileService: FileService) {}
+  constructor(
+    private readonly fileService: FileService,
+    private readonly sortableImageCacheService: SortableImageCacheService,
+  ) {}
 
   @Get()
   @ApiAuth({
@@ -239,6 +245,72 @@ export class FileController {
   )
   abortUpload(@Param('sessionId') sessionId: string) {
     return this.fileService.abortUploadSession(sessionId);
+  }
+
+  @Get('sortable-images/:ownerKey')
+  @ApiPublic({
+    type: SortableImageListResDto,
+    summary: 'Get cached sortable images',
+    description:
+      'Public endpoint for loading the cached image list in saved order.',
+  })
+  getSortableImages(
+    @Param('ownerKey') ownerKey: string,
+  ): Promise<SortableImageListResDto> {
+    return this.sortableImageCacheService.findAll(ownerKey);
+  }
+
+  @Post('sortable-images/:ownerKey')
+  @ApiPublic({
+    type: SortableImageListResDto,
+    summary: 'Save cached sortable images',
+    description:
+      'Public multipart/form-data endpoint. Send items as ordered JSON and append new image files to files in the same order as new items.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        items: {
+          type: 'string',
+          description:
+            'Ordered JSON array. Existing item: {"type":"existing","id":"...","src":"..."}. New item: {"type":"new","tempId":"...","alt":"..."}.',
+          example:
+            '[{"type":"existing","id":"img_1","src":"https://example.com/image.png"},{"type":"new","tempId":"new-1","alt":"front.png"}]',
+        },
+        files: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+        },
+        coverIndex: {
+          type: 'number',
+          nullable: true,
+          description:
+            'Optional index of the image selected as cover after sorting.',
+          example: 0,
+        },
+      },
+    },
+  })
+  @UseInterceptors(
+    FilesInterceptor('files', 200, {
+      ...memoryStorageConfig,
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  saveSortableImages(
+    @Param('ownerKey') ownerKey: string,
+    @Body('items') items: string,
+    @Body('coverIndex') coverIndex?: string,
+    @UploadedFiles() files: Express.Multer.File[] = [],
+  ) {
+    return this.sortableImageCacheService.save(
+      ownerKey,
+      items,
+      files,
+      coverIndex,
+    );
   }
 
   @Get(':publicId')

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React from "react";
@@ -13,16 +14,16 @@ import {
 import { Button } from "@/components/radix-ui/button";
 import { Card, CardContent } from "@/components/radix-ui/card";
 import { Progress } from "@/components/radix-ui/progress";
+import { Sortable, SortableItem } from "@/components/ui/sortable";
 import {
-  Sortable,
-  SortableItem,
-  SortableItemHandle,
-} from "@/components/ui/sortable";
-import {
+  ChevronLeft,
+  ChevronRight,
   CircleX,
   CloudUpload,
   GripVertical,
   ImageIcon,
+  Plus,
+  Star,
   TriangleAlert,
   XIcon,
 } from "lucide-react";
@@ -39,7 +40,7 @@ interface UploadProgress {
   error?: string;
 }
 
-interface SortableImageUploadProps {
+export interface SortableImageUploadProps {
   // Existing images from server (initial data for edit flow)
   existingImages?: ExistingImage[];
   // Controlled form value
@@ -52,6 +53,9 @@ interface SortableImageUploadProps {
   accept?: string;
   className?: string;
   disabled?: boolean;
+  loading?: boolean;
+  coverIndex?: number | null;
+  onCoverIndexChange?: (index: number | null) => void;
 }
 
 export default function SortableImageUpload({
@@ -63,6 +67,9 @@ export default function SortableImageUpload({
   accept = "image/*",
   className,
   disabled = false,
+  loading = false,
+  coverIndex,
+  onCoverIndexChange,
 }: SortableImageUploadProps) {
   // UI state for display and drag/drop - contains ALL visible images
   const [uiImages, setUiImages] = useState<UIImage[]>([]);
@@ -77,6 +84,9 @@ export default function SortableImageUpload({
 
   // Validation errors (UI-only)
   const [errors, setErrors] = useState<string[]>([]);
+
+  // Fullscreen image preview state
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   // Track files for new images (needed for preview URLs)
   const fileMapRef = useRef<Map<string, File>>(new Map());
@@ -261,70 +271,6 @@ export default function SortableImageUpload({
     [maxSize, maxFiles, uiImages.length]
   );
 
-  // Add new images
-  const addImages = useCallback(
-    (files: FileList | File[]) => {
-      const newUiImages: UIImage[] = [];
-      const newProgress: UploadProgress[] = [];
-      const newErrors: string[] = [];
-
-      Array.from(files).forEach((file) => {
-        const error = validateFile(file);
-        if (error) {
-          newErrors.push(`${file.name}: ${error}`);
-          return;
-        }
-
-        const tempId = `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const previewUrl = URL.createObjectURL(file);
-
-        // Store file and preview URL references
-        fileMapRef.current.set(tempId, file);
-        previewUrlsRef.current.set(tempId, previewUrl);
-
-        newUiImages.push({
-          id: tempId,
-          src: previewUrl,
-          alt: file.name,
-          source: "new",
-          file,
-        });
-
-        newProgress.push({
-          tempId,
-          fileName: file.name,
-          fileSize: file.size,
-          progress: 0,
-          status: "uploading",
-        });
-      });
-
-      if (newErrors.length > 0) {
-        setErrors((prev) => [...prev, ...newErrors]);
-      }
-
-      if (newUiImages.length > 0) {
-        const updatedUiImages = [...uiImages, ...newUiImages];
-        setUiImages(updatedUiImages);
-
-        // Update progress tracking
-        setUploadProgress((prev) => {
-          const updated = new Map(prev);
-          newProgress.forEach((p) => updated.set(p.tempId, p));
-          return updated;
-        });
-
-        // Sync to form
-        const payload = buildPayload(updatedUiImages, deletedIds);
-        onChange?.(payload);
-
-        // Simulate upload progress for each new image
-        newProgress.forEach((p) => simulateUpload(p.tempId));
-      }
-    },
-    [uiImages, validateFile, buildPayload, deletedIds, onChange]
-  );
-
   // Simulate upload progress (in real app, this would be actual upload)
   const simulateUpload = useCallback((tempId: string) => {
     let progress = 0;
@@ -358,10 +304,106 @@ export default function SortableImageUpload({
     }, 100);
   }, []);
 
+  // Add new images
+  const addImages = useCallback(
+    (files: FileList | File[]) => {
+      const newUiImages: UIImage[] = [];
+      const newProgress: UploadProgress[] = [];
+      const newErrors: string[] = [];
+      const remainingSlots = maxFiles - uiImages.length;
+
+      Array.from(files)
+        .slice(0, Math.max(remainingSlots, 0))
+        .forEach((file) => {
+          const error = validateFile(file);
+          if (error) {
+            newErrors.push(`${file.name}: ${error}`);
+            return;
+          }
+
+          const tempId = `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          const previewUrl = URL.createObjectURL(file);
+
+          // Store file and preview URL references
+          fileMapRef.current.set(tempId, file);
+          previewUrlsRef.current.set(tempId, previewUrl);
+
+          newUiImages.push({
+            id: tempId,
+            src: previewUrl,
+            alt: file.name,
+            source: "new",
+            file,
+          });
+
+          newProgress.push({
+            tempId,
+            fileName: file.name,
+            fileSize: file.size,
+            progress: 0,
+            status: "uploading",
+          });
+        });
+
+      if (Array.from(files).length > remainingSlots) {
+        newErrors.push(`Maximum ${maxFiles} files allowed`);
+      }
+
+      if (newErrors.length > 0) {
+        setErrors((prev) => [...prev, ...newErrors]);
+      }
+
+      if (newUiImages.length > 0) {
+        const updatedUiImages = [...uiImages, ...newUiImages];
+        setUiImages(updatedUiImages);
+
+        // Update progress tracking
+        setUploadProgress((prev) => {
+          const updated = new Map(prev);
+          newProgress.forEach((p) => updated.set(p.tempId, p));
+          return updated;
+        });
+
+        // Sync to form
+        const payload = buildPayload(updatedUiImages, deletedIds);
+        onChange?.(payload);
+
+        if (
+          onCoverIndexChange &&
+          updatedUiImages.length > 0 &&
+          (coverIndex === null ||
+            coverIndex === undefined ||
+            coverIndex >= updatedUiImages.length)
+        ) {
+          onCoverIndexChange(0);
+        }
+
+        // Simulate upload progress for each new image
+        newProgress.forEach((p) => simulateUpload(p.tempId));
+      }
+    },
+    [
+      uiImages,
+      maxFiles,
+      validateFile,
+      buildPayload,
+      deletedIds,
+      onChange,
+      coverIndex,
+      onCoverIndexChange,
+      simulateUpload,
+    ]
+  );
+
+  const closeLightbox = useCallback(() => {
+    setLightboxIndex(null);
+  }, []);
+
   // Remove an image
   const removeImage = useCallback(
     (id: string) => {
-      const imageToRemove = uiImages.find((img) => img.id === id);
+      const removedIndex = uiImages.findIndex((img) => img.id === id);
+      const imageToRemove = uiImages[removedIndex];
       if (!imageToRemove) return;
 
       // Update UI state
@@ -391,13 +433,40 @@ export default function SortableImageUpload({
       // Sync to form
       const payload = buildPayload(updatedUiImages, updatedDeletedIds);
       onChange?.(payload);
+
+      if (onCoverIndexChange && typeof coverIndex === "number") {
+        if (updatedUiImages.length === 0) {
+          onCoverIndexChange(null);
+        } else if (removedIndex === coverIndex) {
+          onCoverIndexChange(0);
+        } else if (removedIndex < coverIndex) {
+          onCoverIndexChange(coverIndex - 1);
+        } else if (coverIndex >= updatedUiImages.length) {
+          onCoverIndexChange(updatedUiImages.length - 1);
+        }
+      }
+
+      if (updatedUiImages.length === 0) {
+        closeLightbox();
+      }
     },
-    [uiImages, deletedIds, buildPayload, onChange]
+    [
+      uiImages,
+      deletedIds,
+      buildPayload,
+      onChange,
+      coverIndex,
+      onCoverIndexChange,
+      closeLightbox,
+    ]
   );
 
   // Handle reorder after drag/drop
   const handleReorder = useCallback(
     (newOrder: string[]) => {
+      const coverImageId =
+        typeof coverIndex === "number" ? uiImages[coverIndex]?.id : undefined;
+
       // Reconstruct UI images in new order
       const reorderedUiImages = newOrder
         .map((id) => uiImages.find((img) => img.id === id))
@@ -408,9 +477,78 @@ export default function SortableImageUpload({
       // Sync to form with updated order
       const payload = buildPayload(reorderedUiImages, deletedIds);
       onChange?.(payload);
+
+      if (coverImageId && onCoverIndexChange) {
+        const nextCoverIndex = reorderedUiImages.findIndex(
+          (image) => image.id === coverImageId
+        );
+        if (nextCoverIndex >= 0) {
+          onCoverIndexChange(nextCoverIndex);
+        }
+      }
     },
-    [uiImages, deletedIds, buildPayload, onChange]
+    [
+      uiImages,
+      deletedIds,
+      buildPayload,
+      onChange,
+      coverIndex,
+      onCoverIndexChange,
+    ]
   );
+
+  const openLightbox = useCallback((index: number) => {
+    setLightboxIndex(index);
+  }, []);
+
+  const showPreviousImage = useCallback(() => {
+    setLightboxIndex((current) => {
+      if (current === null || uiImages.length === 0) return current;
+      const normalizedIndex = Math.min(current, uiImages.length - 1);
+      return (normalizedIndex - 1 + uiImages.length) % uiImages.length;
+    });
+  }, [uiImages.length]);
+
+  const showNextImage = useCallback(() => {
+    setLightboxIndex((current) => {
+      if (current === null || uiImages.length === 0) return current;
+      const normalizedIndex = Math.min(current, uiImages.length - 1);
+      return (normalizedIndex + 1) % uiImages.length;
+    });
+  }, [uiImages.length]);
+
+  useEffect(() => {
+    if (lightboxIndex === null || uiImages.length === 0) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeLightbox();
+      }
+
+      if (event.key === "ArrowLeft") {
+        showPreviousImage();
+      }
+
+      if (event.key === "ArrowRight") {
+        showNextImage();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [
+    closeLightbox,
+    lightboxIndex,
+    showNextImage,
+    showPreviousImage,
+    uiImages.length,
+  ]);
 
   // Drag and drop handlers for upload zone
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -436,19 +574,19 @@ export default function SortableImageUpload({
       e.stopPropagation();
       setIsDragging(false);
 
-      if (disabled) return;
+      if (disabled || loading) return;
 
       const files = e.dataTransfer.files;
       if (files.length > 0) {
         addImages(files);
       }
     },
-    [addImages, disabled]
+    [addImages, disabled, loading]
   );
 
   // Open file dialog
   const openFileDialog = useCallback(() => {
-    if (disabled) return;
+    if (disabled || loading) return;
 
     const input = document.createElement("input");
     input.type = "file";
@@ -461,7 +599,7 @@ export default function SortableImageUpload({
       }
     };
     input.click();
-  }, [accept, addImages, disabled]);
+  }, [accept, addImages, disabled, loading]);
 
   // Format bytes helper
   const formatBytes = (bytes: number): string => {
@@ -478,117 +616,207 @@ export default function SortableImageUpload({
     [uploadProgress]
   );
 
-  // Count of new images (for display)
-  const newImageCount = uiImages.filter((img) => img.source === "new").length;
+  const isDisabled = disabled || loading;
+  const canAddMore = uiImages.length < maxFiles;
+  const canSelectCover = Boolean(onCoverIndexChange);
+  const normalizedCoverIndex =
+    typeof coverIndex === "number" &&
+    coverIndex >= 0 &&
+    coverIndex < uiImages.length
+      ? coverIndex
+      : null;
+  const safeLightboxIndex =
+    lightboxIndex !== null && uiImages.length > 0
+      ? Math.min(lightboxIndex, uiImages.length - 1)
+      : null;
+  const lightboxImage =
+    safeLightboxIndex !== null ? uiImages[safeLightboxIndex] : undefined;
 
   return (
     <div className={cn("w-full max-w-4xl", className)}>
-      {/* Instructions */}
-      <div className="mb-4 text-center">
-        <p className="text-muted-foreground text-sm">
-          Upload up to {maxFiles} images (JPG, PNG, GIF, WebP, max{" "}
-          {formatBytes(maxSize)} each). <br />
-          Drag and drop images to reorder.
-          {uiImages.length > 0 && ` ${uiImages.length}/${maxFiles} images.`}
-        </p>
-      </div>
+      {loading && (
+        <div className="border-border bg-muted/20 mb-4 rounded-md border p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="space-y-2">
+              <div className="bg-muted h-4 w-40 animate-pulse rounded" />
+              <div className="bg-muted h-3 w-64 max-w-full animate-pulse rounded" />
+            </div>
+            <div className="bg-muted size-9 animate-pulse rounded-md" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-5">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="bg-muted aspect-square animate-pulse rounded-md"
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!loading && (
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-muted-foreground text-sm">
+            {uiImages.length > 0
+              ? `${uiImages.length}/${maxFiles} images. Drag images to reorder.`
+              : `Upload up to ${maxFiles} images (JPG, PNG, GIF, WebP, max ${formatBytes(maxSize)} each).`}
+          </p>
+
+          {uiImages.length > 0 && canAddMore && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={openFileDialog}
+              disabled={isDisabled}
+              type="button"
+              className="w-full sm:w-auto"
+            >
+              <Plus className="size-4" />
+              Add image
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Image Grid with Sortable */}
-      {uiImages.length > 0 && (
+      {!loading && uiImages.length > 0 && (
         <div className="mb-6">
           <Sortable
             value={uiImages.map((item) => item.id)}
             onValueChange={handleReorder}
             getItemValue={(item) => item}
             strategy="grid"
-            className="grid auto-rows-fr grid-cols-5 gap-2.5"
+            className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-5"
           >
-            {uiImages.map((item) => (
-              <SortableItem key={item.id} value={item.id} disabled={disabled}>
-                <div className="bg-accent/50 group border-border hover:bg-accent/70 relative flex shrink-0 items-center justify-center rounded-md border shadow-none transition-all duration-200 hover:z-10 data-[dragging=true]:z-50">
-                  <img
-                    src={item.src || "/placeholder.svg"}
-                    className="pointer-events-none h-[120px] w-full rounded-md object-cover"
-                    alt={item.alt}
-                  />
+            {uiImages.map((item, index) => {
+              const isCover = canSelectCover && index === normalizedCoverIndex;
 
-                  {/* Source indicator badge */}
-                  <span
-                    className={cn(
-                      "absolute start-2 bottom-2 rounded-sm px-1.5 py-0.5 text-[10px] font-medium",
-                      item.source === "existing"
-                        ? "bg-background/80 text-foreground"
-                        : "bg-primary/80 text-primary-foreground"
-                    )}
+              return (
+                <SortableItem
+                  key={item.id}
+                  value={item.id}
+                  disabled={isDisabled}
+                  asHandle
+                >
+                  <div
+                    className="bg-accent/50 group border-border hover:bg-accent/70 relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-md border shadow-none transition-all duration-200 hover:z-10 data-[dragging=true]:z-50"
+                    onClick={() => openLightbox(index)}
                   >
-                    {item.source === "existing" ? "Saved" : "New"}
-                  </span>
+                    <img
+                      src={item.src || "/placeholder.svg"}
+                      className="pointer-events-none h-full w-full rounded-md object-cover"
+                      alt={item.alt}
+                    />
 
-                  {/* Drag Handle */}
-                  {!disabled && (
-                    <SortableItemHandle className="absolute start-2 top-2 cursor-grab opacity-0 group-hover:opacity-100 active:cursor-grabbing">
+                    {/* Source indicator badge */}
+                    <span
+                      className={cn(
+                        "absolute start-2 bottom-2 rounded-sm px-1.5 py-0.5 text-[10px] font-medium",
+                        item.source === "existing"
+                          ? "bg-background/80 text-foreground"
+                          : "bg-primary/80 text-primary-foreground"
+                      )}
+                    >
+                      {item.source === "existing" ? "Saved" : "New"}
+                    </span>
+
+                    <div className="bg-background/80 text-muted-foreground pointer-events-none absolute start-2 top-2 flex size-8 items-center justify-center rounded-full opacity-100 shadow-sm sm:size-6 sm:opacity-0 sm:group-hover:opacity-100">
+                      <GripVertical className="size-4 sm:size-3.5" />
+                    </div>
+
+                    {canSelectCover && (
                       <Button
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onCoverIndexChange?.(index);
+                        }}
+                        variant={isCover ? "primary" : "outline"}
+                        size="icon"
+                        type="button"
+                        disabled={isDisabled}
+                        aria-label={
+                          isCover ? "Current cover image" : "Set as cover image"
+                        }
+                        className={cn(
+                          "absolute end-2 top-2 size-8 rounded-full shadow-sm sm:size-6",
+                          !isCover &&
+                            "bg-background/80 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                        )}
+                      >
+                        <Star
+                          className={cn(
+                            "size-4 sm:size-3.5",
+                            isCover && "fill-current"
+                          )}
+                        />
+                      </Button>
+                    )}
+
+                    {/* Remove Button */}
+                    {!isDisabled && (
+                      <Button
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          removeImage(item.id);
+                        }}
                         variant="outline"
                         size="icon"
-                        className="size-6 rounded-full bg-transparent"
+                        type="button"
+                        className={cn(
+                          "bg-background/80 absolute size-8 rounded-full opacity-100 shadow-sm sm:size-6 sm:opacity-0 sm:group-hover:opacity-100",
+                          canSelectCover ? "end-2 bottom-2" : "end-2 top-2"
+                        )}
                       >
-                        <GripVertical className="size-3.5" />
+                        <XIcon className="size-4 sm:size-3.5" />
                       </Button>
-                    </SortableItemHandle>
-                  )}
-
-                  {/* Remove Button */}
-                  {!disabled && (
-                    <Button
-                      onClick={() => removeImage(item.id)}
-                      variant="outline"
-                      size="icon"
-                      className="absolute end-2 top-2 size-6 rounded-full opacity-0 shadow-sm group-hover:opacity-100"
-                    >
-                      <XIcon className="size-3.5" />
-                    </Button>
-                  )}
-                </div>
-              </SortableItem>
-            ))}
+                    )}
+                  </div>
+                </SortableItem>
+              );
+            })}
           </Sortable>
         </div>
       )}
 
       {/* Upload Area */}
-      <Card
-        className={cn(
-          "rounded-md border-dashed shadow-none transition-colors",
-          isDragging
-            ? "border-primary bg-primary/5"
-            : "border-muted-foreground/25 hover:border-muted-foreground/50",
-          disabled && "pointer-events-none opacity-50"
-        )}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-      >
-        <CardContent className="text-center">
-          <div className="border-border mx-auto mb-3 flex size-[32px] items-center justify-center rounded-full border">
-            <CloudUpload className="size-4" />
-          </div>
-          <h3 className="text-2sm text-foreground mb-0.5 font-semibold">
-            Choose a file or drag & drop here.
-          </h3>
-          <span className="text-secondary-foreground mb-3 block text-xs font-normal">
-            JPEG, PNG, up to {formatBytes(maxSize)}.
-          </span>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={openFileDialog}
-            disabled={disabled}
-          >
-            Browse File
-          </Button>
-        </CardContent>
-      </Card>
+      {!loading && uiImages.length === 0 && (
+        <Card
+          className={cn(
+            "rounded-md border-dashed shadow-none transition-colors",
+            isDragging
+              ? "border-primary bg-primary/5"
+              : "border-muted-foreground/25 hover:border-muted-foreground/50",
+            isDisabled && "pointer-events-none opacity-50"
+          )}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
+          <CardContent className="text-center">
+            <div className="border-border mx-auto mb-3 flex size-[32px] items-center justify-center rounded-full border">
+              <CloudUpload className="size-4" />
+            </div>
+            <h3 className="text-2sm text-foreground mb-0.5 font-semibold">
+              Choose a file or drag & drop here.
+            </h3>
+            <span className="text-secondary-foreground mb-3 block text-xs font-normal">
+              JPEG, PNG, up to {formatBytes(maxSize)}.
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={openFileDialog}
+              disabled={isDisabled}
+              type="button"
+            >
+              Browse File
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Upload Progress Cards */}
       {progressEntries.length > 0 && (
@@ -622,7 +850,7 @@ export default function SortableImageUpload({
                       variant="ghost"
                       size="icon"
                       className="size-6"
-                      disabled={disabled}
+                      disabled={isDisabled}
                     >
                       <CircleX className="size-3.5" />
                     </Button>
@@ -659,6 +887,77 @@ export default function SortableImageUpload({
             </AlertDescription>
           </AlertContent>
         </Alert>
+      )}
+
+      {lightboxImage && safeLightboxIndex !== null && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95"
+          onClick={closeLightbox}
+        >
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute end-4 top-4 z-10 size-10 rounded-full text-white hover:bg-white/15 hover:text-white"
+            onClick={(event) => {
+              event.stopPropagation();
+              closeLightbox();
+            }}
+            aria-label="Close image preview"
+          >
+            <XIcon className="size-5" />
+          </Button>
+
+          {uiImages.length > 1 && (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute start-4 top-1/2 z-10 size-12 -translate-y-1/2 rounded-full bg-white/10 text-white hover:bg-white/20 hover:text-white sm:start-6 sm:size-14"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  showPreviousImage();
+                }}
+                aria-label="Previous image"
+              >
+                <ChevronLeft className="size-7" />
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute end-4 top-1/2 z-10 size-12 -translate-y-1/2 rounded-full bg-white/10 text-white hover:bg-white/20 hover:text-white sm:end-6 sm:size-14"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  showNextImage();
+                }}
+                aria-label="Next image"
+              >
+                <ChevronRight className="size-7" />
+              </Button>
+            </>
+          )}
+
+          <div
+            className="flex h-full w-full items-center justify-center px-4 py-16 sm:px-20 sm:py-10"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <img
+              src={lightboxImage.src || "/placeholder.svg"}
+              alt={lightboxImage.alt}
+              className="max-h-full max-w-full object-contain shadow-2xl"
+            />
+          </div>
+
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-white/15 px-3 py-1 text-sm font-medium text-white">
+            {safeLightboxIndex + 1}/{uiImages.length}
+          </div>
+        </div>
       )}
     </div>
   );
