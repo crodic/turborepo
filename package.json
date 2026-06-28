@@ -13,6 +13,7 @@
     "test": "turbo run test",
     "config": "bash ./config.sh",
     "setup": "bash ./setup.sh",
+    "storage:clear": "bash ./scripts/clear-storage.sh",
     "docker:dev": "docker compose up --build",
     "docker:down": "docker compose down",
     "prepare": "husky"

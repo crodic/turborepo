@@ -22,6 +22,7 @@ import TiptapEditor from '@/components/editor/tiptap-editor'
 import AsyncCreatableSelect, {
   type Option,
 } from '@/components/forms/async-paginate-creatable'
+import { extensions } from './email-extensions'
 import { apiSearchEmailRecipients } from './queries'
 import {
   emailFormSchema,
@@ -290,6 +291,7 @@ function EmailFormDialogContent({
                 <FormLabel required>Body</FormLabel>
                 <TiptapEditor
                   output='html'
+                  extensions={extensions}
                   content={field.value}
                   disabled={!!isPending}
                   onChangeContent={field.onChange}

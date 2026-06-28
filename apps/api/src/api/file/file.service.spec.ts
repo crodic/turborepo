@@ -1,11 +1,16 @@
+import { FileStorageService } from '@/libs/filesystem/lib/file-storage.service';
+import { ImageTransformer } from '@/utils/transformers/image.transformer';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { mkdtemp, readFile, rm } from 'fs/promises';
+import { createReadStream, createWriteStream } from 'fs';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { dirname, join } from 'path';
+import { pipeline } from 'stream/promises';
 import { FileEntity } from './entities/file.entity';
 import { FileService } from './file.service';
+import { TransformationParser } from './parsers/transformation.parser';
 import { FileValidator } from './validators/file.validator';
 
 describe('FileService', () => {
@@ -20,6 +25,19 @@ describe('FileService', () => {
     createQueryBuilder: jest.Mock;
   };
   let diskRoot = 'storage/public';
+  let disk: {
+    getDiskRoot: jest.Mock;
+    put: jest.Mock;
+    putStream: jest.Mock;
+    get: jest.Mock;
+    delete: jest.Mock;
+    exists: jest.Mock;
+    createReadStream: jest.Mock;
+  };
+  let storageService: {
+    config: { default: string };
+    disk: jest.Mock;
+  };
 
   const createQueryBuilderMock = (
     overrides: Record<string, jest.Mock> = {},
@@ -52,6 +70,38 @@ describe('FileService', () => {
       find: jest.fn(),
       createQueryBuilder: jest.fn(),
     };
+    disk = {
+      getDiskRoot: jest.fn(() => diskRoot),
+      put: jest.fn(async (path: string, content: Buffer) => {
+        const target = join(diskRoot, path);
+        await mkdir(dirname(target), { recursive: true });
+        await writeFile(target, content);
+      }),
+      putStream: jest.fn(
+        async (path: string, stream: NodeJS.ReadableStream) => {
+          const target = join(diskRoot, path);
+          await mkdir(dirname(target), { recursive: true });
+          await pipeline(stream, createWriteStream(target));
+        },
+      ),
+      get: jest.fn((path: string) => readFile(join(diskRoot, path))),
+      delete: jest.fn(),
+      exists: jest.fn(async (path: string) => {
+        try {
+          await readFile(join(diskRoot, path));
+          return true;
+        } catch {
+          return false;
+        }
+      }),
+      createReadStream: jest.fn((path: string) =>
+        createReadStream(join(diskRoot, path)),
+      ),
+    };
+    storageService = {
+      config: { default: 'public' },
+      disk: jest.fn(() => disk),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -70,11 +120,21 @@ describe('FileService', () => {
         },
 
         {
-          provide: 'FILE_STORAGE_DISK_PUBLIC',
+          provide: FileStorageService,
+          useValue: storageService,
+        },
+        {
+          provide: TransformationParser,
+          useValue: { parse: jest.fn(() => ({ width: 120, format: 'webp' })) },
+        },
+        {
+          provide: ImageTransformer,
           useValue: {
-            getDiskRoot: jest.fn(() => diskRoot),
-            put: jest.fn(),
-            delete: jest.fn(),
+            transform: jest.fn(async () => ({
+              buffer: Buffer.from('transformed'),
+              format: 'webp',
+              size: 11,
+            })),
           },
         },
       ],
@@ -220,6 +280,86 @@ describe('FileService', () => {
     expect(repository.delete).toHaveBeenCalledWith({ folder: 'avatars' });
   });
 
+  it('deletes the database record when the stored file is already missing', async () => {
+    repository.findOneByOrFail.mockResolvedValue({
+      public_id: 'missing-file',
+      path: 'image/missing-file.png',
+      disk: 'public',
+    });
+    disk.exists.mockResolvedValue(false);
+
+    await expect(service.delete('missing-file')).resolves.toEqual({
+      message: 'Successfully deleted',
+    });
+    expect(disk.delete).not.toHaveBeenCalled();
+    expect(repository.delete).toHaveBeenCalledWith({
+      public_id: 'missing-file',
+    });
+  });
+
+  it('stores managed media on the configured default disk', async () => {
+    storageService.config.default = 'local';
+    repository.create.mockImplementation((value) => value);
+    repository.save.mockImplementation(async (value) => ({
+      id: '1',
+      url: 'http://localhost/storage/uploads/image/public-id.jpg',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...value,
+    }));
+
+    await service.upload({
+      originalname: 'photo.jpg',
+      mimetype: 'image/jpeg',
+      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+      size: 4,
+    } as Express.Multer.File);
+
+    expect(storageService.disk).toHaveBeenCalledWith('local');
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        disk: 'local',
+        path: expect.stringMatching(/^image\/.+\.jpg$/),
+      }),
+    );
+  });
+
+  it('transforms an image from storage', async () => {
+    diskRoot = await mkdtemp(join(tmpdir(), 'file-service-transform-'));
+    await mkdir(join(diskRoot, 'image'), { recursive: true });
+    await writeFile(join(diskRoot, 'image/abc.jpg'), Buffer.from('original'));
+    repository.findOneByOrFail.mockResolvedValue({
+      id: '1',
+      public_id: 'abc',
+      folder: null,
+      original_name: 'photo.jpg',
+      path: 'image/abc.jpg',
+      hash: 'hash',
+      mime: 'image/jpeg',
+      size: 8,
+      width: 10,
+      height: 10,
+      duration: null,
+      resource_type: 'image',
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    try {
+      await expect(
+        service.transform('image', 'w_120,f_webp', 'abc', 'jpg'),
+      ).resolves.toEqual({
+        buffer: Buffer.from('transformed'),
+        mime: 'image/webp',
+        size: 11,
+      });
+      expect(disk.get).toHaveBeenCalledWith('image/abc.jpg');
+    } finally {
+      await rm(diskRoot, { recursive: true, force: true });
+    }
+  });
+
   it('uploads chunks and merges them into a stored file', async () => {
     diskRoot = await mkdtemp(join(tmpdir(), 'file-service-'));
     repository.create.mockImplementation((value) => value);
@@ -260,12 +400,15 @@ describe('FileService', () => {
         expect.objectContaining({
           original_name: 'hello.txt',
           folder: 'docs',
+          disk: 'public',
           mime: 'text/plain',
           size: 11,
           resource_type: 'raw',
         }),
       );
-      await expect(readFile(result.path, 'utf8')).resolves.toBe('hello world');
+      await expect(readFile(join(diskRoot, result.path), 'utf8')).resolves.toBe(
+        'hello world',
+      );
     } finally {
       await rm(diskRoot, { recursive: true, force: true });
     }

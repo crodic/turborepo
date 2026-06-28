@@ -35,6 +35,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse();
     const request = ctx.getRequest();
 
+    if (response.headersSent) {
+      this.logger.error(exception);
+      return;
+    }
+
     this.i18n = request.i18nContext;
     this.debug = this.configService.getOrThrow('app.debug', { infer: true });
 

@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { FileEntity } from './entities/file.entity';
 import { FileController } from './file.controller';
 import { FileService } from './file.service';
+import { FileStorageAccessGuard } from './guards/file-storage-access.guard';
 import { TransformationParser } from './parsers/transformation.parser';
 import { TransformController } from './transform.controller';
 import { FileValidator } from './validators/file.validator';
@@ -14,6 +15,7 @@ import { FileValidator } from './validators/file.validator';
   controllers: [FileController, TransformController],
   providers: [
     FileService,
+    FileStorageAccessGuard,
     TransformationParser,
     ImageTransformer,
     FileValidator,

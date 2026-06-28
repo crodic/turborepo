@@ -91,6 +91,9 @@ main() {
   wait_for_api_database
   printf '\n'
 
+  log "Clearing local storage"
+  bash "$ROOT_DIR/scripts/clear-storage.sh"
+
   log "Running database migrations"
   run_pnpm --filter api migration:run
 

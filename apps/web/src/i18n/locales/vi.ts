@@ -81,6 +81,13 @@ export default {
   'files.upload.selected': 'Đã chọn {{count}} tệp',
   'files.upload.failed': 'Tải tệp thất bại',
   'files.upload.sizeLimitError': '{{name}} vượt quá giới hạn tải lên {{size}}.',
+  'files.upload.disk': 'Ổ lưu trữ',
+  'files.upload.diskPublic': 'Public',
+  'files.upload.diskLocal': 'Local (riêng tư)',
+  'files.upload.diskPublicHelp':
+    'File public được lưu trên local public disk và có thể mở trực tiếp bằng URL.',
+  'files.upload.diskLocalHelp':
+    'File local được lưu trên local private disk. Preview và download cần phiên đăng nhập admin hoặc user.',
   'files.move.title': 'Di chuyển tệp',
   'files.delete.title': 'Xóa tệp',
   'files.delete.description':
@@ -89,6 +96,16 @@ export default {
   'files.delete.bulkDescription':
     'Thao tác này sẽ xóa vĩnh viễn {{count}} tệp đã chọn, bao gồm metadata và tệp đã lưu.',
   'files.delete.bulkSuccess': 'Đã xóa {{count}} tệp.',
+  'files.transform.title': 'Biến đổi ảnh',
+  'files.transform.width': 'Chiều rộng',
+  'files.transform.height': 'Chiều cao',
+  'files.transform.crop': 'Crop',
+  'files.transform.format': 'Định dạng',
+  'files.transform.quality': 'Chất lượng',
+  'files.transform.effect': 'Hiệu ứng',
+  'files.transform.raw': 'Params thủ công, vd: w_300,h_300,c_fill',
+  'files.transform.view': 'Xem',
+  'files.transform.reset': 'Đặt lại',
   'files.picker.title': 'Chọn tệp',
   'files.picker.description': 'Chọn một tệp từ thư viện media.',
   'files.picker.search': 'Tìm tệp...',

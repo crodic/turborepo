@@ -4,6 +4,10 @@ const nullableString = z
   .union([z.string(), z.null(), z.undefined()])
   .transform((value) => value ?? null)
 
+const optionalNullableString = nullableString
+  .optional()
+  .transform((value) => value ?? null)
+
 const nullableNumber = z
   .union([z.number(), z.null(), z.undefined()])
   .transform((value) => value ?? null)
@@ -25,6 +29,7 @@ export const fileSchema = z.object({
   id: z.string(),
   public_id: z.string(),
   folder: nullableString,
+  disk: optionalNullableString,
   original_name: z.string(),
   path: z.string(),
   hash: z.string(),

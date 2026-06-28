@@ -74,11 +74,19 @@ export function FilePreviewThumbnail({
   return <FileIcon className='text-muted-foreground size-5' />
 }
 
-export function FilePreviewDetail({ file }: { file: FileSchema }) {
+export function FilePreviewDetail({
+  file,
+  url,
+}: {
+  file: FileSchema
+  url?: string
+}) {
+  const previewUrl = url ?? file.url
+
   if (isPreviewableVideo(file)) {
     return (
       <video
-        src={file.url}
+        src={previewUrl}
         className='max-h-[min(520px,60dvh)] max-w-full rounded object-contain'
         controls
         playsInline
@@ -90,7 +98,7 @@ export function FilePreviewDetail({ file }: { file: FileSchema }) {
   if (isPreviewableImage(file)) {
     return (
       <img
-        src={file.url}
+        src={previewUrl}
         alt={file.original_name}
         className='max-h-[min(520px,60dvh)] max-w-full rounded object-contain'
       />

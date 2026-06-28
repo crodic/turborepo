@@ -12,6 +12,7 @@ interface Props {
   onChangeContent: (value: string) => void
   disabled: boolean
   className?: string
+  extensions?: any[]
 }
 
 function TiptapEditor({ className, ...props }: Props) {
@@ -27,7 +28,7 @@ function TiptapEditor({ className, ...props }: Props) {
         output={props.output}
         content={props.content || ''}
         onChangeContent={onValueChange}
-        extensions={extensions}
+        extensions={props.extensions || extensions}
         dark={theme === 'dark'}
         disabled={props.disabled}
         toolbar={{ tooltipSide: 'bottom' }}

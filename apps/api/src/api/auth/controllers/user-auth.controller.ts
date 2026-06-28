@@ -45,6 +45,7 @@ import { UpdateAuthUserMeReqDto } from '../dto/users/update-me.req.dto';
 import { ProdOnlyThrottleGuard } from '../guards/ProdOnlyThrottle.guard';
 import { UserAuthService } from '../services/user-auth.service';
 import { JwtPayloadType } from '../types/jwt-payload.type';
+import { clearAuthCookies, setAuthCookies } from '../utils/auth-cookie.util';
 
 @ApiTags('User Authentication')
 @Controller({
@@ -67,11 +68,19 @@ export class UserAuthenticationController {
   async signIn(
     @Body() userLoginDto: LoginReqDto,
     @Request() req,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<LoginResDto> {
-    return await this.userAuthService.signIn(userLoginDto, {
+    const result = await this.userAuthService.signIn(userLoginDto, {
       ipAddress: req.ip,
       userAgent: req.headers?.['user-agent'],
     });
+    setAuthCookies({
+      res,
+      configService: this.configService,
+      prefix: 'user',
+      tokens: result,
+    });
+    return result;
   }
 
   @ApiPublic({
@@ -90,8 +99,18 @@ export class UserAuthenticationController {
   })
   @SkipThrottle()
   @Post('refresh')
-  async refresh(@Body() dto: RefreshReqDto): Promise<RefreshResDto> {
-    return await this.userAuthService.refreshToken(dto);
+  async refresh(
+    @Body() dto: RefreshReqDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<RefreshResDto> {
+    const result = await this.userAuthService.refreshToken(dto);
+    setAuthCookies({
+      res,
+      configService: this.configService,
+      prefix: 'user',
+      tokens: result,
+    });
+    return result;
   }
 
   @ApiAuth({
@@ -101,8 +120,16 @@ export class UserAuthenticationController {
   @SkipThrottle()
   @SkipPolicies()
   @Post('logout')
-  async logout(@CurrentUser() userToken: JwtPayloadType): Promise<void> {
+  async logout(
+    @CurrentUser() userToken: JwtPayloadType,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
     await this.userAuthService.logout(userToken);
+    clearAuthCookies({
+      res,
+      configService: this.configService,
+      prefix: 'user',
+    });
   }
 
   @ApiAuth({

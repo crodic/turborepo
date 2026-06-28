@@ -16,6 +16,10 @@ export class FileResDto {
 
   @Expose()
   @IsString()
+  disk?: string;
+
+  @Expose()
+  @IsString()
   original_name: string;
 
   @Expose()

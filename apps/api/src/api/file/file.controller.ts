@@ -65,6 +65,7 @@ export class FileController {
         'public_id',
         'original_name',
         'folder',
+        'disk',
         'mime',
         'size',
         'resource_type',
@@ -72,12 +73,19 @@ export class FileController {
         'createdAt',
         'updatedAt',
       ],
-      searchableColumns: ['public_id', 'original_name', 'folder', 'mime'],
+      searchableColumns: [
+        'public_id',
+        'original_name',
+        'folder',
+        'disk',
+        'mime',
+      ],
       defaultSortBy: [['createdAt', 'DESC']],
       filterableColumns: {
         public_id: [FilterOperator.EQ],
         original_name: [FilterOperator.ILIKE],
         folder: [FilterOperator.EQ, FilterOperator.ILIKE],
+        disk: [FilterOperator.EQ, FilterOperator.IN],
         mime: [FilterOperator.ILIKE],
         resource_type: [FilterOperator.EQ, FilterOperator.IN],
         status: [FilterOperator.EQ, FilterOperator.IN],
@@ -158,6 +166,11 @@ export class FileController {
           type: 'string',
           example: 'avatars',
         },
+        disk: {
+          type: 'string',
+          enum: ['local', 'public'],
+          example: 'public',
+        },
       },
     },
   })
@@ -167,8 +180,9 @@ export class FileController {
   async upload(
     @UploadedFile() file: Express.Multer.File,
     @Body('folder') folder?: string,
+    @Body('disk') disk?: string,
   ) {
-    return this.fileService.upload(file, folder);
+    return this.fileService.upload(file, folder, disk);
   }
 
   @Post('uploads/sessions')

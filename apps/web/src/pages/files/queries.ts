@@ -56,22 +56,26 @@ export async function apiGetFileByPublicId(publicId: string) {
 export async function apiUploadFile({
   file,
   folder,
+  disk,
   onProgress,
 }: {
   file: File
   folder?: string | null
+  disk?: 'local' | 'public'
   onProgress?: (progress: number) => void
 }) {
-  return apiUploadFileInChunks({ file, folder, onProgress })
+  return apiUploadFileInChunks({ file, folder, disk, onProgress })
 }
 
 async function apiUploadFileInChunks({
   file,
   folder,
+  disk,
   onProgress,
 }: {
   file: File
   folder?: string | null
+  disk?: 'local' | 'public'
   onProgress?: (progress: number) => void
 }) {
   const totalChunks = Math.ceil(file.size / FILE_UPLOAD_CHUNK_SIZE)
@@ -80,6 +84,7 @@ async function apiUploadFileInChunks({
     mime: file.type || 'application/octet-stream',
     size: file.size,
     folder,
+    disk,
     totalChunks,
     chunkSize: FILE_UPLOAD_CHUNK_SIZE,
   })

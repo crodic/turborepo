@@ -83,6 +83,13 @@ export default {
   'files.upload.failed': 'Upload failed',
   'files.upload.sizeLimitError':
     '{{name}} exceeds the upload limit of {{size}}.',
+  'files.upload.disk': 'Storage disk',
+  'files.upload.diskPublic': 'Public',
+  'files.upload.diskLocal': 'Local (private)',
+  'files.upload.diskPublicHelp':
+    'Public files are stored on the public local disk and can be opened directly by URL.',
+  'files.upload.diskLocalHelp':
+    'Local files are stored on the private local disk. Preview and download require an authenticated admin or user session.',
   'files.move.title': 'Move file',
   'files.delete.title': 'Delete file',
   'files.delete.description':
@@ -91,6 +98,16 @@ export default {
   'files.delete.bulkDescription':
     'This will permanently delete {{count}} selected file(s), including metadata and stored files.',
   'files.delete.bulkSuccess': 'Deleted {{count}} file(s).',
+  'files.transform.title': 'Image transform',
+  'files.transform.width': 'Width',
+  'files.transform.height': 'Height',
+  'files.transform.crop': 'Crop',
+  'files.transform.format': 'Format',
+  'files.transform.quality': 'Quality',
+  'files.transform.effect': 'Effect',
+  'files.transform.raw': 'Raw params, e.g. w_300,h_300,c_fill',
+  'files.transform.view': 'View',
+  'files.transform.reset': 'Reset',
   'files.picker.title': 'Select file',
   'files.picker.description': 'Choose a file from the media library.',
   'files.picker.search': 'Search files...',
