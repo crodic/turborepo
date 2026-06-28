@@ -9,7 +9,7 @@ Component hiện dùng cho use case:
 - User xoá ảnh đã lưu hoặc ảnh mới upload.
 - User kéo thả để đổi thứ tự ảnh.
 - Submit form bằng `multipart/form-data`.
-- Backend lưu file mới vào storage public và cache metadata/order trong Redis.
+- Backend lưu file mới vào storage public. Demo hiện tại cache metadata/order trong Redis; production có thể lưu metadata/order vào DB.
 
 ## File Liên Quan
 
@@ -24,6 +24,7 @@ Backend:
 
 - `apps/api/src/api/file/file.controller.ts`
 - `apps/api/src/api/file/file.module.ts`
+- `apps/api/src/api/file/sortable-image-upload.service.ts`
 - `apps/api/src/api/file/sortable-image-cache.service.ts`
 - `apps/api/src/api/file/dto/sortable-image.dto.ts`
 
@@ -323,9 +324,101 @@ Sau khi backend lưu file, ảnh đó đã trở thành ảnh server:
 
 Nếu không reset form, lần submit tiếp theo FE có thể gửi lại file cũ như ảnh mới, hoặc mất đồng bộ giữa `tempId` và `id` thật trên server.
 
-## Backend Controller
+## Backend Service Tái Sử Dụng
 
-Controller public endpoints nằm trong `FileController`.
+Phần upload/sort thực tế nằm trong `SortableImageUploadService`.
+
+Service này được thiết kế để tái sử dụng ở bất kỳ controller/service nghiệp vụ nào. Nó không biết Redis, không biết DB, không biết entity cụ thể của product/post/user. Nó chỉ nhận:
+
+- danh sách ảnh hiện tại đã load từ nơi lưu trữ của bạn (`currentImages`);
+- `items` JSON từ FE;
+- danh sách file mới từ multipart (`files`);
+- config tuỳ chọn như folder upload và max size.
+
+Sau đó service trả về `nextImages` đã upload file mới và sắp xếp đúng thứ tự. Controller/service nghiệp vụ sẽ tự quyết định lưu `nextImages` vào DB, Redis, hoặc storage khác.
+
+```ts
+const nextImages = await this.sortableImageUploadService.buildNextImages({
+  currentImages,
+  rawItems: items,
+  files,
+  uploadFolder: 'products',
+  maxImageSize: 10 * 1024 * 1024,
+});
+```
+
+Input `currentImages`:
+
+```ts
+type SortableImageStoredItem = {
+  id: string;
+  src: string;
+  alt: string;
+  filePublicId?: string;
+  path?: string;
+};
+```
+
+Output `nextImages` cũng là `SortableImageStoredItem[]`, nhưng đã theo đúng order cuối cùng user chọn.
+
+Ví dụ dùng trong service production có DB:
+
+```ts
+const currentRows = await this.productImageRepo.find({
+  where: { productId },
+  order: { order: 'ASC' },
+});
+
+const currentImages = currentRows.map((row) => ({
+  id: row.imageId,
+  src: row.src,
+  alt: row.alt,
+  filePublicId: row.filePublicId,
+  path: row.path,
+}));
+
+const nextImages = await this.sortableImageUploadService.buildNextImages({
+  currentImages,
+  rawItems: items,
+  files,
+  uploadFolder: 'products',
+});
+
+await this.productImageRepo.delete({ productId });
+
+await this.productImageRepo.save(
+  nextImages.map((image, order) => ({
+    productId,
+    imageId: image.id,
+    src: image.src,
+    alt: image.alt,
+    path: image.path,
+    filePublicId: image.filePublicId,
+    order,
+  })),
+);
+```
+
+Để inject service này ở module khác:
+
+```ts
+@Module({
+  imports: [FileModule],
+})
+export class ProductModule {}
+```
+
+```ts
+constructor(
+  private readonly sortableImageUploadService: SortableImageUploadService,
+) {}
+```
+
+`FileModule` đã export `SortableImageUploadService`, nên các module khác chỉ cần import `FileModule`.
+
+## Backend Controller Demo Với Redis
+
+Controller public endpoints hiện nằm trong `FileController`. Đây là implementation demo/cache, không phải pattern bắt buộc cho production.
 
 ```ts
 @Get("sortable-images/:ownerKey")
@@ -354,24 +447,22 @@ saveSortableImages(
 
 Mặc dù controller class có guard admin/policy, `@ApiPublic()` set metadata `Public()` để public endpoint bypass auth guard theo pattern hiện có trong repo.
 
-## Backend Service Flow
+## Backend Cache Service Flow
 
-`SortableImageCacheService.save()` xử lý:
+`SortableImageCacheService` chỉ là wrapper demo quanh `SortableImageUploadService`.
+
+Flow hiện tại:
 
 1. Lấy danh sách hiện tại từ Redis bằng key `sortable-images:${ownerKey}`.
-2. Parse `items` JSON.
-3. Lặp qua từng item theo thứ tự FE gửi.
-4. Nếu item là `existing`:
-   - tìm ảnh trong Redis cache bằng `id`;
-   - nếu không có cache nhưng FE gửi `src`, giữ ảnh đó lại;
-   - nếu `src` là data URL cũ, tự migrate thành file thật.
-5. Nếu item là `new`:
-   - lấy file tiếp theo trong `files`;
-   - validate mimetype image và size;
-   - ghi file vào public storage;
-   - tạo metadata mới.
-6. Ghi toàn bộ `nextImages` vào Redis.
-7. Trả response có `order`.
+2. Gọi `sortableImageUploadService.buildNextImages(...)`.
+3. Ghi toàn bộ `nextImages` vào Redis.
+4. Trả response có `order`.
+
+Trong thực tế production, thay Redis bằng DB:
+
+- load `currentImages` từ DB;
+- gọi `buildNextImages`;
+- persist `nextImages` + `order` vào DB.
 
 File mới được lưu ở:
 
@@ -444,8 +535,8 @@ Production có thể mở rộng:
 
 `Image "{id}" was not found`
 
-- FE gửi existing item chỉ có `id`, nhưng Redis chưa có image đó và item không có `src`.
-- Với ảnh existing ngoài cache, gửi thêm `src` để backend giữ lại.
+- FE gửi existing item chỉ có `id`, nhưng danh sách hiện tại backend load ra không có image đó và item không có `src`.
+- Với ảnh existing ngoài cache/DB hiện tại, gửi thêm `src` để backend giữ lại.
 
 `{filename} must be an image`
 
@@ -460,7 +551,8 @@ Production có thể mở rộng:
 - Thay `ownerKey = "demo-user"` bằng key thật theo user/product/post.
 - Không tin `ownerKey` public nếu dữ liệu nhạy cảm. Thêm auth hoặc ký ownerKey nếu cần.
 - Chọn chiến lược xoá file vật lý khi ảnh bị remove khỏi list.
-- Cân nhắc lưu metadata vào DB nếu cần audit, quyền truy cập, tìm kiếm, hoặc lifecycle dài hạn.
+- Production nên load `currentImages` từ DB, gọi `SortableImageUploadService.buildNextImages(...)`, rồi persist `nextImages` + `order` lại DB.
+- Import `FileModule` ở module nghiệp vụ để inject lại `SortableImageUploadService` trong controller/service bất kỳ.
 - Nếu dùng S3/CDN, thay public disk bằng S3 disk và trả CDN URL.
 - Không lưu base64 vào Redis cho ảnh mới; chỉ cache metadata/order.
 - Validate file size/mimetype cả frontend và backend.
@@ -479,5 +571,5 @@ Production có thể mở rộng:
 8. User submit form.
 9. FE build `FormData`.
 10. API upload file mới vào storage, giữ existing, drop ảnh không còn trong list.
-11. API cache danh sách mới trong Redis.
+11. Demo API cache danh sách mới trong Redis; production persist danh sách mới vào DB.
 12. FE nhận response, reset form lại thành toàn bộ `existing`.
