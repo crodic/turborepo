@@ -23,6 +23,8 @@ import { Button } from '@/components/radix-ui/button'
 
 /* eslint-disable @next/next/no-img-element */
 
+/* eslint-disable @next/next/no-img-element */
+
 type CoverPosition = {
   x: number
   y: number
