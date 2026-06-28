@@ -7,7 +7,6 @@ Monorepo for the backend API, admin portal, shared configs, and shared packages.
 - `apps/api`: NestJS API, PostgreSQL, Redis, queues, mail, storage, admin/user auth.
 - `apps/client`: Next.js client-facing website with i18n.
 - `apps/web`: Vite React admin portal.
-- `packages/ui`: Shared React UI package.
 - `packages/eslint-config`: Shared ESLint configs.
 - `packages/typescript-config`: Shared TypeScript configs.
 - `packages/prettier-config`: Shared Prettier configs.
