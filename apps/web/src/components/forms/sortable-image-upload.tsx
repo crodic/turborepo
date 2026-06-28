@@ -839,6 +839,7 @@ export default function SortableImageUpload({
             getItemValue={(item) => item}
             orientation='mixed'
             strategy={rectSortingStrategy}
+            modifiers={[]}
             sensors={sensors}
             onDragStart={handleDragStart}
             onDragCancel={() => setOverlaySize(null)}

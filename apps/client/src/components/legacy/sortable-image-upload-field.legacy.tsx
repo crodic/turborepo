@@ -8,6 +8,7 @@ import type {
   FieldValues,
   ControllerRenderProps,
 } from "react-hook-form";
+
 import {
   FormControl,
   FormDescription,
@@ -18,8 +19,8 @@ import {
 } from "@/components/ui/form";
 import SortableImageUpload, {
   type SortableImageUploadProps,
-} from "./sortable-image-upload";
-import type { ImagePayload } from "./types";
+} from "./sortable-image-upload.legacy";
+import type { ImagePayload } from "../form/types";
 
 type DescriptionRenderState = {
   loading: boolean;
@@ -139,6 +140,9 @@ function SortableImageUploadFieldWithCover<
   );
 }
 
+/**
+ * @deprecated Use the non-legacy sortable image upload field in `components/form/sortable-image-upload-field.tsx`.
+ */
 export default function SortableImageUploadField<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues>,
