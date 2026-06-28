@@ -1,0 +1,483 @@
+# Sortable Image Upload
+
+Tài liệu này mô tả cách dùng `SortableImageUpload` ở frontend và cách viết API backend để xử lý danh sách ảnh có thể upload, xoá, sắp xếp lại thứ tự, rồi submit bằng `FormData`.
+
+Component hiện dùng cho use case:
+
+- Vào page load danh sách ảnh đã lưu trước đó theo đúng thứ tự.
+- User upload thêm ảnh mới.
+- User xoá ảnh đã lưu hoặc ảnh mới upload.
+- User kéo thả để đổi thứ tự ảnh.
+- Submit form bằng `multipart/form-data`.
+- Backend lưu file mới vào storage public và cache metadata/order trong Redis.
+
+## File Liên Quan
+
+Frontend:
+
+- `apps/client/src/components/form/sortable-image-upload.tsx`
+- `apps/client/src/components/form/types.ts`
+- `apps/client/src/components/ui/sortable.tsx`
+- `apps/client/src/app/[locale]/example/page.tsx`
+
+Backend:
+
+- `apps/api/src/api/file/file.controller.ts`
+- `apps/api/src/api/file/file.module.ts`
+- `apps/api/src/api/file/sortable-image-cache.service.ts`
+- `apps/api/src/api/file/dto/sortable-image.dto.ts`
+
+## Mental Model
+
+Frontend không submit trực tiếp một mảng URL đơn giản. Nó submit một danh sách intent:
+
+- `existing`: ảnh đã tồn tại trên server/cache, giữ lại và cập nhật order.
+- `new`: ảnh mới user vừa chọn, cần gửi kèm file thật.
+- `deleted`: ảnh đã bị xoá khỏi UI, dùng để biểu diễn ý định xoá ở form state.
+
+Khi submit API hiện tại, FE chỉ gửi các item active (`existing` + `new`) theo đúng thứ tự cuối cùng. Item `deleted` không cần gửi lên endpoint cache hiện tại vì backend lưu lại toàn bộ danh sách mới; ảnh nào không còn trong `items` sẽ biến mất khỏi danh sách cache.
+
+## Types FE
+
+```ts
+export type ImagePayload =
+  | { type: 'existing'; id: string; order: number }
+  | { type: 'new'; file: File; tempId: string; order: number }
+  | { type: 'deleted'; id: string };
+
+export interface ExistingImage {
+  id: string;
+  src: string;
+  alt?: string;
+}
+```
+
+`ExistingImage[]` là dữ liệu dùng để render ảnh đã lưu. `ImagePayload[]` là form value dùng để submit.
+
+## Dùng Component
+
+```tsx
+<SortableImageUpload
+  existingImages={existingImages}
+  value={field.value}
+  onChange={field.onChange}
+  maxFiles={200}
+  disabled={isLoadingImages || isSavingImages}
+  loading={isLoadingImages}
+/>
+```
+
+Props quan trọng:
+
+- `existingImages`: danh sách ảnh đã có từ server/cache.
+- `value`: `ImagePayload[]` do React Hook Form quản lý.
+- `onChange`: callback để component sync state về form.
+- `maxFiles`: giới hạn số ảnh active.
+- `disabled`: khoá thao tác khi đang save hoặc khi form không cho edit.
+- `loading`: hiển thị skeleton, ẩn upload/dropzone trong lúc load ảnh ban đầu.
+
+UX hiện tại:
+
+- Khi chưa có ảnh: hiện dropzone `Choose a file or drag & drop here`.
+- Khi đã có ảnh: ẩn dropzone, hiện nút `Add image`.
+- Có thể kéo trực tiếp trên toàn bộ tile ảnh để sort.
+- Nút xoá đã stop event để không kích hoạt drag.
+- Khi `loading=true`: chỉ hiển thị skeleton, không hiện upload/dropzone.
+
+## Tích Hợp React Hook Form Và Zod
+
+Ví dụ schema:
+
+```ts
+const existingImageSchema = z.object({
+  type: z.literal('existing'),
+  id: z.string(),
+  order: z.number(),
+});
+
+const newImageSchema = z.object({
+  type: z.literal('new'),
+  file: z.instanceof(File, { message: 'Must be a valid File' }),
+  tempId: z.string(),
+  order: z.number(),
+});
+
+const deletedImageSchema = z.object({
+  type: z.literal('deleted'),
+  id: z.string(),
+});
+
+const imagePayloadSchema = z.discriminatedUnion('type', [
+  existingImageSchema,
+  newImageSchema,
+  deletedImageSchema,
+]);
+
+const imagesSchema = z
+  .array(imagePayloadSchema)
+  .refine(
+    (images) => images.filter((img) => img.type !== 'deleted').length >= 1,
+    { message: 'At least 1 image is required' },
+  )
+  .refine(
+    (images) => images.filter((img) => img.type !== 'deleted').length <= 200,
+    { message: 'Maximum 200 images allowed' },
+  );
+
+const formSchema = z.object({
+  images: imagesSchema,
+});
+```
+
+Khởi tạo form:
+
+```ts
+const form = useForm<FormValues>({
+  resolver: zodResolver(formSchema),
+  defaultValues: {
+    images: [],
+  },
+});
+```
+
+Khi load ảnh từ API, convert response thành `ExistingImage[]`, rồi reset form:
+
+```ts
+function toExistingPayloads(images: ExistingImage[]): ImagePayload[] {
+  return images.map((image, order) => ({
+    type: 'existing',
+    id: image.id,
+    order,
+  }));
+}
+
+form.reset({
+  images: toExistingPayloads(cachedImages),
+});
+```
+
+## Load Dữ Liệu Ban Đầu
+
+API:
+
+```http
+GET /api/v1/files/sortable-images/:ownerKey
+```
+
+Response:
+
+```json
+{
+  "ownerKey": "demo-user",
+  "images": [
+    {
+      "id": "a1b2c3",
+      "src": "http://localhost:8000/storage/public/image/sortable-images/a1b2c3.png",
+      "alt": "front.png",
+      "order": 0
+    }
+  ]
+}
+```
+
+FE load:
+
+```ts
+const response = await fetch(SORTABLE_IMAGES_API_URL, { cache: 'no-store' });
+const data = (await response.json()) as SortableImageApiResponse;
+
+const cachedImages = toExistingImages(data.images);
+setExistingImages(cachedImages);
+form.reset({ images: toExistingPayloads(cachedImages) });
+```
+
+`ownerKey` là key định danh bucket ảnh. Trong demo đang dùng `demo-user`. Production nên dùng key thật, ví dụ:
+
+- `user:${userId}:gallery`
+- `product:${productId}:images`
+- `tenant:${tenantId}:post:${postId}:images`
+
+## Submit FormData
+
+API:
+
+```http
+POST /api/v1/files/sortable-images/:ownerKey
+Content-Type: multipart/form-data
+```
+
+Fields:
+
+- `items`: JSON string, là danh sách active images theo đúng thứ tự cuối cùng.
+- `files`: các file mới, append theo đúng thứ tự các item `{ type: "new" }`.
+
+Ví dụ `items`:
+
+```json
+[
+  {
+    "type": "existing",
+    "id": "old-image-id",
+    "src": "http://localhost:8000/storage/public/image/sortable-images/old-image-id.png",
+    "alt": "old.png"
+  },
+  {
+    "type": "new",
+    "tempId": "new-123",
+    "alt": "new.png"
+  }
+]
+```
+
+Build `FormData`:
+
+```ts
+function buildSortableImagesFormData(
+  images: ImagePayload[],
+  existingImages: ExistingImage[],
+) {
+  const formData = new FormData();
+  const existingImageById = new Map(
+    existingImages.map((image) => [image.id, image]),
+  );
+
+  const activeImages = images
+    .filter(
+      (image): image is ImagePayload & { type: 'existing' | 'new' } =>
+        image.type === 'existing' || image.type === 'new',
+    )
+    .sort((a, b) => a.order - b.order);
+
+  formData.append(
+    'items',
+    JSON.stringify(
+      activeImages.map((image) => {
+        if (image.type === 'existing') {
+          const existingImage = existingImageById.get(image.id);
+
+          return {
+            type: 'existing',
+            id: image.id,
+            src: existingImage?.src,
+            alt: existingImage?.alt ?? 'Image',
+          };
+        }
+
+        return {
+          type: 'new',
+          tempId: image.tempId,
+          alt: image.file.name,
+        };
+      }),
+    ),
+  );
+
+  activeImages.forEach((image) => {
+    if (image.type === 'new') {
+      formData.append('files', image.file, image.file.name);
+    }
+  });
+
+  return formData;
+}
+```
+
+Submit:
+
+```ts
+const response = await fetch(SORTABLE_IMAGES_API_URL, {
+  method: 'POST',
+  body: buildSortableImagesFormData(data.images, existingImages),
+});
+```
+
+Không set header `Content-Type` thủ công khi dùng `FormData`. Browser sẽ tự set boundary.
+
+Sau khi API trả về danh sách đã lưu, reset form về toàn bộ `existing`:
+
+```ts
+const saved = (await response.json()) as SortableImageApiResponse;
+const savedImages = toExistingImages(saved.images);
+
+setExistingImages(savedImages);
+form.reset({
+  images: toExistingPayloads(savedImages),
+});
+```
+
+## Vì Sao Phải Reset Sau Submit
+
+Ảnh mới ban đầu là:
+
+```ts
+{
+  type: ('new', file, tempId, order);
+}
+```
+
+Sau khi backend lưu file, ảnh đó đã trở thành ảnh server:
+
+```ts
+{ type: "existing", id: publicId, order }
+```
+
+Nếu không reset form, lần submit tiếp theo FE có thể gửi lại file cũ như ảnh mới, hoặc mất đồng bộ giữa `tempId` và `id` thật trên server.
+
+## Backend Controller
+
+Controller public endpoints nằm trong `FileController`.
+
+```ts
+@Get("sortable-images/:ownerKey")
+@ApiPublic({ type: SortableImageListResDto })
+getSortableImages(@Param("ownerKey") ownerKey: string) {
+  return this.sortableImageCacheService.findAll(ownerKey);
+}
+
+@Post("sortable-images/:ownerKey")
+@ApiPublic({ type: SortableImageListResDto })
+@ApiConsumes("multipart/form-data")
+@UseInterceptors(
+  FilesInterceptor("files", 200, {
+    ...memoryStorageConfig,
+    limits: { fileSize: 10 * 1024 * 1024 },
+  })
+)
+saveSortableImages(
+  @Param("ownerKey") ownerKey: string,
+  @Body("items") items: string,
+  @UploadedFiles() files: Express.Multer.File[] = []
+) {
+  return this.sortableImageCacheService.save(ownerKey, items, files);
+}
+```
+
+Mặc dù controller class có guard admin/policy, `@ApiPublic()` set metadata `Public()` để public endpoint bypass auth guard theo pattern hiện có trong repo.
+
+## Backend Service Flow
+
+`SortableImageCacheService.save()` xử lý:
+
+1. Lấy danh sách hiện tại từ Redis bằng key `sortable-images:${ownerKey}`.
+2. Parse `items` JSON.
+3. Lặp qua từng item theo thứ tự FE gửi.
+4. Nếu item là `existing`:
+   - tìm ảnh trong Redis cache bằng `id`;
+   - nếu không có cache nhưng FE gửi `src`, giữ ảnh đó lại;
+   - nếu `src` là data URL cũ, tự migrate thành file thật.
+5. Nếu item là `new`:
+   - lấy file tiếp theo trong `files`;
+   - validate mimetype image và size;
+   - ghi file vào public storage;
+   - tạo metadata mới.
+6. Ghi toàn bộ `nextImages` vào Redis.
+7. Trả response có `order`.
+
+File mới được lưu ở:
+
+```text
+apps/api/storage/public/image/sortable-images/{publicId}.{ext}
+```
+
+URL public:
+
+```text
+{APP_URL}/storage/public/image/sortable-images/{publicId}.{ext}
+```
+
+Redis cache value:
+
+```ts
+type SortableImageCacheItem = {
+  id: string;
+  src: string;
+  alt: string;
+  filePublicId?: string;
+  path?: string;
+};
+```
+
+## Redis Key
+
+```ts
+const cacheKey = `sortable-images:${ownerKey}`;
+```
+
+Ví dụ:
+
+```text
+sortable-images:user:123:gallery
+sortable-images:product:456:images
+```
+
+Nếu cần multi-tenant, luôn đưa `tenantId` vào `ownerKey`.
+
+## Xoá Ảnh
+
+Hiện tại endpoint cache hoạt động theo kiểu replace toàn bộ danh sách:
+
+- ảnh nào không có trong `items` sau submit sẽ bị remove khỏi Redis list;
+- file vật lý cũ chưa bị delete khỏi storage.
+
+Production có thể mở rộng:
+
+- so sánh `currentImages` và `nextImages`;
+- tìm ảnh bị remove;
+- gọi storage delete theo `path`;
+- nếu dùng DB file entity thì xoá record hoặc soft delete.
+
+## Error Thường Gặp
+
+`items must be valid JSON`
+
+- `items` không phải JSON string hợp lệ.
+- Kiểm tra `formData.append("items", JSON.stringify(...))`.
+
+`items must be a JSON array`
+
+- `items` đang là object, không phải array.
+
+`Missing file for new image item`
+
+- Trong `items` có `{ type: "new" }` nhưng FE không append đủ file vào field `files`.
+- Số lượng file append phải bằng số item new, và đúng thứ tự.
+
+`Image "{id}" was not found`
+
+- FE gửi existing item chỉ có `id`, nhưng Redis chưa có image đó và item không có `src`.
+- Với ảnh existing ngoài cache, gửi thêm `src` để backend giữ lại.
+
+`{filename} must be an image`
+
+- File mimetype không bắt đầu bằng `image/`.
+
+`{filename} is too large`
+
+- File vượt `maxImageSize` của service hoặc Multer limit.
+
+## Production Checklist
+
+- Thay `ownerKey = "demo-user"` bằng key thật theo user/product/post.
+- Không tin `ownerKey` public nếu dữ liệu nhạy cảm. Thêm auth hoặc ký ownerKey nếu cần.
+- Chọn chiến lược xoá file vật lý khi ảnh bị remove khỏi list.
+- Cân nhắc lưu metadata vào DB nếu cần audit, quyền truy cập, tìm kiếm, hoặc lifecycle dài hạn.
+- Nếu dùng S3/CDN, thay public disk bằng S3 disk và trả CDN URL.
+- Không lưu base64 vào Redis cho ảnh mới; chỉ cache metadata/order.
+- Validate file size/mimetype cả frontend và backend.
+- Luôn reset form sau khi save thành công để ảnh `new` chuyển thành `existing`.
+- Không set `Content-Type` thủ công khi gửi `FormData`.
+
+## Ví Dụ Flow Hoàn Chỉnh
+
+1. Page mount.
+2. FE gọi `GET /api/v1/files/sortable-images/product:123:images`.
+3. API trả ảnh đã cache theo order.
+4. FE map response thành `ExistingImage[]`.
+5. FE reset RHF `images` thành payload `existing`.
+6. User add/sort/delete ảnh.
+7. `SortableImageUpload` gọi `onChange(ImagePayload[])`.
+8. User submit form.
+9. FE build `FormData`.
+10. API upload file mới vào storage, giữ existing, drop ảnh không còn trong list.
+11. API cache danh sách mới trong Redis.
+12. FE nhận response, reset form lại thành toàn bộ `existing`.

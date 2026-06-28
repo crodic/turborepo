@@ -8,10 +8,12 @@ import {
   DragOverlay,
   DragStartEvent,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   UniqueIdentifier,
   useSensor,
   useSensors,
+  type DraggableAttributes,
   type DraggableSyntheticListeners,
 } from "@dnd-kit/core";
 import {
@@ -27,11 +29,22 @@ import { Slot } from "@radix-ui/react-slot";
 
 // Sortable Item Context
 const SortableItemContext = React.createContext<{
+  attributes: DraggableAttributes;
   listeners: DraggableSyntheticListeners | undefined;
+  setActivatorNodeRef: (node: HTMLElement | null) => void;
   isDragging?: boolean;
   disabled?: boolean;
 }>({
+  attributes: {
+    role: "button",
+    tabIndex: 0,
+    "aria-disabled": false,
+    "aria-pressed": undefined,
+    "aria-roledescription": "sortable",
+    "aria-describedby": "",
+  },
   listeners: undefined,
+  setActivatorNodeRef: () => {},
   isDragging: false,
   disabled: false,
 });
@@ -67,9 +80,14 @@ function Sortable<T>({
   const [activeId, setActiveId] = React.useState<UniqueIdentifier | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
-        distance: 10,
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        distance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -174,6 +192,7 @@ function Sortable<T>({
 export interface SortableItemProps {
   value: string;
   asChild?: boolean;
+  asHandle?: boolean;
   className?: string;
   children: React.ReactNode;
   disabled?: boolean;
@@ -182,12 +201,14 @@ export interface SortableItemProps {
 function SortableItem({
   value,
   asChild = false,
+  asHandle = false,
   className,
   children,
   disabled,
 }: SortableItemProps) {
   const {
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     transition,
     attributes,
@@ -207,17 +228,32 @@ function SortableItem({
 
   return (
     <SortableItemContext.Provider
-      value={{ listeners, isDragging: isSortableDragging, disabled }}
+      value={{
+        attributes,
+        listeners,
+        setActivatorNodeRef,
+        isDragging: isSortableDragging,
+        disabled,
+      }}
     >
       <Comp
         data-slot="sortable-item"
         data-value={value}
         data-dragging={isSortableDragging}
         data-disabled={disabled}
-        ref={setNodeRef}
+        ref={(node) => {
+          setNodeRef(node);
+          if (asHandle) {
+            setActivatorNodeRef(node);
+          }
+        }}
         style={style}
-        {...attributes}
+        {...(asHandle ? attributes : {})}
+        {...(asHandle ? listeners : {})}
         className={cn(
+          asHandle && "touch-none select-none",
+          asHandle &&
+            (isSortableDragging ? "!cursor-grabbing" : "!cursor-grab"),
           isSortableDragging && "z-50 opacity-50",
           disabled && "opacity-50",
           className
@@ -242,18 +278,21 @@ function SortableItemHandle({
   children,
   cursor = true,
 }: SortableItemHandleProps) {
-  const { listeners, isDragging, disabled } =
+  const { attributes, listeners, setActivatorNodeRef, isDragging, disabled } =
     React.useContext(SortableItemContext);
 
   const Comp = asChild ? Slot : "div";
 
   return (
     <Comp
+      ref={setActivatorNodeRef}
       data-slot="sortable-item-handle"
       data-dragging={isDragging}
       data-disabled={disabled}
+      {...attributes}
       {...listeners}
       className={cn(
+        "touch-none select-none",
         cursor && (isDragging ? "!cursor-grabbing" : "!cursor-grab"),
         className
       )}
