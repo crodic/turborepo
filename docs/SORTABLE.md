@@ -119,6 +119,7 @@ UX hiện tại:
 - Khi chưa có ảnh: hiện dropzone `Choose a file or drag & drop here`.
 - Khi đã có ảnh: ẩn dropzone, hiện nút `Add image`.
 - Có thể kéo trực tiếp trên toàn bộ tile ảnh để sort.
+- Click vào ảnh để mở fullscreen preview/lightbox; dùng nút trái/phải hoặc phím mũi tên để chuyển ảnh, `Esc` để đóng.
 - Nút xoá đã stop event để không kích hoạt drag.
 - Khi `loading=true`: chỉ hiển thị skeleton, không hiện upload/dropzone.
 

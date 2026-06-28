@@ -16,6 +16,8 @@ import { Card, CardContent } from "@/components/radix-ui/card";
 import { Progress } from "@/components/radix-ui/progress";
 import { Sortable, SortableItem } from "@/components/ui/sortable";
 import {
+  ChevronLeft,
+  ChevronRight,
   CircleX,
   CloudUpload,
   GripVertical,
@@ -82,6 +84,9 @@ export default function SortableImageUpload({
 
   // Validation errors (UI-only)
   const [errors, setErrors] = useState<string[]>([]);
+
+  // Fullscreen image preview state
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   // Track files for new images (needed for preview URLs)
   const fileMapRef = useRef<Map<string, File>>(new Map());
@@ -390,6 +395,10 @@ export default function SortableImageUpload({
     ]
   );
 
+  const closeLightbox = useCallback(() => {
+    setLightboxIndex(null);
+  }, []);
+
   // Remove an image
   const removeImage = useCallback(
     (id: string) => {
@@ -436,6 +445,10 @@ export default function SortableImageUpload({
           onCoverIndexChange(updatedUiImages.length - 1);
         }
       }
+
+      if (updatedUiImages.length === 0) {
+        closeLightbox();
+      }
     },
     [
       uiImages,
@@ -444,6 +457,7 @@ export default function SortableImageUpload({
       onChange,
       coverIndex,
       onCoverIndexChange,
+      closeLightbox,
     ]
   );
 
@@ -482,6 +496,59 @@ export default function SortableImageUpload({
       onCoverIndexChange,
     ]
   );
+
+  const openLightbox = useCallback((index: number) => {
+    setLightboxIndex(index);
+  }, []);
+
+  const showPreviousImage = useCallback(() => {
+    setLightboxIndex((current) => {
+      if (current === null || uiImages.length === 0) return current;
+      const normalizedIndex = Math.min(current, uiImages.length - 1);
+      return (normalizedIndex - 1 + uiImages.length) % uiImages.length;
+    });
+  }, [uiImages.length]);
+
+  const showNextImage = useCallback(() => {
+    setLightboxIndex((current) => {
+      if (current === null || uiImages.length === 0) return current;
+      const normalizedIndex = Math.min(current, uiImages.length - 1);
+      return (normalizedIndex + 1) % uiImages.length;
+    });
+  }, [uiImages.length]);
+
+  useEffect(() => {
+    if (lightboxIndex === null || uiImages.length === 0) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeLightbox();
+      }
+
+      if (event.key === "ArrowLeft") {
+        showPreviousImage();
+      }
+
+      if (event.key === "ArrowRight") {
+        showNextImage();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [
+    closeLightbox,
+    lightboxIndex,
+    showNextImage,
+    showPreviousImage,
+    uiImages.length,
+  ]);
 
   // Drag and drop handlers for upload zone
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -558,6 +625,12 @@ export default function SortableImageUpload({
     coverIndex < uiImages.length
       ? coverIndex
       : null;
+  const safeLightboxIndex =
+    lightboxIndex !== null && uiImages.length > 0
+      ? Math.min(lightboxIndex, uiImages.length - 1)
+      : null;
+  const lightboxImage =
+    safeLightboxIndex !== null ? uiImages[safeLightboxIndex] : undefined;
 
   return (
     <div className={cn("w-full max-w-4xl", className)}>
@@ -625,7 +698,10 @@ export default function SortableImageUpload({
                   disabled={isDisabled}
                   asHandle
                 >
-                  <div className="bg-accent/50 group border-border hover:bg-accent/70 relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-md border shadow-none transition-all duration-200 hover:z-10 data-[dragging=true]:z-50">
+                  <div
+                    className="bg-accent/50 group border-border hover:bg-accent/70 relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-md border shadow-none transition-all duration-200 hover:z-10 data-[dragging=true]:z-50"
+                    onClick={() => openLightbox(index)}
+                  >
                     <img
                       src={item.src || "/placeholder.svg"}
                       className="pointer-events-none h-full w-full rounded-md object-cover"
@@ -811,6 +887,77 @@ export default function SortableImageUpload({
             </AlertDescription>
           </AlertContent>
         </Alert>
+      )}
+
+      {lightboxImage && safeLightboxIndex !== null && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95"
+          onClick={closeLightbox}
+        >
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute end-4 top-4 z-10 size-10 rounded-full text-white hover:bg-white/15 hover:text-white"
+            onClick={(event) => {
+              event.stopPropagation();
+              closeLightbox();
+            }}
+            aria-label="Close image preview"
+          >
+            <XIcon className="size-5" />
+          </Button>
+
+          {uiImages.length > 1 && (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute start-4 top-1/2 z-10 size-12 -translate-y-1/2 rounded-full bg-white/10 text-white hover:bg-white/20 hover:text-white sm:start-6 sm:size-14"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  showPreviousImage();
+                }}
+                aria-label="Previous image"
+              >
+                <ChevronLeft className="size-7" />
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute end-4 top-1/2 z-10 size-12 -translate-y-1/2 rounded-full bg-white/10 text-white hover:bg-white/20 hover:text-white sm:end-6 sm:size-14"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  showNextImage();
+                }}
+                aria-label="Next image"
+              >
+                <ChevronRight className="size-7" />
+              </Button>
+            </>
+          )}
+
+          <div
+            className="flex h-full w-full items-center justify-center px-4 py-16 sm:px-20 sm:py-10"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <img
+              src={lightboxImage.src || "/placeholder.svg"}
+              alt={lightboxImage.alt}
+              className="max-h-full max-w-full object-contain shadow-2xl"
+            />
+          </div>
+
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-white/15 px-3 py-1 text-sm font-medium text-white">
+            {safeLightboxIndex + 1}/{uiImages.length}
+          </div>
+        </div>
       )}
     </div>
   );
