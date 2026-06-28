@@ -30,6 +30,7 @@ import {
 } from '@dnd-kit/modifiers'
 import {
   arrayMove,
+  rectSortingStrategy,
   horizontalListSortingStrategy,
   SortableContext,
   type SortableContextProps,
@@ -101,12 +102,34 @@ type SortableRootProps<T> = DndContextProps & {
   value: T[]
   onValueChange?: (items: T[]) => void
   onMove?: (
-    event: DragEndEvent & { activeIndex: number; overIndex: number }
+    event:
+      | (DragEndEvent & { activeIndex: number; overIndex: number })
+      | { event: DragEndEvent; activeIndex: number; overIndex: number }
   ) => void
-  strategy?: SortableContextProps['strategy']
+  strategy?:
+    | SortableContextProps['strategy']
+    | 'vertical'
+    | 'horizontal'
+    | 'grid'
   orientation?: 'vertical' | 'horizontal' | 'mixed'
   flatCursor?: boolean
+  className?: string
+  children?: React.ReactNode
 } & (T extends object ? GetItemValue<T> : Partial<GetItemValue<T>>)
+
+function isLegacyStrategy(
+  strategy: SortableRootProps<unknown>['strategy']
+): strategy is 'vertical' | 'horizontal' | 'grid' {
+  return (
+    strategy === 'vertical' || strategy === 'horizontal' || strategy === 'grid'
+  )
+}
+
+function getLegacyStrategy(strategy: 'vertical' | 'horizontal' | 'grid') {
+  return strategy === 'vertical'
+    ? verticalListSortingStrategy
+    : rectSortingStrategy
+}
 
 function SortableRoot<T>(props: SortableRootProps<T>) {
   const {
@@ -120,22 +143,40 @@ function SortableRoot<T>(props: SortableRootProps<T>) {
     flatCursor = false,
     getItemValue: getItemValueProp,
     accessibility,
+    className,
+    children,
     ...sortableProps
   } = props
 
   const id = React.useId()
   const [activeId, setActiveId] = React.useState<UniqueIdentifier | null>(null)
 
+  const legacyMode = Boolean(className) || !hasSortableContent(children)
+  const normalizedOrientation = isLegacyStrategy(strategy)
+    ? strategy === 'grid'
+      ? 'mixed'
+      : strategy
+    : orientation
+  const normalizedStrategy = isLegacyStrategy(strategy)
+    ? getLegacyStrategy(strategy)
+    : strategy
+
   const sensors = useSensors(
-    useSensor(MouseSensor),
-    useSensor(TouchSensor),
+    useSensor(
+      MouseSensor,
+      legacyMode ? { activationConstraint: { distance: 8 } } : undefined
+    ),
+    useSensor(
+      TouchSensor,
+      legacyMode ? { activationConstraint: { distance: 8 } } : undefined
+    ),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   )
   const config = React.useMemo(
-    () => orientationConfig[orientation],
-    [orientation]
+    () => orientationConfig[normalizedOrientation],
+    [normalizedOrientation]
   )
 
   const getItemValue = React.useCallback(
@@ -181,14 +222,25 @@ function SortableRoot<T>(props: SortableRootProps<T>) {
         )
 
         if (onMove) {
-          onMove({ ...event, activeIndex, overIndex })
+          if (legacyMode) {
+            onMove({ event, activeIndex, overIndex })
+          } else {
+            onMove({ ...event, activeIndex, overIndex })
+          }
         } else {
           onValueChange?.(arrayMove(value, activeIndex, overIndex))
         }
       }
       setActiveId(null)
     },
-    [value, onValueChange, onMove, getItemValue, sortableProps.onDragEnd]
+    [
+      value,
+      onValueChange,
+      onMove,
+      getItemValue,
+      sortableProps.onDragEnd,
+      legacyMode,
+    ]
   )
 
   const onDragCancel = React.useCallback(
@@ -249,11 +301,11 @@ function SortableRoot<T>(props: SortableRootProps<T>) {
     () => ({
       draggable: `
         To pick up a sortable item, press space or enter.
-        While dragging, use the ${orientation === 'vertical' ? 'up and down' : orientation === 'horizontal' ? 'left and right' : 'arrow'} keys to move the item.
+        While dragging, use the ${normalizedOrientation === 'vertical' ? 'up and down' : normalizedOrientation === 'horizontal' ? 'left and right' : 'arrow'} keys to move the item.
         Press space or enter again to drop the item in its new position, or press escape to cancel.
       `,
     }),
-    [orientation]
+    [normalizedOrientation]
   )
 
   const contextValue = React.useMemo(
@@ -261,7 +313,7 @@ function SortableRoot<T>(props: SortableRootProps<T>) {
       id,
       items,
       modifiers: modifiers ?? config.modifiers,
-      strategy: strategy ?? config.strategy,
+      strategy: normalizedStrategy ?? config.strategy,
       activeId,
       setActiveId,
       getItemValue,
@@ -271,7 +323,7 @@ function SortableRoot<T>(props: SortableRootProps<T>) {
       id,
       items,
       modifiers,
-      strategy,
+      normalizedStrategy,
       config.modifiers,
       config.strategy,
       activeId,
@@ -298,9 +350,54 @@ function SortableRoot<T>(props: SortableRootProps<T>) {
           screenReaderInstructions,
           ...accessibility,
         }}
-      />
+      >
+        {legacyMode ? (
+          <>
+            <SortableContent className={className}>{children}</SortableContent>
+            <SortableOverlay>
+              <div className='z-50'>
+                {findSortableChildByValue(children, activeId)}
+              </div>
+            </SortableOverlay>
+          </>
+        ) : (
+          children
+        )}
+      </DndContext>
     </SortableRootContext.Provider>
   )
+}
+
+function hasSortableContent(children: React.ReactNode) {
+  return React.Children.toArray(children).some((child) => {
+    return React.isValidElement(child) && child.type === SortableContent
+  })
+}
+
+function findSortableChildByValue(
+  children: React.ReactNode,
+  activeId: UniqueIdentifier | null
+) {
+  if (!activeId) return null
+
+  return React.Children.map(children, (child) => {
+    if (
+      React.isValidElement(child) &&
+      (child.props as { value?: UniqueIdentifier }).value === activeId
+    ) {
+      return React.cloneElement(
+        child as React.ReactElement<{ className?: string }>,
+        {
+          className: cn(
+            (child.props as { className?: string }).className,
+            'z-50 shadow-lg'
+          ),
+        }
+      )
+    }
+
+    return null
+  })
 }
 
 const SortableContentContext = React.createContext<boolean>(false)

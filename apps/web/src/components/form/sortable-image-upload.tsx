@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 'use client'
 
 import React from 'react'
@@ -16,7 +15,7 @@ import {
   XIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Sortable, SortableItem } from '@/components/ui/client-sortable'
+import { Sortable, SortableItem } from '@/components/ui/sortable'
 import {
   Alert,
   AlertContent,
@@ -28,8 +27,6 @@ import { Button } from '@/components/radix-ui/button'
 import { Card, CardContent } from '@/components/radix-ui/card'
 import { Progress } from '@/components/radix-ui/progress'
 import type { ExistingImage, ImagePayload, UIImage } from './types'
-
-/* eslint-disable @next/next/no-img-element */
 
 // Upload progress tracking (UI-only, not part of form state)
 interface UploadProgress {
@@ -53,6 +50,7 @@ export interface SortableImageUploadProps {
   maxSize?: number
   accept?: string
   className?: string
+  gridClassName?: string
   disabled?: boolean
   loading?: boolean
   coverIndex?: number | null
@@ -67,6 +65,7 @@ export default function SortableImageUpload({
   maxSize = 10 * 1024 * 1024, // 10MB
   accept = 'image/*',
   className,
+  gridClassName,
   disabled = false,
   loading = false,
   coverIndex,
@@ -687,7 +686,10 @@ export default function SortableImageUpload({
             onValueChange={handleReorder}
             getItemValue={(item) => item}
             strategy='grid'
-            className='grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-5'
+            className={cn(
+              'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-5',
+              gridClassName
+            )}
           >
             {uiImages.map((item, index) => {
               const isCover = canSelectCover && index === normalizedCoverIndex

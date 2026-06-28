@@ -311,6 +311,7 @@ export function PageFormExamples() {
                 }
                 existingImages={existingImages}
                 maxFiles={200}
+                gridClassName='grid-cols-2 sm:grid-cols-4 xl:grid-cols-6'
                 disabled={isLoadingImages || isSavingImages}
                 loading={isLoadingImages}
               />
