@@ -26,6 +26,8 @@ export default {
   'navigation.other.password': 'Đổi mật khẩu',
   'navigation.other.security': 'Bảo mật',
   'navigation.other.website': 'Website',
+  'navigation.dev.title': 'Phát triển',
+  'navigation.dev.formExamples': 'Ví dụ form',
   'validation.required': 'Trường này là bắt buộc',
   'validation.email': '{{field}} phải là email hợp lệ',
   'validation.min': '{{field}} phải ít nhất {{min}} ký tự',

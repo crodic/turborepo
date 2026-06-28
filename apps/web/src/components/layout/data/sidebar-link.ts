@@ -12,6 +12,7 @@ import {
   MailSearch,
   PaintbrushIcon,
   Files,
+  FlaskConicalIcon,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -104,6 +105,17 @@ export const sidebarLink: SidebarData = {
           title: 'navigation.other.helpCenter',
           url: '/help-center',
           icon: HelpCircle,
+        },
+      ],
+    },
+    {
+      title: 'navigation.dev.title',
+      onlyDevMode: true,
+      items: [
+        {
+          title: 'navigation.dev.formExamples',
+          url: '/dev/form-examples',
+          icon: FlaskConicalIcon,
         },
       ],
     },
