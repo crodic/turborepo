@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   KeyboardSensor,
   MouseSensor,
+  rectIntersection,
   TouchSensor,
   type DragStartEvent,
   useSensor,
@@ -839,6 +840,7 @@ export default function SortableImageUpload({
             getItemValue={(item) => item}
             orientation='mixed'
             strategy={rectSortingStrategy}
+            collisionDetection={rectIntersection}
             modifiers={[]}
             sensors={sensors}
             onDragStart={handleDragStart}
