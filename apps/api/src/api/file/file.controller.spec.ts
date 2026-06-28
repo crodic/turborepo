@@ -3,6 +3,7 @@ import { PoliciesGuard } from '@/guards/policies.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { FileController } from './file.controller';
 import { FileService } from './file.service';
+import { SortableImageCacheService } from './sortable-image-cache.service';
 
 describe('FileController', () => {
   let controller: FileController;
@@ -22,6 +23,11 @@ describe('FileController', () => {
     uploadFile: jest.fn(),
   };
 
+  const mockSortableImageCacheService = {
+    findAll: jest.fn(),
+    save: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [FileController],
@@ -29,6 +35,10 @@ describe('FileController', () => {
         {
           provide: FileService,
           useValue: mockFileService,
+        },
+        {
+          provide: SortableImageCacheService,
+          useValue: mockSortableImageCacheService,
         },
       ],
     })
