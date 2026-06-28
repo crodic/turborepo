@@ -447,6 +447,17 @@ const routes: RouteObject[] = [
         path: 'help-center',
         element: <PageHelpCenter />,
       },
+      ...(import.meta.env.DEV
+        ? [
+            {
+              path: 'dev/form-examples',
+              lazy: async () => ({
+                Component: (await import('@/pages/dev/examples'))
+                  .PageFormExamples,
+              }),
+            },
+          ]
+        : []),
       {
         path: '*',
         element: <NotFoundError />,

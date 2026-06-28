@@ -26,6 +26,8 @@ export default {
   'navigation.other.password': 'Password',
   'navigation.other.security': 'Security',
   'navigation.other.website': 'Website',
+  'navigation.dev.title': 'Development',
+  'navigation.dev.formExamples': 'Form examples',
   'validation.required': 'This field is required',
   'validation.email': 'The {{field}} must be a valid email',
   'validation.min': 'The {{field}} must be at least {{min}} characters',

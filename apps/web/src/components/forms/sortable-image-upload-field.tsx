@@ -1,13 +1,13 @@
-"use client";
+'use client'
 
-import * as React from "react";
-import { useController } from "react-hook-form";
+import * as React from 'react'
+import { useController } from 'react-hook-form'
 import type {
   Control,
   FieldPath,
   FieldValues,
   ControllerRenderProps,
-} from "react-hook-form";
+} from 'react-hook-form'
 import {
   FormControl,
   FormDescription,
@@ -15,17 +15,17 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from '@/components/ui/form'
 import SortableImageUpload, {
   type SortableImageUploadProps,
-} from "./sortable-image-upload";
-import type { ImagePayload } from "./types";
+} from './sortable-image-upload'
+import type { ImagePayload } from './types'
 
 type DescriptionRenderState = {
-  loading: boolean;
-  disabled: boolean;
-  value: ImagePayload[];
-};
+  loading: boolean
+  disabled: boolean
+  value: ImagePayload[]
+}
 
 export type SortableImageUploadFieldProps<
   TFieldValues extends FieldValues,
@@ -33,29 +33,29 @@ export type SortableImageUploadFieldProps<
   TCoverName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 > = Omit<
   SortableImageUploadProps,
-  "value" | "onChange" | "coverIndex" | "onCoverIndexChange"
+  'value' | 'onChange' | 'coverIndex' | 'onCoverIndexChange'
 > & {
-  control: Control<TFieldValues>;
-  name: TName;
-  coverIndexName?: TCoverName;
-  coverIndex?: number | null;
-  onCoverIndexChange?: (index: number | null) => void;
-  label?: React.ReactNode;
+  control: Control<TFieldValues>
+  name: TName
+  coverIndexName?: TCoverName
+  coverIndex?: number | null
+  onCoverIndexChange?: (index: number | null) => void
+  label?: React.ReactNode
   description?:
     | React.ReactNode
-    | ((state: DescriptionRenderState) => React.ReactNode);
-  formItemClassName?: string;
-};
+    | ((state: DescriptionRenderState) => React.ReactNode)
+  formItemClassName?: string
+}
 
 function getFieldValue<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues>,
 >(field: ControllerRenderProps<TFieldValues, TName>) {
-  return Array.isArray(field.value) ? (field.value as ImagePayload[]) : [];
+  return Array.isArray(field.value) ? (field.value as ImagePayload[]) : []
 }
 
 function getCoverIndex(value: unknown) {
-  return typeof value === "number" ? value : null;
+  return typeof value === 'number' ? value : null
 }
 
 function SortableImageUploadFieldControl<
@@ -75,18 +75,18 @@ function SortableImageUploadFieldControl<
   ...uploadProps
 }: Omit<
   SortableImageUploadFieldProps<TFieldValues, TName, TCoverName>,
-  "coverIndexName"
+  'coverIndexName'
 >) {
   return (
     <FormField
       control={control}
       name={name}
       render={({ field }) => {
-        const value = getFieldValue(field);
+        const value = getFieldValue(field)
         const renderedDescription =
-          typeof description === "function"
+          typeof description === 'function'
             ? description({ loading, disabled, value })
-            : description;
+            : description
 
         return (
           <FormItem className={formItemClassName}>
@@ -107,10 +107,10 @@ function SortableImageUploadFieldControl<
             )}
             <FormMessage />
           </FormItem>
-        );
+        )
       }}
     />
-  );
+  )
 }
 
 function SortableImageUploadFieldWithCover<
@@ -122,12 +122,12 @@ function SortableImageUploadFieldWithCover<
   coverIndexName,
   ...props
 }: SortableImageUploadFieldProps<TFieldValues, TName, TCoverName> & {
-  coverIndexName: TCoverName;
+  coverIndexName: TCoverName
 }) {
   const { field: coverField } = useController({
     control,
     name: coverIndexName,
-  });
+  })
 
   return (
     <SortableImageUploadFieldControl
@@ -136,7 +136,7 @@ function SortableImageUploadFieldWithCover<
       coverIndex={getCoverIndex(coverField.value)}
       onCoverIndexChange={coverField.onChange}
     />
-  );
+  )
 }
 
 export default function SortableImageUploadField<
@@ -154,8 +154,8 @@ export default function SortableImageUploadField<
         control={props.control}
         coverIndexName={coverIndexName}
       />
-    );
+    )
   }
 
-  return <SortableImageUploadFieldControl {...props} />;
+  return <SortableImageUploadFieldControl {...props} />
 }

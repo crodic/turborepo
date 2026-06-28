@@ -5,11 +5,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import SortableImageUploadField from "@/components/form/sortable-image-upload-field";
+// import SortableImageUploadField from "@/components/form/sortable-image-upload-field";
 import type { ExistingImage, ImagePayload } from "@/components/form/types";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import CoverUploadField from "@/components/form/cover-upload-field";
+import SortableImageUploadField from "@/components/legacy/sortable-image-upload-field.legacy";
 
 // Zod schema for ImagePayload validation
 const existingImageSchema = z.object({
