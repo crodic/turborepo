@@ -1,9 +1,9 @@
-import { BaseKit } from 'reactjs-tiptap-editor'
 import { Blockquote } from 'reactjs-tiptap-editor/blockquote'
 import { Bold } from 'reactjs-tiptap-editor/bold'
 import { BulletList } from 'reactjs-tiptap-editor/bulletlist'
 import { Clear } from 'reactjs-tiptap-editor/clear'
 import { Color } from 'reactjs-tiptap-editor/color'
+import { Column } from 'reactjs-tiptap-editor/column'
 import { FontFamily } from 'reactjs-tiptap-editor/fontfamily'
 import { FontSize } from 'reactjs-tiptap-editor/fontsize'
 import { Heading } from 'reactjs-tiptap-editor/heading'
@@ -16,22 +16,15 @@ import { Italic } from 'reactjs-tiptap-editor/italic'
 import { LineHeight } from 'reactjs-tiptap-editor/lineheight'
 import { Link } from 'reactjs-tiptap-editor/link'
 import { MoreMark } from 'reactjs-tiptap-editor/moremark'
-import { ColumnActionButton } from 'reactjs-tiptap-editor/multicolumn'
 import { OrderedList } from 'reactjs-tiptap-editor/orderedlist'
 import { Strike } from 'reactjs-tiptap-editor/strike'
-import { TableOfContents } from 'reactjs-tiptap-editor/tableofcontent'
 import { TextAlign } from 'reactjs-tiptap-editor/textalign'
 import { TextUnderline } from 'reactjs-tiptap-editor/textunderline'
+import { baseExtensions } from './base-kit'
 
 export const extensions = [
-  BaseKit.configure({
-    placeholder: {
-      showOnlyCurrent: true,
-      placeholder: 'Type something...',
-    },
-  }),
+  ...baseExtensions,
   History,
-  TableOfContents,
   Clear,
   FontFamily,
   Heading.configure({ spacer: true }),
@@ -60,5 +53,5 @@ export const extensions = [
   }),
   Blockquote,
   HorizontalRule,
-  ColumnActionButton,
+  Column,
 ]

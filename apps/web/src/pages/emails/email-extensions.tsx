@@ -1,4 +1,3 @@
-import { BaseKit } from 'reactjs-tiptap-editor'
 import { Blockquote } from 'reactjs-tiptap-editor/blockquote'
 import { Bold } from 'reactjs-tiptap-editor/bold'
 import { BulletList } from 'reactjs-tiptap-editor/bulletlist'
@@ -10,14 +9,10 @@ import { OrderedList } from 'reactjs-tiptap-editor/orderedlist'
 import { Strike } from 'reactjs-tiptap-editor/strike'
 import { TextAlign } from 'reactjs-tiptap-editor/textalign'
 import { TextUnderline } from 'reactjs-tiptap-editor/textunderline'
+import { baseExtensions } from '@/components/editor/base-kit'
 
 export const extensions = [
-  BaseKit.configure({
-    placeholder: {
-      showOnlyCurrent: true,
-      placeholder: 'Type something...',
-    },
-  }),
+  ...baseExtensions,
   Clear,
   Heading.configure({ spacer: true }),
   Bold,
