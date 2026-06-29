@@ -4,6 +4,7 @@ import {
   ArrayField,
   BooleanField,
   ClassField,
+  JsonField,
   StringField,
   StringFieldOptional,
 } from '@/decorators/field.decorators';
@@ -61,6 +62,10 @@ export class AdminUserResDto {
   @BooleanField()
   @Expose()
   twoFactorEnabled: boolean;
+
+  @JsonField()
+  @Expose()
+  notifications: Record<string, boolean>;
 
   @ClassField(() => Date)
   @Expose()

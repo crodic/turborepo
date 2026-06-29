@@ -29,6 +29,18 @@ export const adminSchema = z
     avatar: z.string().nullish(),
     verifiedAt: z.boolean(),
     twoFactorEnabled: z.boolean().default(false),
+    notifications: z
+      .object({
+        system: z.boolean().default(true),
+        security: z.boolean().default(true),
+        email: z.boolean().default(true),
+      })
+      .catchall(z.boolean())
+      .catch({
+        system: true,
+        security: true,
+        email: true,
+      }),
     roles: z.array(roleSchema).nullish(),
     role: roleSchema.nullish(),
     roleIds: z.array(z.string()).nullish(),

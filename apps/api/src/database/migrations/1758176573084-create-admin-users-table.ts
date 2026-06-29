@@ -37,6 +37,7 @@ export class CreateAdminUsersTable1758176573084 implements MigrationInterface {
                 "avatar" character varying,
                 "birthday" date,
                 "phone" character varying(20),
+                "notifications" jsonb NOT NULL DEFAULT '{"system": true, "security": true, "email": true}'::jsonb,
                 "two_factor_enabled" boolean NOT NULL DEFAULT false,
                 "two_factor_secret" character varying,
                 "two_factor_backup_codes" jsonb,

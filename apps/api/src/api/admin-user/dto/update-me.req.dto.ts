@@ -1,4 +1,7 @@
-import { BooleanFieldOptional } from '@/decorators/field.decorators';
+import {
+  BooleanFieldOptional,
+  JsonFieldOptional,
+} from '@/decorators/field.decorators';
 import { OmitType, PartialType } from '@nestjs/mapped-types';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { CreateAdminUserReqDto } from './create-admin-user.req.dto';
@@ -15,4 +18,7 @@ export class UpdateMeReqDto extends PartialType(
 
   @BooleanFieldOptional()
   removeAvatar?: boolean;
+
+  @JsonFieldOptional()
+  notifications?: Record<string, boolean>;
 }

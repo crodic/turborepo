@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Lock, LogOutIcon, PaletteIcon, UserCheck } from 'lucide-react'
+import { Bell, Lock, LogOutIcon, PaletteIcon, UserCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import useDialogState from '@/hooks/use-dialog-state'
@@ -76,6 +76,12 @@ export function ProfileDropdown() {
               <Link to='/settings/password'>
                 <Lock />
                 {t('settings.password.title')}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to='/settings/notifications'>
+                <Bell />
+                {t('navigation.other.notifications')}
               </Link>
             </DropdownMenuItem>
           </DropdownMenuGroup>

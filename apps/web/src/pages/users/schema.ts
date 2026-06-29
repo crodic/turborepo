@@ -19,6 +19,18 @@ export const userSchema = z.object({
   lastName: z.string().nullable(),
   fullName: z.string(),
   verifiedAt: z.boolean(),
+  notifications: z
+    .object({
+      system: z.boolean().default(true),
+      security: z.boolean().default(true),
+      email: z.boolean().default(true),
+    })
+    .catchall(z.boolean())
+    .catch({
+      system: true,
+      security: true,
+      email: true,
+    }),
   createdAt: z.string(),
   updatedAt: z.string(),
 })

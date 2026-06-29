@@ -51,6 +51,12 @@ export class UserEntity extends AbstractEntity {
   @Column({ nullable: true })
   avatar?: string;
 
+  @Column({
+    type: 'jsonb',
+    default: () => `'{"system": true, "security": true, "email": true}'::jsonb`,
+  })
+  notifications!: Record<string, boolean>;
+
   @DeleteDateColumn({
     name: 'deleted_at',
     type: 'timestamptz',

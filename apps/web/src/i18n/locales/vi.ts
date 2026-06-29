@@ -25,6 +25,7 @@ export default {
   'navigation.other.helpCenter': 'Trung tâm trợ giúp',
   'navigation.other.password': 'Đổi mật khẩu',
   'navigation.other.security': 'Bảo mật',
+  'navigation.other.notifications': 'Thông báo',
   'navigation.other.website': 'Website',
   'navigation.dev.title': 'Phát triển',
   'navigation.dev.formExamples': 'Ví dụ form',
