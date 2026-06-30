@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import DataLoader from '@/components/layout/data-loader'
 import { apiGetMe } from '@/pages/auth/queries'
@@ -13,7 +14,17 @@ export function SettingsAccount() {
     queryFn: apiGetMe,
   })
 
-  if (isFetching) return <DataLoader />
+  if (isFetching)
+    return (
+      <ContentSection
+        title={t('settings.account.title')}
+        desc={t('settings.account.description')}
+      >
+        <div className='flex min-h-40 items-center justify-center'>
+          <Loader2 className='animate-spin' />
+        </div>
+      </ContentSection>
+    )
 
   if (!currentUser) return <NotFoundError />
 
