@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import DataLoader from '@/components/layout/data-loader'
 import { apiGetMe } from '@/pages/auth/queries'
 import { NotFoundError } from '@/pages/errors/not-found-error'
 import { ContentSection } from '../components/content-section'
