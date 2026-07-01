@@ -14,6 +14,7 @@ import { NotificationRealtimeService } from './notification-realtime.service';
 
 export enum AdminNotificationType {
   NewSession = 'admin.login.new_session',
+  SuspiciousLogin = 'admin.login.suspicious',
   TwoFactorEnabled = 'admin.security.2fa_enabled',
   TwoFactorDisabled = 'admin.security.2fa_disabled',
   PasswordChanged = 'admin.security.password_changed',
@@ -46,6 +47,7 @@ const NOTIFICATION_TYPE_CATEGORY: Partial<
   Record<AdminNotificationType, NotificationCategory>
 > = {
   [AdminNotificationType.NewSession]: 'security',
+  [AdminNotificationType.SuspiciousLogin]: 'security',
   [AdminNotificationType.TwoFactorEnabled]: 'security',
   [AdminNotificationType.TwoFactorDisabled]: 'security',
   [AdminNotificationType.PasswordChanged]: 'security',

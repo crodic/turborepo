@@ -68,6 +68,7 @@ import { TwoFactorStatusResDto } from '../dto/admin-users/two-factor/two-factor-
 import { VerifyTwoFactorLoginReqDto } from '../dto/admin-users/two-factor/verify-two-factor-login.req.dto';
 import { VerifyTwoFactorSetupReqDto } from '../dto/admin-users/two-factor/verify-two-factor-setup.req.dto';
 import { VerifyTwoFactorSetupResDto } from '../dto/admin-users/two-factor/verify-two-factor-setup.res.dto';
+import { VerifySuspiciousLoginReqDto } from '../dto/admin-users/verify-suspicious-login.req.dto';
 import { ForgotPasswordReqDto } from '../dto/forgot-password.req.dto';
 import { ForgotPasswordResDto } from '../dto/forgot-password.res.dto';
 import { RefreshReqDto } from '../dto/refresh.req.dto';
@@ -83,6 +84,10 @@ import { VerifyAccountResDto } from '../dto/verify-account.req.dto';
 import { JwtForgotPasswordPayload } from '../types/jwt-forgot-password-payload';
 import { JwtPayloadType } from '../types/jwt-payload.type';
 import { JwtRefreshPayloadType } from '../types/jwt-refresh-payload.type';
+import {
+  AdminSuspiciousLoginService,
+  SuspiciousLoginReason,
+} from './admin-suspicious-login.service';
 
 type Token = Branded<
   {
@@ -133,6 +138,7 @@ export class AdminAuthService {
     private readonly cacheManager: Cache,
     private readonly notificationService: NotificationService,
     private readonly impersonateLogService: ImpersonateLogService,
+    private readonly suspiciousLoginService: AdminSuspiciousLoginService,
   ) {}
 
   async login(
@@ -148,7 +154,29 @@ export class AdminAuthService {
       user && (await verifyPassword(password, user.password));
 
     if (!isPasswordValid) {
+      await this.suspiciousLoginService.recordFailedLogin(user?.id ?? email);
       throw new BadRequestException({ message: 'Invalid credentials' });
+    }
+
+    const failedAttempts =
+      await this.suspiciousLoginService.getFailedLoginAttempts(user.id);
+    await this.suspiciousLoginService.clearFailedLoginAttempts(user.id);
+    const suspiciousAssessment = await this.suspiciousLoginService.assess(
+      user.id,
+      requestInfo,
+      failedAttempts,
+    );
+
+    if (
+      this.suspiciousLoginService.shouldRequireVerification(
+        suspiciousAssessment,
+      )
+    ) {
+      return this.createSuspiciousLoginChallenge(
+        user,
+        requestInfo,
+        suspiciousAssessment.reasons,
+      );
     }
 
     if (user.twoFactorEnabled) {
@@ -165,33 +193,17 @@ export class AdminAuthService {
       });
     }
 
-    const hash = crypto
-      .createHash('sha256')
-      .update(randomStringGenerator())
-      .digest('hex');
-
-    const session = new SessionEntity({
-      hash,
-      userId: user.id as AutoIncrementID,
-      userType: ESessionUserType.ADMIN,
-      ipAddress: requestInfo?.ipAddress,
-      userAgent: normalizeUserAgent(requestInfo?.userAgent),
-    });
-    await this.sessionRepository.save(session);
-    await this.clearSessionBlacklist(session.id);
-
+    const session = await this.createAdminLoginSession(
+      user,
+      requestInfo,
+      suspiciousAssessment.reasons,
+    );
     const token = await this.createToken({
       id: user.id,
       sessionId: session.id,
-      hash,
+      hash: session.hash,
     });
-    await this.notifyAdmin(
-      user.id,
-      AdminNotificationType.NewSession,
-      'New sign-in detected',
-      'A new admin session was created for your account.',
-      this.buildSessionNotificationData(session),
-    );
+    await this.notifyAdminLogin(user, session);
 
     return plainToInstance(AdminUserLoginResDto, {
       userId: user.id,
@@ -359,33 +371,78 @@ export class AdminAuthService {
       throw new BadRequestException('Invalid two-factor code');
     }
 
-    const hash = crypto
-      .createHash('sha256')
-      .update(randomStringGenerator())
-      .digest('hex');
-
-    const session = new SessionEntity({
-      hash,
-      userId: user.id as AutoIncrementID,
-      userType: ESessionUserType.ADMIN,
-      ipAddress: requestInfo?.ipAddress,
-      userAgent: normalizeUserAgent(requestInfo?.userAgent),
-    });
-    await this.sessionRepository.save(session);
-    await this.clearSessionBlacklist(session.id);
-
+    const session = await this.createAdminLoginSession(user, requestInfo);
     const token = await this.createToken({
       id: user.id,
       sessionId: session.id,
-      hash,
+      hash: session.hash,
     });
-    await this.notifyAdmin(
-      user.id,
-      AdminNotificationType.NewSession,
-      'New sign-in detected',
-      'A new admin session was created for your account.',
-      this.buildSessionNotificationData(session),
+    await this.notifyAdminLogin(user, session);
+
+    return plainToInstance(AdminUserLoginResDto, {
+      userId: user.id,
+      ...token,
+    });
+  }
+
+  async verifySuspiciousLogin(
+    dto: VerifySuspiciousLoginReqDto,
+  ): Promise<AdminUserLoginResDto> {
+    const payload = this.suspiciousLoginService.verifyToken(
+      dto.suspiciousLoginToken,
     );
+    const user = await this.adminUserRepository.findOneBy({
+      id: payload.id as AutoIncrementID,
+    });
+
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    const method = dto.method.trim().toLowerCase();
+    const code = dto.code.trim().replace(/\s+/g, '');
+    let isValid = false;
+
+    if (method === 'email') {
+      isValid = await this.suspiciousLoginService.verifyEmailCode(
+        payload.challengeId,
+        code,
+      );
+    } else if (method === 'totp') {
+      if (user.twoFactorEnabled && user.twoFactorSecret) {
+        isValid = await this.verifyTotpCode(
+          code,
+          this.decryptTwoFactorSecret(user.twoFactorSecret),
+        );
+      }
+    } else if (method === 'backup_code') {
+      if (user.twoFactorEnabled) {
+        isValid = await this.consumeBackupCode(user, code);
+      }
+    } else {
+      throw new BadRequestException('Unsupported verification method');
+    }
+
+    if (!isValid) {
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    await this.suspiciousLoginService.clearChallenge(payload.challengeId);
+
+    const session = await this.createAdminLoginSession(
+      user,
+      {
+        ipAddress: payload.ipAddress,
+        userAgent: payload.userAgent,
+      },
+      payload.reasons,
+    );
+    const token = await this.createToken({
+      id: user.id,
+      sessionId: session.id,
+      hash: session.hash,
+    });
+    await this.notifyAdminLogin(user, session, { queueEmail: false });
 
     return plainToInstance(AdminUserLoginResDto, {
       userId: user.id,
@@ -1137,12 +1194,89 @@ export class AdminAuthService {
     );
   }
 
+  private async createAdminLoginSession(
+    user: AdminUserEntity,
+    requestInfo?: SessionRequestInfo,
+    suspiciousReasons: SuspiciousLoginReason[] = [],
+  ): Promise<SessionEntity> {
+    const hash = crypto
+      .createHash('sha256')
+      .update(randomStringGenerator())
+      .digest('hex');
+    const ipAddress = requestInfo?.ipAddress;
+    const userAgent = normalizeUserAgent(requestInfo?.userAgent);
+
+    const session = new SessionEntity({
+      hash,
+      userId: user.id as AutoIncrementID,
+      userType: ESessionUserType.ADMIN,
+      ipAddress,
+      userAgent,
+      isSuspicious: suspiciousReasons.length > 0,
+      suspiciousReasons: suspiciousReasons.length ? suspiciousReasons : null,
+    });
+    const savedSession = await this.sessionRepository.save(session);
+    await this.clearSessionBlacklist(savedSession.id);
+
+    return savedSession;
+  }
+
+  private async createSuspiciousLoginChallenge(
+    user: AdminUserEntity,
+    requestInfo: SessionRequestInfo | undefined,
+    reasons: SuspiciousLoginReason[],
+  ): Promise<AdminUserLoginResDto> {
+    const challenge = await this.suspiciousLoginService.createChallenge({
+      user,
+      requestInfo,
+      reasons,
+    });
+
+    return plainToInstance(AdminUserLoginResDto, {
+      userId: user.id,
+      suspiciousLoginRequired: true,
+      suspiciousLoginToken: challenge.token,
+      suspiciousLoginMethods: challenge.methods,
+      suspiciousReasons: challenge.reasons,
+    });
+  }
+
+  private async notifyAdminLogin(
+    user: AdminUserEntity,
+    session: SessionEntity,
+    options: { queueEmail?: boolean } = {},
+  ): Promise<void> {
+    if (!session.isSuspicious) {
+      return;
+    }
+
+    await this.notifyAdmin(
+      user.id,
+      AdminNotificationType.SuspiciousLogin,
+      'Unusual sign-in detected',
+      'A new admin session used an IP address or device we have not seen before.',
+      this.buildSessionNotificationData(session),
+    );
+    if (options.queueEmail !== false) {
+      await this.suspiciousLoginService.queueEmail(user, session);
+    }
+  }
+
   private buildSessionNotificationData(session: SessionEntity) {
-    return {
+    const data = {
       sessionId: session.id,
       ipAddress: session.ipAddress,
       userAgent: session.userAgent,
     };
+
+    if (session.suspiciousReasons?.length) {
+      return {
+        ...data,
+        reasons: session.suspiciousReasons,
+      };
+    }
+
+    return data;
   }
 
   private async notifyAdmin(

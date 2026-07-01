@@ -10,6 +10,7 @@ export type AuthConfig = {
   portalUrl: string;
   portalResetPasswordUrl: string;
   impersonationSessionExpires: string;
+  suspiciousLoginEnabled: boolean;
 
   userSecret: string;
   userExpires: string;

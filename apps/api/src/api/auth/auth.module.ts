@@ -16,6 +16,7 @@ import { UserAuthenticationController } from './controllers/user-auth.controller
 import { SessionEntity } from './entities/session.entity';
 import { UserSocialAccountEntity } from './entities/user-social-account.entity';
 import { AdminAuthService } from './services/admin-auth.service';
+import { AdminSuspiciousLoginService } from './services/admin-suspicious-login.service';
 import { UserAuthService } from './services/user-auth.service';
 import { GoogleOAuthAdapter } from './social/google-oauth.adapter';
 import { AdminJwtStrategy } from './strategy/admin.strategy';
@@ -59,6 +60,7 @@ import { UserJwtStrategy } from './strategy/user.strategy';
   controllers: [AdminAuthenticationController, UserAuthenticationController],
   providers: [
     AdminAuthService,
+    AdminSuspiciousLoginService,
     UserAuthService,
     AdminJwtStrategy,
     UserJwtStrategy,

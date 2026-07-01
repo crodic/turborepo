@@ -21,6 +21,16 @@ export const twoFactorLoginSchema = z.object({
 
 export type TwoFactorLoginSchema = z.infer<typeof twoFactorLoginSchema>
 
+export const suspiciousLoginSchema = z.object({
+  method: z.enum(['email', 'totp', 'backup_code']),
+  code: z
+    .string()
+    .min(4, 'Please enter your verification code')
+    .max(16, 'Verification code is too long'),
+})
+
+export type SuspiciousLoginSchema = z.infer<typeof suspiciousLoginSchema>
+
 export const forgotPasswordSchema = z.object({
   email: z.email(),
 })

@@ -71,6 +71,47 @@ export class MailService {
     return html;
   }
 
+  renderAdminSuspiciousLogin(params: {
+    email: string;
+    loginAt: string;
+    ipAddress?: string;
+    userAgent?: string;
+    reasons: string[];
+    verificationCode?: string;
+  }): string {
+    return this.renderTemplate('admin-suspicious-login', {
+      email: params.email,
+      loginAt: formatEmailDate(params.loginAt),
+      ipAddress: params.ipAddress || 'Unknown',
+      userAgent: params.userAgent || 'Unknown',
+      reasons: params.reasons.map(formatSuspiciousReason),
+      verificationCode: params.verificationCode ?? '',
+      hasVerificationCode: Boolean(params.verificationCode),
+    });
+  }
+
+  async sendAdminSuspiciousLogin(params: {
+    email: string;
+    loginAt: string;
+    ipAddress?: string;
+    userAgent?: string;
+    reasons: string[];
+    verificationCode?: string;
+    renderedHtml?: string;
+  }): Promise<string> {
+    const html = params.renderedHtml ?? this.renderAdminSuspiciousLogin(params);
+
+    await this.mailerService.sendMail({
+      to: params.email,
+      subject: params.verificationCode
+        ? 'Verify unusual admin sign-in'
+        : 'Unusual admin sign-in detected',
+      html,
+    });
+
+    return html;
+  }
+
   renderUserEmailVerification(email: string, token: string): string {
     const url = `${this.configService.get('app.url', { infer: true })}/api/v1/user/auth/verify/email?token=${token}`;
 
@@ -243,6 +284,7 @@ export class MailService {
     templateName:
       | 'admin-email-verification'
       | 'admin-email-reset-password'
+      | 'admin-suspicious-login'
       | 'user-email-verification'
       | 'user-email-reset-password'
       | 'user-impersonation-started'
@@ -269,4 +311,20 @@ function formatEmailDate(value: string) {
     timeStyle: 'short',
     timeZone: 'UTC',
   }).format(date);
+}
+
+function formatSuspiciousReason(reason: string) {
+  if (reason === 'new_ip_address') {
+    return 'New IP address';
+  }
+
+  if (reason === 'new_device') {
+    return 'New device or browser';
+  }
+
+  if (reason === 'failed_login_attempts') {
+    return 'Multiple failed password attempts';
+  }
+
+  return reason;
 }

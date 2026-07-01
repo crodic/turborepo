@@ -34,6 +34,14 @@ export class SessionResDto {
   @Expose()
   userAgent?: string;
 
+  @BooleanField()
+  @Expose()
+  isSuspicious: boolean;
+
+  @StringFieldOptional({ each: true })
+  @Expose()
+  suspiciousReasons?: string[] | null;
+
   @ClassField(() => Date, { required: false, nullable: true })
   @Expose()
   expiresAt?: Date;

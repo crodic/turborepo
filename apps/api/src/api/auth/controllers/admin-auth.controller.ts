@@ -53,6 +53,7 @@ import { TwoFactorStatusResDto } from '../dto/admin-users/two-factor/two-factor-
 import { VerifyTwoFactorLoginReqDto } from '../dto/admin-users/two-factor/verify-two-factor-login.req.dto';
 import { VerifyTwoFactorSetupReqDto } from '../dto/admin-users/two-factor/verify-two-factor-setup.req.dto';
 import { VerifyTwoFactorSetupResDto } from '../dto/admin-users/two-factor/verify-two-factor-setup.res.dto';
+import { VerifySuspiciousLoginReqDto } from '../dto/admin-users/verify-suspicious-login.req.dto';
 import { ForgotPasswordReqDto } from '../dto/forgot-password.req.dto';
 import { ForgotPasswordResDto } from '../dto/forgot-password.res.dto';
 import { RefreshReqDto } from '../dto/refresh.req.dto';
@@ -119,6 +120,26 @@ export class AdminAuthenticationController {
       ipAddress: req.ip,
       userAgent: req.headers?.['user-agent'],
     });
+    setAuthCookies({
+      res,
+      configService: this.configService,
+      prefix: 'admin',
+      tokens: result,
+    });
+    return result;
+  }
+
+  @ApiPublic({
+    type: AdminUserLoginResDto,
+    summary: 'Verify suspicious admin login',
+  })
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('suspicious-login/verify')
+  async verifySuspiciousLogin(
+    @Body() dto: VerifySuspiciousLoginReqDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AdminUserLoginResDto> {
+    const result = await this.adminAuthService.verifySuspiciousLogin(dto);
     setAuthCookies({
       res,
       configService: this.configService,
