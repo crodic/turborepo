@@ -372,6 +372,11 @@ export default {
   'settings.security.sessionsUnknownAgent': 'User agent không xác định',
   'settings.security.sessionsDeviceName': '{{browser}} trên {{device}}',
   'settings.security.sessionsSessionNumber': 'Phiên #{{id}}',
+  'settings.security.sessionsSuspicious': 'Bất thường',
+  'settings.security.sessionsSuspiciousNewIp': 'Địa chỉ IP mới',
+  'settings.security.sessionsSuspiciousNewDevice': 'Thiết bị mới',
+  'settings.security.sessionsSuspiciousFailedAttempts':
+    'Sai mật khẩu nhiều lần',
   'settings.security.sessionsMessageRevoked':
     'Thu hồi phiên đăng nhập thành công.',
   'settings.security.sessionsMessageRevokeFailed':
@@ -440,6 +445,31 @@ export default {
   'auth.twoFactor.code': 'Mã xác thực',
   'auth.twoFactor.buttonVerify': 'Xác minh và đăng nhập',
   'auth.twoFactor.buttonBack': 'Quay lại mật khẩu',
+  'auth.suspiciousLogin.title': 'Đăng nhập bất thường',
+  'auth.suspiciousLogin.description':
+    'Xác minh lần đăng nhập này trước khi tiếp tục vào admin portal.',
+  'auth.suspiciousLogin.badge': 'Xác minh bổ sung',
+  'auth.suspiciousLogin.reasonLabel': 'Lý do cần xác minh',
+  'auth.suspiciousLogin.chooseMethod': 'Chọn cách xác minh',
+  'auth.suspiciousLogin.methodEmail': 'Mã email',
+  'auth.suspiciousLogin.methodEmailDescription':
+    'Dùng mã được gửi tới email admin.',
+  'auth.suspiciousLogin.methodTotp': 'Authenticator',
+  'auth.suspiciousLogin.methodTotpDescription':
+    'Dùng mã trong ứng dụng xác thực.',
+  'auth.suspiciousLogin.methodBackupCode': 'Mã dự phòng',
+  'auth.suspiciousLogin.methodBackupCodeDescription':
+    'Dùng mã khôi phục một lần đã lưu.',
+  'auth.suspiciousLogin.code': 'Mã xác minh',
+  'auth.suspiciousLogin.codeSourceEmail': 'Email',
+  'auth.suspiciousLogin.codeSourceTotp': 'Authenticator',
+  'auth.suspiciousLogin.codeSourceBackup': 'Khôi phục',
+  'auth.suspiciousLogin.emailHint':
+    'Nhập mã 6 chữ số đã gửi tới email admin của bạn.',
+  'auth.suspiciousLogin.totpHint': 'Nhập mã 6 chữ số từ ứng dụng xác thực.',
+  'auth.suspiciousLogin.backupCodeHint':
+    'Nhập một trong các mã dự phòng đã lưu.',
+  'auth.suspiciousLogin.buttonVerify': 'Xác minh và đăng nhập',
   'signOut.title': 'Đăng xuất',
   'signOut.description':
     'Bạn có chắc chắn muốn đăng xuất?. Bạn sẽ phải đăng nhập lại nếu muốn truy cập vào tài khoản.',

@@ -5,6 +5,7 @@ import {
 } from '@/api/notification/notification.service';
 import {
   IAdminSendEmailJob,
+  IAdminSuspiciousLoginEmailJob,
   IForgotPasswordEmailJob,
   IUserImpersonationEndedEmailJob,
   IUserImpersonationStartedEmailJob,
@@ -82,6 +83,32 @@ export class EmailQueueService {
         data.token,
         renderedBody,
       );
+      await this.markSent(log, renderedBody);
+    } catch (error) {
+      await this.markFailed(log, error);
+      throw error;
+    }
+  }
+
+  async sendAdminSuspiciousLogin(
+    data: IAdminSuspiciousLoginEmailJob,
+  ): Promise<void> {
+    this.logger.debug(`Sending suspicious admin login alert to ${data.email}`);
+    const renderedBody = this.mailService.renderAdminSuspiciousLogin(data);
+    const log = await this.createSystemLog({
+      to: [data.email],
+      subject: 'Unusual admin sign-in detected',
+      jobName: JobName.ADMIN_SUSPICIOUS_LOGIN,
+      templateName: 'admin-suspicious-login',
+      body: renderedBody,
+      renderedBody,
+    });
+
+    try {
+      await this.mailService.sendAdminSuspiciousLogin({
+        ...data,
+        renderedHtml: renderedBody,
+      });
       await this.markSent(log, renderedBody);
     } catch (error) {
       await this.markFailed(log, error);

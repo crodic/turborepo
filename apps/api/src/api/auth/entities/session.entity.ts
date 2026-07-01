@@ -61,6 +61,20 @@ export class SessionEntity extends AbstractEntity {
   userAgent?: string;
 
   @Column({
+    name: 'is_suspicious',
+    type: 'boolean',
+    default: false,
+  })
+  isSuspicious!: boolean;
+
+  @Column({
+    name: 'suspicious_reasons',
+    type: 'jsonb',
+    nullable: true,
+  })
+  suspiciousReasons?: string[] | null;
+
+  @Column({
     name: 'expires_at',
     type: 'timestamptz',
     nullable: true,

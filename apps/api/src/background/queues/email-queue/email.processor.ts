@@ -1,5 +1,6 @@
 import {
   IAdminSendEmailJob,
+  IAdminSuspiciousLoginEmailJob,
   IEmailJob,
   IForgotPasswordEmailJob,
   IUserImpersonationEndedEmailJob,
@@ -46,6 +47,10 @@ export class EmailProcessor extends WorkerHost {
       case JobName.ADMIN_EMAIL_FORGOT_PASSWORD:
         return await this.emailQueueService.sendAdminEmailForgotPassword(
           job.data as unknown as IForgotPasswordEmailJob,
+        );
+      case JobName.ADMIN_SUSPICIOUS_LOGIN:
+        return await this.emailQueueService.sendAdminSuspiciousLogin(
+          job.data as unknown as IAdminSuspiciousLoginEmailJob,
         );
       case JobName.USER_EMAIL_VERIFICATION:
         return await this.emailQueueService.sendUserEmailVerification(

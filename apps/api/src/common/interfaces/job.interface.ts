@@ -12,6 +12,17 @@ export interface IForgotPasswordEmailJob extends IEmailJob {
   token: string;
 }
 
+export type AdminSuspiciousLoginReason =
+  'new_ip_address' | 'new_device' | 'failed_login_attempts';
+
+export interface IAdminSuspiciousLoginEmailJob extends IEmailJob {
+  loginAt: string;
+  ipAddress?: string;
+  userAgent?: string;
+  reasons: AdminSuspiciousLoginReason[];
+  verificationCode?: string;
+}
+
 export type ImpersonationActionSummary = {
   label: string;
   status: string;

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import { useAuthStore } from '@/stores/auth-store'
@@ -13,16 +14,23 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
+  const [isLoading, setIsLoading] = useState(false)
   const { logout, meta } = useAuthStore()
 
   const handleSignOut = async () => {
-    await apiSignOut(meta.refreshToken)
-    logout()
-
-    const currentPath = location.pathname
-    navigate(`/sign-in${currentPath ? `?redirect=${currentPath}` : ''}`, {
-      replace: true,
-    })
+    setIsLoading(true)
+    try {
+      await apiSignOut(meta.refreshToken)
+      logout()
+    } catch (_error) {
+      //
+    } finally {
+      const currentPath = location.pathname
+      navigate(`/sign-in${currentPath ? `?redirect=${currentPath}` : ''}`, {
+        replace: true,
+      })
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -36,6 +44,7 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
       destructive
       handleConfirm={handleSignOut}
       className='sm:max-w-sm'
+      isLoading={isLoading}
     />
   )
 }

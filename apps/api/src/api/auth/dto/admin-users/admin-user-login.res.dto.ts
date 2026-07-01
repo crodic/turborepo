@@ -37,4 +37,20 @@ export class AdminUserLoginResDto {
   @Expose()
   @ArrayField(String, { required: false })
   twoFactorMethods?: string[];
+
+  @Expose()
+  @BooleanFieldOptional()
+  suspiciousLoginRequired?: boolean;
+
+  @Expose()
+  @TokenFieldOptional()
+  suspiciousLoginToken?: string;
+
+  @Expose()
+  @ArrayField(String, { required: false })
+  suspiciousLoginMethods?: string[];
+
+  @Expose()
+  @ArrayField(String, { required: false })
+  suspiciousReasons?: string[];
 }

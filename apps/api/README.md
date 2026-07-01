@@ -149,6 +149,40 @@ DELETE /api/v1/user/auth/sessions/:id
 DELETE /api/v1/user/auth/sessions
 ```
 
+### Admin suspicious login verification
+
+Admin sign-in risk is scored from multiple signals instead of using a single hard trigger:
+
+- The admin has previous sessions and signs in from an IP address that has not appeared in that admin's session history: `+45`.
+- The admin has previous sessions and signs in with a user agent that has not appeared in that admin's session history: `+15`.
+- The admin has at least 5 failed password attempts within the failed-login cache window, then enters the correct password: `+70`.
+
+The current step-up verification threshold is `60`. Lower-risk sign-ins, such as using a new browser from a familiar IP address, can still create a session marked with `isSuspicious=true` and send a security notification/email without blocking the login. Higher-risk sign-ins do not create a session or issue access/refresh tokens immediately. The login response contains `suspiciousLoginRequired`, `suspiciousLoginToken`, `suspiciousLoginMethods`, and `suspiciousReasons`. The portal must complete step-up verification before treating the admin as signed in.
+
+Verification endpoint:
+
+```text
+POST /api/v1/auth/suspicious-login/verify
+```
+
+The endpoint accepts:
+
+```json
+{
+  "suspiciousLoginToken": "<token from login response>",
+  "method": "email",
+  "code": "123456"
+}
+```
+
+Supported methods are:
+
+- `email`: always available. A 6-digit code is queued through the email queue with job name `admin-suspicious-login`.
+- `totp`: available only when the admin has two-factor authentication enabled.
+- `backup_code`: available only when the admin has two-factor authentication enabled.
+
+After successful verification, the API creates the admin session, marks it with `isSuspicious=true`, stores `suspiciousReasons`, creates a security notification, and returns normal access/refresh tokens. In local development, suspicious login emails are visible in Mailpit at `http://localhost:8025` when Redis, the email worker, and Mailpit are running.
+
 Admin impersonation uses a dedicated user session with `impersonatedBy` set to the admin id. The impersonation token is short lived, can be revoked through normal session revocation, and can be stopped by the user-auth endpoint:
 
 ```text

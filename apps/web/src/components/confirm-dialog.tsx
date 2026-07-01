@@ -1,3 +1,4 @@
+import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import {
@@ -60,7 +61,11 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
             onClick={handleConfirm}
             disabled={disabled || isLoading}
           >
-            {t(confirmText as any) ?? t('buttons.confirm' as any)}
+            {isLoading ? (
+              <Loader2 />
+            ) : (
+              (t(confirmText as any) ?? t('buttons.confirm' as any))
+            )}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
