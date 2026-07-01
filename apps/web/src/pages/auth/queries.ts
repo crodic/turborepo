@@ -3,6 +3,7 @@ import http from '@/lib/http'
 import { adminSchema, type AdminSchema } from '../admins/schema'
 import {
   type AccountFormSchema,
+  type NotificationsFormSchema,
   type ProfileFormSchema,
 } from '../settings/schema'
 import {
@@ -110,6 +111,12 @@ export async function apiUpdateCurrentAccount(data: AccountFormSchema) {
       'Content-Type': 'multipart/form-data',
     },
   })
+}
+
+export async function apiUpdateNotificationSettings(
+  data: NotificationsFormSchema
+) {
+  return await http.put('/auth/me', data)
 }
 
 export async function apiGetSessions(): Promise<SessionSchema[]> {

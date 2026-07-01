@@ -3,6 +3,7 @@ import {
   BooleanField,
   ClassField,
   DateFieldOptional,
+  JsonField,
   StringField,
   StringFieldOptional,
 } from '@/decorators/field.decorators';
@@ -45,6 +46,10 @@ export class UserResDto {
   @StringFieldOptional()
   @Expose()
   impersonatedBy?: string;
+
+  @JsonField()
+  @Expose()
+  notifications: Record<string, boolean>;
 
   @DateFieldOptional()
   @Expose()

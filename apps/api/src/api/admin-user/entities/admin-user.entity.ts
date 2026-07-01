@@ -64,6 +64,12 @@ export class AdminUserEntity extends AbstractEntity {
   @Column({ nullable: true, length: 20 })
   phone?: string;
 
+  @Column({
+    type: 'jsonb',
+    default: () => `'{"system": true, "security": true, "email": true}'::jsonb`,
+  })
+  notifications!: Record<string, boolean>;
+
   @Column({ name: 'two_factor_enabled', default: false })
   twoFactorEnabled!: boolean;
 

@@ -25,6 +25,7 @@ export default {
   'navigation.other.helpCenter': 'Help Center',
   'navigation.other.password': 'Password',
   'navigation.other.security': 'Security',
+  'navigation.other.notifications': 'Notifications',
   'navigation.other.website': 'Website',
   'navigation.dev.title': 'Development',
   'navigation.dev.formExamples': 'Form examples',

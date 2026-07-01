@@ -1,3 +1,4 @@
+import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
@@ -32,6 +33,30 @@ type CreateAdminNotificationParams = {
   data?: Record<string, unknown> | null;
 };
 
+type NotificationCategory = 'system' | 'security' | 'email';
+
+const DEFAULT_NOTIFICATION_PREFERENCES: Record<NotificationCategory, boolean> =
+  {
+    system: true,
+    security: true,
+    email: true,
+  };
+
+const NOTIFICATION_TYPE_CATEGORY: Partial<
+  Record<AdminNotificationType, NotificationCategory>
+> = {
+  [AdminNotificationType.NewSession]: 'security',
+  [AdminNotificationType.TwoFactorEnabled]: 'security',
+  [AdminNotificationType.TwoFactorDisabled]: 'security',
+  [AdminNotificationType.PasswordChanged]: 'security',
+  [AdminNotificationType.PasswordReset]: 'security',
+  [AdminNotificationType.SessionRevoked]: 'security',
+  [AdminNotificationType.SessionsRevokedAll]: 'security',
+  [AdminNotificationType.EmailSent]: 'email',
+  [AdminNotificationType.EmailFailed]: 'email',
+  [AdminNotificationType.EmailCancelled]: 'email',
+};
+
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
@@ -39,13 +64,24 @@ export class NotificationService {
   constructor(
     @InjectRepository(NotificationEntity)
     private readonly notificationRepository: Repository<NotificationEntity>,
+    @InjectRepository(AdminUserEntity)
+    private readonly adminUserRepository: Repository<AdminUserEntity>,
     private readonly realtimeService: NotificationRealtimeService,
     private readonly configService: ConfigService<AllConfigType>,
   ) {}
 
   async createForAdmin(
     params: CreateAdminNotificationParams,
-  ): Promise<NotificationResDto> {
+  ): Promise<NotificationResDto | null> {
+    const shouldCreate = await this.shouldCreateForAdmin(
+      params.adminId as AutoIncrementID,
+      params.type,
+    );
+
+    if (!shouldCreate) {
+      return null;
+    }
+
     const notification = await this.notificationRepository.save(
       this.notificationRepository.create({
         adminId: params.adminId as AutoIncrementID,
@@ -180,6 +216,29 @@ export class NotificationService {
     return this.notificationRepository.count({
       where: { adminId, readAt: IsNull() },
     });
+  }
+
+  private async shouldCreateForAdmin(
+    adminId: AutoIncrementID,
+    type: AdminNotificationType | string,
+  ) {
+    const admin = await this.adminUserRepository.findOne({
+      where: { id: adminId },
+      select: { id: true, notifications: true },
+    });
+
+    if (!admin) {
+      return false;
+    }
+
+    const preferences = {
+      ...DEFAULT_NOTIFICATION_PREFERENCES,
+      ...(admin.notifications ?? {}),
+    };
+    const category =
+      NOTIFICATION_TYPE_CATEGORY[type as AdminNotificationType] ?? 'system';
+
+    return preferences[category] !== false;
   }
 
   private toDto(notification: NotificationEntity) {

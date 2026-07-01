@@ -67,6 +67,18 @@ export const twoFactorVerifySchema = z.object({
 
 export type TwoFactorVerifySchema = z.infer<typeof twoFactorVerifySchema>
 
+export const notificationsFormSchema = z.object({
+  notifications: z
+    .object({
+      system: z.boolean(),
+      security: z.boolean(),
+      email: z.boolean(),
+    })
+    .catchall(z.boolean()),
+})
+
+export type NotificationsFormSchema = z.infer<typeof notificationsFormSchema>
+
 const optionalImageFileSchema = z.union([
   z
     .instanceof(File)
