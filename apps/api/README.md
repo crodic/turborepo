@@ -151,6 +151,14 @@ DELETE /api/v1/user/auth/sessions
 
 ### Admin suspicious login verification
 
+This feature is disabled by default. Enable it with:
+
+```env
+AUTH_SUSPICIOUS_LOGIN_ENABLED=true
+```
+
+When `AUTH_SUSPICIOUS_LOGIN_ENABLED` is not `true`, admin login uses the normal flow: no suspicious scoring, no step-up challenge, no suspicious-session marking, and no suspicious-login email job.
+
 Admin sign-in risk is scored from multiple signals instead of using a single hard trigger:
 
 - The admin has previous sessions and signs in from an IP address that has not appeared in that admin's session history: `+45`.
