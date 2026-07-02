@@ -41,13 +41,16 @@ export class RoleEntity extends AbstractEntity {
   })
   @JoinTable({
     name: 'role_permission',
+    synchronize: false,
     joinColumn: {
       name: 'role_id',
       referencedColumnName: 'id',
+      foreignKeyConstraintName: 'FK_role_permission_role',
     },
     inverseJoinColumn: {
       name: 'permission_id',
       referencedColumnName: 'id',
+      foreignKeyConstraintName: 'FK_role_permission_permission',
     },
   })
   permissionEntities: Relation<PermissionEntity>[];

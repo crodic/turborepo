@@ -16,6 +16,8 @@ export class CreateSessionsTable1758176745032 implements MigrationInterface {
                 "impersonated_by" bigint,
                 "ip_address" character varying,
                 "user_agent" character varying,
+                "is_suspicious" boolean NOT NULL DEFAULT false,
+                "suspicious_reasons" jsonb,
                 "expires_at" TIMESTAMP WITH TIME ZONE,
                 "revoked_at" TIMESTAMP WITH TIME ZONE,
                 "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -32,9 +34,15 @@ export class CreateSessionsTable1758176745032 implements MigrationInterface {
     await queryRunner.query(`
             CREATE INDEX "IDX_sessions_impersonated_by" ON "sessions" ("impersonated_by")
         `);
+    await queryRunner.query(`
+            CREATE INDEX "IDX_sessions_is_suspicious" ON "sessions" ("is_suspicious")
+        `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+            DROP INDEX "public"."IDX_sessions_is_suspicious"
+        `);
     await queryRunner.query(`
             DROP INDEX "public"."IDX_sessions_impersonated_by"
         `);
