@@ -63,16 +63,30 @@ export class ThemeEntity extends AbstractEntity {
   @Column({ name: 'created_by_admin_id', type: 'bigint', nullable: true })
   createdByAdminId?: AutoIncrementID | null;
 
-  @ManyToOne(() => AdminUserEntity, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'created_by_admin_id' })
+  @ManyToOne(() => AdminUserEntity, {
+    nullable: true,
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn({
+    name: 'created_by_admin_id',
+    foreignKeyConstraintName: 'FK_themes_created_by_admin',
+  })
   createdByAdmin?: Relation<AdminUserEntity>;
 
   @Index('IDX_themes_updated_by_admin_id')
   @Column({ name: 'updated_by_admin_id', type: 'bigint', nullable: true })
   updatedByAdminId?: AutoIncrementID | null;
 
-  @ManyToOne(() => AdminUserEntity, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'updated_by_admin_id' })
+  @ManyToOne(() => AdminUserEntity, {
+    nullable: true,
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn({
+    name: 'updated_by_admin_id',
+    foreignKeyConstraintName: 'FK_themes_updated_by_admin',
+  })
   updatedByAdmin?: Relation<AdminUserEntity>;
 
   @DeleteDateColumn({

@@ -142,12 +142,13 @@ export class UserAuthService {
     }
 
     // Register user
-    const user = await this.userRepository.save({
+    const newUser = this.userRepository.create({
       firstName: dto.firstName,
       lastName: dto.lastName || '',
       email: dto.email,
       password: dto.password,
     });
+    const user = await this.userRepository.save(newUser);
 
     // Send email verification
     const token = await this.createVerificationToken({ id: user.id });

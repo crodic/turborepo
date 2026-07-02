@@ -53,7 +53,7 @@ export class UserEntity extends AbstractEntity {
 
   @Column({
     type: 'jsonb',
-    default: () => `'{"system": true, "security": true, "email": true}'::jsonb`,
+    default: () => `'{"email": true, "system": true, "security": true}'`,
   })
   notifications!: Record<string, boolean>;
 

@@ -13,10 +13,12 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
   Relation,
+  Unique,
 } from 'typeorm';
 import { ImpersonateLogEntity } from './impersonate-log.entity';
 
 @Entity('impersonate_log_histories')
+@Unique('UQ_impersonate_log_histories_session_id', ['sessionId'])
 export class ImpersonateLogHistoryEntity {
   @PrimaryGeneratedColumn('increment', {
     primaryKeyConstraintName: 'PK_impersonate_log_history_id',
@@ -24,12 +26,18 @@ export class ImpersonateLogHistoryEntity {
   })
   id: AutoIncrementID;
 
-  @Index('IDX_impersonate_log_histories_session_id', { unique: true })
+  @Index('IDX_impersonate_log_histories_session_id')
   @Column({ name: 'session_id', type: 'bigint' })
   sessionId: AutoIncrementID;
 
-  @ManyToOne(() => SessionEntity, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'session_id' })
+  @ManyToOne(() => SessionEntity, {
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn({
+    name: 'session_id',
+    foreignKeyConstraintName: 'FK_impersonate_log_histories_session',
+  })
   session?: Relation<SessionEntity>;
 
   @Index('IDX_impersonate_log_histories_admin_id')
@@ -37,7 +45,10 @@ export class ImpersonateLogHistoryEntity {
   adminId: AutoIncrementID;
 
   @ManyToOne(() => AdminUserEntity)
-  @JoinColumn({ name: 'admin_id' })
+  @JoinColumn({
+    name: 'admin_id',
+    foreignKeyConstraintName: 'FK_impersonate_log_histories_admin',
+  })
   admin?: Relation<AdminUserEntity>;
 
   @Index('IDX_impersonate_log_histories_target_user_id')
@@ -45,7 +56,10 @@ export class ImpersonateLogHistoryEntity {
   targetUserId: AutoIncrementID;
 
   @ManyToOne(() => UserEntity)
-  @JoinColumn({ name: 'target_user_id' })
+  @JoinColumn({
+    name: 'target_user_id',
+    foreignKeyConstraintName: 'FK_impersonate_log_histories_target_user',
+  })
   targetUser?: Relation<UserEntity>;
 
   @Column({ type: 'text' })

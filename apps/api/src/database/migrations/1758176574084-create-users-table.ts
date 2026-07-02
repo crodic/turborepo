@@ -35,7 +35,7 @@ export class CreateUsersTable1758176574084 implements MigrationInterface {
                 "email" character varying NOT NULL,
                 "password" character varying,
                 "avatar" character varying,
-                "notifications" jsonb NOT NULL DEFAULT '{"system": true, "security": true, "email": true}'::jsonb,
+                "notifications" jsonb NOT NULL DEFAULT '{"email": true, "system": true, "security": true}'::jsonb,
                 "deleted_at" TIMESTAMP WITH TIME ZONE,
                 "verified_at" TIMESTAMP WITH TIME ZONE,
                 "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),

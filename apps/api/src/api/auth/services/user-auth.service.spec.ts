@@ -57,6 +57,7 @@ describe('UserAuthService', () => {
 
   beforeAll(async () => {
     userRepository = {
+      create: jest.fn((data) => new UserEntity(data)),
       findOne: jest.fn(),
       findOneBy: jest.fn(),
       findOneByOrFail: jest.fn(),
@@ -166,12 +167,13 @@ describe('UserAuthService', () => {
 
       const result = await service.signUp(dto);
 
-      expect(userRepository.save).toHaveBeenCalledWith({
+      expect(userRepository.create).toHaveBeenCalledWith({
         firstName: dto.firstName,
-        lastName: dto.lastName,
+        lastName: dto.lastName || '',
         email: dto.email,
         password: dto.password,
       });
+      expect(userRepository.save).toHaveBeenCalledWith(expect.any(UserEntity));
       expect(cacheManager.set).toHaveBeenCalledWith(
         createCacheKey(CacheKey.EMAIL_VERIFICATION, user.id),
         'verify-token',
