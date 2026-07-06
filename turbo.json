@@ -10,6 +10,7 @@
     "BULL_BOARD_PATH",
     "DATABASE_*",
     "DEV",
+    "FEATURE_*",
     "FILESYSTEM_DISK",
     "GOOGLE_*",
     "MAIL_*",

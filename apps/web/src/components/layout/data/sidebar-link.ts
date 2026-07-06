@@ -14,6 +14,7 @@ import {
   Files,
   FlaskConicalIcon,
 } from 'lucide-react'
+import { IS_THEME_FEATURE_ENABLED } from '@/lib/feature-flags'
 import { type SidebarData } from '../types'
 
 export const sidebarLink: SidebarData = {
@@ -78,12 +79,16 @@ export const sidebarLink: SidebarData = {
           icon: UserLock,
           permission: 'USER',
         },
-        {
-          title: 'navigation.management.themes',
-          url: '/themes',
-          icon: PaintbrushIcon,
-          permission: 'THEME',
-        },
+        ...(IS_THEME_FEATURE_ENABLED
+          ? [
+              {
+                title: 'navigation.management.themes',
+                url: '/themes',
+                icon: PaintbrushIcon,
+                permission: 'THEME' as const,
+              },
+            ]
+          : []),
         {
           title: 'navigation.management.files',
           url: '/files',

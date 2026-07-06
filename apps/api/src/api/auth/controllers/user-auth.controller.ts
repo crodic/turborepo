@@ -159,21 +159,6 @@ export class UserAuthenticationController {
     return this.userAuthService.revokeSession(userToken, sessionId);
   }
 
-  @ApiAuth({ summary: 'Stop impersonating user' })
-  @SkipThrottle()
-  @Post('stop-impersonating')
-  async stopImpersonating(
-    @CurrentUser() userToken: JwtPayloadType,
-    @Request() req: any,
-  ) {
-    return this.userAuthService.stopImpersonating(userToken, {
-      ipAddress: req.ip,
-      userAgent: req.headers?.['user-agent'],
-      method: req.method,
-      endpoint: req.originalUrl || req.url,
-    });
-  }
-
   @ApiPublic({ type: ForgotPasswordResDto, summary: 'Forgot password' })
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('forgot-password')
@@ -251,17 +236,6 @@ export class UserAuthenticationController {
     @Body() dto: SocialExchangeReqDto,
   ): Promise<LoginResDto> {
     return this.userAuthService.exchangeSocialLogin(dto);
-  }
-
-  @ApiPublic({
-    type: LoginResDto,
-    summary: 'Exchange impersonation login token',
-  })
-  @Post('impersonation/exchange')
-  async exchangeImpersonationLogin(
-    @Body() dto: SocialExchangeReqDto,
-  ): Promise<LoginResDto> {
-    return this.userAuthService.exchangeImpersonationLogin(dto);
   }
 
   @ApiAuth({

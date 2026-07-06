@@ -5,7 +5,6 @@ import { ChangePasswordResDto } from '@/api/admin-user/dto/change-password.res.d
 import { UpdateMeReqDto } from '@/api/admin-user/dto/update-me.req.dto';
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
-import { ImpersonateLogService } from '@/api/impersonate-log/impersonate-log.service';
 import {
   AdminNotificationType,
   NotificationService,
@@ -15,8 +14,6 @@ import { UserEntity } from '@/api/user/entities/user.entity';
 import {
   IEmailJob,
   IForgotPasswordEmailJob,
-  IUserImpersonationEndedEmailJob,
-  IUserImpersonationStartedEmailJob,
   IVerifyEmailJob,
 } from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';
@@ -57,8 +54,6 @@ import { In, IsNull, Repository } from 'typeorm';
 import { AdminUserLoginReqDto } from '../dto/admin-users/admin-user-login.req.dto';
 import { AdminUserLoginResDto } from '../dto/admin-users/admin-user-login.res.dto';
 import { AdminUserRegisterReqDto } from '../dto/admin-users/admin-user-register.req.dto';
-import { ImpersonateUserReqDto } from '../dto/admin-users/impersonate-user.req.dto';
-import { ImpersonateUserResDto } from '../dto/admin-users/impersonate-user.res.dto';
 import { DisableTwoFactorReqDto } from '../dto/admin-users/two-factor/disable-two-factor.req.dto';
 import { DisableTwoFactorResDto } from '../dto/admin-users/two-factor/disable-two-factor.res.dto';
 import { EnableTwoFactorReqDto } from '../dto/admin-users/two-factor/enable-two-factor.req.dto';
@@ -79,7 +74,6 @@ import { ResendEmailVerifyResDto } from '../dto/resend-email-verify.res.dto';
 import { ResetPasswordReqDto } from '../dto/reset-password.req.dto';
 import { ResetPasswordResDto } from '../dto/reset-password.res.dto';
 import { SessionResDto } from '../dto/session.res.dto';
-import { LoginResDto } from '../dto/users/login.res.dto';
 import { VerifyAccountResDto } from '../dto/verify-account.req.dto';
 import { JwtForgotPasswordPayload } from '../types/jwt-forgot-password-payload';
 import { JwtPayloadType } from '../types/jwt-payload.type';
@@ -88,6 +82,7 @@ import {
   AdminSuspiciousLoginService,
   SuspiciousLoginReason,
 } from './admin-suspicious-login.service';
+import { AuthSessionService } from './auth-session.service';
 
 type Token = Branded<
   {
@@ -137,7 +132,7 @@ export class AdminAuthService {
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
     private readonly notificationService: NotificationService,
-    private readonly impersonateLogService: ImpersonateLogService,
+    private readonly authSessionService: AuthSessionService,
     private readonly suspiciousLoginService: AdminSuspiciousLoginService,
   ) {}
 
@@ -795,7 +790,10 @@ export class AdminAuthService {
       throw new NotFoundException('Session not found');
     }
 
-    await this.blacklistSession(sessionId);
+    await this.authSessionService.blacklistSession(
+      sessionId,
+      ESessionUserType.ADMIN,
+    );
     await this.notifyAdmin(
       userToken.id,
       AdminNotificationType.SessionRevoked,
@@ -831,7 +829,12 @@ export class AdminAuthService {
       );
 
       await Promise.all(
-        sessions.map((session) => this.blacklistSession(session.id)),
+        sessions.map((session) =>
+          this.authSessionService.blacklistSession(
+            session.id,
+            ESessionUserType.ADMIN,
+          ),
+        ),
       );
       await this.notifyAdmin(
         userToken.id,
@@ -843,218 +846,6 @@ export class AdminAuthService {
     }
 
     return { message: 'Sessions revoked successfully' };
-  }
-
-  async findActiveUserImpersonationSession(
-    adminToken: JwtPayloadType,
-    userId: AutoIncrementID,
-  ): Promise<SessionResDto | null> {
-    const activeHistory =
-      await this.impersonateLogService.findActiveHistoryByAdminAndTarget(
-        adminToken.id,
-        userId,
-      );
-
-    if (!activeHistory) {
-      return null;
-    }
-
-    const session = await this.sessionRepository.findOneBy({
-      id: activeHistory.sessionId,
-    });
-
-    return plainToInstance(
-      SessionResDto,
-      {
-        ...(session ?? {
-          id: activeHistory.sessionId,
-          userId,
-          userType: ESessionUserType.USER,
-          impersonatedBy: adminToken.id,
-          expiresAt: activeHistory.expiresAt,
-          createdAt: activeHistory.startedAt,
-        }),
-        isCurrent: false,
-      },
-      { excludeExtraneousValues: true },
-    );
-  }
-
-  async stopUserImpersonation(
-    adminToken: JwtPayloadType,
-    userId: AutoIncrementID,
-    requestInfo?: SessionRequestInfo,
-  ): Promise<{ message: string }> {
-    const activeHistory =
-      await this.impersonateLogService.findActiveHistoryByAdminAndTarget(
-        adminToken.id,
-        userId,
-      );
-
-    if (!activeHistory) {
-      throw new NotFoundException('Active impersonation session not found');
-    }
-
-    const revokedAt = new Date();
-    const session = await this.sessionRepository.findOneBy({
-      id: activeHistory.sessionId,
-    });
-
-    if (session && !session.revokedAt) {
-      await this.sessionRepository.update(
-        {
-          id: session.id,
-          userId,
-          userType: ESessionUserType.USER,
-          impersonatedBy: adminToken.id as AutoIncrementID,
-          revokedAt: IsNull(),
-        },
-        { revokedAt },
-      );
-
-      await this.blacklistSession(session.id);
-    }
-
-    await this.impersonateLogService.stopHistory({
-      sessionId: activeHistory.sessionId,
-      adminId: adminToken.id,
-      targetUserId: userId,
-      stoppedAt: revokedAt,
-      ipAddress: requestInfo?.ipAddress,
-      userAgent: requestInfo?.userAgent,
-    });
-    await this.queueImpersonationEndedEmail({
-      userId,
-      adminId: adminToken.id,
-      startedAt: activeHistory.startedAt,
-      endedAt: revokedAt,
-      historyId: activeHistory.id,
-    });
-
-    return { message: 'Stopped impersonating successfully' };
-  }
-
-  async impersonateUser(
-    adminToken: JwtPayloadType,
-    dto: ImpersonateUserReqDto,
-    requestInfo?: SessionRequestInfo,
-  ): Promise<ImpersonateUserResDto> {
-    const user = await this.userRepository.findOneBy({ id: dto.userId as any });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    await this.impersonateLogService.assertAdminCanStartImpersonation(
-      adminToken.id,
-    );
-
-    const hash = crypto
-      .createHash('sha256')
-      .update(randomStringGenerator())
-      .digest('hex');
-    const expiresIn = this.configService.getOrThrow(
-      'auth.impersonationSessionExpires',
-      {
-        infer: true,
-      },
-    ) as StringValue;
-    const expiresAt = new Date(Date.now() + ms(expiresIn));
-    const session = await this.sessionRepository.save(
-      this.sessionRepository.create({
-        hash,
-        userId: user.id,
-        userType: ESessionUserType.USER,
-        impersonatedBy: adminToken.id as AutoIncrementID,
-        ipAddress: requestInfo?.ipAddress,
-        userAgent: normalizeUserAgent(requestInfo?.userAgent),
-        expiresAt,
-      }),
-    );
-    await this.clearSessionBlacklist(session.id);
-
-    const history = await this.impersonateLogService.createHistory({
-      sessionId: session.id,
-      adminId: adminToken.id,
-      targetUserId: user.id,
-      reason: dto.reason,
-      startedAt: session.createdAt ?? new Date(),
-      expiresAt,
-      ipAddress: requestInfo?.ipAddress,
-      userAgent: requestInfo?.userAgent,
-    });
-    await this.queueImpersonationStartedEmail({
-      user,
-      adminId: adminToken.id,
-      reason: dto.reason,
-      startedAt: history.startedAt,
-      expiresAt,
-    });
-
-    const tokenExpiresIn = this.configService.getOrThrow('auth.userExpires', {
-      infer: true,
-    });
-    const tokenExpires = Date.now() + ms(tokenExpiresIn as StringValue);
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(
-        {
-          id: user.id,
-          sessionId: session.id,
-          hash,
-          impersonationHistoryId: history.id,
-        },
-        {
-          secret: this.configService.getOrThrow('auth.userSecret', {
-            infer: true,
-          }),
-          expiresIn: tokenExpiresIn as StringValue,
-        },
-      ),
-      this.jwtService.signAsync(
-        {
-          sessionId: session.id,
-          hash,
-        },
-        {
-          secret: this.configService.getOrThrow('auth.userRefreshSecret', {
-            infer: true,
-          }),
-          expiresIn,
-        },
-      ),
-    ]);
-
-    const exchangeToken = crypto.randomUUID();
-    await this.cacheManager.set<LoginResDto>(
-      createCacheKey(CacheKey.IMPERSONATION_EXCHANGE, exchangeToken),
-      plainToInstance(LoginResDto, {
-        userId: user.id,
-        accessToken,
-        refreshToken,
-        tokenExpires,
-      }),
-      ms('5m'),
-    );
-
-    const redirectUrl = dto.callbackUrl
-      ? this.buildRedirectUrl(dto.callbackUrl, { token: exchangeToken })
-      : undefined;
-
-    return plainToInstance(
-      ImpersonateUserResDto,
-      {
-        userId: user.id,
-        impersonatedBy: adminToken.id,
-        session,
-        accessToken,
-        refreshToken,
-        tokenExpires,
-        expiresAt,
-        callbackUrl: dto.callbackUrl,
-        redirectUrl,
-      },
-      { excludeExtraneousValues: true },
-    );
   }
 
   async verifyAccessToken(token: string): Promise<JwtPayloadType> {
@@ -1096,7 +887,10 @@ export class AdminAuthService {
   }
 
   private async revokeCurrentSession(userToken: JwtPayloadType) {
-    await this.blacklistSession(userToken.sessionId as AutoIncrementID);
+    await this.authSessionService.blacklistSession(
+      userToken.sessionId as AutoIncrementID,
+      ESessionUserType.ADMIN,
+    );
     await this.sessionRepository.update(
       {
         id: userToken.sessionId as AutoIncrementID,
@@ -1105,92 +899,6 @@ export class AdminAuthService {
         revokedAt: IsNull(),
       },
       { revokedAt: new Date() },
-    );
-  }
-
-  private async blacklistSession(sessionId: AutoIncrementID | string) {
-    const refreshExpires = this.configService.getOrThrow(
-      'auth.refreshExpires',
-      {
-        infer: true,
-      },
-    );
-
-    await this.cacheManager.set<boolean>(
-      createCacheKey(CacheKey.SESSION_BLACKLIST, sessionId),
-      true,
-      ms(refreshExpires as StringValue),
-    );
-  }
-
-  private async clearSessionBlacklist(sessionId: AutoIncrementID | string) {
-    await this.cacheManager.del(
-      createCacheKey(CacheKey.SESSION_BLACKLIST, sessionId),
-    );
-  }
-
-  private async queueImpersonationStartedEmail(params: {
-    user: UserEntity;
-    adminId: AutoIncrementID | string;
-    reason?: string;
-    startedAt: Date;
-    expiresAt?: Date;
-  }) {
-    const admin = await this.adminUserRepository.findOne({
-      where: { id: params.adminId as AutoIncrementID },
-      select: ['id', 'fullName', 'email'],
-    });
-
-    await this.emailQueue.add(
-      JobName.USER_IMPERSONATION_STARTED,
-      {
-        email: params.user.email,
-        userName: params.user.fullName || params.user.email,
-        adminName: admin?.fullName || admin?.email,
-        reason: params.reason,
-        startedAt: params.startedAt.toISOString(),
-        expiresAt: params.expiresAt?.toISOString(),
-      } as IUserImpersonationStartedEmailJob,
-      { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
-    );
-  }
-
-  private async queueImpersonationEndedEmail(params: {
-    userId: AutoIncrementID | string;
-    adminId: AutoIncrementID | string;
-    historyId?: AutoIncrementID | string;
-    startedAt?: Date;
-    endedAt: Date;
-  }) {
-    const [user, admin, actions] = await Promise.all([
-      this.userRepository.findOne({
-        where: { id: params.userId as AutoIncrementID },
-        select: ['id', 'fullName', 'email'],
-      }),
-      this.adminUserRepository.findOne({
-        where: { id: params.adminId as AutoIncrementID },
-        select: ['id', 'fullName', 'email'],
-      }),
-      this.impersonateLogService.getActionSummariesByHistoryId(
-        params.historyId,
-      ),
-    ]);
-
-    if (!user) {
-      return;
-    }
-
-    await this.emailQueue.add(
-      JobName.USER_IMPERSONATION_ENDED,
-      {
-        email: user.email,
-        userName: user.fullName || user.email,
-        adminName: admin?.fullName || admin?.email,
-        startedAt: params.startedAt?.toISOString(),
-        endedAt: params.endedAt.toISOString(),
-        actions,
-      } as IUserImpersonationEndedEmailJob,
-      { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
     );
   }
 
@@ -1216,7 +924,7 @@ export class AdminAuthService {
       suspiciousReasons: suspiciousReasons.length ? suspiciousReasons : null,
     });
     const savedSession = await this.sessionRepository.save(session);
-    await this.clearSessionBlacklist(savedSession.id);
+    await this.authSessionService.clearSessionBlacklist(savedSession.id);
 
     return savedSession;
   }
@@ -1546,16 +1254,6 @@ export class AdminAuthService {
     } catch {
       throw new HttpException('URL không còn khả dụng', HttpStatus.GONE);
     }
-  }
-
-  private buildRedirectUrl(url: string, query: Record<string, string>) {
-    const redirectUrl = new URL(url);
-
-    Object.entries(query).forEach(([key, value]) => {
-      redirectUrl.searchParams.set(key, value);
-    });
-
-    return redirectUrl.toString();
   }
 }
 

@@ -11,6 +11,7 @@ import { IconSidebarSidebar } from '@/assets/custom/icon-sidebar-sidebar'
 import { IconThemeDark } from '@/assets/custom/icon-theme-dark'
 import { IconThemeLight } from '@/assets/custom/icon-theme-light'
 import { IconThemeSystem } from '@/assets/custom/icon-theme-system'
+import { IS_ADMIN_RUNTIME_THEME_ENABLED } from '@/lib/feature-flags'
 import { themeColors } from '@/lib/theme-colors'
 import { cn } from '@/lib/utils'
 import { useDirection } from '@/context/direction-provider'
@@ -363,7 +364,7 @@ function ThemeColorConfig() {
     <div>
       <SectionTitle
         title='Color'
-        showReset={hasPersonalColor}
+        showReset={IS_ADMIN_RUNTIME_THEME_ENABLED && hasPersonalColor}
         onReset={clearPersonalColor}
       />
       <div className='flex flex-wrap gap-2'>

@@ -1,5 +1,4 @@
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { ImpersonateLogService } from '@/api/impersonate-log/impersonate-log.service';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { CacheKey } from '@/constants/cache.constant';
 import { ESessionUserType } from '@/constants/entity.enum';
@@ -17,6 +16,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { SessionEntity } from '../entities/session.entity';
 import { UserSocialAccountEntity } from '../entities/user-social-account.entity';
+import { AuthSessionService } from './auth-session.service';
 import { UserAuthService } from './user-auth.service';
 
 jest.mock('@/utils/password.util', () => ({
@@ -38,9 +38,9 @@ describe('UserAuthService', () => {
   let jwtService: { signAsync: jest.Mock; verify: jest.Mock };
   let cacheManager: { get: jest.Mock; set: jest.Mock; del: jest.Mock };
   let emailQueue: { add: jest.Mock };
-  let impersonateLogService: {
-    stopHistory: jest.Mock;
-    getActionSummariesByHistoryId: jest.Mock;
+  let authSessionService: {
+    blacklistSession: jest.Mock;
+    clearSessionBlacklist: jest.Mock;
   };
 
   const configValues: Record<string, string> = {
@@ -90,9 +90,9 @@ describe('UserAuthService', () => {
     emailQueue = {
       add: jest.fn(),
     };
-    impersonateLogService = {
-      stopHistory: jest.fn(),
-      getActionSummariesByHistoryId: jest.fn().mockResolvedValue([]),
+    authSessionService = {
+      blacklistSession: jest.fn(),
+      clearSessionBlacklist: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -133,8 +133,8 @@ describe('UserAuthService', () => {
           useValue: cacheManager,
         },
         {
-          provide: ImpersonateLogService,
-          useValue: impersonateLogService,
+          provide: AuthSessionService,
+          useValue: authSessionService,
         },
       ],
     }).compile();
@@ -324,10 +324,9 @@ describe('UserAuthService', () => {
         exp: Math.floor(new Date('2026-06-19T00:10:00.000Z').getTime() / 1000),
       });
 
-      expect(cacheManager.set).toHaveBeenCalledWith(
-        createCacheKey(CacheKey.SESSION_BLACKLIST, '20'),
-        true,
-        31536000000,
+      expect(authSessionService.blacklistSession).toHaveBeenCalledWith(
+        '20',
+        ESessionUserType.USER,
       );
       expect(sessionRepository.update).toHaveBeenCalledWith(
         {

@@ -5,6 +5,7 @@ import {
   apiMetadataSchema,
   type PaginateQueryParams,
 } from '@/global'
+import { IS_THEME_FEATURE_ENABLED } from '@/lib/feature-flags'
 import http from '@/lib/http'
 import {
   themeFormSchema,
@@ -108,16 +109,19 @@ export const useDataThemeOverview = (params: PaginateQueryParams) =>
   useQuery({
     queryKey: themeQueryKeys.list(params),
     queryFn: () => apiGetThemeListing(params),
+    enabled: IS_THEME_FEATURE_ENABLED,
   })
 
 export const useDataThemeById = (id: string) =>
   useQuery({
     queryKey: themeQueryKeys.detail(id),
     queryFn: () => apiGetThemeById(id),
+    enabled: IS_THEME_FEATURE_ENABLED,
   })
 
 export const useDataRuntimeTheme = (target: ThemeTarget = 'admin') =>
   useQuery({
     queryKey: themeQueryKeys.runtime(target),
     queryFn: () => apiGetRuntimeTheme(target),
+    enabled: IS_THEME_FEATURE_ENABLED,
   })

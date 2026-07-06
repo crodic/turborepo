@@ -1,11 +1,12 @@
 import { applyPersonalFontPreference } from '@/lib/personal-font'
 import type { ThemeMode, ThemeStyles } from '@/lib/theme-builder/default-theme'
 import { THEME_STYLE_KEYS } from '@/lib/theme-builder/default-theme'
+import { IS_ADMIN_RUNTIME_THEME_ENABLED } from '../feature-flags'
+
+export { IS_ADMIN_RUNTIME_THEME_ENABLED } from '../feature-flags'
 
 export const RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:current'
 const ADMIN_RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:admin'
-export const IS_ADMIN_RUNTIME_THEME_ENABLED =
-  import.meta.env.VITE_ENABLE_ADMIN_RUNTIME_THEME !== 'false'
 export const PERSONAL_THEME_COLOR_STORAGE_KEY = 'theme-color'
 
 type RuntimeTheme = {
@@ -72,6 +73,11 @@ function loadThemeFonts(styles: ThemeStyles, mode: ThemeMode) {
 }
 
 export function getCachedRuntimeTheme(): RuntimeTheme | null {
+  if (!IS_ADMIN_RUNTIME_THEME_ENABLED) {
+    clearCachedRuntimeTheme()
+    return null
+  }
+
   try {
     const raw =
       localStorage.getItem(ADMIN_RUNTIME_THEME_STORAGE_KEY) ??
@@ -91,12 +97,16 @@ export function getCachedRuntimeTheme(): RuntimeTheme | null {
 
 export function setCachedRuntimeTheme(theme: RuntimeTheme | null) {
   if (!theme) {
-    localStorage.removeItem(ADMIN_RUNTIME_THEME_STORAGE_KEY)
-    localStorage.removeItem(RUNTIME_THEME_STORAGE_KEY)
+    clearCachedRuntimeTheme()
     return
   }
 
   localStorage.setItem(ADMIN_RUNTIME_THEME_STORAGE_KEY, JSON.stringify(theme))
+  localStorage.removeItem(RUNTIME_THEME_STORAGE_KEY)
+}
+
+export function clearCachedRuntimeTheme() {
+  localStorage.removeItem(ADMIN_RUNTIME_THEME_STORAGE_KEY)
   localStorage.removeItem(RUNTIME_THEME_STORAGE_KEY)
 }
 
@@ -142,6 +152,8 @@ export function hasPersonalThemeColor() {
 }
 
 export async function fetchRuntimeTheme() {
+  if (!IS_ADMIN_RUNTIME_THEME_ENABLED) return null
+
   const response = await fetch(
     `${import.meta.env.VITE_API_URL}/themes/runtime/current?target=admin`,
     {

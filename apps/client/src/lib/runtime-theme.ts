@@ -1,3 +1,5 @@
+import { IS_CLIENT_RUNTIME_THEME_ENABLED } from "@/lib/feature-flags";
+
 export type ThemeMode = "light" | "dark";
 export type ThemeStyles = Record<ThemeMode, Record<string, string>>;
 
@@ -8,8 +10,7 @@ export type RuntimeTheme = {
 };
 
 export const RUNTIME_THEME_STORAGE_KEY = "runtime-theme:client";
-export const IS_RUNTIME_THEME_ENABLED =
-  process.env.NEXT_PUBLIC_ENABLE_RUNTIME_THEME !== "false";
+export const IS_RUNTIME_THEME_ENABLED = IS_CLIENT_RUNTIME_THEME_ENABLED;
 
 export const RUNTIME_THEME_STYLE_KEYS = [
   "background",

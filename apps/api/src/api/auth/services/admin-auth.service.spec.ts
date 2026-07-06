@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminSuspiciousLoginService } from './admin-suspicious-login.service';
+import { AuthSessionService } from './auth-session.service';
 
 jest.mock('@/utils/password.util', () => ({
   verifyPassword: jest.fn(),
@@ -24,6 +25,10 @@ describe('AdminAuthService suspicious login detection', () => {
   let emailQueue: { add: jest.Mock };
   let notificationService: { createForAdmin: jest.Mock };
   let cacheManager: { del: jest.Mock; get: jest.Mock; set: jest.Mock };
+  let authSessionService: {
+    blacklistSession: jest.Mock;
+    clearSessionBlacklist: jest.Mock;
+  };
   let suspiciousLoginService: {
     assess: jest.Mock;
     clearChallenge: jest.Mock;
@@ -70,6 +75,10 @@ describe('AdminAuthService suspicious login detection', () => {
     emailQueue = { add: jest.fn() };
     notificationService = { createForAdmin: jest.fn() };
     cacheManager = { del: jest.fn(), get: jest.fn(), set: jest.fn() };
+    authSessionService = {
+      blacklistSession: jest.fn(),
+      clearSessionBlacklist: jest.fn(),
+    };
     suspiciousLoginService = {
       assess: jest.fn().mockResolvedValue({ score: 0, reasons: [] }),
       clearChallenge: jest.fn(),
@@ -111,7 +120,7 @@ describe('AdminAuthService suspicious login detection', () => {
       emailQueue as any,
       cacheManager as any,
       notificationService as unknown as NotificationService,
-      {} as any,
+      authSessionService as unknown as AuthSessionService,
       suspiciousLoginService as unknown as AdminSuspiciousLoginService,
     );
 

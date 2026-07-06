@@ -1,3 +1,4 @@
+import { SessionResDto } from '@/api/auth/dto/session.res.dto';
 import {
   ClassField,
   NumberField,
@@ -5,7 +6,6 @@ import {
   StringFieldOptional,
 } from '@/decorators/field.decorators';
 import { Exclude, Expose } from 'class-transformer';
-import { SessionResDto } from '../session.res.dto';
 
 @Exclude()
 export class ImpersonateUserResDto {

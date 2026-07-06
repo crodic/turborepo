@@ -1,10 +1,12 @@
-import { SettingEntity } from '@/api/settings/entities/setting.entity';
 import { SettingKeys } from '@/api/settings/enums/setting-keys';
+import { SettingsService } from '@/api/settings/settings.service';
 import { AutoIncrementID } from '@/common/types/common.type';
+import { AllConfigType } from '@/config/config.type';
 import { EThemeStatus, EThemeTarget } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import {
@@ -26,11 +28,21 @@ type RuntimeThemeSettings = Partial<Record<EThemeTarget, AutoIncrementID>>;
 @Injectable()
 export class ThemeService {
   constructor(
+    private readonly configService: ConfigService<AllConfigType>,
     @InjectRepository(ThemeEntity)
     private readonly themeRepository: Repository<ThemeEntity>,
-    @InjectRepository(SettingEntity)
-    private readonly settingRepository: Repository<SettingEntity>,
+    private readonly settingsService: SettingsService,
   ) {}
+
+  private assertFeatureEnabled() {
+    if (
+      this.configService.get('app.themeFeatureEnabled', {
+        infer: true,
+      }) === false
+    ) {
+      throw new NotFoundException('Theme feature is disabled');
+    }
+  }
 
   private toDto(
     theme: ThemeEntity,
@@ -98,11 +110,10 @@ export class ThemeService {
   }
 
   private async getRuntimeThemeSettings(): Promise<RuntimeThemeSettings> {
-    const setting = await this.settingRepository.findOne({
-      where: { key: SettingKeys.RUNTIME_THEMES },
-    });
-
-    return (setting?.value ?? {}) as RuntimeThemeSettings;
+    return this.settingsService.get<RuntimeThemeSettings>(
+      SettingKeys.RUNTIME_THEMES,
+      {},
+    );
   }
 
   private async setRuntimeTheme(
@@ -117,20 +128,7 @@ export class ThemeService {
       delete value[target];
     }
 
-    let setting = await this.settingRepository.findOne({
-      where: { key: SettingKeys.RUNTIME_THEMES },
-    });
-
-    if (!setting) {
-      setting = this.settingRepository.create({
-        key: SettingKeys.RUNTIME_THEMES,
-        value,
-      });
-    } else {
-      setting.value = value;
-    }
-
-    await this.settingRepository.save(setting);
+    await this.settingsService.set(SettingKeys.RUNTIME_THEMES, value);
   }
 
   private async resolveRuntimeThemeId(target: EThemeTarget) {
@@ -188,6 +186,8 @@ export class ThemeService {
   }
 
   async findAll(query: PaginateQuery): Promise<Paginated<ThemeResDto>> {
+    this.assertFeatureEnabled();
+
     const queryBuilder = this.themeRepository.createQueryBuilder('theme');
     const runtimeThemeIds = await this.getRuntimeThemeSettings();
 
@@ -220,6 +220,8 @@ export class ThemeService {
   }
 
   async findOne(id: AutoIncrementID): Promise<ThemeResDto> {
+    this.assertFeatureEnabled();
+
     const theme = await this.themeRepository.findOneOrFail({ where: { id } });
     return this.toDto(theme, await this.getRuntimeThemeSettings());
   }
@@ -227,6 +229,8 @@ export class ThemeService {
   async getCurrentRuntimeTheme(
     target: EThemeTarget = EThemeTarget.ADMIN,
   ): Promise<ThemeResDto | null> {
+    this.assertFeatureEnabled();
+
     const runtimeThemeId = await this.resolveRuntimeThemeId(target);
 
     if (!runtimeThemeId && target === EThemeTarget.CLIENT) {
@@ -250,6 +254,8 @@ export class ThemeService {
     dto: CreateThemeReqDto,
     adminId?: AutoIncrementID,
   ): Promise<ThemeResDto> {
+    this.assertFeatureEnabled();
+
     this.assertThemeStyles(dto.styles);
 
     const theme = this.themeRepository.create({
@@ -277,6 +283,8 @@ export class ThemeService {
     dto: UpdateThemeReqDto,
     adminId?: AutoIncrementID,
   ): Promise<ThemeResDto> {
+    this.assertFeatureEnabled();
+
     const theme = await this.themeRepository.findOneOrFail({ where: { id } });
 
     if (dto.styles !== undefined) {
@@ -321,6 +329,8 @@ export class ThemeService {
   }
 
   async remove(id: AutoIncrementID): Promise<void> {
+    this.assertFeatureEnabled();
+
     const theme = await this.themeRepository.findOneOrFail({ where: { id } });
     await this.themeRepository.softRemove(theme);
   }
@@ -329,6 +339,8 @@ export class ThemeService {
     id: AutoIncrementID,
     adminId?: AutoIncrementID,
   ): Promise<ThemeResDto> {
+    this.assertFeatureEnabled();
+
     const theme = await this.themeRepository.findOneOrFail({ where: { id } });
     const name = `${theme.name} Copy`;
 
@@ -354,6 +366,8 @@ export class ThemeService {
     target: EThemeTarget,
     adminId?: AutoIncrementID,
   ): Promise<ThemeResDto> {
+    this.assertFeatureEnabled();
+
     const theme = await this.themeRepository.findOneOrFail({ where: { id } });
 
     if (theme.status !== EThemeStatus.PUBLISHED) {
@@ -383,6 +397,8 @@ export class ThemeService {
     target?: EThemeTarget,
     adminId?: AutoIncrementID,
   ): Promise<ThemeResDto> {
+    this.assertFeatureEnabled();
+
     const theme = await this.themeRepository.findOneOrFail({ where: { id } });
 
     if (!target || target === EThemeTarget.ADMIN) {
