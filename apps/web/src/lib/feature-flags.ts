@@ -1,10 +1,2 @@
-export const IS_THEME_FEATURE_ENABLED =
-  import.meta.env.VITE_ENABLE_THEME_FEATURE !== 'false'
-
-export const IS_ADMIN_RUNTIME_THEME_ENABLED =
-  IS_THEME_FEATURE_ENABLED &&
-  import.meta.env.VITE_ENABLE_ADMIN_RUNTIME_THEME !== 'false'
-
-export const IS_CLIENT_RUNTIME_THEME_ENABLED =
-  IS_THEME_FEATURE_ENABLED &&
-  import.meta.env.VITE_ENABLE_CLIENT_RUNTIME_THEME !== 'false'
+export const IS_RUNTIME_THEME_ENABLED =
+  import.meta.env.VITE_ENABLE_RUNTIME_THEME !== 'false'

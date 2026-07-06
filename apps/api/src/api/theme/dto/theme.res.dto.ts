@@ -29,9 +29,6 @@ export class ThemeResDto {
   isAdminDefault: boolean;
 
   @Expose()
-  isClientDefault: boolean;
-
-  @Expose()
   createdByAdminId?: AutoIncrementID | null;
 
   @Expose()

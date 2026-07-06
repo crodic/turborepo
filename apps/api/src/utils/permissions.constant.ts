@@ -222,7 +222,7 @@ export const ALL_PERMISSIONS = [
     AppSubjects.Theme,
     'Theme Management',
     'Publish themes',
-    'Publish a theme as the runtime theme for the portal and client site.',
+    'Publish a theme as the runtime theme for the admin portal.',
   ),
 
   // File

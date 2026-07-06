@@ -14,7 +14,7 @@ import {
   Files,
   FlaskConicalIcon,
 } from 'lucide-react'
-import { IS_THEME_FEATURE_ENABLED } from '@/lib/feature-flags'
+import { IS_RUNTIME_THEME_ENABLED } from '@/lib/feature-flags'
 import { type SidebarData } from '../types'
 
 export const sidebarLink: SidebarData = {
@@ -79,7 +79,7 @@ export const sidebarLink: SidebarData = {
           icon: UserLock,
           permission: 'USER',
         },
-        ...(IS_THEME_FEATURE_ENABLED
+        ...(IS_RUNTIME_THEME_ENABLED
           ? [
               {
                 title: 'navigation.management.themes',

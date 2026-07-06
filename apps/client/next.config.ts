@@ -6,11 +6,6 @@ const nextConfig: NextConfig = {
   /* config options here */
   output: "standalone",
   reactCompiler: true,
-  env: {
-    NEXT_PUBLIC_ENABLE_THEME_FEATURE:
-      process.env.NEXT_PUBLIC_ENABLE_THEME_FEATURE ??
-      process.env.VITE_ENABLE_THEME_FEATURE,
-  },
   images: {
     domains: ["images.unsplash.com"],
   },

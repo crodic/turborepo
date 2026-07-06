@@ -12,7 +12,7 @@ import {
   applyRuntimeThemeFont,
   getCachedRuntimeTheme,
   getCurrentThemeMode,
-  IS_ADMIN_RUNTIME_THEME_ENABLED,
+  IS_RUNTIME_THEME_ENABLED,
 } from '@/lib/runtime-theme/runtime-theme'
 
 type Font = (typeof fonts)[number]
@@ -33,7 +33,7 @@ export function FontProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (font === DYNAMIC_THEME_FONT) {
       clearPersonalFontPreference()
-      const runtimeTheme = IS_ADMIN_RUNTIME_THEME_ENABLED
+      const runtimeTheme = IS_RUNTIME_THEME_ENABLED
         ? getCachedRuntimeTheme()
         : null
 

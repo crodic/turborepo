@@ -83,7 +83,7 @@ class EnvironmentVariablesValidator {
 
   @IsBoolean()
   @IsOptional()
-  FEATURE_THEME_ENABLED: boolean;
+  FEATURE_RUNTIME_THEME_ENABLED: boolean;
 }
 
 export default registerAs<AppConfig>('app', () => {
@@ -113,7 +113,7 @@ export default registerAs<AppConfig>('app', () => {
     notificationRetentionDays: process.env.NOTIFICATION_RETENTION_DAYS
       ? parseInt(process.env.NOTIFICATION_RETENTION_DAYS, 10)
       : 90,
-    themeFeatureEnabled: process.env.FEATURE_THEME_ENABLED !== 'false',
+    runtimeThemeEnabled: process.env.FEATURE_RUNTIME_THEME_ENABLED !== 'false',
   };
 });
 

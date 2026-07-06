@@ -7,7 +7,6 @@ import {
   Edit2Icon,
   EyeIcon,
   FileX2Icon,
-  GlobeIcon,
   MonitorIcon,
   MoreHorizontalIcon,
   Trash2Icon,
@@ -15,6 +14,7 @@ import {
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
+import { IS_RUNTIME_THEME_ENABLED } from '@/lib/feature-flags'
 import {
   applyRuntimeTheme,
   clearRuntimeThemeStyles,
@@ -48,11 +48,6 @@ import {
   themeQueryKeys,
 } from './queries'
 import type { ThemeSchema, ThemeStatus, ThemeTarget } from './schema'
-
-const canSetClientRuntimeTheme =
-  import.meta.env.VITE_ENABLE_CLIENT_RUNTIME_THEME !== 'false'
-const canSetAdminRuntimeTheme =
-  import.meta.env.VITE_ENABLE_ADMIN_RUNTIME_THEME === 'true'
 
 type RuntimeAction = {
   type: 'set' | 'unset'
@@ -98,10 +93,7 @@ export default function ComponentTableRowActions({
         queryKey: themeQueryKeys.detail(theme.id),
       })
       queryClient.invalidateQueries({
-        queryKey: themeQueryKeys.runtime('admin'),
-      })
-      queryClient.invalidateQueries({
-        queryKey: themeQueryKeys.runtime('client'),
+        queryKey: themeQueryKeys.runtime,
       })
 
       if (theme.isAdminDefault && !updatedTheme.isAdminDefault) {
@@ -127,21 +119,15 @@ export default function ComponentTableRowActions({
         queryKey: themeQueryKeys.detail(theme.id),
       })
       queryClient.invalidateQueries({
-        queryKey: themeQueryKeys.runtime(variables.target),
+        queryKey: themeQueryKeys.runtime,
       })
 
-      if (variables.target === 'admin') {
-        setCachedRuntimeTheme(updatedTheme)
-        if (!hasPersonalThemeColor()) {
-          applyRuntimeTheme(updatedTheme)
-        }
+      setCachedRuntimeTheme(updatedTheme)
+      if (!hasPersonalThemeColor()) {
+        applyRuntimeTheme(updatedTheme)
       }
 
-      toast.success(
-        variables.target === 'admin'
-          ? 'Theme applied to admin portal'
-          : 'Theme applied to client site'
-      )
+      toast.success('Theme applied to admin portal')
       setRuntimeAction(null)
     },
   })
@@ -154,21 +140,15 @@ export default function ComponentTableRowActions({
         queryKey: themeQueryKeys.detail(theme.id),
       })
       queryClient.invalidateQueries({
-        queryKey: themeQueryKeys.runtime(variables.target),
+        queryKey: themeQueryKeys.runtime,
       })
 
-      if (variables.target === 'admin') {
-        setCachedRuntimeTheme(null)
-        if (!hasPersonalThemeColor()) {
-          clearRuntimeThemeStyles()
-        }
+      setCachedRuntimeTheme(null)
+      if (!hasPersonalThemeColor()) {
+        clearRuntimeThemeStyles()
       }
 
-      toast.success(
-        variables.target === 'admin'
-          ? 'Theme removed from admin portal'
-          : 'Theme removed from client site'
-      )
+      toast.success('Theme removed from admin portal')
       setRuntimeAction(null)
     },
   })
@@ -200,8 +180,6 @@ export default function ComponentTableRowActions({
     setRuntimeMutation.isPending ||
     unsetRuntimeMutation.isPending ||
     statusMutation.isPending
-  const runtimeLabel =
-    runtimeAction?.target === 'admin' ? 'admin portal' : 'client site'
   const runtimeVerb = runtimeAction?.type === 'set' ? 'set' : 'unset'
 
   return (
@@ -256,7 +234,7 @@ export default function ComponentTableRowActions({
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              {canSetAdminRuntimeTheme && (
+              {IS_RUNTIME_THEME_ENABLED && (
                 <DropdownMenuItem
                   onClick={() =>
                     setRuntimeAction({
@@ -270,22 +248,6 @@ export default function ComponentTableRowActions({
                   {theme.isAdminDefault
                     ? 'Unset admin portal'
                     : 'Set for admin portal'}
-                </DropdownMenuItem>
-              )}
-              {canSetClientRuntimeTheme && (
-                <DropdownMenuItem
-                  onClick={() =>
-                    setRuntimeAction({
-                      type: theme.isClientDefault ? 'unset' : 'set',
-                      target: 'client',
-                    })
-                  }
-                  disabled={isPending || theme.status !== 'published'}
-                >
-                  <GlobeIcon className='size-4' />
-                  {theme.isClientDefault
-                    ? 'Unset client site'
-                    : 'Set for client site'}
                 </DropdownMenuItem>
               )}
             </>
@@ -319,9 +281,8 @@ export default function ComponentTableRowActions({
                 : 'Unset runtime theme?'}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will {runtimeVerb} "{theme.name}" for the {runtimeLabel}.
-              {runtimeAction?.target === 'admin' &&
-                runtimeAction.type === 'unset' &&
+              This will {runtimeVerb} "{theme.name}" for the admin portal.
+              {runtimeAction?.type === 'unset' &&
                 ' The admin portal will fall back to the static source-code theme.'}
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -36,7 +36,7 @@ export class ThemeService {
 
   private assertFeatureEnabled() {
     if (
-      this.configService.get('app.themeFeatureEnabled', {
+      this.configService.get('app.runtimeThemeEnabled', {
         infer: true,
       }) === false
     ) {
@@ -55,9 +55,6 @@ export class ThemeService {
         ...theme,
         isAdminDefault: runtimeThemeIds[EThemeTarget.ADMIN]
           ? String(runtimeThemeIds[EThemeTarget.ADMIN]) === id
-          : false,
-        isClientDefault: runtimeThemeIds[EThemeTarget.CLIENT]
-          ? String(runtimeThemeIds[EThemeTarget.CLIENT]) === id
           : false,
       },
       {
@@ -110,10 +107,14 @@ export class ThemeService {
   }
 
   private async getRuntimeThemeSettings(): Promise<RuntimeThemeSettings> {
-    return this.settingsService.get<RuntimeThemeSettings>(
+    const settings = await this.settingsService.get<RuntimeThemeSettings>(
       SettingKeys.RUNTIME_THEMES,
       {},
     );
+
+    return settings[EThemeTarget.ADMIN]
+      ? { [EThemeTarget.ADMIN]: settings[EThemeTarget.ADMIN] }
+      : {};
   }
 
   private async setRuntimeTheme(
@@ -141,7 +142,6 @@ export class ThemeService {
     dto: CreateThemeReqDto | UpdateThemeReqDto,
   ) {
     const setAdminDefault = dto.isAdminDefault ?? dto.isDefault;
-    const setClientDefault = dto.isClientDefault;
 
     if (setAdminDefault !== undefined) {
       if (setAdminDefault) {
@@ -162,25 +162,6 @@ export class ThemeService {
           await this.setRuntimeTheme(EThemeTarget.ADMIN, null);
         }
         theme.isDefault = false;
-      }
-    }
-
-    if (setClientDefault !== undefined) {
-      if (setClientDefault) {
-        if (theme.status !== EThemeStatus.PUBLISHED) {
-          throw new ValidationException(
-            ErrorCode.V000,
-            'Only published themes can be set for client site',
-          );
-        }
-        await this.setRuntimeTheme(EThemeTarget.CLIENT, theme.id);
-      } else {
-        const runtimeThemeId = await this.resolveRuntimeThemeId(
-          EThemeTarget.CLIENT,
-        );
-        if (runtimeThemeId && String(runtimeThemeId) === String(theme.id)) {
-          await this.setRuntimeTheme(EThemeTarget.CLIENT, null);
-        }
       }
     }
   }
@@ -232,10 +213,6 @@ export class ThemeService {
     this.assertFeatureEnabled();
 
     const runtimeThemeId = await this.resolveRuntimeThemeId(target);
-
-    if (!runtimeThemeId && target === EThemeTarget.CLIENT) {
-      return null;
-    }
 
     if (!runtimeThemeId) {
       return null;
@@ -309,9 +286,6 @@ export class ThemeService {
         if (String(runtimeThemeIds[EThemeTarget.ADMIN]) === String(theme.id)) {
           await this.setRuntimeTheme(EThemeTarget.ADMIN, null);
         }
-        if (String(runtimeThemeIds[EThemeTarget.CLIENT]) === String(theme.id)) {
-          await this.setRuntimeTheme(EThemeTarget.CLIENT, null);
-        }
       }
     }
 
@@ -379,10 +353,8 @@ export class ThemeService {
 
     theme.updatedByAdminId = adminId;
 
-    if (target === EThemeTarget.ADMIN) {
-      await this.clearDefaultTheme(id);
-      theme.isDefault = true;
-    }
+    await this.clearDefaultTheme(id);
+    theme.isDefault = true;
 
     await this.setRuntimeTheme(target, id);
 
@@ -406,15 +378,6 @@ export class ThemeService {
       if (adminThemeId && String(adminThemeId) === String(id)) {
         await this.setRuntimeTheme(EThemeTarget.ADMIN, null);
         theme.isDefault = false;
-      }
-    }
-
-    if (!target || target === EThemeTarget.CLIENT) {
-      const clientThemeId = await this.resolveRuntimeThemeId(
-        EThemeTarget.CLIENT,
-      );
-      if (clientThemeId && String(clientThemeId) === String(id)) {
-        await this.setRuntimeTheme(EThemeTarget.CLIENT, null);
       }
     }
 

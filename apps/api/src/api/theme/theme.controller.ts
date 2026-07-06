@@ -1,5 +1,4 @@
 import { AutoIncrementID } from '@/common/types/common.type';
-import { EThemeTarget } from '@/constants/entity.enum';
 import { CurrentUser } from '@/decorators/current-user.decorator';
 import { ApiAuth, ApiPublic } from '@/decorators/http.decorators';
 import { CheckPolicies } from '@/decorators/policies.decorator';
@@ -10,14 +9,11 @@ import { AppActions, AppSubjects } from '@/utils/permissions.constant';
 import {
   Body,
   Controller,
-  DefaultValuePipe,
   Delete,
   Get,
   Param,
-  ParseEnumPipe,
   Post,
   Put,
-  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiParam, ApiTags } from '@nestjs/swagger';
@@ -40,15 +36,8 @@ export class ThemeController {
 
   @Get('runtime/current')
   @ApiPublic({ type: ThemeResDto, summary: 'Get current runtime theme' })
-  getCurrentRuntimeTheme(
-    @Query(
-      'target',
-      new DefaultValuePipe(EThemeTarget.ADMIN),
-      new ParseEnumPipe(EThemeTarget),
-    )
-    target: EThemeTarget,
-  ): Promise<ThemeResDto | null> {
-    return this.themeService.getCurrentRuntimeTheme(target);
+  getCurrentRuntimeTheme(): Promise<ThemeResDto | null> {
+    return this.themeService.getCurrentRuntimeTheme();
   }
 
   @Get()

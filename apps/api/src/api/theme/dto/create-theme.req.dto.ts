@@ -50,8 +50,4 @@ export class CreateThemeReqDto {
   @IsBoolean()
   @IsOptional()
   isAdminDefault?: boolean;
-
-  @IsBoolean()
-  @IsOptional()
-  isClientDefault?: boolean;
 }

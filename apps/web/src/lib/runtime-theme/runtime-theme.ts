@@ -1,9 +1,9 @@
 import { applyPersonalFontPreference } from '@/lib/personal-font'
 import type { ThemeMode, ThemeStyles } from '@/lib/theme-builder/default-theme'
 import { THEME_STYLE_KEYS } from '@/lib/theme-builder/default-theme'
-import { IS_ADMIN_RUNTIME_THEME_ENABLED } from '../feature-flags'
+import { IS_RUNTIME_THEME_ENABLED } from '../feature-flags'
 
-export { IS_ADMIN_RUNTIME_THEME_ENABLED } from '../feature-flags'
+export { IS_RUNTIME_THEME_ENABLED } from '../feature-flags'
 
 export const RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:current'
 const ADMIN_RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:admin'
@@ -73,7 +73,7 @@ function loadThemeFonts(styles: ThemeStyles, mode: ThemeMode) {
 }
 
 export function getCachedRuntimeTheme(): RuntimeTheme | null {
-  if (!IS_ADMIN_RUNTIME_THEME_ENABLED) {
+  if (!IS_RUNTIME_THEME_ENABLED) {
     clearCachedRuntimeTheme()
     return null
   }
@@ -152,10 +152,10 @@ export function hasPersonalThemeColor() {
 }
 
 export async function fetchRuntimeTheme() {
-  if (!IS_ADMIN_RUNTIME_THEME_ENABLED) return null
+  if (!IS_RUNTIME_THEME_ENABLED) return null
 
   const response = await fetch(
-    `${import.meta.env.VITE_API_URL}/themes/runtime/current?target=admin`,
+    `${import.meta.env.VITE_API_URL}/themes/runtime/current`,
     {
       credentials: 'include',
     }

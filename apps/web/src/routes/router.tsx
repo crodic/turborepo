@@ -3,7 +3,7 @@ import {
   RouterProvider,
   type RouteObject,
 } from 'react-router'
-import { IS_THEME_FEATURE_ENABLED } from '@/lib/feature-flags'
+import { IS_RUNTIME_THEME_ENABLED } from '@/lib/feature-flags'
 import { PageActivityLogOverview } from '@/pages/activity-log'
 import PageActivityLogShow from '@/pages/activity-log/show'
 import { PageAdminOverview } from '@/pages/admins'
@@ -253,7 +253,7 @@ const routes: RouteObject[] = [
           </RouteAuthorize>
         ),
       },
-      ...(IS_THEME_FEATURE_ENABLED
+      ...(IS_RUNTIME_THEME_ENABLED
         ? [
             {
               path: '/themes',

@@ -5,7 +5,7 @@ import {
   apiMetadataSchema,
   type PaginateQueryParams,
 } from '@/global'
-import { IS_THEME_FEATURE_ENABLED } from '@/lib/feature-flags'
+import { IS_RUNTIME_THEME_ENABLED } from '@/lib/feature-flags'
 import http from '@/lib/http'
 import {
   themeFormSchema,
@@ -20,7 +20,7 @@ export const themeQueryKeys = {
   all: ['themes'] as const,
   list: (params: PaginateQueryParams) => [...themeQueryKeys.all, params],
   detail: (id: string) => [...themeQueryKeys.all, id],
-  runtime: (target: ThemeTarget) => ['runtime-theme', target] as const,
+  runtime: ['runtime-theme', 'admin'] as const,
 }
 
 export async function apiGetThemeListing(
@@ -98,10 +98,8 @@ export async function apiUnpublishTheme({
   return themeSchema.parse(response.data)
 }
 
-export async function apiGetRuntimeTheme(target: ThemeTarget = 'admin') {
-  const response = await http.get('/themes/runtime/current', {
-    params: { target },
-  })
+export async function apiGetRuntimeTheme() {
+  const response = await http.get('/themes/runtime/current')
   return response.data ? themeSchema.parse(response.data) : null
 }
 
@@ -109,19 +107,19 @@ export const useDataThemeOverview = (params: PaginateQueryParams) =>
   useQuery({
     queryKey: themeQueryKeys.list(params),
     queryFn: () => apiGetThemeListing(params),
-    enabled: IS_THEME_FEATURE_ENABLED,
+    enabled: IS_RUNTIME_THEME_ENABLED,
   })
 
 export const useDataThemeById = (id: string) =>
   useQuery({
     queryKey: themeQueryKeys.detail(id),
     queryFn: () => apiGetThemeById(id),
-    enabled: IS_THEME_FEATURE_ENABLED,
+    enabled: IS_RUNTIME_THEME_ENABLED,
   })
 
-export const useDataRuntimeTheme = (target: ThemeTarget = 'admin') =>
+export const useDataRuntimeTheme = () =>
   useQuery({
-    queryKey: themeQueryKeys.runtime(target),
-    queryFn: () => apiGetRuntimeTheme(target),
-    enabled: IS_THEME_FEATURE_ENABLED,
+    queryKey: themeQueryKeys.runtime,
+    queryFn: apiGetRuntimeTheme,
+    enabled: IS_RUNTIME_THEME_ENABLED,
   })

@@ -36,5 +36,4 @@ export enum EThemeStatus {
 
 export enum EThemeTarget {
   ADMIN = 'admin',
-  CLIENT = 'client',
 }
