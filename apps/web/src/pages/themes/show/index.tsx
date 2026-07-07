@@ -98,7 +98,7 @@ export default function PageThemeShow() {
 
   const publishMutation = useMutation({
     mutationFn: apiPublishTheme,
-    onSuccess: (updatedTheme, variables) => {
+    onSuccess: (updatedTheme) => {
       queryClient.invalidateQueries({ queryKey: themeQueryKeys.all })
       queryClient.invalidateQueries({
         queryKey: themeQueryKeys.detail(themeId),
@@ -121,7 +121,7 @@ export default function PageThemeShow() {
 
   const unpublishMutation = useMutation({
     mutationFn: apiUnpublishTheme,
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: themeQueryKeys.all })
       queryClient.invalidateQueries({
         queryKey: themeQueryKeys.detail(themeId),

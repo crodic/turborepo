@@ -113,7 +113,7 @@ export default function ComponentTableRowActions({
 
   const setRuntimeMutation = useMutation({
     mutationFn: apiPublishTheme,
-    onSuccess: (updatedTheme, variables) => {
+    onSuccess: (updatedTheme) => {
       queryClient.invalidateQueries({ queryKey: themeQueryKeys.all })
       queryClient.invalidateQueries({
         queryKey: themeQueryKeys.detail(theme.id),
@@ -134,7 +134,7 @@ export default function ComponentTableRowActions({
 
   const unsetRuntimeMutation = useMutation({
     mutationFn: apiUnpublishTheme,
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: themeQueryKeys.all })
       queryClient.invalidateQueries({
         queryKey: themeQueryKeys.detail(theme.id),

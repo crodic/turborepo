@@ -22,6 +22,7 @@
     "PORT",
     "PROD",
     "REDIS_*",
+    "RUNTIME_*",
     "SENTRY_*",
     "USER_AUTH_*",
     "VERCEL_URL",
