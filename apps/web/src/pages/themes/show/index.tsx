@@ -5,7 +5,6 @@ import {
   CheckCircle2Icon,
   Edit2Icon,
   FileX2Icon,
-  GlobeIcon,
   MonitorIcon,
   MoonIcon,
   SunIcon,
@@ -13,6 +12,7 @@ import {
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
+import { IS_RUNTIME_THEME_ENABLED } from '@/lib/feature-flags'
 import {
   applyRuntimeTheme,
   clearRuntimeThemeStyles,
@@ -52,11 +52,6 @@ import {
 } from '../queries'
 import type { ThemeStatus, ThemeTarget } from '../schema'
 
-const canSetClientRuntimeTheme =
-  import.meta.env.VITE_ENABLE_CLIENT_RUNTIME_THEME !== 'false'
-const canSetAdminRuntimeTheme =
-  import.meta.env.VITE_ENABLE_ADMIN_RUNTIME_THEME === 'true'
-
 type RuntimeAction = {
   type: 'set' | 'unset'
   target: ThemeTarget
@@ -83,10 +78,7 @@ export default function PageThemeShow() {
         queryKey: themeQueryKeys.detail(themeId),
       })
       queryClient.invalidateQueries({
-        queryKey: themeQueryKeys.runtime('admin'),
-      })
-      queryClient.invalidateQueries({
-        queryKey: themeQueryKeys.runtime('client'),
+        queryKey: themeQueryKeys.runtime,
       })
 
       if (data?.isAdminDefault && !updatedTheme.isAdminDefault) {
@@ -106,57 +98,45 @@ export default function PageThemeShow() {
 
   const publishMutation = useMutation({
     mutationFn: apiPublishTheme,
-    onSuccess: (updatedTheme, variables) => {
+    onSuccess: (updatedTheme) => {
       queryClient.invalidateQueries({ queryKey: themeQueryKeys.all })
       queryClient.invalidateQueries({
         queryKey: themeQueryKeys.detail(themeId),
       })
       queryClient.invalidateQueries({
-        queryKey: themeQueryKeys.runtime(variables.target),
+        queryKey: themeQueryKeys.runtime,
       })
 
-      if (variables.target === 'admin') {
-        setCachedRuntimeTheme(updatedTheme)
-        if (!hasPersonalThemeColor()) {
-          applyRuntimeTheme(updatedTheme)
-        } else {
-          clearPersonalColor()
-        }
+      setCachedRuntimeTheme(updatedTheme)
+      if (!hasPersonalThemeColor()) {
+        applyRuntimeTheme(updatedTheme)
+      } else {
+        clearPersonalColor()
       }
 
-      toast.success(
-        variables.target === 'admin'
-          ? 'Theme applied to admin portal'
-          : 'Theme applied to client site'
-      )
+      toast.success('Theme applied to admin portal')
       setRuntimeAction(null)
     },
   })
 
   const unpublishMutation = useMutation({
     mutationFn: apiUnpublishTheme,
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: themeQueryKeys.all })
       queryClient.invalidateQueries({
         queryKey: themeQueryKeys.detail(themeId),
       })
       queryClient.invalidateQueries({
-        queryKey: themeQueryKeys.runtime(variables.target),
+        queryKey: themeQueryKeys.runtime,
       })
 
-      if (variables.target === 'admin') {
-        setCachedRuntimeTheme(null)
-        if (!hasPersonalThemeColor()) {
-          clearRuntimeThemeStyles()
-          setColorKey('neutral')
-        }
+      setCachedRuntimeTheme(null)
+      if (!hasPersonalThemeColor()) {
+        clearRuntimeThemeStyles()
+        setColorKey('neutral')
       }
 
-      toast.success(
-        variables.target === 'admin'
-          ? 'Theme removed from admin portal'
-          : 'Theme removed from client site'
-      )
+      toast.success('Theme removed from admin portal')
       setRuntimeAction(null)
     },
   })
@@ -183,8 +163,6 @@ export default function PageThemeShow() {
     publishMutation.isPending ||
     unpublishMutation.isPending ||
     statusMutation.isPending
-  const runtimeLabel =
-    runtimeAction?.target === 'admin' ? 'admin portal' : 'client site'
   const runtimeVerb = runtimeAction?.type === 'set' ? 'set' : 'unset'
 
   return (
@@ -209,9 +187,6 @@ export default function PageThemeShow() {
                 {data.status}
               </Badge>
               {data.isAdminDefault && <Badge>Admin runtime</Badge>}
-              {data.isClientDefault && (
-                <Badge variant='secondary'>Client runtime</Badge>
-              )}
             </div>
             <p className='text-muted-foreground font-mono text-sm'>
               {data.slug}
@@ -241,7 +216,7 @@ export default function PageThemeShow() {
                   )}
                   {data.status === 'published' ? 'Move to draft' : 'Publish'}
                 </Button>
-                {canSetAdminRuntimeTheme && (
+                {IS_RUNTIME_THEME_ENABLED && (
                   <Button
                     variant='outline'
                     onClick={() =>
@@ -254,21 +229,6 @@ export default function PageThemeShow() {
                   >
                     <MonitorIcon className='size-4' />
                     {data.isAdminDefault ? 'Unset admin' : 'Set admin'}
-                  </Button>
-                )}
-                {canSetClientRuntimeTheme && (
-                  <Button
-                    variant='outline'
-                    onClick={() =>
-                      setRuntimeAction({
-                        type: data.isClientDefault ? 'unset' : 'set',
-                        target: 'client',
-                      })
-                    }
-                    disabled={isPending || data.status !== 'published'}
-                  >
-                    <GlobeIcon className='size-4' />
-                    {data.isClientDefault ? 'Unset client' : 'Set client'}
                   </Button>
                 )}
               </>
@@ -356,9 +316,8 @@ export default function PageThemeShow() {
                 : 'Unset runtime theme?'}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will {runtimeVerb} "{data.name}" for the {runtimeLabel}.
-              {runtimeAction?.target === 'admin' &&
-                runtimeAction.type === 'unset' &&
+              This will {runtimeVerb} "{data.name}" for the admin portal.
+              {runtimeAction?.type === 'unset' &&
                 ' The admin portal will fall back to the static source-code theme.'}
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -10,12 +10,9 @@ import {
   ApiAuthOptional,
   ApiPublic,
 } from '@/decorators/http.decorators';
-import { CheckPolicies } from '@/decorators/policies.decorator';
 import { SkipPolicies } from '@/decorators/skip-policies.decorator';
 import { AdminAuthGuard } from '@/guards/admin-auth.guard';
 import { PoliciesGuard } from '@/guards/policies.guard';
-import { AppAbility } from '@/libs/casl/ability.factory';
-import { AppActions, AppSubjects } from '@/utils/permissions.constant';
 import {
   Body,
   Controller,
@@ -42,8 +39,6 @@ import type { Response } from 'express';
 import { AdminUserLoginReqDto } from '../dto/admin-users/admin-user-login.req.dto';
 import { AdminUserLoginResDto } from '../dto/admin-users/admin-user-login.res.dto';
 import { AdminUserRegisterReqDto } from '../dto/admin-users/admin-user-register.req.dto';
-import { ImpersonateUserReqDto } from '../dto/admin-users/impersonate-user.req.dto';
-import { ImpersonateUserResDto } from '../dto/admin-users/impersonate-user.res.dto';
 import { DisableTwoFactorReqDto } from '../dto/admin-users/two-factor/disable-two-factor.req.dto';
 import { DisableTwoFactorResDto } from '../dto/admin-users/two-factor/disable-two-factor.res.dto';
 import { EnableTwoFactorReqDto } from '../dto/admin-users/two-factor/enable-two-factor.req.dto';
@@ -230,68 +225,6 @@ export class AdminAuthenticationController {
     @Param('id') sessionId: AutoIncrementID,
   ) {
     return this.adminAuthService.revokeSession(userToken, sessionId);
-  }
-
-  @ApiAuth({
-    type: ImpersonateUserResDto,
-    summary: 'Impersonate user',
-  })
-  @CheckPolicies((ability: AppAbility) =>
-    ability.can(AppActions.Impersonate, AppSubjects.User),
-  )
-  @SkipThrottle()
-  @Post('impersonate-user')
-  async impersonateUser(
-    @CurrentUser() userToken: JwtPayloadType,
-    @Body() dto: ImpersonateUserReqDto,
-    @Req() req: any,
-  ): Promise<ImpersonateUserResDto> {
-    return this.adminAuthService.impersonateUser(userToken, dto, {
-      ipAddress: req.ip,
-      userAgent: req.headers?.['user-agent'],
-      method: req.method,
-      endpoint: req.originalUrl || req.url,
-    });
-  }
-
-  @ApiAuth({
-    type: SessionResDto,
-    summary: 'Get active impersonation session for user',
-  })
-  @CheckPolicies((ability: AppAbility) =>
-    ability.can(AppActions.Impersonate, AppSubjects.User),
-  )
-  @SkipThrottle()
-  @Get('impersonate-user/:userId/active-session')
-  async getActiveUserImpersonationSession(
-    @CurrentUser() userToken: JwtPayloadType,
-    @Param('userId') userId: AutoIncrementID,
-  ): Promise<SessionResDto | null> {
-    return this.adminAuthService.findActiveUserImpersonationSession(
-      userToken,
-      userId,
-    );
-  }
-
-  @ApiAuth({
-    summary: 'Stop active impersonation session for user',
-  })
-  @CheckPolicies((ability: AppAbility) =>
-    ability.can(AppActions.Impersonate, AppSubjects.User),
-  )
-  @SkipThrottle()
-  @Post('impersonate-user/:userId/stop')
-  async stopUserImpersonation(
-    @CurrentUser() userToken: JwtPayloadType,
-    @Param('userId') userId: AutoIncrementID,
-    @Req() req: any,
-  ) {
-    return this.adminAuthService.stopUserImpersonation(userToken, userId, {
-      ipAddress: req.ip,
-      userAgent: req.headers?.['user-agent'],
-      method: req.method,
-      endpoint: req.originalUrl || req.url,
-    });
   }
 
   @ApiPublic({

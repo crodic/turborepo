@@ -27,5 +27,6 @@ import { AdminUserEntity } from './entities/admin-user.entity';
   ],
   controllers: [AdminUserController],
   providers: [AdminUserService],
+  exports: [AdminUserService],
 })
 export class AdminUserModule {}

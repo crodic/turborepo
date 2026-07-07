@@ -6,7 +6,7 @@ import {
   fetchRuntimeTheme,
   getCachedRuntimeTheme,
   hasPersonalThemeColor,
-  IS_ADMIN_RUNTIME_THEME_ENABLED,
+  IS_RUNTIME_THEME_ENABLED,
   PERSONAL_THEME_COLOR_STORAGE_KEY,
   setCachedRuntimeTheme,
 } from '@/lib/runtime-theme/runtime-theme'
@@ -17,7 +17,7 @@ type ResolvedTheme = Exclude<Theme, 'system'>
 type ColorKey = keyof typeof themeColors
 
 const DEFAULT_THEME: Theme = 'system'
-const DEFAULT_COLOR: ColorKey = 'blue'
+const DEFAULT_COLOR = Object.keys(themeColors)[0] as ColorKey
 const THEME_COOKIE_NAME = 'vite-ui-theme'
 const THEME_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
 
@@ -52,14 +52,13 @@ export function ThemeProvider({
     () => (getCookie(storageKey) as Theme) || defaultTheme
   )
   const [colorKey, _setColorKey] = useState<ColorKey>(() => {
-    return (
-      (localStorage.getItem(
-        PERSONAL_THEME_COLOR_STORAGE_KEY
-      ) as ColorKey | null) || defaultColor
-    )
+    const storedColor = localStorage.getItem(PERSONAL_THEME_COLOR_STORAGE_KEY)
+    return storedColor && storedColor in themeColors
+      ? (storedColor as ColorKey)
+      : defaultColor
   })
-  const [hasPersonalColor, setHasPersonalColor] = useState(() =>
-    hasPersonalThemeColor()
+  const [hasPersonalColor, setHasPersonalColor] = useState(
+    () => !IS_RUNTIME_THEME_ENABLED || hasPersonalThemeColor()
   )
 
   // ✅ Resolve dark/light from system or user
@@ -88,13 +87,13 @@ export function ThemeProvider({
     root.classList.remove('light', 'dark')
     root.classList.add(resolvedTheme)
 
-    const cachedRuntimeTheme = IS_ADMIN_RUNTIME_THEME_ENABLED
+    const cachedRuntimeTheme = IS_RUNTIME_THEME_ENABLED
       ? getCachedRuntimeTheme()
       : null
-    const shouldUsePersonalTheme = hasPersonalColor
+    const shouldUsePersonalTheme = !IS_RUNTIME_THEME_ENABLED || hasPersonalColor
 
     if (
-      IS_ADMIN_RUNTIME_THEME_ENABLED &&
+      IS_RUNTIME_THEME_ENABLED &&
       cachedRuntimeTheme?.styles &&
       !shouldUsePersonalTheme
     ) {
@@ -103,13 +102,13 @@ export function ThemeProvider({
       applyStaticTheme(resolvedTheme)
     }
 
-    if (IS_ADMIN_RUNTIME_THEME_ENABLED) {
+    if (IS_RUNTIME_THEME_ENABLED) {
       fetchRuntimeTheme()
         .then((runtimeTheme) => {
           setCachedRuntimeTheme(runtimeTheme)
-          if (runtimeTheme?.styles && !hasPersonalColor) {
+          if (runtimeTheme?.styles && !shouldUsePersonalTheme) {
             applyRuntimeThemeStyles(runtimeTheme.styles, resolvedTheme)
-          } else if (!runtimeTheme?.styles || hasPersonalColor) {
+          } else {
             applyStaticTheme(resolvedTheme)
           }
         })
@@ -123,13 +122,13 @@ export function ThemeProvider({
         const systemTheme = mediaQuery.matches ? 'dark' : 'light'
         root.classList.remove('light', 'dark')
         root.classList.add(systemTheme)
-        const runtimeTheme = IS_ADMIN_RUNTIME_THEME_ENABLED
+        const runtimeTheme = IS_RUNTIME_THEME_ENABLED
           ? getCachedRuntimeTheme()
           : null
         if (
-          IS_ADMIN_RUNTIME_THEME_ENABLED &&
+          IS_RUNTIME_THEME_ENABLED &&
           runtimeTheme?.styles &&
-          !hasPersonalColor
+          !shouldUsePersonalTheme
         ) {
           applyRuntimeThemeStyles(runtimeTheme.styles, systemTheme)
         } else {
@@ -154,6 +153,13 @@ export function ThemeProvider({
   }
 
   const clearPersonalColor = () => {
+    if (!IS_RUNTIME_THEME_ENABLED) {
+      localStorage.setItem(PERSONAL_THEME_COLOR_STORAGE_KEY, DEFAULT_COLOR)
+      _setColorKey(DEFAULT_COLOR)
+      setHasPersonalColor(true)
+      return
+    }
+
     localStorage.removeItem(PERSONAL_THEME_COLOR_STORAGE_KEY)
     _setColorKey(DEFAULT_COLOR)
     setHasPersonalColor(false)

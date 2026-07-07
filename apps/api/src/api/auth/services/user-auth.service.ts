@@ -1,7 +1,6 @@
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
 import { UserSocialAccountEntity } from '@/api/auth/entities/user-social-account.entity';
-import { ImpersonateLogService } from '@/api/impersonate-log/impersonate-log.service';
 import { UserChangePasswordReqDto } from '@/api/user/dto/user-change-password.req.dto';
 import { UserChangePasswordResDto } from '@/api/user/dto/user-change-password.res.dto';
 import { UserResDto } from '@/api/user/dto/user.res.dto';
@@ -9,7 +8,6 @@ import { UserEntity } from '@/api/user/entities/user.entity';
 import {
   IEmailJob,
   IForgotPasswordEmailJob,
-  IUserImpersonationEndedEmailJob,
   IVerifyEmailJob,
 } from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';
@@ -68,6 +66,7 @@ import { OAuthProviderProfile } from '../social/oauth-provider-profile.type';
 import { JwtForgotPasswordPayload } from '../types/jwt-forgot-password-payload';
 import { JwtPayloadType } from '../types/jwt-payload.type';
 import { JwtRefreshPayloadType } from '../types/jwt-refresh-payload.type';
+import { AuthSessionService } from './auth-session.service';
 
 type Token = Branded<
   {
@@ -109,7 +108,7 @@ export class UserAuthService {
     private readonly emailQueue: Queue<IEmailJob, any, string>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
-    private readonly impersonateLogService: ImpersonateLogService,
+    private readonly authSessionService: AuthSessionService,
   ) {}
 
   async signIn(
@@ -368,21 +367,6 @@ export class UserAuthService {
     return plainToInstance(LoginResDto, cached);
   }
 
-  async exchangeImpersonationLogin(
-    dto: SocialExchangeReqDto,
-  ): Promise<LoginResDto> {
-    const cacheKey = createCacheKey(CacheKey.IMPERSONATION_EXCHANGE, dto.token);
-    const cached = await this.cacheManager.get<LoginResDto>(cacheKey);
-
-    if (!cached) {
-      throw new UnauthorizedException();
-    }
-
-    await this.cacheManager.del(cacheKey);
-
-    return plainToInstance(LoginResDto, cached);
-  }
-
   async createGoogleLinkUrl(
     userToken: JwtPayloadType,
   ): Promise<SocialLinkUrlResDto> {
@@ -556,7 +540,10 @@ export class UserAuthService {
       throw new NotFoundException('Session not found');
     }
 
-    await this.blacklistSession(sessionId);
+    await this.authSessionService.blacklistSession(
+      sessionId,
+      ESessionUserType.USER,
+    );
 
     return { message: 'Session revoked successfully' };
   }
@@ -585,65 +572,23 @@ export class UserAuthService {
       );
 
       await Promise.all(
-        sessions.map((session) => this.blacklistSession(session.id)),
+        sessions.map((session) =>
+          this.authSessionService.blacklistSession(
+            session.id,
+            ESessionUserType.USER,
+          ),
+        ),
       );
     }
 
     return { message: 'Sessions revoked successfully' };
   }
 
-  async stopImpersonating(
-    userToken: JwtPayloadType,
-    requestInfo?: SessionRequestInfo,
-  ): Promise<{ message: string }> {
-    const session = await this.sessionRepository.findOneBy({
-      id: userToken.sessionId as AutoIncrementID,
-      userId: userToken.id as AutoIncrementID,
-      userType: ESessionUserType.USER,
-      revokedAt: IsNull(),
-    });
-
-    if (!session?.impersonatedBy) {
-      throw new BadRequestException('Current session is not impersonated');
-    }
-
-    const revokedAt = new Date();
-    const result = await this.sessionRepository.update(
-      {
-        id: userToken.sessionId as AutoIncrementID,
-        userId: userToken.id as AutoIncrementID,
-        userType: ESessionUserType.USER,
-        revokedAt: IsNull(),
-      },
-      { revokedAt },
-    );
-
-    if (result.affected === 0) {
-      throw new BadRequestException('Current session is not impersonated');
-    }
-
-    await this.blacklistSession(userToken.sessionId);
-    await this.impersonateLogService.stopHistory({
-      sessionId: session.id,
-      adminId: session.impersonatedBy,
-      targetUserId: session.userId,
-      stoppedAt: revokedAt,
-      ipAddress: requestInfo?.ipAddress,
-      userAgent: requestInfo?.userAgent,
-    });
-    await this.queueImpersonationEndedEmail({
-      userId: session.userId,
-      adminId: session.impersonatedBy,
-      historyId: userToken.impersonationHistoryId,
-      startedAt: session.createdAt,
-      endedAt: revokedAt,
-    });
-
-    return { message: 'Stopped impersonating successfully' };
-  }
-
   private async revokeCurrentSession(userToken: JwtPayloadType) {
-    await this.blacklistSession(userToken.sessionId as AutoIncrementID);
+    await this.authSessionService.blacklistSession(
+      userToken.sessionId as AutoIncrementID,
+      ESessionUserType.USER,
+    );
     await this.sessionRepository.update(
       {
         id: userToken.sessionId as AutoIncrementID,
@@ -652,66 +597,6 @@ export class UserAuthService {
         revokedAt: IsNull(),
       },
       { revokedAt: new Date() },
-    );
-  }
-
-  private async blacklistSession(sessionId: AutoIncrementID | string) {
-    const refreshExpires = this.configService.getOrThrow(
-      'auth.userRefreshExpires',
-      {
-        infer: true,
-      },
-    );
-
-    await this.cacheManager.set<boolean>(
-      createCacheKey(CacheKey.SESSION_BLACKLIST, sessionId),
-      true,
-      ms(refreshExpires as StringValue),
-    );
-  }
-
-  private async clearSessionBlacklist(sessionId: AutoIncrementID | string) {
-    await this.cacheManager.del(
-      createCacheKey(CacheKey.SESSION_BLACKLIST, sessionId),
-    );
-  }
-
-  private async queueImpersonationEndedEmail(params: {
-    userId: AutoIncrementID | string;
-    adminId: AutoIncrementID | string;
-    historyId?: AutoIncrementID | string;
-    startedAt?: Date;
-    endedAt: Date;
-  }) {
-    const [user, admin, actions] = await Promise.all([
-      this.userRepository.findOne({
-        where: { id: params.userId as AutoIncrementID },
-        select: ['id', 'fullName', 'email'],
-      }),
-      this.adminUserRepository.findOne({
-        where: { id: params.adminId as AutoIncrementID },
-        select: ['id', 'fullName', 'email'],
-      }),
-      this.impersonateLogService.getActionSummariesByHistoryId(
-        params.historyId,
-      ),
-    ]);
-
-    if (!user) {
-      return;
-    }
-
-    await this.emailQueue.add(
-      JobName.USER_IMPERSONATION_ENDED,
-      {
-        email: user.email,
-        userName: user.fullName || user.email,
-        adminName: admin?.fullName || admin?.email,
-        startedAt: params.startedAt?.toISOString(),
-        endedAt: params.endedAt.toISOString(),
-        actions,
-      } as IUserImpersonationEndedEmailJob,
-      { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
     );
   }
 
@@ -919,7 +804,7 @@ export class UserAuthService {
       userAgent: normalizeUserAgent(requestInfo?.userAgent),
     });
     await this.sessionRepository.save(session);
-    await this.clearSessionBlacklist(session.id);
+    await this.authSessionService.clearSessionBlacklist(session.id);
 
     const token = await this.createToken({
       id: user.id,

@@ -102,27 +102,20 @@ export function getThemesTableColumns(): ColumnDef<ThemeSchema>[] {
     },
     {
       id: ColumnKey.runtime,
-      accessorFn: (row) =>
-        [
-          row.isAdminDefault ? 'admin' : null,
-          row.isClientDefault ? 'client' : null,
-        ]
-          .filter(Boolean)
-          .join(', '),
+      accessorFn: (row) => (row.isAdminDefault ? 'admin' : ''),
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label='Runtime' />
       ),
       cell: ({ row }) => {
         const theme = row.original
 
-        if (!theme.isAdminDefault && !theme.isClientDefault) {
+        if (!theme.isAdminDefault) {
           return <span className='text-muted-foreground text-sm'>-</span>
         }
 
         return (
           <div className='flex flex-wrap gap-1'>
-            {theme.isAdminDefault && <Badge>Admin</Badge>}
-            {theme.isClientDefault && <Badge variant='secondary'>Client</Badge>}
+            <Badge>Admin</Badge>
           </div>
         )
       },

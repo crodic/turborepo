@@ -154,6 +154,12 @@
     <script>
       ;(() => {
         try {
+          if ('%VITE_ENABLE_RUNTIME_THEME%' === 'false') {
+            localStorage.removeItem('runtime-theme:admin')
+            localStorage.removeItem('runtime-theme:current')
+            return
+          }
+
           const raw =
             localStorage.getItem('runtime-theme:admin') ||
             localStorage.getItem('runtime-theme:current')

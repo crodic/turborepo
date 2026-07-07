@@ -17,7 +17,7 @@ export const themeStylesSchema = z.object({
 })
 
 export const themeStatusSchema = z.enum(['draft', 'published'])
-export const themeTargetSchema = z.enum(['admin', 'client'])
+export const themeTargetSchema = z.literal('admin')
 
 export const themeSchema = z.object({
   id: z.string(),
@@ -28,7 +28,6 @@ export const themeSchema = z.object({
   status: themeStatusSchema,
   isDefault: booleanishSchema.default(false),
   isAdminDefault: booleanishSchema.default(false),
-  isClientDefault: booleanishSchema.default(false),
   createdByAdminId: z.string().nullable().optional(),
   updatedByAdminId: z.string().nullable().optional(),
   createdAt: z.string(),

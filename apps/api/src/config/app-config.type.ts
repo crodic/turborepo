@@ -12,4 +12,5 @@ export type AppConfig = {
   secureHeaderOrigin: string;
   bullBoardPath: string;
   notificationRetentionDays: number;
+  runtimeThemeEnabled: boolean;
 };
