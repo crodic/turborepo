@@ -1,3 +1,4 @@
+import { SessionEntity } from '@/api/auth/entities/session.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { EImpersonateLogStatus } from '@/constants/entity.enum';
 import {
@@ -26,13 +27,27 @@ export class ImpersonateLogEntity {
 
   @ManyToOne(() => ImpersonateLogHistoryEntity, (history) => history.items, {
     onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
   })
-  @JoinColumn({ name: 'history_id' })
+  @JoinColumn({
+    name: 'history_id',
+    foreignKeyConstraintName: 'FK_impersonate_logs_history',
+  })
   history?: Relation<ImpersonateLogHistoryEntity>;
 
   @Index('IDX_impersonate_logs_session_id')
   @Column({ name: 'session_id', type: 'bigint' })
   sessionId: AutoIncrementID;
+
+  @ManyToOne(() => SessionEntity, {
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn({
+    name: 'session_id',
+    foreignKeyConstraintName: 'FK_impersonate_logs_session',
+  })
+  session?: Relation<SessionEntity>;
 
   @Index('IDX_impersonate_logs_admin_id')
   @Column({ name: 'admin_id', type: 'bigint' })

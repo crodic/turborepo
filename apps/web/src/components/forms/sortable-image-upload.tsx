@@ -61,6 +61,8 @@ type OverlaySize = {
   height: number
 }
 
+const EMPTY_EXISTING_IMAGES: ExistingImage[] = []
+
 export interface SortableImageUploadProps {
   // Existing images from server (initial data for edit flow)
   existingImages?: ExistingImage[]
@@ -81,7 +83,7 @@ export interface SortableImageUploadProps {
 }
 
 export default function SortableImageUpload({
-  existingImages = [],
+  existingImages = EMPTY_EXISTING_IMAGES,
   value,
   onChange,
   maxFiles = 5,

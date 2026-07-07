@@ -39,6 +39,7 @@ export class SessionEntity extends AbstractEntity {
   })
   userType: ESessionUserType;
 
+  @Index('IDX_sessions_impersonated_by')
   @Column({
     name: 'impersonated_by',
     type: 'bigint',
@@ -60,6 +61,7 @@ export class SessionEntity extends AbstractEntity {
   })
   userAgent?: string;
 
+  @Index('IDX_sessions_is_suspicious')
   @Column({
     name: 'is_suspicious',
     type: 'boolean',
@@ -81,6 +83,7 @@ export class SessionEntity extends AbstractEntity {
   })
   expiresAt?: Date;
 
+  @Index('IDX_sessions_revoked_at')
   @Column({
     name: 'revoked_at',
     type: 'timestamptz',

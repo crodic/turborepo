@@ -96,8 +96,15 @@ export class EmailLogEntity {
   @Column({ name: 'created_by_admin_id', type: 'bigint', nullable: true })
   createdByAdminId?: AutoIncrementID;
 
-  @ManyToOne(() => AdminUserEntity, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'created_by_admin_id' })
+  @ManyToOne(() => AdminUserEntity, {
+    nullable: true,
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn({
+    name: 'created_by_admin_id',
+    foreignKeyConstraintName: 'FK_email_logs_created_by_admin',
+  })
   createdByAdmin?: Relation<AdminUserEntity>;
 
   @CreateDateColumn({

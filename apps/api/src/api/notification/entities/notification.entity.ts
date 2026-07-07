@@ -23,8 +23,14 @@ export class NotificationEntity {
   @Column({ name: 'admin_id', type: 'bigint' })
   adminId: AutoIncrementID;
 
-  @ManyToOne(() => AdminUserEntity, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'admin_id' })
+  @ManyToOne(() => AdminUserEntity, {
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn({
+    name: 'admin_id',
+    foreignKeyConstraintName: 'FK_notifications_admin',
+  })
   admin?: Relation<AdminUserEntity>;
 
   @Index('IDX_notifications_type')

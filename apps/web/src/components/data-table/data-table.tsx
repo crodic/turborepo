@@ -391,7 +391,7 @@ function DataTableVirtualizedRow<TData>({
       data-index={virtualRow.index}
       data-state={row.getIsSelected() && 'selected'}
       className={cn(
-        'hover:bg-muted/50 flex w-full border-b transition-colors',
+        'hover:bg-muted/50 flex w-full flex-wrap border-b transition-colors',
         enableVirtualRows && 'absolute'
       )}
       style={{
@@ -432,9 +432,10 @@ function DataTableVirtualizedRow<TData>({
       {renderSubRow && row.getIsExpanded() && (
         <td
           className={cn(
-            'bg-muted/30 absolute top-full right-0 left-0 p-2 whitespace-normal',
+            'bg-muted/30 w-full p-2 whitespace-normal',
             subRowClassName
           )}
+          style={{ flexBasis: '100%' }}
         >
           {renderSubRow(row)}
         </td>
