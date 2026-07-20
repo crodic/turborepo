@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
+import { Slot as SlotPrimitive } from "radix-ui";
 import {
   type Announcements,
   closestCenter,
@@ -326,7 +326,7 @@ const SortableContent = React.forwardRef<HTMLDivElement, SortableContentProps>(
 
     const context = useSortableContext(CONTENT_NAME);
 
-    const ContentPrimitive = asChild ? Slot : "div";
+    const ContentPrimitive = asChild ? SlotPrimitive.Slot : "div";
 
     return (
       <SortableContentContext.Provider value={true}>
@@ -443,7 +443,7 @@ const SortableItem = React.forwardRef<HTMLDivElement, SortableItemProps>(
       [id, attributes, listeners, setActivatorNodeRef, isDragging, disabled]
     );
 
-    const ItemPrimitive = asChild ? Slot : "div";
+    const ItemPrimitive = asChild ? SlotPrimitive.Slot : "div";
 
     return (
       <SortableItemContext.Provider value={itemContext}>
@@ -496,7 +496,7 @@ const SortableItemHandle = React.forwardRef<
     itemContext.setActivatorNodeRef(node);
   });
 
-  const HandlePrimitive = asChild ? Slot : "button";
+  const HandlePrimitive = asChild ? SlotPrimitive.Slot : "button";
 
   return (
     <HandlePrimitive

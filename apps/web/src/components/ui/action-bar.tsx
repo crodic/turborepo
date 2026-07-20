@@ -1,14 +1,15 @@
 'use client'
 
 import * as React from 'react'
-import { useDirection } from '@radix-ui/react-direction'
-import { Slot } from '@radix-ui/react-slot'
+import { Direction, Slot as SlotPrimitive } from 'radix-ui'
 import * as ReactDOM from 'react-dom'
 import { useComposedRefs } from '@/lib/compose-refs'
 import { cn } from '@/lib/utils'
 import { useAsRef } from '@/hooks/use-as-ref'
 import { useIsomorphicLayoutEffect } from '@/hooks/use-isomorphic-layout-effect'
 import { Button } from '@/components/ui/button'
+
+const useDirection = Direction.useDirection
 
 const ROOT_NAME = 'ActionBar'
 const GROUP_NAME = 'ActionBarGroup'
@@ -186,7 +187,7 @@ function ActionBar(props: ActionBarProps) {
 
   if (!portalContainer || !open) return null
 
-  const RootPrimitive = asChild ? Slot : 'div'
+  const RootPrimitive = asChild ? SlotPrimitive.Slot : 'div'
 
   return (
     <ActionBarContext.Provider value={contextValue}>
@@ -231,7 +232,7 @@ function ActionBar(props: ActionBarProps) {
 function ActionBarSelection(props: DivProps) {
   const { className, asChild, ...selectionProps } = props
 
-  const SelectionPrimitive = asChild ? Slot : 'div'
+  const SelectionPrimitive = asChild ? SlotPrimitive.Slot : 'div'
 
   return (
     <SelectionPrimitive
@@ -384,7 +385,7 @@ function ActionBarGroup(props: DivProps) {
     ]
   )
 
-  const GroupPrimitive = asChild ? Slot : 'div'
+  const GroupPrimitive = asChild ? SlotPrimitive.Slot : 'div'
 
   return (
     <FocusContext.Provider value={focusContextValue}>
@@ -605,7 +606,7 @@ function ActionBarClose(props: ActionBarCloseProps) {
     [onOpenChange, onClick]
   )
 
-  const ClosePrimitive = asChild ? Slot : 'button'
+  const ClosePrimitive = asChild ? SlotPrimitive.Slot : 'button'
 
   return (
     <ClosePrimitive
@@ -636,7 +637,7 @@ function ActionBarSeparator(props: ActionBarSeparatorProps) {
   const context = useActionBarContext(SEPARATOR_NAME)
   const orientation = orientationProp ?? context.orientation
 
-  const SeparatorPrimitive = asChild ? Slot : 'div'
+  const SeparatorPrimitive = asChild ? SlotPrimitive.Slot : 'div'
 
   return (
     <SeparatorPrimitive

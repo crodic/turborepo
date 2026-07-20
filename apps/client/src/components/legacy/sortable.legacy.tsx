@@ -25,7 +25,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Slot } from "@radix-ui/react-slot";
+import { Slot as SlotPrimitive } from "radix-ui";
+const Slot = SlotPrimitive.Slot;
 
 // Sortable Item Context
 const SortableItemContext = React.createContext<{
@@ -250,7 +251,7 @@ function SortableItem({
         data-value={value}
         data-dragging={isSortableDragging}
         data-disabled={disabled}
-        ref={(node) => {
+        ref={(node: HTMLElement | null) => {
           setNodeRef(node);
           if (asHandle) {
             setActivatorNodeRef(node);
