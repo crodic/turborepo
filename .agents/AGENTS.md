@@ -20,7 +20,15 @@ This document defines project-specific guidelines and rules for working with thi
 - **Radix UI**: The repository uses the unified `radix-ui` package. Import primitives directly from `"radix-ui"` (e.g., `import { Dialog, RadioGroup, Slot } from "radix-ui"`). Do not install individual `@radix-ui/react-*` packages.
 - **Styling**: TailwindCSS is used for styling. Keep design consistent with existing UI components in `components/ui`.
 
-## 4. Git & Release Workflow
+## 4. Backend Architecture & Development Guidelines (`apps/api`)
+
+- **Modular NestJS Architecture**: Place domain features inside `apps/api/src/api/<feature-name>`. Maintain strict separation between Controllers, Services, DTOs, and Persistence entities.
+- **Data Validation & DTOs**: Validate all request payloads using `class-validator` and `class-transformer` decorators inside DTO classes.
+- **Database & TypeORM**: Use TypeORM for PostgreSQL persistence. Schema modifications MUST be accompanied by TypeORM migrations (`pnpm --filter api migration:generate` / `migration:run`).
+- **Swagger / OpenAPI Documentation**: Annotate all controller endpoints with Swagger decorators (`@ApiTags`, `@ApiOperation`, `@ApiResponse`, `@ApiProperty`).
+- **Security & Authorization**: Protect endpoints using JWT Auth Guards and permission decorators (`@RequirePermission(...)` / `@Roles(...)`).
+
+## 5. Git & Release Workflow
 
 - **Commit Convention**: Commit messages MUST follow Conventional Commits (e.g., `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
 - **Release Automation**: Releases are managed by `semantic-release` via [.releaserc.js](file:///.releaserc.js) and GitHub Actions [.github/workflows/release.yml](file:///.github/workflows/release.yml). Refer to [RELEASE.md](file:///RELEASE.md) for full release guidelines.
