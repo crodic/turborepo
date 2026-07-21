@@ -15,10 +15,12 @@ This document defines project-specific guidelines and rules for working with thi
 - **`apps/web`**: Vite + React admin portal.
 - **`packages/*`**: Shared configurations (`eslint-config`, `typescript-config`, `prettier-config`, `commitlint-config`) and shared UI primitives (`ui`).
 
-## 3. UI Component & Design System Guidelines
+## 3. UI Component & Frontend Guidelines
 
 - **Radix UI**: The repository uses the unified `radix-ui` package. Import primitives directly from `"radix-ui"` (e.g., `import { Dialog, RadioGroup, Slot } from "radix-ui"`). Do not install individual `@radix-ui/react-*` packages.
 - **Styling**: TailwindCSS is used for styling. Keep design consistent with existing UI components in `components/ui`.
+- **Component Reusability**: When creating new UI components that are intended to be shared, design them to be highly reusable, loosely coupled, and modular with clean TypeScript props interfaces.
+- **Performance Optimization**: Prioritize React performance optimizations. Wrap reusable components with `React.memo` where beneficial, and optimize callbacks and expensive computations using `useCallback` and `useMemo` to avoid unnecessary re-renders.
 
 ## 4. Backend Architecture & Development Guidelines (`apps/api`)
 
