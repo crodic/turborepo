@@ -33,6 +33,9 @@ This document defines project-specific guidelines and rules for working with thi
 - **Database & TypeORM**: Use TypeORM for PostgreSQL persistence. Schema modifications MUST be accompanied by TypeORM migrations (`pnpm --filter api migration:generate` / `migration:run`).
 - **Swagger / OpenAPI Documentation**: Annotate all controller endpoints with Swagger decorators (`@ApiTags`, `@ApiOperation`, `@ApiResponse`, `@ApiProperty`).
 - **Security & Authorization**: Protect endpoints using JWT Auth Guards and permission decorators (`@RequirePermission(...)` / `@Roles(...)`).
+- **Exception Handling & Security**: Throw explicit NestJS HTTP exceptions (`BadRequestException`, `NotFoundException`, `ConflictException`, `ForbiddenException`). Never leak internal database stack traces or raw SQL errors to clients.
+- **Structured Logging**: Use NestJS `Logger` service instead of `console.log`. Log critical business operations, background queue tasks, and external service failures with contextual metadata.
+- **Transactions & Query Performance**: Use TypeORM `QueryRunner` or `EntityManager` transactions for multi-step write operations to ensure ACID compliance. Avoid N+1 queries by using proper relations, joins, and pagination.
 
 ## 5. Git & Release Workflow
 
