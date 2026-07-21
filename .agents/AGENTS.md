@@ -19,6 +19,7 @@ This document defines project-specific guidelines and rules for working with thi
 
 - **Radix UI**: The repository uses the unified `radix-ui` package. Import primitives directly from `"radix-ui"` (e.g., `import { Dialog, RadioGroup, Slot } from "radix-ui"`). Do not install individual `@radix-ui/react-*` packages.
 - **Styling**: TailwindCSS is used for styling. Keep design consistent with existing UI components in `components/ui`.
+- **Form Management & Validation**: ALWAYS use **Zod** schema validation combined with **React Hook Form** (via shadcn `Form` components in `components/ui/form`) for ALL forms in the application, regardless of form size or complexity.
 - **Component Reusability**: When creating new UI components that are intended to be shared, design them to be highly reusable, loosely coupled, and modular with clean TypeScript props interfaces.
 - **Performance Optimization**: Prioritize React performance optimizations. Wrap reusable components with `React.memo` where beneficial, and optimize callbacks and expensive computations using `useCallback` and `useMemo` to avoid unnecessary re-renders.
 
