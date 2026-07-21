@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { AxiosError } from 'axios'
 import { format } from 'date-fns'
-import { Avatar } from '@radix-ui/react-avatar'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeftIcon, EditIcon, ShieldIcon, TrashIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -18,7 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'

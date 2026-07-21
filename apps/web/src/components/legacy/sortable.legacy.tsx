@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { Slot } from '@radix-ui/react-slot'
 import {
   type Announcements,
   closestCenter,
@@ -38,9 +37,12 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { Slot as SlotPrimitive } from 'radix-ui'
 import * as ReactDOM from 'react-dom'
 import { useComposedRefs } from '@/lib/compose-refs'
 import { cn } from '@/lib/utils'
+
+const Slot = SlotPrimitive.Slot
 
 const orientationConfig = {
   vertical: {

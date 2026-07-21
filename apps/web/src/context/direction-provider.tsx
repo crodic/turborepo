@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { DirectionProvider as RdxDirProvider } from '@radix-ui/react-direction'
+import { Direction } from 'radix-ui'
 import { getCookie, setCookie, removeCookie } from '@/lib/cookies'
+
+const RdxDirProvider = Direction.Provider
 
 export type Direction = 'ltr' | 'rtl'
 
