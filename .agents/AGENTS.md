@@ -22,6 +22,9 @@ This document defines project-specific guidelines and rules for working with thi
 - **Form Management & Validation**: ALWAYS use **Zod** schema validation combined with **React Hook Form** (via shadcn `Form` components in `components/ui/form`) for ALL forms in the application, regardless of form size or complexity.
 - **State Management & Data Fetching**: Use **React Query (`@tanstack/react-query`)** for all server API data fetching, mutations, and caching. Use **Zustand** only for global client-side UI/session state.
 - **Internationalization (i18n)**: Do NOT hardcode user-facing UI text strings. Always use translation keys via `next-intl` (in `apps/client`) or `react-i18next` (in `apps/web`).
+- **Next.js App Router Architecture (`apps/client`)**: Default to React Server Components. Push `"use client"` directives down to leaf components only when interactivity or browser hooks are required.
+- **Image Optimization**: Always use Next.js `<Image />` from `next/image` instead of native `<img>` tags for automatic WebP/AVIF formatting and responsive loading.
+- **SEO & Metadata**: Every page in `apps/client` MUST export proper metadata via `metadata` object or `generateMetadata()` function for SEO.
 - **Error Handling & Feedback**: Never swallow exceptions silently in empty catch blocks. Always inform users of API or submission failures using **Sonner** toasts or inline form validation messages.
 - **Component Reusability**: When creating new UI components that are intended to be shared, design them to be highly reusable, loosely coupled, and modular with clean TypeScript props interfaces.
 - **Performance Optimization**: Prioritize React performance optimizations. Wrap reusable components with `React.memo` where beneficial, and optimize callbacks and expensive computations using `useCallback` and `useMemo` to avoid unnecessary re-renders.
