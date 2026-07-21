@@ -20,6 +20,9 @@ This document defines project-specific guidelines and rules for working with thi
 - **Radix UI**: The repository uses the unified `radix-ui` package. Import primitives directly from `"radix-ui"` (e.g., `import { Dialog, RadioGroup, Slot } from "radix-ui"`). Do not install individual `@radix-ui/react-*` packages.
 - **Styling**: TailwindCSS is used for styling. Keep design consistent with existing UI components in `components/ui`.
 - **Form Management & Validation**: ALWAYS use **Zod** schema validation combined with **React Hook Form** (via shadcn `Form` components in `components/ui/form`) for ALL forms in the application, regardless of form size or complexity.
+- **State Management & Data Fetching**: Use **React Query (`@tanstack/react-query`)** for all server API data fetching, mutations, and caching. Use **Zustand** only for global client-side UI/session state.
+- **Internationalization (i18n)**: Do NOT hardcode user-facing UI text strings. Always use translation keys via `next-intl` (in `apps/client`) or `react-i18next` (in `apps/web`).
+- **Error Handling & Feedback**: Never swallow exceptions silently in empty catch blocks. Always inform users of API or submission failures using **Sonner** toasts or inline form validation messages.
 - **Component Reusability**: When creating new UI components that are intended to be shared, design them to be highly reusable, loosely coupled, and modular with clean TypeScript props interfaces.
 - **Performance Optimization**: Prioritize React performance optimizations. Wrap reusable components with `React.memo` where beneficial, and optimize callbacks and expensive computations using `useCallback` and `useMemo` to avoid unnecessary re-renders.
 
