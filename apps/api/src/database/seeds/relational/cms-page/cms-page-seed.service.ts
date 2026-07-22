@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CmsPageEntity } from '../../../../api/cms-page/entities/cms-page.entity';
+import {
+  CmsPageEntity,
+  ECmsPageStatus,
+} from '../../../../api/cms-page/entities/cms-page.entity';
 
 @Injectable()
 export class CmsPageSeedService {
@@ -16,7 +19,7 @@ export class CmsPageSeedService {
         title: 'Terms of Service',
         slug: 'terms-of-service',
         locale: 'en',
-        status: 'published' as const,
+        status: ECmsPageStatus.PUBLISHED,
         publishedAt: new Date(),
         seoTitle: 'Terms of Service',
         seoDescription: 'Terms of Service of the application',
@@ -39,7 +42,7 @@ export class CmsPageSeedService {
         title: 'Điều khoản dịch vụ',
         slug: 'terms-of-service',
         locale: 'vi',
-        status: 'published' as const,
+        status: ECmsPageStatus.PUBLISHED,
         publishedAt: new Date(),
         seoTitle: 'Điều khoản dịch vụ',
         seoDescription: 'Điều khoản dịch vụ của ứng dụng',
@@ -62,7 +65,7 @@ export class CmsPageSeedService {
         title: 'Privacy Policy',
         slug: 'privacy-policy',
         locale: 'en',
-        status: 'published' as const,
+        status: ECmsPageStatus.PUBLISHED,
         publishedAt: new Date(),
         seoTitle: 'Privacy Policy',
         seoDescription: 'Privacy Policy of the application',
@@ -89,7 +92,7 @@ export class CmsPageSeedService {
         title: 'Chính sách bảo mật',
         slug: 'privacy-policy',
         locale: 'vi',
-        status: 'published' as const,
+        status: ECmsPageStatus.PUBLISHED,
         publishedAt: new Date(),
         seoTitle: 'Chính sách bảo mật',
         seoDescription: 'Chính sách bảo mật của ứng dụng',
