@@ -8,6 +8,7 @@ export enum AppSubjects {
   EmailLog = 'EMAIL_LOG',
   Theme = 'THEME',
   File = 'FILE',
+  Page = 'PAGE',
 
   All = 'all',
 }
@@ -253,6 +254,36 @@ export const ALL_PERMISSIONS = [
     'File Management',
     'Delete files',
     'Delete uploaded files and empty logical folders.',
+  ),
+
+  // Page
+  permissionMeta(
+    AppActions.Read,
+    AppSubjects.Page,
+    'CMS Pages Management',
+    'View pages',
+    'View CMS pages.',
+  ),
+  permissionMeta(
+    AppActions.Create,
+    AppSubjects.Page,
+    'CMS Pages Management',
+    'Create pages',
+    'Create new CMS pages.',
+  ),
+  permissionMeta(
+    AppActions.Update,
+    AppSubjects.Page,
+    'CMS Pages Management',
+    'Update pages',
+    'Edit CMS pages.',
+  ),
+  permissionMeta(
+    AppActions.Delete,
+    AppSubjects.Page,
+    'CMS Pages Management',
+    'Delete pages',
+    'Delete CMS pages.',
   ),
 
   // SUPER

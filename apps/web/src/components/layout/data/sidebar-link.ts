@@ -13,6 +13,7 @@ import {
   PaintbrushIcon,
   Files,
   FlaskConicalIcon,
+  BookOpenText,
 } from 'lucide-react'
 import { IS_RUNTIME_THEME_ENABLED } from '@/lib/feature-flags'
 import { type SidebarData } from '../types'
@@ -49,6 +50,12 @@ export const sidebarLink: SidebarData = {
           title: 'navigation.general.website',
           url: '/website-settings',
           icon: Globe,
+        },
+        {
+          title: 'CMS Pages',
+          url: '/cms-pages',
+          icon: BookOpenText,
+          permission: 'PAGE',
         },
       ],
     },

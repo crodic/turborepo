@@ -13,6 +13,10 @@ import { PageAdminShow } from '@/pages/admins/show'
 import { ForgotPassword } from '@/pages/auth/forgot-password'
 import { ResetPassword } from '@/pages/auth/reset-password'
 import { SignIn } from '@/pages/auth/sign-in'
+import { PageCmsPageOverview } from '@/pages/cms-pages'
+import { PageCmsPageCreate } from '@/pages/cms-pages/create'
+import { PageCmsPageEdit } from '@/pages/cms-pages/edit'
+import { PageCmsPageShow } from '@/pages/cms-pages/show'
 import { Dashboard } from '@/pages/dashboard'
 import { PageEmailLogOverview } from '@/pages/email-logs'
 import PageEmailLogShow from '@/pages/email-logs/show'
@@ -252,6 +256,43 @@ const routes: RouteObject[] = [
             <SettingsWebsite />
           </RouteAuthorize>
         ),
+      },
+      {
+        path: '/cms-pages',
+        children: [
+          {
+            index: true,
+            element: (
+              <RouteAuthorize action='read' subject='PAGE'>
+                <PageCmsPageOverview />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: 'create',
+            element: (
+              <RouteAuthorize action='create' subject='PAGE'>
+                <PageCmsPageCreate />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: ':id/edit',
+            element: (
+              <RouteAuthorize action='update' subject='PAGE'>
+                <PageCmsPageEdit />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: ':id/show',
+            element: (
+              <RouteAuthorize action='read' subject='PAGE'>
+                <PageCmsPageShow />
+              </RouteAuthorize>
+            ),
+          },
+        ],
       },
       ...(IS_RUNTIME_THEME_ENABLED
         ? [
