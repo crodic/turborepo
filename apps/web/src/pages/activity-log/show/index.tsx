@@ -2,6 +2,7 @@ import { format } from 'date-fns'
 import { ArrowLeftIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DescriptionItem, Descriptions } from '@/components/common/descriptions'
@@ -26,6 +27,38 @@ export default function PageActivityLogShow() {
   if (isFetching) return <DataLoader />
 
   if (!data) return <NotFoundError />
+
+  const getActionBadge = (action: string) => {
+    switch (action) {
+      case 'CREATE':
+        return (
+          <Badge className='bg-green-500 text-white hover:bg-green-600'>
+            {action}
+          </Badge>
+        )
+      case 'UPDATE':
+        return (
+          <Badge className='bg-blue-500 text-white hover:bg-blue-600'>
+            {action}
+          </Badge>
+        )
+      case 'DELETE':
+      case 'SOFT_DELETE':
+        return (
+          <Badge className='bg-destructive hover:bg-destructive/90 text-white'>
+            {action}
+          </Badge>
+        )
+      case 'RESTORE':
+        return (
+          <Badge className='bg-purple-500 text-white hover:bg-purple-600'>
+            {action}
+          </Badge>
+        )
+      default:
+        return <Badge variant='secondary'>{action}</Badge>
+    }
+  }
 
   return (
     <>
@@ -72,7 +105,7 @@ export default function PageActivityLogShow() {
                 />
                 <DescriptionItem
                   label={t('activityLogs.show.action')}
-                  value={data.action || ''}
+                  value={getActionBadge(data.action)}
                 />
                 <DescriptionItem
                   label={t('activityLogs.show.entity')}
@@ -87,7 +120,7 @@ export default function PageActivityLogShow() {
                   value={format(data.timestamp, 'yyyy-MM-dd HH:mm aa')}
                 />
 
-                <div className='col-span-1 sm:col-span-2 md:col-span-3'>
+                <div className='col-span-1 pt-4 sm:col-span-2 md:col-span-3'>
                   <LogTable
                     oldValue={data.oldValue ?? undefined}
                     newValue={data.newValue ?? undefined}
