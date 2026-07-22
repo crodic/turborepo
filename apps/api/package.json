@@ -36,10 +36,12 @@
     "db:create:docker": "TS_NODE_TRANSPILE_ONLY=true TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\",\"moduleResolution\":\"node\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictPropertyInitialization\":false}' ts-node -r tsconfig-paths/register ./src/database/create-database.ts",
     "seed:run:relational": "TS_NODE_TRANSPILE_ONLY=true TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\",\"moduleResolution\":\"node\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictPropertyInitialization\":false}' ts-node -r tsconfig-paths/register ./src/database/seeds/relational/run-seed.ts",
     "permissions:sync": "TS_NODE_TRANSPILE_ONLY=true TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\",\"moduleResolution\":\"node\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictPropertyInitialization\":false}' ts-node -r tsconfig-paths/register ./src/database/sync-permissions.ts",
+    "permissions:clean": "TS_NODE_TRANSPILE_ONLY=true TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\",\"moduleResolution\":\"node\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strictPropertyInitialization\":false}' ts-node -r tsconfig-paths/register ./src/database/clean-permissions.ts",
     "migration:run:prod": "typeorm --dataSource=dist/database/data-source.js migration:run",
     "migration:revert:prod": "typeorm --dataSource=dist/database/data-source.js migration:revert",
     "seed:run:relational:prod": "node dist/database/seeds/relational/run-seed.js",
-    "permissions:sync:prod": "node dist/database/sync-permissions.js"
+    "permissions:sync:prod": "node dist/database/sync-permissions.js",
+    "permissions:clean:prod": "node dist/database/clean-permissions.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1030.0",
