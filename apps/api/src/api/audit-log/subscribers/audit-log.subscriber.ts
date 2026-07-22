@@ -73,7 +73,12 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
     )
       return;
 
-    const excludeFields = ['password'];
+    const excludeFields = [
+      'password',
+      'previousPassword',
+      'twoFactorSecret',
+      'twoFactorBackupCodes',
+    ];
     const cls = ClsServiceManager.getClsService();
 
     const auditRepo = event.manager.getRepository(AuditLogEntity);
