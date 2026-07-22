@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { AxiosError } from 'axios'
+import axios from 'axios'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@/stores/auth-store'
 import { getAdminPermissions } from '@/lib/admin-roles'
@@ -14,7 +14,7 @@ export function usePermissionLoader() {
     queryFn: apiGetMe,
     retry: (count, error) => {
       if (
-        !(error instanceof AxiosError) ||
+        !axios.isAxiosError(error) ||
         count >= 2 ||
         error.response?.status === 401
       ) {
@@ -24,7 +24,7 @@ export function usePermissionLoader() {
       return true
     },
     throwOnError: (error) => {
-      if (!(error instanceof AxiosError)) {
+      if (!axios.isAxiosError(error)) {
         return false
       }
 

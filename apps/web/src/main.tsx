@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
-import { AxiosError } from 'axios'
+import axios from 'axios'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@/i18n'
 import * as Sentry from '@sentry/react'
@@ -27,7 +27,7 @@ const queryClient = new QueryClient({
         if (failureCount > 3 && import.meta.env.PROD) return false
 
         return !(
-          error instanceof AxiosError &&
+          axios.isAxiosError(error) &&
           [401, 403].includes(error.response?.status ?? 0)
         )
       },
@@ -38,7 +38,7 @@ const queryClient = new QueryClient({
       onError: (error) => {
         handleServerError(error)
 
-        if (error instanceof AxiosError) {
+        if (axios.isAxiosError(error)) {
           if (error.response?.status === 304) {
             toast.error('Content not modified!')
           }
