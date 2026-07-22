@@ -250,6 +250,8 @@ export default {
   'activityLogs.show.old': 'Giá trị cũ',
   'activityLogs.show.new': 'Giá trị mới',
   'activityLogs.show.field': 'Trường',
+  'activityLogs.show.showOnlyChanges': 'Chỉ hiển thị thay đổi',
+  'activityLogs.show.noChangesData': 'Không có dữ liệu thay đổi nào.',
   'roles.overview.title': 'Vai trò',
   'roles.overview.description': 'Xem danh sách vai trò.',
   'roles.overview.empty': 'Không có vai trò nào.',

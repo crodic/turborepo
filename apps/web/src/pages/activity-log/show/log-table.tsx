@@ -85,7 +85,7 @@ export default function LogTable({
           htmlFor='show-changes'
           className='text-muted-foreground cursor-pointer text-sm'
         >
-          Chỉ hiển thị thay đổi
+          {t('activityLogs.show.showOnlyChanges')}
         </Label>
       </div>
 
@@ -111,7 +111,7 @@ export default function LogTable({
                   colSpan={3}
                   className='text-muted-foreground py-6 text-center italic'
                 >
-                  Không có dữ liệu thay đổi nào.
+                  {t('activityLogs.show.noChangesData')}
                 </TableCell>
               </TableRow>
             ) : (

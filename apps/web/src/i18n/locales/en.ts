@@ -254,6 +254,8 @@ export default {
   'activityLogs.show.old': 'Old',
   'activityLogs.show.new': 'New',
   'activityLogs.show.field': 'Field',
+  'activityLogs.show.showOnlyChanges': 'Show only changes',
+  'activityLogs.show.noChangesData': 'No changes recorded.',
   'roles.overview.title': 'Roles',
   'roles.overview.description': 'View roles.',
   'roles.overview.empty': 'No roles found.',
