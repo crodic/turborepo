@@ -66,19 +66,8 @@ export default function PageActivityLogShow() {
                   label={t('activityLogs.show.actor')}
                   value={
                     data.metadata?.actorName || data.metadata?.actorEmail
-                      ? `${data.metadata.actorName || ''} ${data.metadata.actorEmail ? `(${data.metadata.actorEmail})` : ''} - ID: ${data.userId}`
+                      ? `${data.metadata.actorName || ''} ${data.metadata.actorEmail ? `(${data.metadata.actorEmail})` : ''} [#${data.userId}]`
                       : data.userId || '-'
-                  }
-                />
-                <DescriptionItem
-                  label={t('activityLogs.show.actorInformation')}
-                  value={
-                    <span>
-                      {`Type: ${data.metadata?.userType ?? 'Guest'}`}
-                      {data.metadata?.actorId != null
-                        ? ` | Actor ID: ${data.metadata.actorId}`
-                        : ''}
-                    </span>
                   }
                 />
                 <DescriptionItem
@@ -89,8 +78,8 @@ export default function PageActivityLogShow() {
                   label={t('activityLogs.show.entity')}
                   value={
                     data.metadata?.entityName
-                      ? `${data.entity} (ID: ${data.entityId}) - ${data.metadata.entityName}`
-                      : `${data.entity} (ID: ${data.entityId})`
+                      ? `[${data.entity} #${data.entityId}] ${data.metadata.entityName}`
+                      : `[${data.entity} #${data.entityId}]`
                   }
                 />
                 <DescriptionItem

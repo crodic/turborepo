@@ -54,8 +54,8 @@ export function getActivitiesTableColumns({
       cell: ({ row }) => (
         <p className='truncate overflow-hidden'>
           {row.original.metadata?.entityName
-            ? `${row.original.entity} - ${row.original.metadata.entityName}`
-            : row.original.entity}
+            ? `[${row.original.entity} #${row.original.entityId}] ${row.original.metadata.entityName}`
+            : `[${row.original.entity} #${row.original.entityId}]`}
         </p>
       ),
       meta: {
