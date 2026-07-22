@@ -4,6 +4,7 @@ import { ChangePasswordReqDto } from '@/api/admin-user/dto/change-password.req.d
 import { ChangePasswordResDto } from '@/api/admin-user/dto/change-password.res.dto';
 import { UpdateMeReqDto } from '@/api/admin-user/dto/update-me.req.dto';
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
+import { LoginActivityResDto } from '@/api/auth/dto/admin-users/login-activity.res.dto';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
 import {
   AdminNotificationType,
@@ -770,6 +771,78 @@ export class AdminAuthService {
         excludeExtraneousValues: true,
       },
     );
+  }
+
+  async getLoginActivity(
+    userToken: JwtPayloadType,
+  ): Promise<
+    import('../dto/admin-users/login-activity.res.dto').LoginActivityResDto
+  > {
+    try {
+      const days = 180;
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - days);
+
+      // Build array of last 180 days
+      const datesMap = new Map<string, number>();
+      for (let i = 0; i <= days; i++) {
+        const d = new Date(startDate);
+        d.setDate(d.getDate() + i);
+        const dateStr = d.toISOString().split('T')[0];
+        datesMap.set(dateStr, 0);
+      }
+
+      const sessions = await this.sessionRepository
+        .createQueryBuilder('session')
+        .select(
+          "TO_CHAR(session.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')",
+          'date',
+        )
+        .addSelect('COUNT(session.id)', 'count')
+        .where('session.userId = :userId', { userId: userToken.id })
+        .andWhere('session.userType = :userType', {
+          userType: ESessionUserType.ADMIN,
+        })
+        .andWhere('session.createdAt >= :startDate', { startDate })
+        .groupBy("TO_CHAR(session.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')")
+        .getRawMany();
+
+      let totalSessions = 0;
+      let activeDays = 0;
+
+      for (const session of sessions) {
+        if (datesMap.has(session.date)) {
+          const count = parseInt(session.count, 10);
+          datesMap.set(session.date, count);
+          totalSessions += count;
+          if (count > 0) activeDays++;
+        }
+      }
+
+      const data = Array.from(datesMap.entries()).map(([date, count]) => {
+        let level = 0;
+        if (count === 1) level = 1;
+        else if (count >= 2 && count <= 3) level = 2;
+        else if (count >= 4 && count <= 5) level = 3;
+        else if (count >= 6) level = 4;
+
+        return {
+          date,
+          count,
+          level,
+        };
+      });
+
+      return plainToInstance(LoginActivityResDto, {
+        totalSessions,
+        activeDays,
+        data,
+      });
+    } catch (e: any) {
+      console.error(e);
+      throw new BadRequestException(e.message);
+    }
   }
 
   async revokeSession(

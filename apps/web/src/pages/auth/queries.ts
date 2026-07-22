@@ -143,6 +143,25 @@ export async function apiGetSessions(): Promise<SessionSchema[]> {
   return z.array(sessionSchema).parse(res.data)
 }
 
+export const loginActivitySchema = z.object({
+  totalSessions: z.number(),
+  activeDays: z.number(),
+  data: z.array(
+    z.object({
+      date: z.string(),
+      count: z.number(),
+      level: z.number(),
+    })
+  ),
+})
+
+export type LoginActivitySchema = z.infer<typeof loginActivitySchema>
+
+export async function apiGetLoginActivity(): Promise<LoginActivitySchema> {
+  const res = await http.get('/auth/sessions/activity')
+  return loginActivitySchema.parse(res.data)
+}
+
 export async function apiRevokeSession(id: string) {
   return await http.delete(`/auth/sessions/${id}`)
 }

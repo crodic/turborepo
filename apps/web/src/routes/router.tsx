@@ -461,6 +461,13 @@ const routes: RouteObject[] = [
                   .PageFormExamples,
               }),
             },
+            {
+              path: 'dev/ui-preview',
+              lazy: async () => ({
+                Component: (await import('@/pages/dev/ui-preview'))
+                  .PageUiPreview,
+              }),
+            },
           ]
         : []),
       {

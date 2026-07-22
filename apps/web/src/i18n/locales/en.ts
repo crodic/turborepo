@@ -29,6 +29,7 @@ export default {
   'navigation.other.website': 'Website',
   'navigation.dev.title': 'Development',
   'navigation.dev.formExamples': 'Form examples',
+  'navigation.dev.uiPreview': 'UI Preview',
   'validation.required': 'This field is required',
   'validation.email': 'The {{field}} must be a valid email',
   'validation.min': 'The {{field}} must be at least {{min}} characters',

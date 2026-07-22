@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
- 
+
 function debounce(func: any, wait: number) {
   let timeout: NodeJS.Timeout
   return function (...args: any[]) {

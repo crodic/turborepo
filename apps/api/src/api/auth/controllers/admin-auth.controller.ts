@@ -201,6 +201,15 @@ export class AdminAuthenticationController {
   }
 
   @ApiAuth({
+    summary: 'Get admin login activity heatmap over the last 180 days',
+  })
+  @SkipThrottle()
+  @Get('sessions/activity')
+  async getLoginActivity(@CurrentUser() userToken: JwtPayloadType) {
+    return this.adminAuthService.getLoginActivity(userToken);
+  }
+
+  @ApiAuth({
     type: SessionResDto,
     summary: 'List current admin sessions',
   })

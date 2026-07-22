@@ -1,49 +1,107 @@
-<!doctype html>
 <html>
-  <body style='margin:0;background:#f8fafc;font-family:Arial,sans-serif;color:#111827;'>
-    <table role='presentation' width='100%' cellspacing='0' cellpadding='0' style='background:#f8fafc;padding:32px 0;'>
+  <body
+    style='margin:0;background:#f8fafc;font-family:Arial,sans-serif;color:#111827;'
+  >
+    <table
+      role='presentation'
+      width='100%'
+      cellspacing='0'
+      cellpadding='0'
+      style='background:#f8fafc;padding:32px 0;'
+    >
       <tr>
         <td align='center'>
-          <table role='presentation' width='600' cellspacing='0' cellpadding='0' style='max-width:600px;width:100%;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;'>
+          <table
+            role='presentation'
+            width='600'
+            cellspacing='0'
+            cellpadding='0'
+            style='max-width:600px;width:100%;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;'
+          >
             <tr>
               <td style='padding:28px 32px;background:#111827;color:#ffffff;'>
-                <p style='margin:0 0 8px;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#fbbf24;font-weight:700;'>Security alert</p>
-                <h1 style='margin:0;font-size:26px;line-height:34px;'>Unusual admin sign-in detected</h1>
+                <p
+                  style='margin:0 0 8px;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#fbbf24;font-weight:700;'
+                >Security alert</p>
+                <h1 style='margin:0;font-size:26px;line-height:34px;'>Unusual
+                  admin sign-in detected</h1>
               </td>
             </tr>
             <tr>
               <td style='padding:28px 32px;'>
-                <p style='margin:0 0 18px;font-size:16px;line-height:26px;color:#374151;'>Hi {{email}}, we noticed a sign-in to your admin account from a new IP address or device.</p>
+                <p
+                  style='margin:0 0 18px;font-size:16px;line-height:26px;color:#374151;'
+                >Hi
+                  {{email}}, we noticed a sign-in to your admin account from a
+                  new IP address or device.</p>
                 {{#if hasVerificationCode}}
-                <div style='margin:0 0 20px;padding:18px 20px;background:#fef3c7;border:1px solid #f59e0b;border-radius:12px;text-align:center;'>
-                  <p style='margin:0 0 8px;color:#92400e;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;'>Verification code</p>
-                  <p style='margin:0;color:#111827;font-size:32px;line-height:40px;font-weight:800;letter-spacing:0.18em;'>{{verificationCode}}</p>
-                  <p style='margin:8px 0 0;color:#92400e;font-size:13px;line-height:20px;'>Enter this code to complete admin sign-in.</p>
-                </div>
+                  <div
+                    style='margin:0 0 20px;padding:18px 20px;background:#fef3c7;border:1px solid #f59e0b;border-radius:12px;text-align:center;'
+                  >
+                    <p
+                      style='margin:0 0 8px;color:#92400e;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;'
+                    >Verification code</p>
+                    <p
+                      style='margin:0;color:#111827;font-size:32px;line-height:40px;font-weight:800;letter-spacing:0.18em;'
+                    >{{verificationCode}}</p>
+                    <p
+                      style='margin:8px 0 0;color:#92400e;font-size:13px;line-height:20px;'
+                    >Enter this code to complete admin sign-in.</p>
+                  </div>
                 {{/if}}
-                <table role='presentation' width='100%' cellspacing='0' cellpadding='0' style='border-collapse:collapse;font-size:14px;color:#374151;'>
+                <table
+                  role='presentation'
+                  width='100%'
+                  cellspacing='0'
+                  cellpadding='0'
+                  style='border-collapse:collapse;font-size:14px;color:#374151;'
+                >
                   <tr>
-                    <td style='padding:10px 0;border-top:1px solid #e5e7eb;font-weight:700;width:150px;'>Time</td>
-                    <td style='padding:10px 0;border-top:1px solid #e5e7eb;'>{{loginAt}}</td>
+                    <td
+                      style='padding:10px 0;border-top:1px solid #e5e7eb;font-weight:700;width:150px;'
+                    >Time</td>
+                    <td
+                      style='padding:10px 0;border-top:1px solid #e5e7eb;'
+                    >{{loginAt}}</td>
                   </tr>
                   <tr>
-                    <td style='padding:10px 0;border-top:1px solid #e5e7eb;font-weight:700;'>IP address</td>
-                    <td style='padding:10px 0;border-top:1px solid #e5e7eb;'>{{ipAddress}}</td>
+                    <td
+                      style='padding:10px 0;border-top:1px solid #e5e7eb;font-weight:700;'
+                    >IP address</td>
+                    <td
+                      style='padding:10px 0;border-top:1px solid #e5e7eb;'
+                    >{{ipAddress}}</td>
                   </tr>
                   <tr>
-                    <td style='padding:10px 0;border-top:1px solid #e5e7eb;font-weight:700;'>Device</td>
-                    <td style='padding:10px 0;border-top:1px solid #e5e7eb;'>{{userAgent}}</td>
+                    <td
+                      style='padding:10px 0;border-top:1px solid #e5e7eb;font-weight:700;'
+                    >Device</td>
+                    <td
+                      style='padding:10px 0;border-top:1px solid #e5e7eb;'
+                    >{{userAgent}}</td>
                   </tr>
                   <tr>
-                    <td style='padding:10px 0;border-top:1px solid #e5e7eb;font-weight:700;'>Reason</td>
-                    <td style='padding:10px 0;border-top:1px solid #e5e7eb;'>{{#each reasons}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</td>
+                    <td
+                      style='padding:10px 0;border-top:1px solid #e5e7eb;font-weight:700;'
+                    >Reason</td>
+                    <td
+                      style='padding:10px 0;border-top:1px solid #e5e7eb;'
+                    >{{#each reasons}}{{this}}{{#unless @last}},
+                        {{/unless}}{{/each}}</td>
                   </tr>
                 </table>
-                <p style='margin:20px 0 0;font-size:14px;line-height:22px;color:#6b7280;'>If this was you, no action is needed. If you do not recognize this activity, revoke the session from Security settings and update your password.</p>
+                <p
+                  style='margin:20px 0 0;font-size:14px;line-height:22px;color:#6b7280;'
+                >If this was you, no action is needed. If you do not recognize
+                  this activity, revoke the session from Security settings and
+                  update your password.</p>
               </td>
             </tr>
             <tr>
-              <td style='padding:18px 32px;background:#f8fafc;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;line-height:20px;'>Sent by Crodic Portal. Please do not reply to this automated message.</td>
+              <td
+                style='padding:18px 32px;background:#f8fafc;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;line-height:20px;'
+              >Sent by Crodic Portal. Please do not reply to this automated
+                message.</td>
             </tr>
           </table>
         </td>

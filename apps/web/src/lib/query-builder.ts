@@ -1,4 +1,3 @@
- 
 type SortDirection = 'ASC' | 'DESC'
 
 interface FilterCondition {

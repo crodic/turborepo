@@ -169,7 +169,6 @@ export const useFileUpload = (
   }, [onFilesChange]);
 
   const addFiles = useCallback(
-     
     (newFiles: FileList | File[]) => {
       if (!newFiles || newFiles.length === 0) return;
 

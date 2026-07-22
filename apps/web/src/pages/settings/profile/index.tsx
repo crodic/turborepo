@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { apiGetMe } from '@/pages/auth/queries'
 import { NotFoundError } from '@/pages/errors/not-found-error'
 import { ContentSection } from '../components/content-section'
+import { ActivityHeatmap } from './activity-heatmap'
 import { ProfileForm } from './profile-form'
 
 export function SettingsProfile() {
@@ -32,7 +33,10 @@ export function SettingsProfile() {
       title={t('settings.profile.title')}
       desc={t('settings.profile.description')}
     >
-      <ProfileForm user={currentUser} />
+      <div className='space-y-8'>
+        <ProfileForm user={currentUser} />
+        <ActivityHeatmap />
+      </div>
     </ContentSection>
   )
 }

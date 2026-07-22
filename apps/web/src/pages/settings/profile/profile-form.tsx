@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -86,9 +85,7 @@ export function ProfileForm({ user }: { user: AdminSchema }) {
                   value={field.value ?? ''}
                 />
               </FormControl>
-              <FormDescription>
-                {t('settings.profile.messageBioDescription')}
-              </FormDescription>
+
               <FormMessage />
             </FormItem>
           )}

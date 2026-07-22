@@ -122,6 +122,11 @@ export const sidebarLink: SidebarData = {
           url: '/dev/form-examples',
           icon: FlaskConicalIcon,
         },
+        {
+          title: 'navigation.dev.uiPreview',
+          url: '/dev/ui-preview',
+          icon: LayoutDashboard,
+        },
       ],
     },
   ],

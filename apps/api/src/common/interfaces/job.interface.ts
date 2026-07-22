@@ -13,7 +13,9 @@ export interface IForgotPasswordEmailJob extends IEmailJob {
 }
 
 export type AdminSuspiciousLoginReason =
-  'new_ip_address' | 'new_device' | 'failed_login_attempts';
+  | 'new_ip_address'
+  | 'new_device'
+  | 'failed_login_attempts';
 
 export interface IAdminSuspiciousLoginEmailJob extends IEmailJob {
   loginAt: string;
