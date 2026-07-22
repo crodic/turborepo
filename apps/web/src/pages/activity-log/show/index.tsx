@@ -64,7 +64,11 @@ export default function PageActivityLogShow() {
                 />
                 <DescriptionItem
                   label={t('activityLogs.show.actor')}
-                  value={data.userId || '-'}
+                  value={
+                    data.metadata?.actorName || data.metadata?.actorEmail
+                      ? `${data.metadata.actorName || ''} ${data.metadata.actorEmail ? `(${data.metadata.actorEmail})` : ''} - ID: ${data.userId}`
+                      : data.userId || '-'
+                  }
                 />
                 <DescriptionItem
                   label={t('activityLogs.show.actorInformation')}
@@ -83,7 +87,11 @@ export default function PageActivityLogShow() {
                 />
                 <DescriptionItem
                   label={t('activityLogs.show.entity')}
-                  value={data.entity}
+                  value={
+                    data.metadata?.entityName
+                      ? `${data.entity} (ID: ${data.entityId}) - ${data.metadata.entityName}`
+                      : `${data.entity} (ID: ${data.entityId})`
+                  }
                 />
                 <DescriptionItem
                   label={t('activityLogs.show.timestamp')}

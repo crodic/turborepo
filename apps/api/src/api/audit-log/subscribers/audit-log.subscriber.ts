@@ -91,30 +91,45 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
     const userType = cls.get('userType') || 'GuestEntity';
     const impersonation = cls.get('impersonation');
 
-    const log = auditRepo.create({
-      entity: event.metadata.name,
-      entityId,
-      action,
-      oldValue,
-      newValue,
-      userId: userId ?? null,
-      ip: cls.get('ip'),
-      userAgent: cls.get('userAgent'),
-      requestId: cls.get('requestId'),
-      timestamp: new Date(),
-      metadata: {
-        actorId: userId ?? null,
-        roles: currentUser?.roles?.map((role) => role.name) ?? [],
-        userType,
-        impersonation: impersonation ?? null,
-      },
-      description: this.buildDescription(
+    if (userType === 'AdminUserEntity') {
+      const log = auditRepo.create({
+        entity: event.metadata.name,
+        entityId,
         action,
-        `${event.metadata.name}:${entityId}`,
-      ),
-    });
+        oldValue,
+        newValue,
+        userId: userId ?? null,
+        ip: cls.get('ip'),
+        userAgent: cls.get('userAgent'),
+        requestId: cls.get('requestId'),
+        timestamp: new Date(),
+        metadata: {
+          actorId: userId ?? null,
+          actorEmail: currentUser?.email ?? null,
+          actorName:
+            currentUser?.fullName ??
+            currentUser?.name ??
+            currentUser?.firstName ??
+            null,
+          entityName:
+            event.entity?.name ??
+            event.entity?.title ??
+            event.entity?.email ??
+            event.entity?.username ??
+            null,
+          roles: currentUser?.roles?.map((role: any) => role.name) ?? [],
+          userType,
+          impersonation: impersonation ?? null,
+        },
+        description: this.buildDescription(
+          action,
+          `${event.metadata.name}:${entityId}`,
+        ),
+      });
 
-    setImmediate(() => auditRepo.save(log));
+      setImmediate(() => auditRepo.save(log));
+    }
+
     await this.saveImpersonateLog(action, event, cls);
   }
 

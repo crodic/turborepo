@@ -52,7 +52,11 @@ export function getActivitiesTableColumns({
         />
       ),
       cell: ({ row }) => (
-        <p className='truncate overflow-hidden'>{row.original.entity}</p>
+        <p className='truncate overflow-hidden'>
+          {row.original.metadata?.entityName
+            ? `${row.original.entity} - ${row.original.metadata.entityName}`
+            : row.original.entity}
+        </p>
       ),
       meta: {
         variant: 'text',
@@ -92,16 +96,32 @@ export function getActivitiesTableColumns({
           label={i18n.t('activityLogs.table.actor')}
         />
       ),
-      cell: ({ row }) => (
-        <p className='truncate overflow-hidden'>
-          <span>
-            {`Type: ${row.original.metadata?.userType ?? 'Guest'}`}
-            {row.original.metadata?.actorId != null
-              ? ` | Actor ID: ${row.original.metadata.actorId}`
-              : ''}
-          </span>
-        </p>
-      ),
+      cell: ({ row }) => {
+        const metadata = row.original.metadata
+        if (metadata?.actorName || metadata?.actorEmail) {
+          return (
+            <div className='flex flex-col'>
+              <span className='truncate font-medium'>
+                {metadata.actorName || ''}{' '}
+                {metadata.actorEmail ? `(${metadata.actorEmail})` : ''}
+              </span>
+              <span className='text-muted-foreground text-xs'>
+                ID: {row.original.userId || metadata?.actorId}
+              </span>
+            </div>
+          )
+        }
+        return (
+          <p className='truncate overflow-hidden'>
+            <span>
+              {`Type: ${metadata?.userType ?? 'Guest'}`}
+              {metadata?.actorId != null
+                ? ` | Actor ID: ${metadata.actorId}`
+                : ''}
+            </span>
+          </p>
+        )
+      },
       meta: {
         variant: 'text',
         placeholder: i18n.t('activityLogs.table.actor'),
