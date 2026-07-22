@@ -41,19 +41,9 @@ export class CmsPageAdminController {
     summary: 'Get paginated list of CMS pages',
     isPaginated: true,
     paginateOptions: {
-      sortableColumns: [
-        'id',
-        'title',
-        'slug',
-        'status',
-        'createdAt',
-        'updatedAt',
-      ],
+      sortableColumns: ['id', 'status', 'createdAt', 'updatedAt'],
       defaultSortBy: [['id', 'DESC']],
       filterableColumns: {
-        title: [FilterOperator.ILIKE],
-        slug: [FilterOperator.ILIKE],
-        locale: [FilterOperator.EQ],
         status: [FilterOperator.EQ],
       },
     },

@@ -4,12 +4,10 @@ export const cmsPageStatusSchema = z.enum(['draft', 'published'])
 
 export const DEFAULT_PAGE_CONTENT = '<p>Start editing this page content...</p>'
 
-export const cmsPageSchema = z.object({
-  id: z.string(),
+export const cmsPageTranslationSchema = z.object({
+  locale: z.string(),
   title: z.string(),
   slug: z.string(),
-  locale: z.string(),
-  status: cmsPageStatusSchema,
   content: z.string(),
   seoTitle: z.string().nullish(),
   seoDescription: z.string().nullish(),
@@ -19,14 +17,26 @@ export const cmsPageSchema = z.object({
   ogImage: z.string().nullish(),
   canonicalUrl: z.string().nullish(),
   robots: z.string().nullish(),
+})
+
+export const cmsPageSchema = z.object({
+  id: z.string(),
+  status: cmsPageStatusSchema,
+  translations: z.array(cmsPageTranslationSchema),
   publishedAt: z.string().nullish(),
   createdAt: z.string(),
   updatedAt: z.string(),
 })
 
+export type CmsPageTranslationSchema = z.infer<typeof cmsPageTranslationSchema>
 export type CmsPageSchema = z.infer<typeof cmsPageSchema>
 
-export const cmsPageFormSchema = z.object({
+export const cmsPageTranslationFormSchema = z.object({
+  locale: z
+    .string()
+    .trim()
+    .min(1, 'Locale is required')
+    .max(10, 'Locale must be at most 10 characters'),
   title: z
     .string()
     .trim()
@@ -37,12 +47,6 @@ export const cmsPageFormSchema = z.object({
     .trim()
     .max(255, 'Slug must be at most 255 characters')
     .optional(),
-  locale: z
-    .string()
-    .trim()
-    .min(1, 'Locale is required')
-    .max(10, 'Locale must be at most 10 characters'),
-  status: cmsPageStatusSchema,
   content: z.string().min(1, 'Content is required'),
   seoTitle: z
     .string()
@@ -86,12 +90,19 @@ export const cmsPageFormSchema = z.object({
     .optional(),
 })
 
+export const cmsPageFormSchema = z.object({
+  status: cmsPageStatusSchema,
+  translations: z.array(cmsPageTranslationFormSchema),
+})
+
+export type CmsPageTranslationFormSchema = z.infer<
+  typeof cmsPageTranslationFormSchema
+>
 export type CmsPageFormSchema = z.infer<typeof cmsPageFormSchema>
 
 export const ColumnKey = {
-  title: 'title',
-  slug: 'slug',
-  locale: 'locale',
+  title: 'translations.title',
+  slug: 'translations.slug',
   status: 'status',
   updatedAt: 'updatedAt',
 }

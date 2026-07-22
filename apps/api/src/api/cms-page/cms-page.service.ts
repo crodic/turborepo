@@ -16,6 +16,7 @@ import { IsNull, Not, Repository } from 'typeorm';
 import { CmsPageResDto } from './dto/cms-page.res.dto';
 import { CreateCmsPageReqDto } from './dto/create-cms-page.req.dto';
 import { UpdateCmsPageReqDto } from './dto/update-cms-page.req.dto';
+import { CmsPageTranslationEntity } from './entities/cms-page-translation.entity';
 import { CmsPageEntity, ECmsPageStatus } from './entities/cms-page.entity';
 
 @Injectable()
@@ -23,27 +24,26 @@ export class CmsPageService {
   constructor(
     @InjectRepository(CmsPageEntity)
     private readonly cmsPageRepository: Repository<CmsPageEntity>,
+    @InjectRepository(CmsPageTranslationEntity)
+    private readonly translationRepository: Repository<CmsPageTranslationEntity>,
   ) {}
 
   async findAll(query: PaginateQuery): Promise<Paginated<CmsPageResDto>> {
     const queryBuilder = this.cmsPageRepository.createQueryBuilder('cmsPage');
 
     const result = await paginate(query, queryBuilder, {
-      sortableColumns: [
-        'id',
-        'title',
-        'slug',
-        'status',
-        'createdAt',
-        'updatedAt',
+      sortableColumns: ['id', 'status', 'createdAt', 'updatedAt'],
+      searchableColumns: [
+        'translations.title',
+        'translations.slug',
+        'translations.seoTitle',
+        'translations.seoDescription',
       ],
-      searchableColumns: ['title', 'slug', 'seoTitle', 'seoDescription'],
       defaultSortBy: [['id', 'DESC']],
       filterableColumns: {
-        title: [FilterOperator.ILIKE],
-        slug: [FilterOperator.ILIKE],
         status: [FilterOperator.EQ],
       },
+      relations: ['translations'],
     });
 
     return {
@@ -70,10 +70,12 @@ export class CmsPageService {
   ): Promise<CmsPageResDto> {
     const page = await this.cmsPageRepository.findOne({
       where: {
-        slug: normalizeSlug(slug),
-        locale,
         status: ECmsPageStatus.PUBLISHED,
         deletedAt: IsNull(),
+        translations: {
+          slug: normalizeSlug(slug),
+          locale,
+        },
       },
     });
 
@@ -89,19 +91,19 @@ export class CmsPageService {
     adminId: AutoIncrementID,
   ): Promise<CmsPageResDto> {
     const status = dto.status ?? ECmsPageStatus.DRAFT;
-    const slug = normalizeSlug(dto.slug || dto.title);
-    const locale = dto.locale;
+    const translations = dto.translations || [];
 
-    await this.assertSlugAvailable(slug, locale);
+    for (const t of translations) {
+      t.slug = normalizeSlug(t.slug || t.title);
+      await this.assertSlugAvailable(t.slug);
+    }
 
     const page = this.cmsPageRepository.create({
-      ...dto,
-      slug,
-      locale,
       status,
       createdBy: adminId,
       updatedBy: adminId,
       publishedAt: status === ECmsPageStatus.PUBLISHED ? new Date() : undefined,
+      translations,
     });
 
     return this.toDto(await this.cmsPageRepository.save(page));
@@ -120,18 +122,11 @@ export class CmsPageService {
       throw new NotFoundException('Page not found');
     }
 
-    const nextSlug = dto.slug ? normalizeSlug(dto.slug) : page.slug;
-    const nextLocale = dto.locale ?? page.locale;
-    await this.assertSlugAvailable(nextSlug, nextLocale, id);
-
     const nextStatus = dto.status ?? page.status;
     const shouldSetPublishedAt =
       nextStatus === ECmsPageStatus.PUBLISHED && !page.publishedAt;
 
     Object.assign(page, {
-      ...dto,
-      slug: nextSlug,
-      locale: nextLocale,
       status: nextStatus,
       updatedBy: adminId,
       publishedAt: shouldSetPublishedAt ? new Date() : page.publishedAt,
@@ -139,6 +134,20 @@ export class CmsPageService {
 
     if (nextStatus === ECmsPageStatus.DRAFT) {
       page.publishedAt = null;
+    }
+
+    if (dto.translations) {
+      // Check slugs
+      for (const t of dto.translations) {
+        t.slug = normalizeSlug(t.slug || t.title);
+        await this.assertSlugAvailable(t.slug, id);
+      }
+
+      // We overwrite translations for simplicity (delete old, insert new)
+      await this.translationRepository.delete({ pageId: id });
+      page.translations = dto.translations.map((t) =>
+        this.translationRepository.create({ ...t }),
+      );
     }
 
     return this.toDto(await this.cmsPageRepository.save(page));
@@ -157,18 +166,12 @@ export class CmsPageService {
     return { message: 'Page deleted successfully' };
   }
 
-  private async assertSlugAvailable(
-    slug: string,
-    locale: string,
-    currentId?: AutoIncrementID,
-  ) {
-    const where = currentId
-      ? { slug, locale, id: Not(currentId), deletedAt: IsNull() }
-      : { slug, locale, deletedAt: IsNull() };
-    const exists = await this.cmsPageRepository.exists({ where });
+  private async assertSlugAvailable(slug: string, currentId?: AutoIncrementID) {
+    const where = currentId ? { slug, pageId: Not(currentId) } : { slug };
+    const exists = await this.translationRepository.exists({ where });
 
     if (exists) {
-      throw new BadRequestException('A page with this slug already exists');
+      throw new BadRequestException(`A page with slug ${slug} already exists`);
     }
   }
 

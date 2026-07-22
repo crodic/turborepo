@@ -55,37 +55,12 @@ export function PageCmsPageOverview() {
 
   const { data, isFetching } = useDataCmsPageOverview(builder.build())
   const columns = useMemo(() => getCmsPagesTableColumns(), [])
-  const groupedData = useMemo(() => {
-    if (!data?.data) return []
-    const groupMap = new Map<
-      string,
-      CmsPageSchema & { subRows?: CmsPageSchema[] }
-    >()
-
-    data.data.forEach((page) => {
-      if (groupMap.has(page.slug)) {
-        groupMap
-          .get(page.slug)!
-          .subRows!.push({ ...page, id: `sub-${page.id}` })
-      } else {
-        groupMap.set(page.slug, {
-          ...page,
-          id: `group-${page.slug}`,
-          subRows: [{ ...page, id: `sub-${page.id}` }],
-        })
-      }
-    })
-
-    return Array.from(groupMap.values())
-  }, [data])
 
   const { table } = useDataTable({
-    data: groupedData,
+    data: data?.data ?? [],
     columns,
     pageCount: data?.meta.totalPages ?? 0,
     getRowId: (row) => row.id,
-    getSubRows: (row) =>
-      (row as CmsPageSchema & { subRows?: CmsPageSchema[] }).subRows,
   })
 
   useEffect(() => {
@@ -94,7 +69,7 @@ export function PageCmsPageOverview() {
       table.getRowModel().rows.map((r) => ({
         id: r.id,
         depth: r.depth,
-        title: r.original.title,
+        title: r.original.translations?.[0]?.title,
       }))
     )
   }, [table.getRowModel().rows])

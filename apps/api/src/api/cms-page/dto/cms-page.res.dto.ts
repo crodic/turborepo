@@ -3,68 +3,25 @@ import {
   DateFieldOptional,
   EnumField,
   StringField,
-  StringFieldOptional,
 } from '@/decorators/field.decorators';
 import { Exclude, Expose } from 'class-transformer';
 import { ECmsPageStatus } from '../entities/cms-page.entity';
+import { CmsPageTranslationResDto } from './cms-page-translation.res.dto';
 
 @Exclude()
 export class CmsPageResDto {
   @StringField()
+  @StringField()
   @Expose()
   id: string;
-
-  @StringField()
-  @Expose()
-  title: string;
-
-  @StringField()
-  @Expose()
-  slug: string;
-
-  @StringField()
-  @Expose()
-  locale: string;
 
   @EnumField(() => ECmsPageStatus)
   @Expose()
   status: ECmsPageStatus;
 
-  @StringField()
+  @ClassField(() => CmsPageTranslationResDto, { isArray: true })
   @Expose()
-  content: string;
-
-  @StringFieldOptional()
-  @Expose()
-  seoTitle?: string;
-
-  @StringFieldOptional()
-  @Expose()
-  seoDescription?: string;
-
-  @StringFieldOptional()
-  @Expose()
-  seoKeywords?: string;
-
-  @StringFieldOptional()
-  @Expose()
-  ogTitle?: string;
-
-  @StringFieldOptional()
-  @Expose()
-  ogDescription?: string;
-
-  @StringFieldOptional()
-  @Expose()
-  ogImage?: string;
-
-  @StringFieldOptional()
-  @Expose()
-  canonicalUrl?: string;
-
-  @StringFieldOptional()
-  @Expose()
-  robots?: string;
+  translations: CmsPageTranslationResDto[];
 
   @DateFieldOptional()
   @Expose()

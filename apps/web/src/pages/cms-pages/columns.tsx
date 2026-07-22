@@ -9,20 +9,23 @@ export function getCmsPagesTableColumns(): ColumnDef<CmsPageSchema>[] {
   return [
     {
       id: ColumnKey.title,
-      accessorFn: (row) => row.title,
+      accessorFn: (row) => row.translations?.[0]?.title ?? 'Untitled',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label='Title' />
       ),
-      cell: ({ row }) => (
-        <DataTableExpandingCell row={row}>
-          <div>
-            <p className='font-medium'>{row.original.title}</p>
-            <p className='text-muted-foreground text-xs'>
-              /{row.original.slug}
-            </p>
-          </div>
-        </DataTableExpandingCell>
-      ),
+      cell: ({ row }) => {
+        const title = row.original.translations?.[0]?.title ?? 'Untitled'
+        const slug = row.original.translations?.[0]?.slug ?? ''
+
+        return (
+          <DataTableExpandingCell row={row}>
+            <div>
+              <p className='font-medium'>{title}</p>
+              <p className='text-muted-foreground text-xs'>/{slug}</p>
+            </div>
+          </DataTableExpandingCell>
+        )
+      },
       enableColumnFilter: true,
     },
     {
@@ -41,18 +44,13 @@ export function getCmsPagesTableColumns(): ColumnDef<CmsPageSchema>[] {
       enableColumnFilter: true,
     },
     {
-      id: ColumnKey.locale,
-      accessorFn: (row) => row.locale,
+      id: 'locales',
+      accessorFn: (row) => row.translations?.map((t) => t.locale).join(', '),
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label='Locale' />
+        <DataTableColumnHeader column={column} label='Locales' />
       ),
       cell: ({ row }) => {
-        const hasSubRows = row.subRows && row.subRows.length > 0
-        const locales = hasSubRows
-          ? row.subRows.map((subRow) => subRow.original.locale)
-          : [row.original.locale]
-
-        // Ensure unique locales just in case
+        const locales = row.original.translations?.map((t) => t.locale) || []
         const uniqueLocales = Array.from(new Set(locales))
 
         return (
@@ -65,7 +63,6 @@ export function getCmsPagesTableColumns(): ColumnDef<CmsPageSchema>[] {
           </div>
         )
       },
-      enableColumnFilter: true,
     },
     {
       id: ColumnKey.updatedAt,
@@ -74,7 +71,7 @@ export function getCmsPagesTableColumns(): ColumnDef<CmsPageSchema>[] {
         <DataTableColumnHeader column={column} label='Updated At' />
       ),
       cell: ({ row }) => (
-        <p>{format(row.original.updatedAt, 'dd/MM/yyyy HH:mm aa')}</p>
+        <p>{format(new Date(row.original.updatedAt), 'dd/MM/yyyy HH:mm aa')}</p>
       ),
     },
   ]

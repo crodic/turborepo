@@ -5,12 +5,13 @@ import {
   Column,
   DeleteDateColumn,
   Entity,
-  Index,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   Relation,
 } from 'typeorm';
+import { CmsPageTranslationEntity } from './cms-page-translation.entity';
 
 export enum ECmsPageStatus {
   DRAFT = 'draft',
@@ -18,10 +19,6 @@ export enum ECmsPageStatus {
 }
 
 @Entity('cms_pages')
-@Index('UQ_cms_pages_slug_locale', ['slug', 'locale'], {
-  unique: true,
-  where: '"deleted_at" IS NULL',
-})
 export class CmsPageEntity extends AbstractEntity {
   constructor(data?: Partial<CmsPageEntity>) {
     super();
@@ -34,15 +31,6 @@ export class CmsPageEntity extends AbstractEntity {
   })
   id!: AutoIncrementID;
 
-  @Column()
-  title: string;
-
-  @Column()
-  slug: string;
-
-  @Column()
-  locale: string;
-
   @Column({
     type: 'enum',
     enum: ECmsPageStatus,
@@ -50,32 +38,15 @@ export class CmsPageEntity extends AbstractEntity {
   })
   status: ECmsPageStatus;
 
-  @Column({ type: 'text' })
-  content: string;
-
-  @Column({ name: 'seo_title', nullable: true })
-  seoTitle?: string;
-
-  @Column({ name: 'seo_description', type: 'text', nullable: true })
-  seoDescription?: string;
-
-  @Column({ name: 'seo_keywords', nullable: true })
-  seoKeywords?: string;
-
-  @Column({ name: 'og_title', nullable: true })
-  ogTitle?: string;
-
-  @Column({ name: 'og_description', type: 'text', nullable: true })
-  ogDescription?: string;
-
-  @Column({ name: 'og_image', nullable: true })
-  ogImage?: string;
-
-  @Column({ name: 'canonical_url', nullable: true })
-  canonicalUrl?: string;
-
-  @Column({ name: 'robots', nullable: true })
-  robots?: string;
+  @OneToMany(
+    () => CmsPageTranslationEntity,
+    (translation) => translation.page,
+    {
+      cascade: true,
+      eager: true,
+    },
+  )
+  translations: Relation<CmsPageTranslationEntity[]>;
 
   @Column({ name: 'published_at', type: 'timestamptz', nullable: true })
   publishedAt?: Date | null;

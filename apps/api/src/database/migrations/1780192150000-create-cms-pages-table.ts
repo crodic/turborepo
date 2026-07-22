@@ -11,19 +11,7 @@ export class CreateCmsPagesTable1780192150000 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TABLE "cms_pages" (
         "id" BIGSERIAL NOT NULL,
-        "title" character varying NOT NULL,
-        "slug" character varying NOT NULL,
-        "locale" character varying NOT NULL,
         "status" "public"."cms_pages_status_enum" NOT NULL DEFAULT 'draft',
-        "content" text NOT NULL,
-        "seo_title" character varying,
-        "seo_description" text,
-        "seo_keywords" character varying,
-        "og_title" character varying,
-        "og_description" text,
-        "og_image" character varying,
-        "canonical_url" character varying,
-        "robots" character varying,
         "published_at" TIMESTAMP WITH TIME ZONE,
         "created_by" bigint,
         "updated_by" bigint,
@@ -37,23 +25,59 @@ export class CreateCmsPagesTable1780192150000 implements MigrationInterface {
     `);
 
     await queryRunner.query(`
-      CREATE UNIQUE INDEX "UQ_cms_pages_slug_locale"
-      ON "cms_pages" ("slug", "locale")
+      CREATE INDEX "IDX_cms_pages_status"
+      ON "cms_pages" ("status")
+    `);
+
+    await queryRunner.query(`
+      CREATE TABLE "cms_page_translations" (
+        "id" BIGSERIAL NOT NULL,
+        "page_id" bigint NOT NULL,
+        "locale" character varying NOT NULL,
+        "slug" character varying NOT NULL,
+        "title" character varying NOT NULL,
+        "content" text NOT NULL,
+        "seo_title" character varying,
+        "seo_description" text,
+        "seo_keywords" character varying,
+        "og_title" character varying,
+        "og_description" text,
+        "og_image" character varying,
+        "canonical_url" character varying,
+        "robots" character varying,
+        "deleted_at" TIMESTAMP WITH TIME ZONE,
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_cms_page_translation_id" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_cms_page_translations_page_id" FOREIGN KEY ("page_id") REFERENCES "cms_pages"("id") ON DELETE CASCADE
+      )
+    `);
+
+    await queryRunner.query(`
+      CREATE UNIQUE INDEX "UQ_cms_page_translations_page_locale"
+      ON "cms_page_translations" ("page_id", "locale")
       WHERE "deleted_at" IS NULL
     `);
 
     await queryRunner.query(`
-      CREATE INDEX "IDX_cms_pages_status"
-      ON "cms_pages" ("status")
+      CREATE UNIQUE INDEX "UQ_cms_page_translations_slug"
+      ON "cms_page_translations" ("slug")
+      WHERE "deleted_at" IS NULL
     `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      DROP INDEX "public"."IDX_cms_pages_status"
+      DROP INDEX "public"."UQ_cms_page_translations_slug"
     `);
     await queryRunner.query(`
-      DROP INDEX "public"."UQ_cms_pages_slug_locale"
+      DROP INDEX "public"."UQ_cms_page_translations_page_locale"
+    `);
+    await queryRunner.query(`
+      DROP TABLE "cms_page_translations"
+    `);
+    await queryRunner.query(`
+      DROP INDEX "public"."IDX_cms_pages_status"
     `);
     await queryRunner.query(`
       DROP TABLE "cms_pages"

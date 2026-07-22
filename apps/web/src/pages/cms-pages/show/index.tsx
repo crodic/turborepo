@@ -11,6 +11,13 @@ import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { DeleteAlertDialog } from '@/components/common/delete-alert-dialog'
 import { DescriptionItem } from '@/components/common/descriptions'
 import { ConfigDrawer } from '@/components/config-drawer'
@@ -28,6 +35,8 @@ export function PageCmsPageShow() {
   const queryClient = useQueryClient()
   const { id } = useParams()
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [currentLocale, setCurrentLocale] = useState<string | null>(null)
+
   const { data, isFetching } = useDataCmsPageById(id ?? '')
   const deleteMutation = useMutation({
     mutationFn: apiDeleteCmsPage,
@@ -41,6 +50,11 @@ export function PageCmsPageShow() {
 
   if (isFetching) return <DataLoader />
   if (!id || !data) return <NotFoundError />
+
+  const activeLocale = currentLocale || data.translations?.[0]?.locale
+  const translation =
+    data.translations?.find((t) => t.locale === activeLocale) ||
+    data.translations?.[0]
 
   return (
     <>
@@ -61,26 +75,41 @@ export function PageCmsPageShow() {
       <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
         <div className='flex flex-wrap items-end justify-between gap-2'>
           <div>
-            <h2 className='text-2xl font-bold tracking-tight'>{data.title}</h2>
-            <p className='text-muted-foreground'>
-              /{data.slug} ({data.locale})
-            </p>
+            <h2 className='text-2xl font-bold tracking-tight'>
+              {translation?.title ?? 'Untitled'}
+            </h2>
+            <p className='text-muted-foreground'>/{translation?.slug}</p>
           </div>
           <div className='flex flex-wrap gap-2'>
+            <Select value={activeLocale} onValueChange={setCurrentLocale}>
+              <SelectTrigger className='bg-background w-[140px]'>
+                <SelectValue placeholder='Language' />
+              </SelectTrigger>
+              <SelectContent>
+                {data.translations?.map((t) => (
+                  <SelectItem key={t.locale} value={t.locale}>
+                    {t.locale.toUpperCase()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Button variant='outline' onClick={() => navigate(-1)}>
               <ArrowLeftIcon className='h-4 w-4' />
               Back
             </Button>
-            <Button variant='outline' asChild>
-              <a
-                href={`${import.meta.env.VITE_CLIENT_URL || 'http://localhost:3000'}/pages/${data.slug}`}
-                target='_blank'
-                rel='noreferrer'
-              >
-                <ExternalLinkIcon className='h-4 w-4' />
-                Open
-              </a>
-            </Button>
+            {translation?.slug && (
+              <Button variant='outline' asChild>
+                <a
+                  href={`${import.meta.env.VITE_CLIENT_URL || 'http://localhost:3000'}/pages/${translation.slug}`}
+                  target='_blank'
+                  rel='noreferrer'
+                >
+                  <ExternalLinkIcon className='h-4 w-4' />
+                  Open
+                </a>
+              </Button>
+            )}
             <Button onClick={() => navigate(`/cms-pages/${data.id}/edit`)}>
               <EditIcon className='h-4 w-4' />
               Edit
@@ -101,24 +130,34 @@ export function PageCmsPageShow() {
               <div className='flex flex-col gap-2'>
                 <DescriptionItem label='Status' value={data.status} />
                 <DescriptionItem
+                  label='Current Locale'
+                  value={translation?.locale || '-'}
+                />
+                <DescriptionItem
                   label='Published At'
                   value={
                     data.publishedAt
-                      ? format(data.publishedAt, 'dd/MM/yyyy HH:mm aa')
+                      ? format(
+                          new Date(data.publishedAt),
+                          'dd/MM/yyyy HH:mm aa'
+                        )
                       : 'Not published'
                   }
                 />
                 <DescriptionItem
                   label='SEO Title'
-                  value={data.seoTitle || '-'}
+                  value={translation?.seoTitle || '-'}
                 />
                 <DescriptionItem
                   label='SEO Description'
-                  value={data.seoDescription || '-'}
+                  value={translation?.seoDescription || '-'}
                 />
                 <DescriptionItem
                   label='Updated At'
-                  value={format(data.updatedAt, 'dd/MM/yyyy HH:mm aa')}
+                  value={format(
+                    new Date(data.updatedAt),
+                    'dd/MM/yyyy HH:mm aa'
+                  )}
                 />
               </div>
             </CardContent>
@@ -131,7 +170,9 @@ export function PageCmsPageShow() {
               <div className='overflow-auto rounded-md border bg-white p-4 dark:bg-black'>
                 <div
                   className='prose dark:prose-invert max-w-none'
-                  dangerouslySetInnerHTML={{ __html: data.content }}
+                  dangerouslySetInnerHTML={{
+                    __html: translation?.content || '',
+                  }}
                 />
               </div>
             </CardContent>
