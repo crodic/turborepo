@@ -1,5 +1,6 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import { ArrowLeftIcon, SaveIcon } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -16,6 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import TiptapEditor from '@/components/editor/tiptap-editor'
+import { ImagePickerInput } from '@/components/forms/image-picker-input'
 import {
   cmsPageFormSchema,
   DEFAULT_PAGE_CONTENT,
@@ -41,6 +43,7 @@ export function CmsPageForm({
   isSubmitting,
   onSubmit,
 }: CmsPageFormProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [title, setTitle] = useState(initialData?.title ?? '')
   const [slug, setSlug] = useState(initialData?.slug ?? '')
@@ -111,7 +114,7 @@ export function CmsPageForm({
         }
       })
       setErrors(nextErrors)
-      toast.error('Please fix the highlighted fields before saving.')
+      toast.error(t('cmsPages.form.validationErrors'))
       return
     }
 
@@ -124,29 +127,31 @@ export function CmsPageForm({
       <div className='border-border flex h-14 shrink-0 items-center justify-between border-b px-4'>
         <div className='flex items-center gap-3'>
           <div className='truncate text-sm font-medium'>
-            {initialData ? 'Edit page' : 'Create page'}
+            {initialData
+              ? t('cmsPages.form.editTitle')
+              : t('cmsPages.form.createTitle')}
           </div>
           <div className='text-muted-foreground truncate text-xs'>
-            {slug || 'Draft page'}
+            {slug || t('cmsPages.form.draftPage')}
           </div>
         </div>
         <div className='flex items-center gap-2'>
           <Button variant='outline' type='button' onClick={() => navigate(-1)}>
             <ArrowLeftIcon className='mr-2 h-4 w-4' />
-            Cancel
+            {t('buttons.cancel')}
           </Button>
           <Button type='button' disabled={isSubmitting} onClick={handleSubmit}>
             <SaveIcon className='mr-2 h-4 w-4' />
-            Save
+            {t('buttons.save')}
           </Button>
         </div>
       </div>
 
-      <div className='flex min-h-0 flex-1 overflow-hidden'>
-        <div className='flex-1 overflow-y-auto p-6'>
+      <div className='flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden'>
+        <div className='flex-1 p-4 md:p-6 lg:overflow-y-auto'>
           <div className='mx-auto max-w-4xl space-y-4'>
             <div className='space-y-2'>
-              <RequiredLabel>Content</RequiredLabel>
+              <RequiredLabel>{t('cmsPages.form.content')}</RequiredLabel>
               <TiptapEditor
                 output='html'
                 content={content}
@@ -166,31 +171,33 @@ export function CmsPageForm({
           </div>
         </div>
 
-        <div className='border-border w-[320px] shrink-0 overflow-y-auto border-l bg-slate-50/50 dark:bg-slate-900/50'>
+        <div className='border-border w-full shrink-0 border-t bg-slate-50/50 lg:w-[320px] lg:overflow-y-auto lg:border-t-0 lg:border-l dark:bg-slate-900/50'>
           <Tabs defaultValue='page' className='flex flex-col'>
             <TabsList className='mx-4 mt-4 grid grid-cols-2'>
-              <TabsTrigger value='page'>Settings</TabsTrigger>
-              <TabsTrigger value='seo'>SEO</TabsTrigger>
+              <TabsTrigger value='page'>
+                {t('cmsPages.form.settings')}
+              </TabsTrigger>
+              <TabsTrigger value='seo'>{t('cmsPages.form.seo')}</TabsTrigger>
             </TabsList>
 
             <TabsContent value='page' className='p-4 pt-4'>
               <div className='space-y-4'>
                 <InputBlock
-                  label='Title'
+                  label={t('cmsPages.form.title')}
                   required
                   value={title}
                   onChange={setFieldValue('title', setTitle)}
                   error={errors.title}
                 />
                 <InputBlock
-                  label='Slug'
+                  label={t('cmsPages.form.slug')}
                   placeholder='about-us or docs/getting-started'
                   value={slug}
                   onChange={setFieldValue('slug', setSlug)}
                   error={errors.slug}
                 />
                 <div className='space-y-2'>
-                  <RequiredLabel>Locale</RequiredLabel>
+                  <RequiredLabel>{t('cmsPages.form.locale')}</RequiredLabel>
                   <Select
                     value={locale}
                     onValueChange={(v) => {
@@ -218,7 +225,7 @@ export function CmsPageForm({
                   <FieldErrorMessage message={errors.locale} />
                 </div>
                 <div className='space-y-2'>
-                  <RequiredLabel>Status</RequiredLabel>
+                  <RequiredLabel>{t('cmsPages.form.status')}</RequiredLabel>
                   <Select
                     value={status}
                     onValueChange={(v) =>
@@ -229,8 +236,12 @@ export function CmsPageForm({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value='draft'>Draft</SelectItem>
-                      <SelectItem value='published'>Published</SelectItem>
+                      <SelectItem value='draft'>
+                        {t('cmsPages.form.statusDraft')}
+                      </SelectItem>
+                      <SelectItem value='published'>
+                        {t('cmsPages.form.statusPublished')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -240,49 +251,49 @@ export function CmsPageForm({
             <TabsContent value='seo' className='p-4 pt-4'>
               <div className='space-y-4'>
                 <InputBlock
-                  label='SEO title'
+                  label={t('cmsPages.form.seoTitle')}
                   value={seoTitle}
                   onChange={setFieldValue('seoTitle', setSeoTitle)}
                   error={errors.seoTitle}
                 />
                 <TextBlock
-                  label='SEO description'
+                  label={t('cmsPages.form.seoDescription')}
                   value={seoDescription}
                   onChange={setFieldValue('seoDescription', setSeoDescription)}
                   error={errors.seoDescription}
                 />
                 <InputBlock
-                  label='SEO keywords'
+                  label={t('cmsPages.form.seoKeywords')}
                   value={seoKeywords}
                   onChange={setFieldValue('seoKeywords', setSeoKeywords)}
                   error={errors.seoKeywords}
                 />
                 <InputBlock
-                  label='OG title'
+                  label={t('cmsPages.form.ogTitle')}
                   value={ogTitle}
                   onChange={setFieldValue('ogTitle', setOgTitle)}
                   error={errors.ogTitle}
                 />
                 <TextBlock
-                  label='OG description'
+                  label={t('cmsPages.form.ogDescription')}
                   value={ogDescription}
                   onChange={setFieldValue('ogDescription', setOgDescription)}
                   error={errors.ogDescription}
                 />
-                <InputBlock
-                  label='OG image'
+                <ImagePickerInput
+                  label={t('cmsPages.form.ogImage')}
                   value={ogImage}
                   onChange={setFieldValue('ogImage', setOgImage)}
                   error={errors.ogImage}
                 />
                 <InputBlock
-                  label='Canonical URL'
+                  label={t('cmsPages.form.canonicalUrl')}
                   value={canonicalUrl}
                   onChange={setFieldValue('canonicalUrl', setCanonicalUrl)}
                   error={errors.canonicalUrl}
                 />
                 <InputBlock
-                  label='Robots'
+                  label={t('cmsPages.form.robots')}
                   value={robots}
                   onChange={setFieldValue('robots', setRobots)}
                   error={errors.robots}

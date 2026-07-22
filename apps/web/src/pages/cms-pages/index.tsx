@@ -1,6 +1,7 @@
 import { useMemo, useEffect } from 'react'
 import { PlusIcon } from 'lucide-react'
 import { parseAsString } from 'nuqs'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { PaginateQueryBuilder } from '@/lib/query-builder'
 import { sortParser } from '@/lib/utils'
@@ -27,6 +28,7 @@ const pageFilterParsers = {
 } as const
 
 export function PageCmsPageOverview() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const {
     page,
@@ -89,13 +91,11 @@ export function PageCmsPageOverview() {
   useEffect(() => {
     console.log(
       'TABLE ROWS:',
-      table
-        .getRowModel()
-        .rows.map((r) => ({
-          id: r.id,
-          depth: r.depth,
-          title: r.original.title,
-        }))
+      table.getRowModel().rows.map((r) => ({
+        id: r.id,
+        depth: r.depth,
+        title: r.original.title,
+      }))
     )
   }, [table.getRowModel().rows])
 
@@ -112,14 +112,16 @@ export function PageCmsPageOverview() {
       <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
         <div className='flex flex-wrap items-end justify-between gap-2'>
           <div>
-            <h2 className='text-2xl font-bold tracking-tight'>Pages</h2>
+            <h2 className='text-2xl font-bold tracking-tight'>
+              {t('cmsPages.overview.title')}
+            </h2>
             <p className='text-muted-foreground'>
-              Build and publish dynamic client pages with SEO metadata.
+              {t('cmsPages.overview.description')}
             </p>
           </div>
           <Button onClick={() => navigate('create')}>
             <PlusIcon />
-            Create
+            {t('buttons.create')}
           </Button>
         </div>
         <DataTable

@@ -20,6 +20,7 @@ import { OrderedList } from 'reactjs-tiptap-editor/orderedlist'
 import { Strike } from 'reactjs-tiptap-editor/strike'
 import { TextAlign } from 'reactjs-tiptap-editor/textalign'
 import { TextUnderline } from 'reactjs-tiptap-editor/textunderline'
+import http from '@/lib/http'
 import { baseExtensions } from './base-kit'
 
 export const extensions = [
@@ -43,12 +44,28 @@ export const extensions = [
   LineHeight,
   Link,
   Image.configure({
-    upload: (files: File) => {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve(URL.createObjectURL(files))
-        }, 500)
-      })
+    upload: async (files: File) => {
+      try {
+        const formData = new FormData()
+        formData.append('file', files)
+        formData.append('folder', 'cms')
+        formData.append('disk', 'public')
+
+        const res = await http.post<{ url: string }>(
+          '/api/v1/files/upload',
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        )
+
+        return res.data.url
+      } catch (err) {
+        console.error('Failed to upload image:', err)
+        return ''
+      }
     },
   }),
   Blockquote,
