@@ -9,6 +9,7 @@ import {
   IS_RUNTIME_THEME_ENABLED,
   PERSONAL_THEME_COLOR_STORAGE_KEY,
   setCachedRuntimeTheme,
+  clearRuntimeThemeStyles,
 } from '@/lib/runtime-theme/runtime-theme'
 import { themeColors } from '@/lib/theme-colors'
 
@@ -109,11 +110,13 @@ export function ThemeProvider({
           if (runtimeTheme?.styles && !shouldUsePersonalTheme) {
             applyRuntimeThemeStyles(runtimeTheme.styles, resolvedTheme)
           } else {
+            clearRuntimeThemeStyles()
             applyStaticTheme(resolvedTheme)
           }
         })
         .catch(() => undefined)
     } else {
+      clearRuntimeThemeStyles()
       setCachedRuntimeTheme(null)
     }
 

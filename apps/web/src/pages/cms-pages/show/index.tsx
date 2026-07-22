@@ -73,7 +73,7 @@ export function PageCmsPageShow() {
             </Button>
             <Button variant='outline' asChild>
               <a
-                href={`${import.meta.env.VITE_CLIENT_URL || 'http://localhost:3000'}/page/${data.slug}`}
+                href={`${import.meta.env.VITE_CLIENT_URL || 'http://localhost:3000'}/pages/${data.slug}`}
                 target='_blank'
                 rel='noreferrer'
               >
