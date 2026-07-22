@@ -46,7 +46,7 @@ export function ImagePickerInput({
         formData.append('disk', 'public')
 
         const res = await http.post<{ url: string }>(
-          '/api/v1/files/upload',
+          '/files/upload',
           formData,
           {
             headers: {
@@ -57,10 +57,15 @@ export function ImagePickerInput({
 
         if (res.data?.url) {
           onChange(res.data.url)
-          toast.success(t('imagePicker.uploadSuccess'))
+          toast.success(t('imagePicker.uploadSuccess'), {
+            description: t('imagePicker.storedInLibrary', {
+              defaultValue: 'File safely stored in your Media Library',
+            }),
+          })
         }
       } catch (err) {
         toast.error(t('imagePicker.uploadFailed'))
+        // eslint-disable-next-line no-console
         console.error(err)
       } finally {
         setIsUploading(false)

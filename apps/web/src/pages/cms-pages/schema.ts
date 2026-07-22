@@ -40,14 +40,14 @@ export const cmsPageTranslationFormSchema = z.object({
   title: z
     .string()
     .trim()
-    .min(1, 'Title is required')
-    .max(255, 'Title must be at most 255 characters'),
+    .max(255, 'Title must be at most 255 characters')
+    .optional(),
   slug: z
     .string()
     .trim()
     .max(255, 'Slug must be at most 255 characters')
     .optional(),
-  content: z.string().min(1, 'Content is required'),
+  content: z.string().optional(),
   seoTitle: z
     .string()
     .trim()

@@ -52,7 +52,7 @@ export const extensions = [
         formData.append('disk', 'public')
 
         const res = await http.post<{ url: string }>(
-          '/api/v1/files/upload',
+          '/files/upload',
           formData,
           {
             headers: {
@@ -63,6 +63,7 @@ export const extensions = [
 
         return res.data.url
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error('Failed to upload image:', err)
         return ''
       }

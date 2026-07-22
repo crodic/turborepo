@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeftIcon, SaveIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -93,7 +94,45 @@ export function CmsPageForm({
   )
 
   const handleSubmit = form.handleSubmit((data) => {
-    onSubmit(data)
+    const validTranslations = data.translations.filter(
+      (t) => t.title && t.content && t.content !== DEFAULT_PAGE_CONTENT
+    )
+
+    if (validTranslations.length === 0) {
+      toast.error('At least one translation must have both Title and Content')
+      return
+    }
+
+    for (const [index, t] of data.translations.entries()) {
+      const hasTitle = !!t.title
+      const hasContent = !!t.content && t.content !== DEFAULT_PAGE_CONTENT
+
+      if (hasTitle && !hasContent) {
+        form.setError(`translations.${index}.content`, {
+          type: 'manual',
+          message: 'Content is required',
+        })
+        toast.error(
+          `Please provide content for ${t.locale.toUpperCase()} translation`
+        )
+        return
+      }
+      if (hasContent && !hasTitle) {
+        form.setError(`translations.${index}.title`, {
+          type: 'manual',
+          message: 'Title is required',
+        })
+        toast.error(
+          `Please provide title for ${t.locale.toUpperCase()} translation`
+        )
+        return
+      }
+    }
+
+    onSubmit({
+      ...data,
+      translations: validTranslations as any,
+    })
   })
 
   const currentSlug = useWatch({
@@ -339,9 +378,6 @@ export function CmsPageForm({
                     name={`translations.${currentTranslationIndex}.ogImage`}
                     render={({ field }) => (
                       <FormItem>
-                        <RequiredLabel>
-                          {t('cmsPages.form.ogImage')}
-                        </RequiredLabel>
                         <FormControl>
                           <ImagePickerInput
                             {...field}
