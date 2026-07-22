@@ -12,6 +12,7 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { EmailPreview } from '@/pages/email-logs/show/email-preview'
 import { NotFoundError } from '@/pages/errors/not-found-error'
 import { useDataMyEmailDetail } from '../queries'
 
@@ -94,10 +95,7 @@ export default function PageMyEmailShow() {
               <CardTitle>Body preview</CardTitle>
             </CardHeader>
             <CardContent>
-              <div
-                className='prose dark:prose-invert max-w-none rounded-md border p-4'
-                dangerouslySetInnerHTML={{ __html: data.body || '' }}
-              />
+              <EmailPreview html={data.renderedBody || data.body || ''} />
             </CardContent>
           </Card>
         </div>

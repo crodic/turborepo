@@ -141,7 +141,7 @@ export default function PageEmailLogShow() {
               <CardTitle>{t('emailLogs.show.bodyPreview')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <EmailPreview html={data.body || ''} />
+              <EmailPreview html={data.renderedBody || data.body || ''} />
             </CardContent>
           </Card>
         </div>

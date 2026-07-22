@@ -19,6 +19,7 @@ export const emailLogSchema = z.object({
   body: z.string().nullish(),
   renderedBody: z.string().nullish(),
   templateName: z.string().nullish(),
+  email: z.string().nullish(),
   attachments: z.array(z.record(z.string(), z.any())).nullish(),
   scheduledAt: z.string().nullish(),
   sentAt: z.string().nullish(),

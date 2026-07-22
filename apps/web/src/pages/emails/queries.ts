@@ -106,22 +106,54 @@ export const useDataMyEmails = (params: PaginateQueryParams) =>
   useQuery({
     queryKey: ['my_emails', params],
     queryFn: () => getMyEmails(params),
+    refetchInterval: (query) => {
+      const stateData = query.state.data as any
+      const hasPending = stateData?.data?.some(
+        (e: any) =>
+          e.status === 'scheduled' &&
+          (!e.scheduledAt || new Date(e.scheduledAt) <= new Date())
+      )
+      return hasPending ? 3000 : false
+    },
   })
 
 export const useDataEmailLogs = (params: PaginateQueryParams) =>
   useQuery({
     queryKey: ['email_logs', params],
     queryFn: () => getEmailLogs(params),
+    refetchInterval: (query) => {
+      const stateData = query.state.data as any
+      const hasPending = stateData?.data?.some(
+        (e: any) =>
+          e.status === 'scheduled' &&
+          (!e.scheduledAt || new Date(e.scheduledAt) <= new Date())
+      )
+      return hasPending ? 3000 : false
+    },
   })
 
 export const useDataMyEmailDetail = (id: string) =>
   useQuery({
     queryKey: ['my_email', id],
     queryFn: () => apiGetMyEmail(id),
+    refetchInterval: (query) => {
+      const e = query.state.data as any
+      const isPending =
+        e?.status === 'scheduled' &&
+        (!e.scheduledAt || new Date(e.scheduledAt) <= new Date())
+      return isPending ? 3000 : false
+    },
   })
 
 export const useDataEmailLogDetail = (id: string) =>
   useQuery({
     queryKey: ['email_log', id],
     queryFn: () => apiGetEmailLog(id),
+    refetchInterval: (query) => {
+      const e = query.state.data as any
+      const isPending =
+        e?.status === 'scheduled' &&
+        (!e.scheduledAt || new Date(e.scheduledAt) <= new Date())
+      return isPending ? 3000 : false
+    },
   })
