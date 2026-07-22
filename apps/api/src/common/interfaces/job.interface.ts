@@ -50,3 +50,14 @@ export interface IUserImpersonationEndedEmailJob extends IEmailJob {
 export interface IAdminSendEmailJob {
   emailLogId: AutoIncrementID;
 }
+
+export interface IFileUploadJob {
+  filePath: string;
+  originalName: string;
+  mimetype: string;
+  size: number;
+  userId?: AutoIncrementID;
+  destinationPath: string;
+  callbackEventName?: string;
+  metadata?: Record<string, any>;
+}

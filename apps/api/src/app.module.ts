@@ -14,6 +14,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ExpressAdapter } from '@bull-board/express';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { BullModule } from '@nestjs/bullmq';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import expressBasicAuth from 'express-basic-auth';
 
 import {
@@ -74,6 +75,11 @@ import loggerFactory from './utils/logger-factory';
         return new DataSource(options).initialize();
       },
     }),
+
+    // -----------------
+    // EVENT EMITTER
+    // -----------------
+    EventEmitterModule.forRoot(),
 
     // -----------------
     // BULLMQ

@@ -1,9 +1,11 @@
 export enum QueueName {
   EMAIL = 'email',
+  FILE = 'file',
 }
 
 export enum QueuePrefix {
   AUTH = 'auth',
+  FILE = 'file',
 }
 
 export enum JobName {
@@ -17,4 +19,5 @@ export enum JobName {
   USER_IMPERSONATION_STARTED = 'user-impersonation-started',
   USER_IMPERSONATION_ENDED = 'user-impersonation-ended',
   ADMIN_SEND_EMAIL = 'admin-send-email',
+  FILE_UPLOAD = 'file-upload',
 }
