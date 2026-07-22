@@ -23,7 +23,7 @@ export type CmsPage = {
 export const getCmsPageBySlug = async (slug: string, locale: string) => {
   try {
     const { data } = await http.get<CmsPage>(
-      `/public/cms-pages/by-slug/${slug}?locale=${locale}`
+      `/api/v1/public/cms-pages/by-slug/${slug}?locale=${locale}`
     );
     return data;
   } catch (error) {
