@@ -1,5 +1,5 @@
-import axios from 'axios'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import http from '@/lib/http'
 import type { SystemSetupSchema } from './schema'
 
 export interface InitialStatusResDto {
@@ -8,12 +8,12 @@ export interface InitialStatusResDto {
 }
 
 export const apiGetSetupStatus = async (): Promise<InitialStatusResDto> => {
-  const { data } = await axios.get('/api/v1/setup/status')
+  const { data } = await http.get('/api/v1/setup/status')
   return data
 }
 
 export const apiSystemSetup = async (payload: SystemSetupSchema) => {
-  const { data } = await axios.post('/api/v1/setup', payload)
+  const { data } = await http.post('/api/v1/setup', payload)
   return data
 }
 
