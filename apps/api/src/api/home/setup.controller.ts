@@ -6,7 +6,7 @@ import { CreateSystemSetupReqDto } from './dto/create-system-setup.req.dto';
 import { HomeService } from './home.service';
 
 @ApiTags('Setup')
-@Controller('setup')
+@Controller({ path: 'setup', version: '1' })
 export class SetupController {
   constructor(private readonly homeService: HomeService) {}
 
