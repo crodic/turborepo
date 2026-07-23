@@ -1,5 +1,4 @@
 import { NestFactory } from '@nestjs/core';
-import { AdminSeedService } from './admin/admin-seed.service';
 import { CmsPageSeedService } from './cms-page/cms-page-seed.service';
 import { SeedModule } from './seed.module';
 import { SettingSeedService } from './setting/setting-seed.service';
@@ -12,7 +11,8 @@ const runSeed = async () => {
   await app.get(UserSeedService).run();
   await app.get(SettingSeedService).run();
   await app.get(ThemeSeedService).run();
-  await app.get(AdminSeedService).run();
+  // We skip AdminSeedService so that the Setup Wizard can handle the first admin account creation
+  // await app.get(AdminSeedService).run();
   await app.get(CmsPageSeedService).run();
 
   await app.close();

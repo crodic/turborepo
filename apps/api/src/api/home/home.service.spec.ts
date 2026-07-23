@@ -1,3 +1,4 @@
+import { SettingsService } from '@/api/settings/settings.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { AdminUserService } from '../admin-user/admin-user.service';
@@ -35,6 +36,14 @@ describe('HomeService', () => {
           useValue: {
             hasRole: jest.fn(),
             createWithManager: jest.fn(),
+          },
+        },
+
+        // Mock SettingsService
+        {
+          provide: SettingsService,
+          useValue: {
+            set: jest.fn(),
           },
         },
       ],
