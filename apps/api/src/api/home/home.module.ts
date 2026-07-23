@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminUserModule } from '../admin-user/admin-user.module';
 import { PermissionEntity } from '../permission/entities/permission.entity';
 import { RoleModule } from '../role/role.module';
+import { SettingsModule } from '../settings/settings.module';
 import { HomeController } from './home.controller';
 import { HomeService } from './home.service';
 
@@ -12,6 +13,7 @@ import { HomeService } from './home.service';
   imports: [
     AdminUserModule,
     RoleModule,
+    SettingsModule,
     TypeOrmModule.forFeature([PermissionEntity]),
     BullModule.registerQueue({
       name: QueueName.EMAIL,

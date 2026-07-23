@@ -88,11 +88,11 @@ main() {
   log "Running database migrations"
   run_pnpm --filter api migration:run
 
-  log "Running relational seeds"
-  run_pnpm --filter api seed:run:relational
+  # log "Running relational seeds"
+  # run_pnpm --filter api seed:run:relational
 
-  log "Syncing permissions"
-  run_pnpm --filter api permissions:sync
+  # log "Syncing permissions"
+  # run_pnpm --filter api permissions:sync
 
   log "Running type checks"
   run_pnpm check-types

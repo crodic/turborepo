@@ -1,5 +1,7 @@
 import { PermissionEntity } from '@/api/permission/entities/permission.entity';
-import { permissionCatalogRows } from '@/api/permission/permission-sync';
+import { syncPermissions } from '@/api/permission/permission-sync';
+import { SettingKeys } from '@/api/settings/enums/setting-keys';
+import { SettingsService } from '@/api/settings/settings.service';
 import { SYSTEM_ROLE_NAME } from '@/constants/app.constant';
 import { ADMIN_FULL_ACCESS } from '@/utils/permissions.constant';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
@@ -14,6 +16,7 @@ export class HomeService {
     private readonly dataSource: DataSource,
     private readonly adminUserService: AdminUserService,
     private readonly roleService: RoleService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   async initialStatus() {
@@ -45,26 +48,24 @@ export class HomeService {
       );
     }
 
-    const { email, password, systemRoleName } = dto;
+    const { email, password, systemRoleName, firstName, lastName, site_brand } =
+      dto;
 
     return await this.dataSource.transaction(async (manager) => {
       const permissionRepo = manager.getRepository(PermissionEntity);
       const permissionKey = `${ADMIN_FULL_ACCESS.action}:${ADMIN_FULL_ACCESS.subject}`;
-      let permission = await permissionRepo.findOne({
+
+      // Sync all permissions
+      await syncPermissions(permissionRepo);
+
+      const permission = await permissionRepo.findOne({
         where: { key: permissionKey },
       });
 
       if (!permission) {
-        const permissionMeta = permissionCatalogRows().find(
-          (item) => item.key === permissionKey,
-        );
-        permission = await permissionRepo.save(
-          permissionRepo.create({
-            name: permissionMeta?.name ?? permissionKey,
-            group: permissionMeta?.group ?? 'System',
-            description: permissionMeta?.description,
-            key: permissionKey,
-          }),
+        throw new HttpException(
+          'System permission missing after sync',
+          HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
 
@@ -76,12 +77,16 @@ export class HomeService {
       });
 
       await this.adminUserService.createWithManager(manager, {
-        firstName: 'System',
-        lastName: 'Administrator',
+        firstName: firstName ?? 'System',
+        lastName: lastName ?? 'Administrator',
         email,
         password,
         roleIds: [role.id],
       });
+
+      if (site_brand) {
+        await this.settingsService.set(SettingKeys.WEBSITE, { site_brand });
+      }
 
       return { success: true, message: 'System initialized successfully' };
     });
