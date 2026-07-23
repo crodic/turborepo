@@ -11,8 +11,7 @@ const runSeed = async () => {
   await app.get(UserSeedService).run();
   await app.get(SettingSeedService).run();
   await app.get(ThemeSeedService).run();
-  // We skip AdminSeedService so that the Setup Wizard can handle the first admin account creation
-  // await app.get(AdminSeedService).run();
+  await app.get(AdminSeedService).run();
   await app.get(CmsPageSeedService).run();
 
   await app.close();
