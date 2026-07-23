@@ -18,6 +18,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/password-input'
 import { AuthLayout } from '../auth/auth-layout'
 import { useSystemSetupMutation } from './queries'
 import { systemSetupSchema, type SystemSetupSchema } from './schema'
@@ -138,7 +139,7 @@ export function PageSystemSetup() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type='password' {...field} />
+                        <PasswordInput placeholder='********' {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -151,7 +152,7 @@ export function PageSystemSetup() {
                     <FormItem>
                       <FormLabel>Confirm Password</FormLabel>
                       <FormControl>
-                        <Input type='password' {...field} />
+                        <PasswordInput placeholder='********' {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
