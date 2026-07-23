@@ -8,6 +8,7 @@ import { RoleModule } from '../role/role.module';
 import { SettingsModule } from '../settings/settings.module';
 import { HomeController } from './home.controller';
 import { HomeService } from './home.service';
+import { SetupController } from './setup.controller';
 
 @Module({
   imports: [
@@ -25,7 +26,7 @@ import { HomeService } from './home.service';
       },
     }),
   ],
-  controllers: [HomeController],
+  controllers: [HomeController, SetupController],
   providers: [HomeService],
 })
 export class HomeModule {}
