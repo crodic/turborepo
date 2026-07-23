@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { AdminSeedService } from './admin/admin-seed.service';
 import { CmsPageSeedService } from './cms-page/cms-page-seed.service';
 import { SeedModule } from './seed.module';
 import { SettingSeedService } from './setting/setting-seed.service';
