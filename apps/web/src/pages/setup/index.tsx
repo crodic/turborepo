@@ -50,8 +50,8 @@ export function PageSystemSetup() {
   }
 
   return (
-    <AuthLayout>
-      <Card className='w-full max-w-lg gap-4'>
+    <AuthLayout className='sm:w-[600px]'>
+      <Card className='mx-auto w-full max-w-full gap-4'>
         <CardHeader>
           <CardTitle className='text-lg tracking-tight'>
             Welcome to the Setup Wizard
