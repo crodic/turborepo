@@ -133,7 +133,7 @@ describe('App (e2e)', () => {
 
     it('reports uninitialized state before setup', async () => {
       const { body } = await request(app.getHttpServer())
-        .get(api('/setup/status'))
+        .get(apiV1('/setup/status'))
         .expect(200);
 
       expect(body).toEqual({
@@ -144,7 +144,7 @@ describe('App (e2e)', () => {
 
     it('validates setup payloads', async () => {
       const { body } = await request(app.getHttpServer())
-        .post(api('/setup'))
+        .post(apiV1('/setup'))
         .send({ email: 'not-an-email', password: 'Admin123!' })
         .expect(422);
 
@@ -163,7 +163,7 @@ describe('App (e2e)', () => {
 
     it('sets up the system once, logs in, and protects admin profile APIs', async () => {
       await request(app.getHttpServer())
-        .post(api('/setup'))
+        .post(apiV1('/setup'))
         .send({ email: adminEmail, password: adminPassword })
         .expect(200)
         .expect(({ body }) => {
@@ -174,7 +174,7 @@ describe('App (e2e)', () => {
         });
 
       await request(app.getHttpServer())
-        .post(api('/setup'))
+        .post(apiV1('/setup'))
         .send({ email: 'second-admin@example.com', password: adminPassword })
         .expect(403);
 
@@ -216,7 +216,7 @@ describe('App (e2e)', () => {
       await cleanDatabase();
 
       await request(app.getHttpServer())
-        .post(api('/setup'))
+        .post(apiV1('/setup'))
         .send({
           email: 'crud-admin.e2e@example.com',
           password: 'Admin123!',
