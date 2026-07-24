@@ -13,4 +13,13 @@ export class CreateSystemSetupReqDto {
 
   @StringFieldOptional()
   systemRoleName?: string;
+
+  @StringFieldOptional()
+  firstName?: string;
+
+  @StringFieldOptional()
+  lastName?: string;
+
+  @StringFieldOptional()
+  site_brand?: string;
 }

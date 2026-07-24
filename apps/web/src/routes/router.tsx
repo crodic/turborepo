@@ -4,6 +4,7 @@ import {
   type RouteObject,
 } from 'react-router'
 import { IS_RUNTIME_THEME_ENABLED } from '@/lib/feature-flags'
+import { SetupGuard } from '@/components/layout/setup-guard'
 import { PageActivityLogOverview } from '@/pages/activity-log'
 import PageActivityLogShow from '@/pages/activity-log/show'
 import { PageAdminOverview } from '@/pages/admins'
@@ -47,6 +48,7 @@ import { SettingsPassword } from '@/pages/settings/password'
 import { SettingsProfile } from '@/pages/settings/profile'
 import { SettingsSecurity } from '@/pages/settings/security'
 import { SettingsWebsite } from '@/pages/settings/website'
+import { PageSystemSetup } from '@/pages/setup'
 import { PageThemeOverview } from '@/pages/themes'
 import { PageThemeCreate } from '@/pages/themes/create'
 import { PageThemeEdit } from '@/pages/themes/edit'
@@ -58,7 +60,7 @@ import { PageUserShow } from '@/pages/users/show'
 import ProtectedRoutes from './protected-route'
 import { RouteAuthorize } from './route-authorized'
 
-const routes: RouteObject[] = [
+const appRoutes: RouteObject[] = [
   {
     path: '/sign-in',
     element: <SignIn />,
@@ -520,6 +522,19 @@ const routes: RouteObject[] = [
   {
     path: '*',
     element: <NotFoundError />,
+  },
+]
+
+const routes: RouteObject[] = [
+  {
+    element: <SetupGuard />,
+    children: [
+      {
+        path: '/setup',
+        element: <PageSystemSetup />,
+      },
+      ...appRoutes,
+    ],
   },
 ]
 
