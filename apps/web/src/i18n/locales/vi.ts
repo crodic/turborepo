@@ -16,7 +16,7 @@ export default {
   'navigation.management.themes': 'Giao diện',
   'navigation.management.files': 'Tệp tin',
   'navigation.orders.title': 'Đơn hàng',
-  'navigation.orders.myEmails': 'Email của tôi',
+  'navigation.orders.myEmails': 'Chiến dịch Email',
   'navigation.other.title': 'Khác',
   'navigation.other.settings': 'Cài đặt',
   'navigation.other.profiles': 'Thông tin cá nhân',

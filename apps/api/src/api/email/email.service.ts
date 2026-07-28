@@ -108,6 +108,15 @@ export class EmailService {
       });
     }
 
+    if (query.filter?.to) {
+      const toVal = query.filter.to as string;
+      const search = toVal.startsWith('$ilike:') ? toVal.substring(7) : toVal;
+      qb.andWhere('CAST(emailLog.to AS TEXT) ILIKE :toSearch', {
+        toSearch: `%${search}%`,
+      });
+      delete query.filter.to;
+    }
+
     const result = await paginate(query, qb, {
       sortableColumns: ['id', 'createdAt', 'scheduledAt', 'sentAt', 'status'],
       defaultSortBy: [['createdAt', 'DESC']],

@@ -5,7 +5,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -131,24 +130,39 @@ function RecipientSelect({
   disabled?: boolean
 }) {
   return (
-    <AsyncCreatableSelect
-      isMulti
-      isDisabled={disabled}
-      debounceTimeout={300}
-      loadOptions={loadRecipientOptions}
-      value={emailsToOptions(value)}
-      placeholder={placeholder ?? 'Search admin/user or type an email'}
-      getNewOptionData={(inputValue) => ({
-        id: inputValue,
-        name: inputValue,
-        data: { email: inputValue, type: 'manual' },
-      })}
-      formatCreateLabel={(inputValue) => `Use "${inputValue}"`}
-      onBlur={onBlur}
-      onChange={(options) =>
-        onChange(optionsToValue((options ?? []) as RecipientOption[]))
-      }
-    />
+    <div className='flex-1'>
+      <AsyncCreatableSelect
+        isMulti
+        isDisabled={disabled}
+        debounceTimeout={300}
+        loadOptions={loadRecipientOptions}
+        value={emailsToOptions(value)}
+        placeholder={placeholder ?? 'Recipients...'}
+        getNewOptionData={(inputValue) => ({
+          id: inputValue,
+          name: inputValue,
+          data: { email: inputValue, type: 'manual' },
+        })}
+        formatCreateLabel={(inputValue) => `Use "${inputValue}"`}
+        onBlur={onBlur}
+        onChange={(options) =>
+          onChange(optionsToValue((options ?? []) as RecipientOption[]))
+        }
+        styles={{
+          control: (base) => ({
+            ...base,
+            border: 0,
+            boxShadow: 'none',
+            backgroundColor: 'transparent',
+            paddingLeft: 0,
+          }),
+          valueContainer: (base) => ({
+            ...base,
+            paddingLeft: 0,
+          }),
+        }}
+      />
+    </div>
   )
 }
 
@@ -165,11 +179,11 @@ export function EmailForm({ email, isPending, onSubmit, onCancel }: Props) {
   return (
     <Form {...form}>
       <form
-        className='space-y-4'
+        className='flex h-full flex-col'
         onSubmit={form.handleSubmit((values) => onSubmit(values as any))}
       >
-        <div className='grid gap-4'>
-          <div className='mb-2 flex items-center gap-4'>
+        <div className='flex flex-col'>
+          <div className='flex items-center gap-6 border-b px-4 py-2 text-sm'>
             <FormField
               control={form.control as any}
               name='sendToAllUsers'
@@ -182,7 +196,7 @@ export function EmailForm({ email, isPending, onSubmit, onCancel }: Props) {
                       disabled={isPending}
                     />
                   </FormControl>
-                  <FormLabel className='font-normal'>
+                  <FormLabel className='text-muted-foreground cursor-pointer font-normal'>
                     Send to all Users
                   </FormLabel>
                 </FormItem>
@@ -200,7 +214,7 @@ export function EmailForm({ email, isPending, onSubmit, onCancel }: Props) {
                       disabled={isPending}
                     />
                   </FormControl>
-                  <FormLabel className='font-normal'>
+                  <FormLabel className='text-muted-foreground cursor-pointer font-normal'>
                     Send to all Admins
                   </FormLabel>
                 </FormItem>
@@ -212,107 +226,146 @@ export function EmailForm({ email, isPending, onSubmit, onCancel }: Props) {
             control={form.control as any}
             name='to'
             render={({ field }) => (
-              <FormItem>
-                <FormLabel required={!isSendAll}>To</FormLabel>
-                <RecipientSelect
-                  value={field.value}
-                  placeholder={
-                    isSendAll
-                      ? 'System will automatically populate recipients in BCC...'
-                      : 'Search admin/user or type recipient@example.com'
-                  }
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  disabled={isPending || isSendAll}
-                />
-                <FormMessage />
+              <FormItem className='flex items-center space-y-0 border-b px-4'>
+                <FormLabel className='text-muted-foreground w-12 font-normal'>
+                  To
+                </FormLabel>
+                <FormControl>
+                  <RecipientSelect
+                    value={field.value}
+                    placeholder={
+                      isSendAll
+                        ? 'System will automatically populate recipients in BCC...'
+                        : 'Recipients...'
+                    }
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    disabled={isPending || isSendAll}
+                  />
+                </FormControl>
               </FormItem>
             )}
           />
-          <div className='grid gap-4 md:grid-cols-2'>
-            <FormField
-              control={form.control as any}
-              name='cc'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cc</FormLabel>
-                  <RecipientSelect
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    disabled={isPending}
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control as any}
-              name='bcc'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Bcc</FormLabel>
-                  <RecipientSelect
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    disabled={isPending}
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+
+          {!isSendAll && (
+            <div className='flex flex-col'>
+              <FormField
+                control={form.control as any}
+                name='cc'
+                render={({ field }) => (
+                  <FormItem className='flex items-center space-y-0 border-b px-4'>
+                    <FormLabel className='text-muted-foreground w-12 font-normal'>
+                      Cc
+                    </FormLabel>
+                    <FormControl>
+                      <RecipientSelect
+                        value={field.value}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        disabled={isPending}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control as any}
+                name='bcc'
+                render={({ field }) => (
+                  <FormItem className='flex items-center space-y-0 border-b px-4'>
+                    <FormLabel className='text-muted-foreground w-12 font-normal'>
+                      Bcc
+                    </FormLabel>
+                    <FormControl>
+                      <RecipientSelect
+                        value={field.value}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        disabled={isPending}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
+
           <FormField
             control={form.control as any}
             name='subject'
             render={({ field }) => (
-              <FormItem>
-                <FormLabel required>Subject</FormLabel>
-                <Input disabled={isPending} {...field} />
-                <FormMessage />
+              <FormItem className='flex items-center space-y-0 border-b px-4'>
+                <FormControl>
+                  <Input
+                    placeholder='Subject'
+                    disabled={isPending}
+                    {...field}
+                    className='h-10 rounded-none border-0 px-0 font-semibold shadow-none focus-visible:ring-0'
+                  />
+                </FormControl>
               </FormItem>
             )}
           />
+
           <FormField
             control={form.control as any}
             name='scheduledAt'
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Schedule at</FormLabel>
-                <Input type='datetime-local' disabled={isPending} {...field} />
-                <FormDescription className='text-xs'>
-                  Leave empty to send immediately.
-                </FormDescription>
-                <FormMessage />
+              <FormItem className='flex items-center justify-between space-y-0 border-b px-4 py-1'>
+                <FormLabel className='text-muted-foreground w-32 text-sm font-normal'>
+                  Schedule time:
+                </FormLabel>
+                <div className='flex flex-1 justify-end'>
+                  <FormControl>
+                    <Input
+                      type='datetime-local'
+                      disabled={isPending}
+                      {...field}
+                      className='h-8 w-[220px] border-none shadow-none focus-visible:ring-0'
+                    />
+                  </FormControl>
+                </div>
               </FormItem>
             )}
           />
+
           <FormField
             control={form.control as any}
             name='body'
             render={({ field }) => (
-              <FormItem>
-                <FormLabel required>Body</FormLabel>
-                <TiptapEditor
-                  output='html'
-                  extensions={extensions}
-                  content={field.value}
-                  disabled={!!isPending}
-                  onChangeContent={field.onChange}
-                />
-                <FormMessage />
+              <FormItem className='flex min-h-[300px] flex-1 flex-col space-y-0'>
+                <FormControl>
+                  <div className='flex-1 [&_.border]:border-0 [&_.border-b]:border-b [&_.tiptap]:min-h-[250px] [&_.tiptap]:p-4'>
+                    <TiptapEditor
+                      output='html'
+                      extensions={extensions}
+                      content={field.value}
+                      disabled={!!isPending}
+                      onChangeContent={field.onChange}
+                    />
+                  </div>
+                </FormControl>
+                <FormMessage className='px-4 pb-2' />
               </FormItem>
             )}
           />
         </div>
 
-        <div className='mt-6 flex items-center justify-end space-x-2'>
-          <Button variant='outline' type='button' onClick={onCancel}>
-            Cancel
+        <div className='bg-muted/20 mt-auto flex items-center justify-between border-t p-4'>
+          <Button
+            variant='ghost'
+            type='button'
+            onClick={onCancel}
+            className='text-muted-foreground hover:text-foreground'
+          >
+            Discard
           </Button>
-          <Button type='submit' disabled={isPending}>
-            {isPending ? 'Saving...' : email ? 'Save changes' : 'Send email'}
+          <Button
+            type='submit'
+            disabled={isPending}
+            className='rounded-full px-6 font-semibold'
+          >
+            {isPending ? 'Sending...' : email ? 'Save Changes' : 'Send'}
           </Button>
         </div>
       </form>

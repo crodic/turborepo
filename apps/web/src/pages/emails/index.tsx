@@ -1,14 +1,6 @@
-import { useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusIcon } from 'lucide-react'
-import {
-  ClockIcon,
-  CheckCircle2Icon,
-  XCircleIcon,
-  BanIcon,
-  MailIcon,
-  PencilIcon,
-} from 'lucide-react'
 import { parseAsArrayOf, parseAsString } from 'nuqs'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -16,16 +8,9 @@ import { PaginateQueryBuilder } from '@/lib/query-builder'
 import { sortParser } from '@/lib/utils'
 import { useDataTable } from '@/hooks/use-data-table'
 import useGetFilterParams from '@/hooks/use-get-filter-params'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { ConfigDrawer } from '@/components/config-drawer'
+import { DataTable } from '@/components/data-table/data-table'
 import { DataTableSortList } from '@/components/data-table/data-table-sort-list'
 import { DataTableToolbar } from '@/components/data-table/data-table-toolbar'
 import { Header } from '@/components/layout/header'
@@ -34,17 +19,28 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { getEmailTableColumns } from './columns'
-import { apiCancelEmail, useDataMyEmails } from './queries'
-import { ColumnKey, type EmailLogSchema } from './schema'
+import { EmailFormDialog } from './email-form-dialog'
+import {
+  apiCancelEmail,
+  apiCreateEmail,
+  apiUpdateEmail,
+  useDataMyEmails,
+} from './queries'
+import { ColumnKey, type EmailFormSchema, type EmailLogSchema } from './schema'
 
 const emailFilterParsers = {
   subject: parseAsString.withDefault(''),
+  to: parseAsString.withDefault(''),
   status: parseAsArrayOf(parseAsString, ',').withDefault([]),
 } as const
 
 export function PageMyEmails() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [selectedEmail, setSelectedEmail] = useState<EmailLogSchema | null>(
+    null
+  )
 
   const {
     page,
@@ -65,6 +61,7 @@ export function PageMyEmails() {
     .page(page)
     .limit(perPage)
     .ilike('subject', filter.subject)
+    .ilike('to', filter.to)
     .in('status', filter.status || [])
     .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
 
@@ -85,15 +82,45 @@ export function PageMyEmails() {
   })
   const { mutate: cancelEmail } = cancelMutation
 
+  const createMutation = useMutation({
+    mutationFn: apiCreateEmail,
+    onSuccess: () => {
+      toast.success('Email campaign created')
+      invalidateEmails()
+      setIsFormOpen(false)
+    },
+    onError: (error) => toast.error(`Failed to create: ${error.message}`),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: (data: { id: string; payload: EmailFormSchema }) =>
+      apiUpdateEmail({ id: data.id, data: data.payload }),
+    onSuccess: () => {
+      toast.success('Email campaign updated')
+      invalidateEmails()
+      setIsFormOpen(false)
+    },
+    onError: (error) => toast.error(`Failed to update: ${error.message}`),
+  })
+
+  const handleFormSubmit = (data: EmailFormSchema) => {
+    if (selectedEmail) {
+      updateMutation.mutate({ id: selectedEmail.id, payload: data })
+    } else {
+      createMutation.mutate(data)
+    }
+  }
+
   const columns = useMemo(
     () =>
       getEmailTableColumns({
         onEdit: (email) => {
-          navigate(`/emails/${email.id}/edit`)
+          setSelectedEmail(email)
+          setIsFormOpen(true)
         },
         onCancel: (email) => cancelEmail(email.id),
       }),
-    [cancelEmail, navigate]
+    [cancelEmail]
   )
   const totalPages = data?.meta.totalPages ?? 0
   const { table } = useDataTable({
@@ -130,7 +157,8 @@ export function PageMyEmails() {
           </div>
           <Button
             onClick={() => {
-              navigate('/emails/create')
+              setSelectedEmail(null)
+              setIsFormOpen(true)
             }}
           >
             <PlusIcon className='me-2 size-4' />
@@ -138,190 +166,24 @@ export function PageMyEmails() {
           </Button>
         </div>
 
-        <div className='flex items-center justify-between'>
+        <DataTable
+          table={table}
+          isFetching={isFetching}
+          onClickRowAction={(row) => navigate(`/emails/${row.id}/show`)}
+        >
           <DataTableToolbar table={table}>
             <DataTableSortList table={table} />
           </DataTableToolbar>
-        </div>
-
-        {isFetching ? (
-          <div className='flex h-40 items-center justify-center'>
-            <span className='text-muted-foreground animate-pulse'>
-              Loading campaigns...
-            </span>
-          </div>
-        ) : (
-          <div className='grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'>
-            {data?.data.map((email) => (
-              <EmailCard
-                key={email.id}
-                email={email}
-                onEdit={() => {
-                  navigate(`/emails/${email.id}/edit`)
-                }}
-                onCancel={() => cancelEmail(email.id)}
-                onClick={() => navigate(`/emails/${email.id}/show`)}
-              />
-            ))}
-            {data?.data.length === 0 && (
-              <div className='text-muted-foreground col-span-full rounded-lg border-2 border-dashed py-12 text-center'>
-                No campaigns found.
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Pagination Controls */}
-        <div className='flex items-center justify-end space-x-2 py-4'>
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <div className='text-muted-foreground text-sm'>
-            Page {table.getState().pagination.pageIndex + 1} of{' '}
-            {table.getPageCount()}
-          </div>
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
-        </div>
+        </DataTable>
       </Main>
+
+      <EmailFormDialog
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        email={selectedEmail}
+        onSubmit={handleFormSubmit}
+        isPending={createMutation.isPending || updateMutation.isPending}
+      />
     </>
-  )
-}
-
-function EmailCard({
-  email,
-  onEdit,
-  onCancel,
-  onClick,
-}: {
-  email: EmailLogSchema
-  onEdit: () => void
-  onCancel: () => void
-  onClick: () => void
-}) {
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case 'sent':
-        return {
-          color:
-            'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
-          icon: CheckCircle2Icon,
-          label: 'Sent',
-        }
-      case 'scheduled':
-        return {
-          color:
-            'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-          icon: ClockIcon,
-          label: 'Scheduled',
-        }
-      case 'failed':
-        return {
-          color: 'bg-destructive/10 text-destructive',
-          icon: XCircleIcon,
-          label: 'Failed',
-        }
-      case 'cancelled':
-        return {
-          color: 'bg-muted text-muted-foreground',
-          icon: BanIcon,
-          label: 'Cancelled',
-        }
-      default:
-        return {
-          color: 'bg-secondary text-secondary-foreground',
-          icon: MailIcon,
-          label: status,
-        }
-    }
-  }
-
-  const cfg = getStatusConfig(email.status)
-  const Icon = cfg.icon
-
-  return (
-    <Card
-      className='group hover:border-primary/50 flex cursor-pointer flex-col transition-all duration-200 hover:shadow-md'
-      onClick={onClick}
-    >
-      <CardHeader className='pb-3'>
-        <div className='flex items-start justify-between'>
-          <Badge
-            variant='outline'
-            className={`mb-3 border-0 font-medium ${cfg.color}`}
-          >
-            <Icon className='mr-1.5 h-3.5 w-3.5' /> {cfg.label}
-          </Badge>
-          <div
-            className='flex space-x-1 opacity-0 transition-opacity group-hover:opacity-100'
-            onClick={(e) => e.stopPropagation()}
-          >
-            {email.status === 'scheduled' && (
-              <>
-                <Button
-                  variant='ghost'
-                  size='icon'
-                  className='bg-background/50 h-7 w-7 shadow-sm backdrop-blur-sm'
-                  onClick={onEdit}
-                >
-                  <PencilIcon className='h-3.5 w-3.5' />
-                </Button>
-                <Button
-                  variant='ghost'
-                  size='icon'
-                  className='bg-background/50 text-destructive hover:text-destructive h-7 w-7 shadow-sm backdrop-blur-sm'
-                  onClick={onCancel}
-                >
-                  <BanIcon className='h-3.5 w-3.5' />
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-        <CardTitle
-          className='line-clamp-2 text-lg leading-tight'
-          title={email.subject}
-        >
-          {email.subject}
-        </CardTitle>
-        <CardDescription className='mt-2 line-clamp-1 text-xs'>
-          To: {email.to?.join(', ') || 'System Default'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className='flex-1 pt-0'>
-        <div className='text-muted-foreground bg-secondary/30 mt-2 space-y-2 rounded-md p-3 text-xs'>
-          <div className='flex items-center'>
-            <MailIcon className='text-primary/70 mr-2 h-3.5 w-3.5' />
-            <span className='font-medium'>
-              {(email.to?.length || 0) +
-                (email.cc?.length || 0) +
-                (email.bcc?.length || 0)}{' '}
-              Recipients
-            </span>
-          </div>
-          <div className='flex items-center'>
-            <ClockIcon className='text-primary/70 mr-2 h-3.5 w-3.5' />
-            <span>
-              {email.status === 'scheduled' && email.scheduledAt
-                ? `Scheduled: ${new Date(email.scheduledAt).toLocaleString()}`
-                : email.status === 'sent' && email.sentAt
-                  ? `Sent: ${new Date(email.sentAt).toLocaleString()}`
-                  : `Created: ${new Date(email.createdAt).toLocaleString()}`}
-            </span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   )
 }

@@ -16,7 +16,7 @@ export default {
   'navigation.management.themes': 'Themes',
   'navigation.management.files': 'Files',
   'navigation.orders.title': 'Orders',
-  'navigation.orders.myEmails': 'My Emails',
+  'navigation.orders.myEmails': 'Email Campaigns',
   'navigation.other.title': 'Other',
   'navigation.other.settings': 'Settings',
   'navigation.other.profiles': 'Profiles',

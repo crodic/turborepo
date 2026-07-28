@@ -1,5 +1,6 @@
 import { format } from 'date-fns'
 import type { ColumnDef } from '@tanstack/react-table'
+import { PencilIcon, BanIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header'
@@ -33,6 +34,16 @@ export function getEmailTableColumns(
         </Badge>
       ),
       enableColumnFilter: true,
+      meta: {
+        variant: 'multiSelect',
+        label: 'Status',
+        options: [
+          { label: 'Scheduled', value: 'scheduled' },
+          { label: 'Sent', value: 'sent' },
+          { label: 'Failed', value: 'failed' },
+          { label: 'Cancelled', value: 'cancelled' },
+        ],
+      },
     },
     {
       id: ColumnKey.subject,
@@ -46,9 +57,13 @@ export function getEmailTableColumns(
         </p>
       ),
       enableColumnFilter: true,
+      meta: {
+        variant: 'text',
+        placeholder: 'Search subject...',
+      },
     },
     {
-      id: 'recipients',
+      id: 'to',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label='Recipients' />
       ),
@@ -58,6 +73,11 @@ export function getEmailTableColumns(
         </p>
       ),
       enableSorting: false,
+      enableColumnFilter: true,
+      meta: {
+        variant: 'text',
+        placeholder: 'Search email...',
+      },
     },
     {
       id: ColumnKey.scheduledAt,
@@ -67,7 +87,7 @@ export function getEmailTableColumns(
       ),
       cell: ({ row }) =>
         row.original.scheduledAt
-          ? format(row.original.scheduledAt, 'dd/MM/yyyy HH:mm')
+          ? format(new Date(row.original.scheduledAt), 'dd/MM/yyyy HH:mm')
           : '-',
     },
     {
@@ -78,7 +98,7 @@ export function getEmailTableColumns(
       ),
       cell: ({ row }) =>
         row.original.sentAt
-          ? format(row.original.sentAt, 'dd/MM/yyyy HH:mm')
+          ? format(new Date(row.original.sentAt), 'dd/MM/yyyy HH:mm')
           : '-',
     },
     {
@@ -87,38 +107,46 @@ export function getEmailTableColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label='Created' />
       ),
-      cell: ({ row }) => format(row.original.createdAt, 'dd/MM/yyyy HH:mm'),
+      cell: ({ row }) =>
+        format(new Date(row.original.createdAt), 'dd/MM/yyyy HH:mm'),
     },
     {
       id: 'actions',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label='Actions' />
       ),
-      cell: ({ row }) =>
-        row.original.status === 'scheduled' && options.onEdit ? (
-          <div className='flex justify-end gap-2'>
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={(event) => {
-                event.stopPropagation()
-                options.onEdit?.(row.original)
-              }}
-            >
-              Edit
-            </Button>
-            <Button
-              variant='destructive'
-              size='sm'
-              onClick={(event) => {
-                event.stopPropagation()
-                options.onCancel?.(row.original)
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-        ) : null,
+      cell: ({ row }) => (
+        <div className='flex justify-end gap-1'>
+          {row.original.status === 'scheduled' && options.onEdit && (
+            <>
+              <Button
+                variant='ghost'
+                size='icon'
+                className='text-muted-foreground hover:text-foreground h-8 w-8'
+                onClick={(event) => {
+                  event.stopPropagation()
+                  options.onEdit?.(row.original)
+                }}
+                title='Edit Campaign'
+              >
+                <PencilIcon className='h-4 w-4' />
+              </Button>
+              <Button
+                variant='ghost'
+                size='icon'
+                className='text-destructive/70 hover:text-destructive h-8 w-8'
+                onClick={(event) => {
+                  event.stopPropagation()
+                  options.onCancel?.(row.original)
+                }}
+                title='Cancel Campaign'
+              >
+                <BanIcon className='h-4 w-4' />
+              </Button>
+            </>
+          )}
+        </div>
+      ),
       enableSorting: false,
       enableHiding: false,
     },

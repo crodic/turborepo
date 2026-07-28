@@ -14,12 +14,14 @@ import { DataTableAsyncSelectFilter } from './data-table-async-select-filter'
 
 interface DataTableToolbarProps<TData> extends React.ComponentProps<'div'> {
   table: Table<TData>
+  hideViewOptions?: boolean
 }
 
 export function DataTableToolbar<TData>({
   table,
   children,
   className,
+  hideViewOptions,
   ...props
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0
@@ -66,7 +68,7 @@ export function DataTableToolbar<TData>({
       </div>
       <div className='flex items-center gap-2'>
         {children}
-        <DataTableViewOptions table={table} align='end' />
+        {!hideViewOptions && <DataTableViewOptions table={table} align='end' />}
       </div>
     </div>
   )
