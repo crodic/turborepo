@@ -22,6 +22,8 @@ import { Dashboard } from '@/pages/dashboard'
 import { PageEmailLogOverview } from '@/pages/email-logs'
 import PageEmailLogShow from '@/pages/email-logs/show'
 import { PageMyEmails } from '@/pages/emails'
+import { PageEmailCreate } from '@/pages/emails/create'
+import { PageEmailEdit } from '@/pages/emails/edit'
 import PageMyEmailShow from '@/pages/emails/show'
 import { ForbiddenError } from '@/pages/errors/forbidden'
 import { GeneralError } from '@/pages/errors/general-error'
@@ -432,6 +434,22 @@ const appRoutes: RouteObject[] = [
             element: (
               <RouteAuthorize action='read' subject='EMAIL'>
                 <PageMyEmails />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: 'create',
+            element: (
+              <RouteAuthorize action='create' subject='EMAIL'>
+                <PageEmailCreate />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: ':id/edit',
+            element: (
+              <RouteAuthorize action='update' subject='EMAIL'>
+                <PageEmailEdit />
               </RouteAuthorize>
             ),
           },

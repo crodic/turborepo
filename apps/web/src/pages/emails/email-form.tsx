@@ -1,16 +1,10 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Form,
+  FormControl,
   FormDescription,
   FormField,
   FormItem,
@@ -31,11 +25,10 @@ import {
 } from './schema'
 
 type Props = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
   email?: EmailLogSchema | null
   isPending?: boolean
   onSubmit: (data: EmailFormSchema) => void
+  onCancel: () => void
 }
 
 const emptyForm: EmailFormSchema = {
@@ -45,6 +38,8 @@ const emptyForm: EmailFormSchema = {
   subject: '',
   body: '',
   scheduledAt: '',
+  sendToAllUsers: false,
+  sendToAllAdmins: false,
 }
 
 type RecipientOption = Option & {
@@ -52,30 +47,6 @@ type RecipientOption = Option & {
     email?: string
     type?: string
   }
-}
-
-export function EmailFormDialog({
-  open,
-  onOpenChange,
-  email,
-  isPending,
-  onSubmit,
-}: Props) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-h-[92vh] overflow-y-auto sm:max-w-4xl'>
-        {open ? (
-          <EmailFormDialogContent
-            key={email?.id ?? 'new'}
-            email={email}
-            isPending={isPending}
-            onOpenChange={onOpenChange}
-            onSubmit={onSubmit}
-          />
-        ) : null}
-      </DialogContent>
-    </Dialog>
-  )
 }
 
 function getInitialForm(email?: EmailLogSchema | null): EmailFormSchema {
@@ -87,6 +58,8 @@ function getInitialForm(email?: EmailLogSchema | null): EmailFormSchema {
         subject: email.subject,
         body: email.body ?? '',
         scheduledAt: email.scheduledAt ? email.scheduledAt.slice(0, 16) : '',
+        sendToAllUsers: false,
+        sendToAllAdmins: false,
       }
     : emptyForm
 }
@@ -179,46 +152,78 @@ function RecipientSelect({
   )
 }
 
-function EmailFormDialogContent({
-  email,
-  isPending,
-  onOpenChange,
-  onSubmit,
-}: Omit<Props, 'open'>) {
+export function EmailForm({ email, isPending, onSubmit, onCancel }: Props) {
   const form = useForm<EmailFormSchema>({
-    resolver: zodResolver(emailFormSchema),
+    resolver: zodResolver(emailFormSchema as any),
     defaultValues: getInitialForm(email),
   })
+
+  const sendToAllUsers = form.watch('sendToAllUsers')
+  const sendToAllAdmins = form.watch('sendToAllAdmins')
+  const isSendAll = sendToAllUsers || sendToAllAdmins
 
   return (
     <Form {...form}>
       <form
         className='space-y-4'
-        onSubmit={form.handleSubmit((values) => onSubmit(values))}
+        onSubmit={form.handleSubmit((values) => onSubmit(values as any))}
       >
-        <DialogHeader>
-          <DialogTitle>
-            {email ? 'Edit scheduled email' : 'Send email'}
-          </DialogTitle>
-          <DialogDescription>
-            Emails are sent from the system default sender configured on the
-            server.
-          </DialogDescription>
-        </DialogHeader>
-
         <div className='grid gap-4'>
+          <div className='mb-2 flex items-center gap-4'>
+            <FormField
+              control={form.control as any}
+              name='sendToAllUsers'
+              render={({ field }) => (
+                <FormItem className='flex flex-row items-center space-y-0 space-x-2'>
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={isPending}
+                    />
+                  </FormControl>
+                  <FormLabel className='font-normal'>
+                    Send to all Users
+                  </FormLabel>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control as any}
+              name='sendToAllAdmins'
+              render={({ field }) => (
+                <FormItem className='flex flex-row items-center space-y-0 space-x-2'>
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={isPending}
+                    />
+                  </FormControl>
+                  <FormLabel className='font-normal'>
+                    Send to all Admins
+                  </FormLabel>
+                </FormItem>
+              )}
+            />
+          </div>
+
           <FormField
-            control={form.control}
+            control={form.control as any}
             name='to'
             render={({ field }) => (
               <FormItem>
-                <FormLabel required>To</FormLabel>
+                <FormLabel required={!isSendAll}>To</FormLabel>
                 <RecipientSelect
                   value={field.value}
-                  placeholder='Search admin/user or type recipient@example.com'
+                  placeholder={
+                    isSendAll
+                      ? 'System will automatically populate recipients in BCC...'
+                      : 'Search admin/user or type recipient@example.com'
+                  }
                   onChange={field.onChange}
                   onBlur={field.onBlur}
-                  disabled={isPending}
+                  disabled={isPending || isSendAll}
                 />
                 <FormMessage />
               </FormItem>
@@ -226,7 +231,7 @@ function EmailFormDialogContent({
           />
           <div className='grid gap-4 md:grid-cols-2'>
             <FormField
-              control={form.control}
+              control={form.control as any}
               name='cc'
               render={({ field }) => (
                 <FormItem>
@@ -242,7 +247,7 @@ function EmailFormDialogContent({
               )}
             />
             <FormField
-              control={form.control}
+              control={form.control as any}
               name='bcc'
               render={({ field }) => (
                 <FormItem>
@@ -259,7 +264,7 @@ function EmailFormDialogContent({
             />
           </div>
           <FormField
-            control={form.control}
+            control={form.control as any}
             name='subject'
             render={({ field }) => (
               <FormItem>
@@ -270,7 +275,7 @@ function EmailFormDialogContent({
             )}
           />
           <FormField
-            control={form.control}
+            control={form.control as any}
             name='scheduledAt'
             render={({ field }) => (
               <FormItem>
@@ -284,7 +289,7 @@ function EmailFormDialogContent({
             )}
           />
           <FormField
-            control={form.control}
+            control={form.control as any}
             name='body'
             render={({ field }) => (
               <FormItem>
@@ -302,18 +307,14 @@ function EmailFormDialogContent({
           />
         </div>
 
-        <DialogFooter>
-          <Button
-            variant='outline'
-            type='button'
-            onClick={() => onOpenChange(false)}
-          >
+        <div className='mt-6 flex items-center justify-end space-x-2'>
+          <Button variant='outline' type='button' onClick={onCancel}>
             Cancel
           </Button>
           <Button type='submit' disabled={isPending}>
             {isPending ? 'Saving...' : email ? 'Save changes' : 'Send email'}
           </Button>
-        </DialogFooter>
+        </div>
       </form>
     </Form>
   )

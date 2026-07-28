@@ -29,7 +29,8 @@ import {
   Paginated,
   PaginateQuery,
 } from 'nestjs-paginate';
-import { ILike, MoreThan, Repository } from 'typeorm';
+import sanitizeHtml from 'sanitize-html';
+import { ILike, In, MoreThan, Repository } from 'typeorm';
 import { CreateEmailReqDto } from './dto/create-email.req.dto';
 import { EmailLogResDto } from './dto/email-log.res.dto';
 import { EmailRecipientOptionResDto } from './dto/email-recipient-option.res.dto';
@@ -65,10 +66,13 @@ export class EmailService {
   ): Promise<EmailLogResDto> {
     this.validateSchedule(dto.scheduledAt);
     this.validateBody(dto.body);
+    await this.validateRecipientsExist(dto);
     await this.enforceAntiSpam(adminId, dto);
 
+    const emailPayload = await this.buildEmailPayloadWithSendAll(dto);
+
     const emailLog = this.emailLogRepository.create({
-      ...this.toEmailPayload(dto),
+      ...emailPayload,
       source: EEmailLogSource.ADMIN,
       status: EEmailLogStatus.SCHEDULED,
       from: this.getDefaultFrom(),
@@ -166,11 +170,14 @@ export class EmailService {
   ): Promise<EmailLogResDto> {
     this.validateSchedule(dto.scheduledAt);
     this.validateBody(dto.body);
+    await this.validateRecipientsExist(dto);
     const emailLog = await this.getEditableEmail(id, adminId);
     await this.removeDelayedJob(emailLog);
 
+    const emailPayload = await this.buildEmailPayloadWithSendAll(dto);
+
     Object.assign(emailLog, {
-      ...this.toEmailPayload(dto),
+      ...emailPayload,
       status: EEmailLogStatus.SCHEDULED,
       scheduledAt: dto.scheduledAt,
       queueJobId: null,
@@ -326,12 +333,48 @@ export class EmailService {
     }
   }
 
+  private async validateRecipientsExist(dto: CreateEmailReqDto): Promise<void> {
+    const recipients = this.normalizeRecipients(dto);
+    const allEmails = [
+      ...recipients.to,
+      ...(recipients.cc ?? []),
+      ...(recipients.bcc ?? []),
+    ];
+
+    if (allEmails.length === 0) return;
+
+    const users = await this.userRepository.find({
+      where: { email: In(allEmails) },
+      select: ['email'],
+    });
+
+    const admins = await this.adminUserRepository.find({
+      where: { email: In(allEmails) },
+      select: ['email'],
+    });
+
+    const foundEmails = new Set([
+      ...users.map((u) => u.email.toLowerCase()),
+      ...admins.map((a) => a.email.toLowerCase()),
+    ]);
+
+    const notFound = allEmails.filter((e) => !foundEmails.has(e.toLowerCase()));
+
+    if (notFound.length > 0) {
+      throw new BadRequestException(
+        `The following emails are not registered in the system: ${notFound.join(', ')}`,
+      );
+    }
+  }
+
   private async enforceAntiSpam(
     adminId: AutoIncrementID,
     dto: CreateEmailReqDto,
   ): Promise<void> {
+    const isSendAll = dto.sendToAllUsers || dto.sendToAllAdmins;
     const recipientCount = this.countRecipients(dto);
-    if (recipientCount > MAX_RECIPIENTS_PER_EMAIL) {
+
+    if (!isSendAll && recipientCount > MAX_RECIPIENTS_PER_EMAIL) {
       throw new BadRequestException(
         `Email can have at most ${MAX_RECIPIENTS_PER_EMAIL} recipients`,
       );
@@ -371,7 +414,10 @@ export class EmailService {
       0,
     );
 
-    if (todayRecipientCount + recipientCount > MAX_RECIPIENTS_PER_DAY) {
+    if (
+      !isSendAll &&
+      todayRecipientCount + recipientCount > MAX_RECIPIENTS_PER_DAY
+    ) {
       throw new HttpException(
         'Daily email recipient limit exceeded',
         HttpStatus.TOO_MANY_REQUESTS,
@@ -379,18 +425,66 @@ export class EmailService {
     }
   }
 
+  private async buildEmailPayloadWithSendAll(
+    dto: CreateEmailReqDto | UpdateEmailReqDto,
+  ) {
+    const isSendAll = dto.sendToAllUsers || dto.sendToAllAdmins;
+    if (isSendAll) {
+      const bccSet = new Set(dto.bcc || []);
+
+      if (dto.sendToAllUsers) {
+        const users = await this.userRepository.find({ select: ['email'] });
+        users.forEach((u) => bccSet.add(u.email));
+      }
+      if (dto.sendToAllAdmins) {
+        const admins = await this.adminUserRepository.find({
+          select: ['email'],
+        });
+        admins.forEach((a) => bccSet.add(a.email));
+      }
+
+      dto.bcc = Array.from(bccSet);
+
+      if (!dto.to || dto.to.length === 0) {
+        const defaultEmail = this.configService.get('mail.defaultEmail', {
+          infer: true,
+        });
+        dto.to = defaultEmail ? [defaultEmail] : ['no-reply@localhost'];
+      }
+    }
+
+    return this.toEmailPayload(dto as CreateEmailReqDto);
+  }
+
   private toEmailPayload(dto: CreateEmailReqDto) {
     const recipients = this.normalizeRecipients(dto);
+    const sanitizedBody = sanitizeHtml(dto.body, {
+      allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+        'img',
+        'h1',
+        'h2',
+        'h3',
+        'h4',
+        'h5',
+        'h6',
+        'span',
+      ]),
+      allowedAttributes: {
+        ...sanitizeHtml.defaults.allowedAttributes,
+        '*': ['style', 'class'],
+        img: ['src', 'alt', 'width', 'height'],
+      },
+    });
 
     return {
       to: recipients.to,
       cc: recipients.cc,
       bcc: recipients.bcc,
       subject: dto.subject,
-      body: dto.body,
+      body: sanitizedBody,
       renderedBody: this.mailService.renderAdminEmail({
         subject: dto.subject,
-        body: dto.body,
+        body: sanitizedBody,
       }),
       scheduledAt: dto.scheduledAt,
     };

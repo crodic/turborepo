@@ -76,27 +76,41 @@ function stripHtml(value: string) {
     .trim()
 }
 
-export const emailFormSchema = z.object({
-  to: z
-    .string()
-    .refine((value) => parseEmailText(value).length > 0, {
-      message: 'At least one recipient is required',
-    })
-    .refine(hasOnlyValidEmails, {
-      message: 'Recipient emails are invalid',
+export const emailFormSchema = z
+  .object({
+    sendToAllUsers: z.boolean().default(false),
+    sendToAllAdmins: z.boolean().default(false),
+    to: z.string().default(''),
+    cc: z.string().default('').refine(hasOnlyValidEmails, {
+      message: 'Cc emails are invalid',
     }),
-  cc: z.string().optional().refine(hasOnlyValidEmails, {
-    message: 'Cc emails are invalid',
-  }),
-  bcc: z.string().optional().refine(hasOnlyValidEmails, {
-    message: 'Bcc emails are invalid',
-  }),
-  subject: z.string().trim().min(1, 'Subject is required'),
-  body: z.string().refine((value) => stripHtml(value).length > 0, {
-    message: 'Body is required',
-  }),
-  scheduledAt: z.string().optional(),
-})
+    bcc: z.string().default('').refine(hasOnlyValidEmails, {
+      message: 'Bcc emails are invalid',
+    }),
+    subject: z.string().trim().min(1, 'Subject is required'),
+    body: z.string().refine((value) => stripHtml(value).length > 0, {
+      message: 'Body is required',
+    }),
+    scheduledAt: z.string().default(''),
+  })
+  .superRefine((data, ctx) => {
+    const isSendAll = data.sendToAllUsers || data.sendToAllAdmins
+    if (!isSendAll) {
+      if (!data.to || parseEmailText(data.to).length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'At least one recipient is required',
+          path: ['to'],
+        })
+      } else if (!hasOnlyValidEmails(data.to)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Recipient emails are invalid',
+          path: ['to'],
+        })
+      }
+    }
+  })
 
 export type EmailFormSchema = z.infer<typeof emailFormSchema>
 

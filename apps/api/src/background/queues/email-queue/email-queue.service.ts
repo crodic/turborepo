@@ -242,14 +242,31 @@ export class EmailQueueService {
       });
       emailLog.renderedBody = renderedBody;
       await this.emailLogRepository.save(emailLog);
-      await this.mailService.sendAdminEmail({
-        to: emailLog.to,
-        cc: emailLog.cc,
-        bcc: emailLog.bcc,
-        subject: emailLog.subject,
-        body: emailLog.body ?? '',
-        renderedHtml: renderedBody,
-      });
+      const bccList = emailLog.bcc ?? [];
+      const CHUNK_SIZE = 50;
+
+      if (bccList.length > CHUNK_SIZE) {
+        for (let i = 0; i < bccList.length; i += CHUNK_SIZE) {
+          const chunk = bccList.slice(i, i + CHUNK_SIZE);
+          await this.mailService.sendAdminEmail({
+            to: emailLog.to,
+            cc: emailLog.cc,
+            bcc: chunk,
+            subject: emailLog.subject,
+            body: emailLog.body ?? '',
+            renderedHtml: renderedBody,
+          });
+        }
+      } else {
+        await this.mailService.sendAdminEmail({
+          to: emailLog.to,
+          cc: emailLog.cc,
+          bcc: emailLog.bcc,
+          subject: emailLog.subject,
+          body: emailLog.body ?? '',
+          renderedHtml: renderedBody,
+        });
+      }
       await this.markSent(emailLog, renderedBody);
       await this.notifyEmailStatus(
         emailLog,
