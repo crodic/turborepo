@@ -5,6 +5,7 @@ import {
   Column,
   DeleteDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -31,6 +32,7 @@ export class CmsPageEntity extends AbstractEntity {
   })
   id!: AutoIncrementID;
 
+  @Index('IDX_cms_pages_status')
   @Column({
     type: 'enum',
     enum: ECmsPageStatus,
@@ -55,14 +57,20 @@ export class CmsPageEntity extends AbstractEntity {
   createdBy?: AutoIncrementID;
 
   @ManyToOne(() => AdminUserEntity, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'created_by' })
+  @JoinColumn({
+    name: 'created_by',
+    foreignKeyConstraintName: 'FK_cms_pages_created_by',
+  })
   createdByAdmin?: Relation<AdminUserEntity>;
 
   @Column({ name: 'updated_by', type: 'bigint', nullable: true })
   updatedBy?: AutoIncrementID;
 
   @ManyToOne(() => AdminUserEntity, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'updated_by' })
+  @JoinColumn({
+    name: 'updated_by',
+    foreignKeyConstraintName: 'FK_cms_pages_updated_by',
+  })
   updatedByAdmin?: Relation<AdminUserEntity>;
 
   @DeleteDateColumn({

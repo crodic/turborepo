@@ -2,6 +2,7 @@ import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
 import {
   Column,
+  DeleteDateColumn,
   Entity,
   Index,
   JoinColumn,
@@ -14,8 +15,12 @@ import { CmsPageEntity } from './cms-page.entity';
 @Entity('cms_page_translations')
 @Index('UQ_cms_page_translations_page_locale', ['pageId', 'locale'], {
   unique: true,
+  where: '"deleted_at" IS NULL',
 })
-@Index('UQ_cms_page_translations_slug', ['slug'], { unique: true })
+@Index('UQ_cms_page_translations_slug', ['slug'], {
+  unique: true,
+  where: '"deleted_at" IS NULL',
+})
 export class CmsPageTranslationEntity extends AbstractEntity {
   constructor(data?: Partial<CmsPageTranslationEntity>) {
     super();
@@ -34,7 +39,10 @@ export class CmsPageTranslationEntity extends AbstractEntity {
   @ManyToOne(() => CmsPageEntity, (page) => page.translations, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'page_id' })
+  @JoinColumn({
+    name: 'page_id',
+    foreignKeyConstraintName: 'FK_cms_page_translations_page_id',
+  })
   page: Relation<CmsPageEntity>;
 
   @Column()
@@ -72,4 +80,11 @@ export class CmsPageTranslationEntity extends AbstractEntity {
 
   @Column({ name: 'robots', nullable: true })
   robots?: string;
+
+  @DeleteDateColumn({
+    name: 'deleted_at',
+    type: 'timestamptz',
+    default: null,
+  })
+  deletedAt?: Date;
 }
