@@ -122,8 +122,14 @@ export function NotificationDropdown() {
       queryClient.invalidateQueries({
         queryKey: notificationKeys.unreadCount(),
       })
-      toast.message(parsed.data.title, {
+      toast(parsed.data.title, {
         description: parsed.data.message,
+        position: 'top-right',
+        duration: 8000,
+        className:
+          'bg-primary text-primary-foreground border-primary shadow-lg',
+        descriptionClassName: 'text-primary-foreground/90',
+        icon: <Bell className='size-4' />,
       })
     }
 
