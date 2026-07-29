@@ -111,16 +111,22 @@ export class NotificationService {
     return this.realtimeService.getOnlineAdminIds();
   }
 
-  async sendManualNotification(dto: SendNotificationReqDto): Promise<boolean> {
+  async sendManualNotification(
+    senderId: AutoIncrementID,
+    dto: SendNotificationReqDto,
+  ): Promise<boolean> {
     let targetIds = dto.targetAdminIds;
 
-    // If no specific targets provided, send to all admins
+    // If no specific targets provided, send to all admins (except sender)
     if (!targetIds || targetIds.length === 0) {
       const allAdmins = await this.adminUserRepository.find({
         select: ['id'],
       });
       targetIds = allAdmins.map((admin) => Number(admin.id));
     }
+
+    // Exclude the sender
+    targetIds = targetIds.filter((id) => String(id) !== String(senderId));
 
     if (targetIds.length === 0) return true;
 

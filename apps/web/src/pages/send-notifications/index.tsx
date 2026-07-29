@@ -6,6 +6,7 @@ import { SendIcon } from 'lucide-react'
 import { parseAsArrayOf, parseAsString } from 'nuqs'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
 import { PaginateQueryBuilder } from '@/lib/query-builder'
 import { sortParser } from '@/lib/utils'
 import { useDataTable } from '@/hooks/use-data-table'
@@ -80,9 +81,16 @@ export function PageSendNotifications() {
   )
 
   const totalPages = adminsData?.meta.totalPages ?? 0
+  const currentAdminId = useAuthStore((state) => state.id)
+
+  const filteredAdmins = useMemo(() => {
+    return (adminsData?.data ?? []).filter(
+      (admin) => String(admin.id) !== String(currentAdminId)
+    )
+  }, [adminsData?.data, currentAdminId])
 
   const { table } = useDataTable({
-    data: adminsData?.data ?? [],
+    data: filteredAdmins,
     columns: columns,
     pageCount: totalPages,
     getRowId: (row) => row.id,

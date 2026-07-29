@@ -29,7 +29,12 @@ export class NotificationRealtimeService {
   getOnlineAdminIds(): number[] {
     if (!this.server) return [];
 
-    const rooms = this.server.sockets.adapter.rooms;
+    const namespaceOrServer = this.server as any;
+    const adapter =
+      namespaceOrServer.adapter || namespaceOrServer.sockets?.adapter;
+    if (!adapter || !adapter.rooms) return [];
+
+    const rooms = adapter.rooms;
     const onlineIds: number[] = [];
 
     for (const [roomName, sockets] of rooms.entries()) {

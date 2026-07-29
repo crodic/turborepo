@@ -52,8 +52,11 @@ export class NotificationController {
     type: Boolean,
     summary: 'Send a manual notification to admins',
   })
-  sendNotification(@Body() dto: SendNotificationReqDto): Promise<boolean> {
-    return this.notificationService.sendManualNotification(dto);
+  sendNotification(
+    @CurrentUser('id') senderId: AutoIncrementID,
+    @Body() dto: SendNotificationReqDto,
+  ): Promise<boolean> {
+    return this.notificationService.sendManualNotification(senderId, dto);
   }
 
   @Get('unread-count')
