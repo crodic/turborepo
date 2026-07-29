@@ -47,6 +47,7 @@ export function UserAuthForm({
   >([])
   const [suspiciousReasons, setSuspiciousReasons] = useState<string[]>([])
   const [suspiciousFocusNonce, setSuspiciousFocusNonce] = useState(0)
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null)
 
   const form = useForm<LoginSchema>({
     resolver: zodResolver(loginSchema),
@@ -117,7 +118,12 @@ export function UserAuthForm({
 
       completeLogin(payload)
     },
-    onError: () => {
+    onError: (error: any) => {
+      if (error?.response?.data?.code === 'UNVERIFIED_EMAIL') {
+        const attemptedEmail = form.getValues('email')
+        setUnverifiedEmail(attemptedEmail)
+        return
+      }
       toast.error('Login failed. Please try again.')
     },
   })
@@ -239,6 +245,7 @@ export function UserAuthForm({
       className={className}
       form={form}
       isPending={loginMutation.isPending}
+      unverifiedEmail={unverifiedEmail}
       onSubmit={onSubmit}
       {...props}
     />

@@ -83,6 +83,12 @@ export async function apiVerifySuspiciousLogin(
   return res.data
 }
 
+export async function apiResendVerifyEmail(values: { email: string }) {
+  const res = await http.post('/auth/verify/resend', values)
+
+  return res.data
+}
+
 export async function apiSignOut(token?: string) {
   const res = await http.post(`/auth/logout`, { token })
 

@@ -154,6 +154,13 @@ export class AdminAuthService {
       throw new BadRequestException({ message: 'Invalid credentials' });
     }
 
+    if (!user.verifiedAt) {
+      throw new ForbiddenException({
+        message: 'Vui lòng xác thực email trước khi đăng nhập',
+        code: 'UNVERIFIED_EMAIL',
+      });
+    }
+
     const failedAttempts =
       await this.suspiciousLoginService.getFailedLoginAttempts(user.id);
     await this.suspiciousLoginService.clearFailedLoginAttempts(user.id);

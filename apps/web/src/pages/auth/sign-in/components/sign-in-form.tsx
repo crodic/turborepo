@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/password-input'
 import type { LoginSchema } from '../../schema'
+import { UnverifiedEmailAlert } from './unverified-email-alert'
 
 interface SignInFormProps extends Omit<
   HTMLAttributes<HTMLFormElement>,
@@ -23,6 +24,7 @@ interface SignInFormProps extends Omit<
 > {
   form: UseFormReturn<LoginSchema>
   isPending: boolean
+  unverifiedEmail: string | null
   onSubmit: (data: LoginSchema) => void
 }
 
@@ -30,6 +32,7 @@ export function SignInForm({
   className,
   form,
   isPending,
+  unverifiedEmail,
   onSubmit,
   ...props
 }: SignInFormProps) {
@@ -42,6 +45,7 @@ export function SignInForm({
         className={cn('grid gap-3', className)}
         {...props}
       >
+        {unverifiedEmail && <UnverifiedEmailAlert email={unverifiedEmail} />}
         <FormField
           control={form.control}
           name='email'
