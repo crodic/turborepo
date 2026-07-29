@@ -128,7 +128,7 @@ const appRoutes: RouteObject[] = [
       {
         path: '/send-notifications',
         element: (
-          <RouteAuthorize action='create' subject='ADMIN'>
+          <RouteAuthorize requireSuperAdmin>
             <PageSendNotifications />
           </RouteAuthorize>
         ),

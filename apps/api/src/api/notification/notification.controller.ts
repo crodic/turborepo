@@ -1,7 +1,10 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import { CurrentUser } from '@/decorators/current-user.decorator';
 import { ApiAuth } from '@/decorators/http.decorators';
+import { CheckPolicies } from '@/decorators/policies.decorator';
 import { AdminAuthGuard } from '@/guards/admin-auth.guard';
+import { AppAbility } from '@/libs/casl/ability.factory';
+import { AppActions, AppSubjects } from '@/utils/permissions.constant';
 import {
   Body,
   Controller,
@@ -42,6 +45,9 @@ export class NotificationController {
     type: Number,
     summary: 'Get list of online admin IDs',
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Manage, AppSubjects.All),
+  )
   @ApiResponse({ type: Number, isArray: true })
   getOnlineAdmins(): number[] {
     return this.notificationService.getOnlineAdminIds();
@@ -52,6 +58,9 @@ export class NotificationController {
     type: Boolean,
     summary: 'Send a manual notification to admins',
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Manage, AppSubjects.All),
+  )
   sendNotification(
     @CurrentUser('id') senderId: AutoIncrementID,
     @Body() dto: SendNotificationReqDto,

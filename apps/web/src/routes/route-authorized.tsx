@@ -11,6 +11,7 @@ interface RouteAuthorizeProps {
   redirectTo?: string
   requireAuth?: boolean
   isAnyPermission?: boolean
+  requireSuperAdmin?: boolean
 }
 
 export const RouteAuthorize: React.FC<RouteAuthorizeProps> = ({
@@ -20,12 +21,15 @@ export const RouteAuthorize: React.FC<RouteAuthorizeProps> = ({
   fallback,
   redirectTo = '/errors/forbidden',
   isAnyPermission = false,
+  requireSuperAdmin = false,
 }) => {
   const { ability, permissions } = useAuthStore()
 
   let isAllowed = false
 
-  if (isAnyPermission) {
+  if (requireSuperAdmin) {
+    isAllowed = permissions.includes('manage:all')
+  } else if (isAnyPermission) {
     isAllowed = permissions.length > 0
   } else if (action && subject) {
     isAllowed = ability.can(action, subject)
