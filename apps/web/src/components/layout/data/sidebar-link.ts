@@ -54,13 +54,13 @@ export const sidebarLink: SidebarData = {
           icon: Globe,
         },
         {
-          title: 'CMS Pages',
+          title: 'navigation.general.cmsPages',
           url: '/cms-pages',
           icon: BookOpenText,
           permission: 'PAGE',
         },
         {
-          title: 'Request Map',
+          title: 'navigation.general.requestMap',
           url: '/request-map',
           icon: MapIcon,
           permission: 'LOG',
@@ -122,7 +122,7 @@ export const sidebarLink: SidebarData = {
           permission: 'EMAIL',
         },
         {
-          title: 'Send Notifications',
+          title: 'navigation.orders.sendNotifications',
           url: '/send-notifications',
           icon: Send,
           permission: 'ADMIN',

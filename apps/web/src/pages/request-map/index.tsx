@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { parseAsString } from 'nuqs'
+import { useTranslation } from 'react-i18next'
 import { PaginateQueryBuilder } from '@/lib/query-builder'
 import { sortParser } from '@/lib/utils'
 import { useDataTable } from '@/hooks/use-data-table'
@@ -30,6 +31,7 @@ const requestLogFilterParsers = {
 } as const
 
 export function PageRequestMap() {
+  const { t } = useTranslation()
   const {
     page,
     perPage,
@@ -80,12 +82,9 @@ export function PageRequestMap() {
       <Main fluid className='flex flex-1 flex-col gap-4 sm:gap-6'>
         <div>
           <h2 className='text-2xl font-bold tracking-tight'>
-            Request Map & Logs
+            {t('requestMap.title')}
           </h2>
-          <p className='text-muted-foreground'>
-            Geographical overview of system requests and detailed execution
-            logs.
-          </p>
+          <p className='text-muted-foreground'>{t('requestMap.description')}</p>
         </div>
 
         {/* Map Container */}
@@ -111,9 +110,15 @@ export function PageRequestMap() {
                         <span className='text-primary font-semibold'>
                           {log.method} {log.path}
                         </span>
-                        <span>Status: {log.status}</span>
-                        <span>IP: {log.ip}</span>
-                        <span>Duration: {log.duration}ms</span>
+                        <span>
+                          {t('requestMap.popup.status')}: {log.status}
+                        </span>
+                        <span>
+                          {t('requestMap.popup.ip')}: {log.ip}
+                        </span>
+                        <span>
+                          {t('requestMap.popup.duration')}: {log.duration}ms
+                        </span>
                       </div>
                     </MapPopup>
                   </MapMarker>

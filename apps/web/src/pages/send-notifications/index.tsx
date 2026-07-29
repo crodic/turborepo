@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
@@ -101,13 +101,13 @@ export function PageSendNotifications() {
   const sendMutation = useMutation({
     mutationFn: sendNotification,
     onSuccess: () => {
-      toast.success('Notification sent successfully!')
+      toast.success(t('sendNotifications.success'))
       form.reset()
       table.resetRowSelection()
     },
     onError: (error: any) => {
       toast.error(
-        error?.response?.data?.message || 'Failed to send notification'
+        error?.response?.data?.message || t('sendNotifications.error')
       )
     },
   })
@@ -138,10 +138,10 @@ export function PageSendNotifications() {
       <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
         <div>
           <h2 className='text-2xl font-bold tracking-tight'>
-            Send Notifications
+            {t('sendNotifications.title')}
           </h2>
           <p className='text-muted-foreground'>
-            Send real-time alerts or messages to other administrators.
+            {t('sendNotifications.description')}
           </p>
         </div>
 
@@ -150,10 +150,9 @@ export function PageSendNotifications() {
           <div className='lg:col-span-1'>
             <Card>
               <CardHeader>
-                <CardTitle>Compose Message</CardTitle>
+                <CardTitle>{t('sendNotifications.compose.title')}</CardTitle>
                 <CardDescription>
-                  Draft your notification. Leave recipient selection empty to
-                  send to all admins.
+                  {t('sendNotifications.compose.description')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -167,10 +166,14 @@ export function PageSendNotifications() {
                       name='title'
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Title</FormLabel>
+                          <FormLabel>
+                            {t('sendNotifications.form.title')}
+                          </FormLabel>
                           <FormControl>
                             <Input
-                              placeholder='Notification title...'
+                              placeholder={t(
+                                'sendNotifications.form.titlePlaceholder'
+                              )}
                               {...field}
                             />
                           </FormControl>
@@ -183,10 +186,14 @@ export function PageSendNotifications() {
                       name='message'
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Message</FormLabel>
+                          <FormLabel>
+                            {t('sendNotifications.form.message')}
+                          </FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder='Type your message here...'
+                              placeholder={t(
+                                'sendNotifications.form.messagePlaceholder'
+                              )}
                               className='min-h-[120px]'
                               {...field}
                             />
@@ -202,8 +209,10 @@ export function PageSendNotifications() {
                     >
                       <SendIcon className='mr-2 h-4 w-4' />
                       {selectedCount > 0
-                        ? `Send to ${selectedCount} Admin${selectedCount > 1 ? 's' : ''}`
-                        : 'Send to All Admins'}
+                        ? t('sendNotifications.form.sendToCount', {
+                            count: selectedCount,
+                          })
+                        : t('sendNotifications.form.sendToAll')}
                     </Button>
                   </form>
                 </Form>
@@ -215,10 +224,9 @@ export function PageSendNotifications() {
           <div className='flex flex-col gap-4 lg:col-span-2'>
             <Card className='flex flex-1 flex-col overflow-hidden'>
               <CardHeader className='pb-2'>
-                <CardTitle>Select Recipients</CardTitle>
+                <CardTitle>{t('sendNotifications.recipients.title')}</CardTitle>
                 <CardDescription>
-                  Choose specific administrators to receive this notification,
-                  or select none to broadcast to everyone.
+                  {t('sendNotifications.recipients.description')}
                 </CardDescription>
               </CardHeader>
               <CardContent className='flex-1 overflow-auto'>

@@ -1,5 +1,6 @@
 import { format } from 'date-fns'
 import { type ColumnDef } from '@tanstack/react-table'
+import i18n from '@/i18n'
 import { Badge } from '@/components/ui/badge'
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header'
 import { ColumnKey, type RequestLogSchema } from './schema'
@@ -9,7 +10,10 @@ export function getRequestLogColumns(): ColumnDef<RequestLogSchema>[] {
     {
       accessorKey: ColumnKey.method,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label='Method' />
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('requestMap.table.method')}
+        />
       ),
       cell: ({ row }) => {
         const method = row.getValue(ColumnKey.method) as string
@@ -29,7 +33,10 @@ export function getRequestLogColumns(): ColumnDef<RequestLogSchema>[] {
     {
       accessorKey: ColumnKey.path,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label='Path' />
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('requestMap.table.path')}
+        />
       ),
       cell: ({ row }) => {
         return (
@@ -45,7 +52,10 @@ export function getRequestLogColumns(): ColumnDef<RequestLogSchema>[] {
     {
       accessorKey: ColumnKey.status,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label='Status' />
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('requestMap.table.status')}
+        />
       ),
       cell: ({ row }) => {
         const status = row.getValue(ColumnKey.status) as number
@@ -57,7 +67,10 @@ export function getRequestLogColumns(): ColumnDef<RequestLogSchema>[] {
     {
       accessorKey: ColumnKey.duration,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label='Duration' />
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('requestMap.table.duration')}
+        />
       ),
       cell: ({ row }) => {
         const duration = row.getValue(ColumnKey.duration) as number
@@ -67,7 +80,10 @@ export function getRequestLogColumns(): ColumnDef<RequestLogSchema>[] {
     {
       accessorKey: ColumnKey.ip,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label='IP Address' />
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('requestMap.table.ip')}
+        />
       ),
       cell: ({ row }) => {
         return <div>{row.getValue(ColumnKey.ip) || '-'}</div>
@@ -76,7 +92,10 @@ export function getRequestLogColumns(): ColumnDef<RequestLogSchema>[] {
     {
       accessorKey: ColumnKey.browser,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label='Browser' />
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('requestMap.table.browser')}
+        />
       ),
       cell: ({ row }) => {
         return <div>{row.getValue(ColumnKey.browser) || '-'}</div>
@@ -85,7 +104,10 @@ export function getRequestLogColumns(): ColumnDef<RequestLogSchema>[] {
     {
       accessorKey: ColumnKey.os,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label='OS' />
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('requestMap.table.os')}
+        />
       ),
       cell: ({ row }) => {
         return <div>{row.getValue(ColumnKey.os) || '-'}</div>
@@ -94,7 +116,10 @@ export function getRequestLogColumns(): ColumnDef<RequestLogSchema>[] {
     {
       accessorKey: ColumnKey.timestamp,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label='Time' />
+        <DataTableColumnHeader
+          column={column}
+          label={i18n.t('requestMap.table.time')}
+        />
       ),
       cell: ({ row }) => {
         const val = row.getValue(ColumnKey.timestamp)
