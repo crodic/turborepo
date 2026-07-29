@@ -15,6 +15,7 @@ import {
   FlaskConicalIcon,
   BookOpenText,
   Map as MapIcon,
+  Send,
 } from 'lucide-react'
 import { IS_RUNTIME_THEME_ENABLED } from '@/lib/feature-flags'
 import { type SidebarData } from '../types'
@@ -119,6 +120,12 @@ export const sidebarLink: SidebarData = {
           url: '/emails',
           icon: Mail,
           permission: 'EMAIL',
+        },
+        {
+          title: 'Send Notifications',
+          url: '/send-notifications',
+          icon: Send,
+          permission: 'ADMIN',
         },
         {
           title: 'navigation.other.helpCenter',

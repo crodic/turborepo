@@ -3,16 +3,19 @@ import { CurrentUser } from '@/decorators/current-user.decorator';
 import { ApiAuth } from '@/decorators/http.decorators';
 import { AdminAuthGuard } from '@/guards/admin-auth.guard';
 import {
+  Body,
   Controller,
   Delete,
   Get,
   Param,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { NotificationResDto } from './dto/notification.res.dto';
+import { SendNotificationReqDto } from './dto/send-notification.req.dto';
 import { NotificationUnreadCountResDto } from './dto/unread-count.res.dto';
 import { NotificationService } from './notification.service';
 
@@ -32,6 +35,25 @@ export class NotificationController {
     @Query('limit') limit?: string,
   ): Promise<NotificationResDto[]> {
     return this.notificationService.listMine(adminId, Number(limit) || 20);
+  }
+
+  @Get('online-admins')
+  @ApiAuth({
+    type: Number,
+    summary: 'Get list of online admin IDs',
+  })
+  @ApiResponse({ type: Number, isArray: true })
+  getOnlineAdmins(): number[] {
+    return this.notificationService.getOnlineAdminIds();
+  }
+
+  @Post('send')
+  @ApiAuth({
+    type: Boolean,
+    summary: 'Send a manual notification to admins',
+  })
+  sendNotification(@Body() dto: SendNotificationReqDto): Promise<boolean> {
+    return this.notificationService.sendManualNotification(dto);
   }
 
   @Get('unread-count')

@@ -40,6 +40,7 @@ import { PageRoleOverview } from '@/pages/roles'
 import PageRoleCreate from '@/pages/roles/create'
 import { PageRoleEdit } from '@/pages/roles/edit'
 import PageRoleShow from '@/pages/roles/show'
+import { PageSendNotifications } from '@/pages/send-notifications'
 import { Settings } from '@/pages/settings'
 import { SettingsAccount } from '@/pages/settings/account'
 import { SettingsAppearance } from '@/pages/settings/appearance'
@@ -123,6 +124,14 @@ const appRoutes: RouteObject[] = [
             ),
           },
         ],
+      },
+      {
+        path: '/send-notifications',
+        element: (
+          <RouteAuthorize action='create' subject='ADMIN'>
+            <PageSendNotifications />
+          </RouteAuthorize>
+        ),
       },
       {
         path: '/permissions',

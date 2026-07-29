@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import { IsNull, LessThan, Repository } from 'typeorm';
 import { NotificationResDto } from './dto/notification.res.dto';
+import { SendNotificationReqDto } from './dto/send-notification.req.dto';
 import { NotificationUnreadCountResDto } from './dto/unread-count.res.dto';
 import { NotificationEntity } from './entities/notification.entity';
 import { NotificationRealtimeService } from './notification-realtime.service';
@@ -24,6 +25,7 @@ export enum AdminNotificationType {
   EmailSent = 'admin.email.sent',
   EmailFailed = 'admin.email.failed',
   EmailCancelled = 'admin.email.cancelled',
+  ManualMessage = 'admin.manual.message',
 }
 
 type CreateAdminNotificationParams = {
@@ -57,6 +59,7 @@ const NOTIFICATION_TYPE_CATEGORY: Partial<
   [AdminNotificationType.EmailSent]: 'email',
   [AdminNotificationType.EmailFailed]: 'email',
   [AdminNotificationType.EmailCancelled]: 'email',
+  [AdminNotificationType.ManualMessage]: 'system',
 };
 
 @Injectable()
@@ -102,6 +105,36 @@ export class NotificationService {
     this.realtimeService.emitUnreadCount(String(params.adminId), unreadCount);
 
     return dto;
+  }
+
+  getOnlineAdminIds(): number[] {
+    return this.realtimeService.getOnlineAdminIds();
+  }
+
+  async sendManualNotification(dto: SendNotificationReqDto): Promise<boolean> {
+    let targetIds = dto.targetAdminIds;
+
+    // If no specific targets provided, send to all admins
+    if (!targetIds || targetIds.length === 0) {
+      const allAdmins = await this.adminUserRepository.find({
+        select: ['id'],
+      });
+      targetIds = allAdmins.map((admin) => Number(admin.id));
+    }
+
+    if (targetIds.length === 0) return true;
+
+    // Send notification to each target admin
+    for (const adminId of targetIds) {
+      await this.createForAdmin({
+        adminId: String(adminId),
+        type: AdminNotificationType.ManualMessage,
+        title: dto.title,
+        message: dto.message,
+      });
+    }
+
+    return true;
   }
 
   async listMine(

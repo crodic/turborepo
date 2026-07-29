@@ -25,4 +25,21 @@ export class NotificationRealtimeService {
   getAdminRoom(adminId: string) {
     return `admin:${adminId}`;
   }
+
+  getOnlineAdminIds(): number[] {
+    if (!this.server) return [];
+
+    const rooms = this.server.sockets.adapter.rooms;
+    const onlineIds: number[] = [];
+
+    for (const [roomName, sockets] of rooms.entries()) {
+      if (roomName.startsWith('admin:') && sockets.size > 0) {
+        const id = parseInt(roomName.replace('admin:', ''), 10);
+        if (!isNaN(id)) {
+          onlineIds.push(id);
+        }
+      }
+    }
+    return onlineIds;
+  }
 }
