@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { isAxiosError } from 'axios'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -51,6 +53,12 @@ const notificationOptions = [
 
 export function NotificationsForm({ user }: { user: AdminSchema }) {
   const queryClient = useQueryClient()
+  const permissions = useAuthStore((state) => state.permissions)
+  const isSuperAdmin = permissions.includes('manage:all')
+  const [browserPermission, setBrowserPermission] = useState(
+    'Notification' in window ? Notification.permission : 'denied'
+  )
+
   const form = useForm<NotificationsFormSchema>({
     resolver: zodResolver(notificationsFormSchema),
     defaultValues: {
@@ -82,37 +90,77 @@ export function NotificationsForm({ user }: { user: AdminSchema }) {
     updateNotificationsMutation.mutate(data)
   }
 
+  const handleRequestBrowserPermission = async () => {
+    if (!('Notification' in window)) {
+      toast.error('This browser does not support desktop notification')
+      return
+    }
+    const result = await Notification.requestPermission()
+    setBrowserPermission(result)
+    if (result === 'granted') {
+      toast.success('Browser notifications enabled')
+    } else {
+      toast.error('Browser notifications denied')
+    }
+  }
+
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-8'>
-        <div className='space-y-4'>
-          {notificationOptions.map((option) => (
-            <FormField
-              key={option.name}
-              control={form.control}
-              name={`notifications.${option.name}`}
-              render={({ field }) => (
-                <FormItem className='flex flex-row items-center justify-between rounded-lg border p-4'>
-                  <div className='space-y-0.5 pr-6'>
-                    <FormLabel className='text-base'>{option.label}</FormLabel>
-                    <FormDescription>{option.description}</FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          ))}
+    <div className='space-y-6'>
+      {isSuperAdmin && browserPermission !== 'granted' && (
+        <div className='bg-muted/50 flex flex-col gap-4 rounded-lg border p-4'>
+          <div className='space-y-1'>
+            <h4 className='text-sm font-medium'>Browser Notifications</h4>
+            <p className='text-muted-foreground text-sm'>
+              Enable native browser notifications to receive alerts even when
+              you are not actively looking at this tab.
+            </p>
+          </div>
+          <Button
+            variant='outline'
+            className='w-fit'
+            onClick={handleRequestBrowserPermission}
+          >
+            Enable Browser Notifications
+          </Button>
         </div>
-        <Button type='submit' disabled={updateNotificationsMutation.isPending}>
-          Update notifications
-        </Button>
-      </form>
-    </Form>
+      )}
+
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-8'>
+          <div className='space-y-4'>
+            {notificationOptions.map((option) => (
+              <FormField
+                key={option.name}
+                control={form.control}
+                name={`notifications.${option.name}`}
+                render={({ field }) => (
+                  <FormItem className='flex flex-row items-center justify-between rounded-lg border p-4'>
+                    <div className='space-y-0.5 pr-6'>
+                      <FormLabel className='text-base'>
+                        {option.label}
+                      </FormLabel>
+                      <FormDescription>{option.description}</FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ))}
+          </div>
+          <Button
+            type='submit'
+            disabled={updateNotificationsMutation.isPending}
+          >
+            Update notifications
+          </Button>
+        </form>
+      </Form>
+    </div>
   )
 }

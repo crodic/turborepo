@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell, CheckCheck, Circle, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
 import { useNotificationSocket } from '@/context/notification-socket-context'
 import { Button } from '@/components/ui/button'
@@ -130,6 +131,22 @@ export function NotificationDropdown() {
         duration: 8000,
         icon: <Bell className='size-4' />,
       })
+
+      const isSuperAdmin = useAuthStore
+        .getState()
+        .permissions.includes('manage:all')
+      if (
+        isSuperAdmin &&
+        'Notification' in window &&
+        Notification.permission === 'granted'
+      ) {
+        const nativeNotification = new Notification(parsed.data.title, {
+          body: parsed.data.message,
+        })
+        nativeNotification.onclick = () => {
+          window.focus()
+        }
+      }
     }
 
     const handleUnreadCount = (payload: unknown) => {
