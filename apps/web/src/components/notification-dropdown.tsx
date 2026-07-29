@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell, CheckCheck, Circle, Trash2 } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useNotificationSocket } from '@/context/notification-socket-context'
@@ -40,6 +40,7 @@ import {
 const NOTIFICATION_LIMIT = 20
 
 export function NotificationDropdown() {
+  const navigate = useNavigate()
   const socket = useNotificationSocket()
   const queryClient = useQueryClient()
   const [selectedNotification, setSelectedNotification] =
@@ -211,10 +212,14 @@ export function NotificationDropdown() {
                   key={notification.id}
                   className='focus:bg-accent cursor-pointer items-start gap-3 rounded-none px-4 py-3'
                   onSelect={() => {
-                    setSelectedNotification(notification)
-                    setIsDetailOpen(true)
                     if (!notification.readAt) {
                       markReadMutation.mutate(notification.id)
+                    }
+                    if (notification.data?.actionUrl) {
+                      navigate(notification.data.actionUrl)
+                    } else {
+                      setSelectedNotification(notification)
+                      setIsDetailOpen(true)
                     }
                   }}
                 >
@@ -285,14 +290,6 @@ function NotificationDetailDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const { t } = useTranslation()
-
-  const getTranslatedType = (type: string) => {
-    const key = `notificationDetail.types.${type}` as any
-    const translation = t(key)
-    return translation !== key ? translation : type
-  }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='max-h-[min(42rem,calc(100vh-2rem))] overflow-hidden p-0 sm:max-w-2xl'>
@@ -307,63 +304,15 @@ function NotificationDetailDialog({
               </DialogDescription>
             </DialogHeader>
             <ScrollArea className='max-h-[calc(min(42rem,100vh-2rem)-6rem)]'>
-              <div className='space-y-5 px-6 py-5'>
-                <div className='space-y-2'>
-                  <p className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
-                    {t('notificationDetail.message')}
-                  </p>
-                  <p className='text-sm leading-6 whitespace-pre-wrap'>
-                    {notification.message}
-                  </p>
-                </div>
-
-                <div className='grid gap-3 rounded-md border p-4 text-sm sm:grid-cols-2'>
-                  <NotificationMeta
-                    label={t('notificationDetail.type')}
-                    value={getTranslatedType(notification.type)}
-                  />
-                  <NotificationMeta
-                    label={t('notificationDetail.status')}
-                    value={
-                      notification.readAt
-                        ? t('notificationDetail.statusRead')
-                        : t('notificationDetail.statusUnread')
-                    }
-                  />
-                  <NotificationMeta
-                    label={t('notificationDetail.readAt')}
-                    value={
-                      notification.readAt
-                        ? format(new Date(notification.readAt), 'PPpp')
-                        : t('notificationDetail.notReadYet')
-                    }
-                  />
-                </div>
-
-                {notification.data ? (
-                  <div className='space-y-2'>
-                    <p className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
-                      {t('notificationDetail.data')}
-                    </p>
-                    <pre className='bg-muted max-h-64 overflow-auto rounded-md p-4 text-xs whitespace-pre-wrap'>
-                      {JSON.stringify(notification.data, null, 2)}
-                    </pre>
-                  </div>
-                ) : null}
+              <div className='px-6 py-6'>
+                <p className='text-sm leading-6 whitespace-pre-wrap'>
+                  {notification.message}
+                </p>
               </div>
             </ScrollArea>
           </>
         ) : null}
       </DialogContent>
     </Dialog>
-  )
-}
-
-function NotificationMeta({ label, value }: { label: string; value: string }) {
-  return (
-    <div className='space-y-1'>
-      <p className='text-muted-foreground text-xs'>{label}</p>
-      <p className='font-medium break-words'>{value}</p>
-    </div>
   )
 }
