@@ -1,3 +1,4 @@
+import { format } from 'date-fns'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
@@ -56,7 +57,9 @@ function getInitialForm(email?: EmailLogSchema | null): EmailFormSchema {
         bcc: email.bcc?.join(', ') ?? '',
         subject: email.subject,
         body: email.body ?? '',
-        scheduledAt: email.scheduledAt ? email.scheduledAt.slice(0, 16) : '',
+        scheduledAt: email.scheduledAt
+          ? format(new Date(email.scheduledAt), "yyyy-MM-dd'T'HH:mm")
+          : '',
         sendToAllUsers: false,
         sendToAllAdmins: false,
       }

@@ -33,6 +33,8 @@ function toPayload(data: EmailFormSchema) {
     subject: data.subject,
     body: data.body,
     scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
+    sendToAllUsers: data.sendToAllUsers,
+    sendToAllAdmins: data.sendToAllAdmins,
   }
 }
 

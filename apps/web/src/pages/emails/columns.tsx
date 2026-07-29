@@ -64,6 +64,7 @@ export function getEmailTableColumns(
     },
     {
       id: 'to',
+      accessorFn: (row) => row.to.join(', '),
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label='Recipients' />
       ),
