@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell, CheckCheck, Circle, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useNotificationSocket } from '@/context/notification-socket-context'
@@ -284,6 +285,14 @@ function NotificationDetailDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
+  const { t } = useTranslation()
+
+  const getTranslatedType = (type: string) => {
+    const key = `notificationDetail.types.${type}` as any
+    const translation = t(key)
+    return translation !== key ? translation : type
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='max-h-[min(42rem,calc(100vh-2rem))] overflow-hidden p-0 sm:max-w-2xl'>
@@ -301,7 +310,7 @@ function NotificationDetailDialog({
               <div className='space-y-5 px-6 py-5'>
                 <div className='space-y-2'>
                   <p className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
-                    Message
+                    {t('notificationDetail.message')}
                   </p>
                   <p className='text-sm leading-6 whitespace-pre-wrap'>
                     {notification.message}
@@ -309,21 +318,24 @@ function NotificationDetailDialog({
                 </div>
 
                 <div className='grid gap-3 rounded-md border p-4 text-sm sm:grid-cols-2'>
-                  <NotificationMeta label='Type' value={notification.type} />
                   <NotificationMeta
-                    label='Status'
-                    value={notification.readAt ? 'Read' : 'Unread'}
+                    label={t('notificationDetail.type')}
+                    value={getTranslatedType(notification.type)}
                   />
                   <NotificationMeta
-                    label='Created'
-                    value={format(new Date(notification.createdAt), 'PPpp')}
+                    label={t('notificationDetail.status')}
+                    value={
+                      notification.readAt
+                        ? t('notificationDetail.statusRead')
+                        : t('notificationDetail.statusUnread')
+                    }
                   />
                   <NotificationMeta
-                    label='Read at'
+                    label={t('notificationDetail.readAt')}
                     value={
                       notification.readAt
                         ? format(new Date(notification.readAt), 'PPpp')
-                        : 'Not read yet'
+                        : t('notificationDetail.notReadYet')
                     }
                   />
                 </div>
@@ -331,7 +343,7 @@ function NotificationDetailDialog({
                 {notification.data ? (
                   <div className='space-y-2'>
                     <p className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
-                      Data
+                      {t('notificationDetail.data')}
                     </p>
                     <pre className='bg-muted max-h-64 overflow-auto rounded-md p-4 text-xs whitespace-pre-wrap'>
                       {JSON.stringify(notification.data, null, 2)}
