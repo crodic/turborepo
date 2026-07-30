@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { isAxiosError } from 'axios'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -55,9 +54,6 @@ export function NotificationsForm({ user }: { user: AdminSchema }) {
   const queryClient = useQueryClient()
   const permissions = useAuthStore((state) => state.permissions)
   const isSuperAdmin = permissions.includes('manage:all')
-  const [browserPermission, setBrowserPermission] = useState(
-    'Notification' in window ? Notification.permission : 'denied'
-  )
 
   const form = useForm<NotificationsFormSchema>({
     resolver: zodResolver(notificationsFormSchema),
@@ -90,41 +86,8 @@ export function NotificationsForm({ user }: { user: AdminSchema }) {
     updateNotificationsMutation.mutate(data)
   }
 
-  const handleRequestBrowserPermission = async () => {
-    if (!('Notification' in window)) {
-      toast.error('This browser does not support desktop notification')
-      return
-    }
-    const result = await Notification.requestPermission()
-    setBrowserPermission(result)
-    if (result === 'granted') {
-      toast.success('Browser notifications enabled')
-    } else {
-      toast.error('Browser notifications denied')
-    }
-  }
-
   return (
     <div className='space-y-6'>
-      {isSuperAdmin && browserPermission !== 'granted' && (
-        <div className='bg-muted/50 flex flex-col gap-4 rounded-lg border p-4'>
-          <div className='space-y-1'>
-            <h4 className='text-sm font-medium'>Browser Notifications</h4>
-            <p className='text-muted-foreground text-sm'>
-              Enable native browser notifications to receive alerts even when
-              you are not actively looking at this tab.
-            </p>
-          </div>
-          <Button
-            variant='outline'
-            className='w-fit'
-            onClick={handleRequestBrowserPermission}
-          >
-            Enable Browser Notifications
-          </Button>
-        </div>
-      )}
-
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-8'>
           <div className='space-y-4'>
