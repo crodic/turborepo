@@ -55,6 +55,7 @@ import { In, IsNull, Repository } from 'typeorm';
 import { AdminUserLoginReqDto } from '../dto/admin-users/admin-user-login.req.dto';
 import { AdminUserLoginResDto } from '../dto/admin-users/admin-user-login.res.dto';
 import { AdminUserRegisterReqDto } from '../dto/admin-users/admin-user-register.req.dto';
+import { RestoreAccountReqDto } from '../dto/admin-users/restore-account.req.dto';
 import { DisableTwoFactorReqDto } from '../dto/admin-users/two-factor/disable-two-factor.req.dto';
 import { DisableTwoFactorResDto } from '../dto/admin-users/two-factor/disable-two-factor.res.dto';
 import { EnableTwoFactorReqDto } from '../dto/admin-users/two-factor/enable-two-factor.req.dto';
@@ -144,6 +145,7 @@ export class AdminAuthService {
     const { email, password } = dto;
     const user = await this.adminUserRepository.findOne({
       where: { email },
+      withDeleted: true,
     });
 
     const isPasswordValid =
@@ -158,6 +160,25 @@ export class AdminAuthService {
       throw new ForbiddenException({
         message: 'Vui lòng xác thực email trước khi đăng nhập',
         code: 'UNVERIFIED_EMAIL',
+      });
+    }
+
+    if (user.deletedAt) {
+      const msIn30Days = 30 * 24 * 60 * 60 * 1000;
+      if (Date.now() - user.deletedAt.getTime() > msIn30Days) {
+        throw new BadRequestException({ message: 'Invalid credentials' });
+      }
+
+      const payload = { id: user.id } as any;
+      const restoreToken = await this.jwtService.signAsync(payload, {
+        secret: this.configService.getOrThrow('auth.secret', { infer: true }),
+        expiresIn: '5m',
+      });
+
+      return plainToInstance(AdminUserLoginResDto, {
+        userId: user.id,
+        restoreAccountRequired: true,
+        restoreToken,
       });
     }
 
@@ -1234,6 +1255,62 @@ export class AdminAuthService {
     });
 
     return true;
+  }
+
+  async selfDelete(userToken: JwtPayloadType): Promise<void> {
+    const user = await this.adminUserRepository.findOneByOrFail({
+      id: userToken.id as AutoIncrementID,
+    });
+
+    await this.adminUserRepository.softDelete(user.id);
+    await this.revokeAllSessions(userToken);
+
+    const deletionDate = new Date();
+    deletionDate.setDate(deletionDate.getDate() + 30);
+
+    await this.emailQueue.add(JobName.ADMIN_ACCOUNT_DELETION_REQUESTED, {
+      email: user.email,
+      adminName: user.fullName || user.firstName,
+      deletionDate: deletionDate.toISOString(),
+    } as any);
+  }
+
+  async restoreAccount(
+    dto: RestoreAccountReqDto,
+    requestInfo?: SessionRequestInfo,
+  ): Promise<AdminUserLoginResDto> {
+    let payload: JwtPayloadType;
+    try {
+      payload = await this.jwtService.verifyAsync(dto.token, {
+        secret: this.configService.getOrThrow('auth.secret', { infer: true }),
+      });
+    } catch {
+      throw new UnauthorizedException('Token is invalid or expired.');
+    }
+
+    const user = await this.adminUserRepository.findOne({
+      where: { id: payload.id as AutoIncrementID },
+      withDeleted: true,
+    });
+
+    if (!user || !user.deletedAt) {
+      throw new UnauthorizedException('Account not found or already restored.');
+    }
+
+    await this.adminUserRepository.restore(user.id);
+
+    const session = await this.createAdminLoginSession(user, requestInfo, []);
+    const token = await this.createToken({
+      id: user.id,
+      sessionId: session.id,
+      hash: session.hash,
+    });
+    await this.notifyAdminLogin(user, session);
+
+    return plainToInstance(AdminUserLoginResDto, {
+      userId: user.id,
+      ...token,
+    });
   }
 
   private async createVerificationToken(data: { id: string }): Promise<string> {

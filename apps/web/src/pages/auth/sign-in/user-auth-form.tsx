@@ -9,6 +9,7 @@ import {
   apiLogin,
   apiVerifySuspiciousLogin,
   apiVerifyTwoFactorLogin,
+  apiRestoreAccount,
 } from '../queries'
 import {
   loginSchema,
@@ -18,6 +19,7 @@ import {
   type SuspiciousLoginSchema,
   type TwoFactorLoginSchema,
 } from '../schema'
+import { RestoreAccountAlert } from './components/restore-account-alert'
 import { SignInForm } from './components/sign-in-form'
 import { SuspiciousLoginForm } from './components/suspicious-login-form'
 import { TwoFactorForm } from './components/two-factor-form'
@@ -48,6 +50,7 @@ export function UserAuthForm({
   const [suspiciousReasons, setSuspiciousReasons] = useState<string[]>([])
   const [suspiciousFocusNonce, setSuspiciousFocusNonce] = useState(0)
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null)
+  const [restoreToken, setRestoreToken] = useState<string | null>(null)
 
   const form = useForm<LoginSchema>({
     resolver: zodResolver(loginSchema),
@@ -108,6 +111,12 @@ export function UserAuthForm({
         return
       }
 
+      if (payload.restoreAccountRequired && payload.restoreToken) {
+        setRestoreToken(payload.restoreToken)
+        toast.error('Your account is scheduled for deletion.')
+        return
+      }
+
       if (payload.twoFactorRequired && payload.twoFactorToken) {
         setTwoFactorToken(payload.twoFactorToken)
         setPendingUserId(payload.userId)
@@ -163,6 +172,17 @@ export function UserAuthForm({
     },
   })
 
+  const restoreAccountMutation = useMutation({
+    mutationFn: apiRestoreAccount,
+    onSuccess: (payload) => {
+      setRestoreToken(null)
+      completeLogin(payload)
+    },
+    onError: () => {
+      toast.error('Failed to restore account. Token may be invalid or expired.')
+    },
+  })
+
   function onSubmit(data: LoginSchema) {
     loginMutation.mutate(data)
   }
@@ -197,6 +217,17 @@ export function UserAuthForm({
     setSuspiciousReasons([])
     setPendingUserId(null)
     suspiciousLoginForm.reset()
+  }
+
+  function handleRestoreAccount() {
+    if (restoreToken) {
+      restoreAccountMutation.mutate({ token: restoreToken })
+    }
+  }
+
+  function handleCancelRestore() {
+    setRestoreToken(null)
+    form.reset()
   }
 
   useEffect(() => {
@@ -236,6 +267,16 @@ export function UserAuthForm({
         focusNonce={suspiciousFocusNonce}
         onSubmit={onSuspiciousLoginSubmit}
         onBack={resetSuspiciousLoginStep}
+      />
+    )
+  }
+
+  if (restoreToken) {
+    return (
+      <RestoreAccountAlert
+        isPending={restoreAccountMutation.isPending}
+        onRestore={handleRestoreAccount}
+        onCancel={handleCancelRestore}
       />
     )
   }

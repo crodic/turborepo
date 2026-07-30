@@ -4,6 +4,9 @@ import {
   NotificationService,
 } from '@/api/notification/notification.service';
 import {
+  IAdminAccountDeletionRequestedEmailJob,
+  IAdminAccountHardDeletedEmailJob,
+  IAdminAccountHardDeletedReportEmailJob,
   IAdminSendEmailJob,
   IAdminSuspiciousLoginEmailJob,
   IForgotPasswordEmailJob,
@@ -109,6 +112,105 @@ export class EmailQueueService {
         ...data,
         renderedHtml: renderedBody,
       });
+      await this.markSent(log, renderedBody);
+    } catch (error) {
+      await this.markFailed(log, error);
+      throw error;
+    }
+  }
+
+  async sendAdminAccountDeletionRequested(
+    data: IAdminAccountDeletionRequestedEmailJob,
+  ): Promise<void> {
+    this.logger.debug(
+      `Sending admin account deletion requested alert to ${data.email}`,
+    );
+    const renderedBody = this.mailService.renderAdminAccountDeletionRequested(
+      data.adminName,
+      data.deletionDate,
+    );
+    const log = await this.createSystemLog({
+      to: [data.email],
+      subject: 'Account Deletion Requested',
+      jobName: JobName.ADMIN_ACCOUNT_DELETION_REQUESTED,
+      templateName: 'admin-account-deletion-requested',
+      body: renderedBody,
+      renderedBody,
+    });
+
+    try {
+      await this.mailService.sendAdminAccountDeletionRequested(
+        data.email,
+        data.adminName,
+        data.deletionDate,
+        renderedBody,
+      );
+      await this.markSent(log, renderedBody);
+    } catch (error) {
+      await this.markFailed(log, error);
+      throw error;
+    }
+  }
+
+  async sendAdminAccountHardDeleted(
+    data: IAdminAccountHardDeletedEmailJob,
+  ): Promise<void> {
+    this.logger.debug(
+      `Sending admin account hard deleted alert to ${data.email}`,
+    );
+    const renderedBody = this.mailService.renderAdminAccountHardDeleted(
+      data.adminName,
+      data.deletedAt,
+    );
+    const log = await this.createSystemLog({
+      to: [data.email],
+      subject: 'Your account has been deleted',
+      jobName: JobName.ADMIN_ACCOUNT_HARD_DELETED,
+      templateName: 'admin-account-hard-deleted',
+      body: renderedBody,
+      renderedBody,
+    });
+
+    try {
+      await this.mailService.sendAdminAccountHardDeleted(
+        data.email,
+        data.adminName,
+        data.deletedAt,
+        renderedBody,
+      );
+      await this.markSent(log, renderedBody);
+    } catch (error) {
+      await this.markFailed(log, error);
+      throw error;
+    }
+  }
+
+  async sendAdminAccountHardDeletedReport(
+    data: IAdminAccountHardDeletedReportEmailJob,
+  ): Promise<void> {
+    this.logger.debug(
+      `Sending admin account hard deleted report to ${data.email}`,
+    );
+    const renderedBody = this.mailService.renderAdminAccountHardDeletedReport(
+      data.adminName,
+      data.deletedCount,
+    );
+    const log = await this.createSystemLog({
+      to: [data.email],
+      subject: `Admin Account Deletion Report (${data.deletedCount} deleted)`,
+      jobName: JobName.ADMIN_ACCOUNT_HARD_DELETED_REPORT,
+      templateName: 'admin-account-hard-deleted-report',
+      body: renderedBody,
+      renderedBody,
+    });
+
+    try {
+      await this.mailService.sendAdminAccountHardDeletedReport(
+        data.email,
+        data.adminName,
+        data.deletedCount,
+        renderedBody,
+      );
       await this.markSent(log, renderedBody);
     } catch (error) {
       await this.markFailed(log, error);

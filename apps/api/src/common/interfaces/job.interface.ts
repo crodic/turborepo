@@ -61,3 +61,18 @@ export interface IFileUploadJob {
   callbackEventName?: string;
   metadata?: Record<string, any>;
 }
+
+export interface IAdminAccountDeletionRequestedEmailJob extends IEmailJob {
+  adminName: string;
+  deletionDate: string;
+}
+
+export interface IAdminAccountHardDeletedEmailJob extends IEmailJob {
+  adminName: string;
+  deletedAt: string;
+}
+
+export interface IAdminAccountHardDeletedReportEmailJob extends IEmailJob {
+  adminName: string;
+  deletedCount: number;
+}

@@ -39,6 +39,7 @@ import type { Response } from 'express';
 import { AdminUserLoginReqDto } from '../dto/admin-users/admin-user-login.req.dto';
 import { AdminUserLoginResDto } from '../dto/admin-users/admin-user-login.res.dto';
 import { AdminUserRegisterReqDto } from '../dto/admin-users/admin-user-register.req.dto';
+import { RestoreAccountReqDto } from '../dto/admin-users/restore-account.req.dto';
 import { DisableTwoFactorReqDto } from '../dto/admin-users/two-factor/disable-two-factor.req.dto';
 import { DisableTwoFactorResDto } from '../dto/admin-users/two-factor/disable-two-factor.res.dto';
 import { EnableTwoFactorReqDto } from '../dto/admin-users/two-factor/enable-two-factor.req.dto';
@@ -404,6 +405,48 @@ export class AdminAuthenticationController {
     @Body() reqDto: ChangePasswordReqDto,
   ): Promise<ChangePasswordResDto> {
     return this.adminAuthService.changePassword(userId, reqDto);
+  }
+
+  @ApiAuth({
+    summary: 'Schedule current admin account for deletion (soft delete)',
+    statusCode: 204,
+  })
+  @SkipThrottle()
+  @Delete('me/account')
+  async selfDelete(
+    @CurrentUser() userToken: JwtPayloadType,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.adminAuthService.selfDelete(userToken);
+    clearAuthCookies({
+      res,
+      configService: this.configService,
+      prefix: 'admin',
+    });
+  }
+
+  @ApiPublic({
+    type: AdminUserLoginResDto,
+    summary: 'Restore a soft-deleted account',
+  })
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('restore')
+  async restoreAccount(
+    @Body() dto: RestoreAccountReqDto,
+    @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AdminUserLoginResDto> {
+    const result = await this.adminAuthService.restoreAccount(dto, {
+      ipAddress: req.ip,
+      userAgent: req.headers?.['user-agent'],
+    });
+    setAuthCookies({
+      res,
+      configService: this.configService,
+      prefix: 'admin',
+      tokens: result,
+    });
+    return result;
   }
 
   private getVerificationRedirectUrl(status: 'success' | 'failed') {

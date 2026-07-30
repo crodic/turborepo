@@ -1,4 +1,3 @@
-import { IVerifyEmailJob } from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
@@ -11,6 +10,7 @@ import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import assert from 'assert';
 import { Queue } from 'bullmq';
@@ -23,7 +23,7 @@ import {
   Paginated,
   PaginateQuery,
 } from 'nestjs-paginate';
-import { EntityManager, In, Repository } from 'typeorm';
+import { EntityManager, In, LessThan, Repository } from 'typeorm';
 import { RoleEntity } from '../role/entities/role.entity';
 import { SettingsService } from '../settings/settings.service';
 import { AdminUserResDto } from './dto/admin-user.res.dto';
@@ -47,7 +47,7 @@ export class AdminUserService {
     private readonly configService: ConfigService<AllConfigType>,
     private readonly jwtService: JwtService,
     @InjectQueue(QueueName.EMAIL)
-    private readonly emailQueue: Queue<IVerifyEmailJob, any, string>,
+    private readonly emailQueue: Queue<any, any, string>,
   ) {}
 
   async hasAdmin(): Promise<boolean> {
@@ -228,5 +228,54 @@ export class AdminUserService {
   async remove(id: AutoIncrementID) {
     const admin = await this.adminUserRepository.findOneByOrFail({ id });
     await this.adminUserRepository.softRemove(admin);
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_4AM)
+  async hardDeleteOldAccounts() {
+    const msIn30Days = 30 * 24 * 60 * 60 * 1000;
+    const thresholdDate = new Date(Date.now() - msIn30Days);
+
+    const usersToDelete = await this.adminUserRepository.find({
+      where: {
+        deletedAt: LessThan(thresholdDate),
+      },
+      withDeleted: true,
+    });
+
+    if (usersToDelete.length === 0) {
+      return;
+    }
+
+    // Hard delete
+    const idsToDelete = usersToDelete.map((u) => u.id);
+    await this.adminUserRepository.delete({
+      id: In(idsToDelete),
+    });
+
+    // Send email to deleted users
+    for (const user of usersToDelete) {
+      await this.emailQueue.add(JobName.ADMIN_ACCOUNT_HARD_DELETED as any, {
+        email: user.email,
+        adminName: user.fullName || user.firstName,
+        deletedAt: user.deletedAt.toISOString(),
+      });
+    }
+
+    // Send summary report to system admins
+    const allAdmins = await this.adminUserRepository.find();
+    const adminsToNotify = allAdmins.filter(
+      (admin) => admin.notifications?.email !== false,
+    );
+
+    for (const admin of adminsToNotify) {
+      await this.emailQueue.add(
+        JobName.ADMIN_ACCOUNT_HARD_DELETED_REPORT as any,
+        {
+          email: admin.email,
+          adminName: admin.fullName || admin.firstName,
+          deletedCount: usersToDelete.length,
+        },
+      );
+    }
   }
 }

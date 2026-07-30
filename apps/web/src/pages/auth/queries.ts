@@ -59,6 +59,8 @@ export interface ApiLoginResponse {
   suspiciousLoginToken?: string
   suspiciousLoginMethods?: string[]
   suspiciousReasons?: string[]
+  restoreAccountRequired?: boolean
+  restoreToken?: string
 }
 
 export async function apiLogin(values: LoginSchema): Promise<ApiLoginResponse> {
@@ -196,4 +198,16 @@ export async function apiGetActiveUserImpersonationSession(
 
 export async function apiStopUserImpersonation(userId: string) {
   return await http.post(`/auth/impersonate-user/${userId}/stop`)
+}
+
+export async function apiRestoreAccount(values: {
+  token: string
+}): Promise<ApiLoginResponse> {
+  const res = await http.post('/auth/restore', values)
+
+  return res.data
+}
+
+export async function apiDeleteAccount() {
+  return await http.delete('/auth/me/account')
 }

@@ -1,4 +1,7 @@
 import {
+  IAdminAccountDeletionRequestedEmailJob,
+  IAdminAccountHardDeletedEmailJob,
+  IAdminAccountHardDeletedReportEmailJob,
   IAdminSendEmailJob,
   IAdminSuspiciousLoginEmailJob,
   IEmailJob,
@@ -79,6 +82,18 @@ export class EmailProcessor extends WorkerHost {
       case JobName.ADMIN_SEND_EMAIL:
         return await this.emailQueueService.sendAdminEmail(
           job.data as unknown as IAdminSendEmailJob,
+        );
+      case JobName.ADMIN_ACCOUNT_DELETION_REQUESTED:
+        return await this.emailQueueService.sendAdminAccountDeletionRequested(
+          job.data as unknown as IAdminAccountDeletionRequestedEmailJob,
+        );
+      case JobName.ADMIN_ACCOUNT_HARD_DELETED:
+        return await this.emailQueueService.sendAdminAccountHardDeleted(
+          job.data as unknown as IAdminAccountHardDeletedEmailJob,
+        );
+      case JobName.ADMIN_ACCOUNT_HARD_DELETED_REPORT:
+        return await this.emailQueueService.sendAdminAccountHardDeletedReport(
+          job.data as unknown as IAdminAccountHardDeletedReportEmailJob,
         );
       default:
         throw new Error(`Unknown job name: ${job.name}`);

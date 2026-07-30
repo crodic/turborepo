@@ -280,6 +280,83 @@ export class MailService {
     return html;
   }
 
+  renderAdminAccountDeletionRequested(
+    adminName: string,
+    deletionDate: string,
+  ): string {
+    return this.renderTemplate('admin-account-deletion-requested', {
+      adminName,
+      deletionDate,
+    });
+  }
+
+  async sendAdminAccountDeletionRequested(
+    email: string,
+    adminName: string,
+    deletionDate: string,
+    renderedHtml?: string,
+  ): Promise<string> {
+    const html =
+      renderedHtml ??
+      this.renderAdminAccountDeletionRequested(adminName, deletionDate);
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Account Deletion Requested',
+      html,
+    });
+    return html;
+  }
+
+  renderAdminAccountHardDeleted(adminName: string, deletedAt: string): string {
+    return this.renderTemplate('admin-account-hard-deleted', {
+      adminName,
+      deletedAt,
+    });
+  }
+
+  async sendAdminAccountHardDeleted(
+    email: string,
+    adminName: string,
+    deletedAt: string,
+    renderedHtml?: string,
+  ): Promise<string> {
+    const html =
+      renderedHtml ?? this.renderAdminAccountHardDeleted(adminName, deletedAt);
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Your account has been deleted',
+      html,
+    });
+    return html;
+  }
+
+  renderAdminAccountHardDeletedReport(
+    adminName: string,
+    deletedCount: number,
+  ): string {
+    return this.renderTemplate('admin-account-hard-deleted-report', {
+      adminName,
+      deletedCount,
+    });
+  }
+
+  async sendAdminAccountHardDeletedReport(
+    email: string,
+    adminName: string,
+    deletedCount: number,
+    renderedHtml?: string,
+  ): Promise<string> {
+    const html =
+      renderedHtml ??
+      this.renderAdminAccountHardDeletedReport(adminName, deletedCount);
+    await this.mailerService.sendMail({
+      to: email,
+      subject: `Admin Account Deletion Report (${deletedCount} deleted)`,
+      html,
+    });
+    return html;
+  }
+
   private renderTemplate(
     templateName:
       | 'admin-email-verification'
@@ -289,7 +366,10 @@ export class MailService {
       | 'user-email-reset-password'
       | 'user-impersonation-started'
       | 'user-impersonation-ended'
-      | 'admin-email',
+      | 'admin-email'
+      | 'admin-account-deletion-requested'
+      | 'admin-account-hard-deleted'
+      | 'admin-account-hard-deleted-report',
     context: Record<string, unknown>,
   ): string {
     const templatePath = join(__dirname, 'templates', `${templateName}.hbs`);

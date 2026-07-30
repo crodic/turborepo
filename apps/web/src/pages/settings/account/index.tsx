@@ -5,6 +5,7 @@ import { apiGetMe } from '@/pages/auth/queries'
 import { NotFoundError } from '@/pages/errors/not-found-error'
 import { ContentSection } from '../components/content-section'
 import { AccountForm } from './account-form'
+import DeleteAccount from './delete-account'
 
 export function SettingsAccount() {
   const { t } = useTranslation()
@@ -34,7 +35,7 @@ export function SettingsAccount() {
     >
       <div className='space-y-8'>
         <AccountForm user={currentUser} />
-        {/* <DeleteAccount /> */}
+        <DeleteAccount />
       </div>
     </ContentSection>
   )

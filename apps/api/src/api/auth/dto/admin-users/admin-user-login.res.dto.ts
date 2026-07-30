@@ -53,4 +53,12 @@ export class AdminUserLoginResDto {
   @Expose()
   @ArrayField(String, { required: false })
   suspiciousReasons?: string[];
+
+  @Expose()
+  @BooleanFieldOptional()
+  restoreAccountRequired?: boolean;
+
+  @Expose()
+  @TokenFieldOptional()
+  restoreToken?: string;
 }
