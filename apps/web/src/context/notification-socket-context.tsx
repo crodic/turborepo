@@ -7,7 +7,6 @@ import React, {
   type ReactNode,
 } from 'react'
 import { io, type Socket } from 'socket.io-client'
-import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 
 interface NotificationSocketProviderProps {
@@ -43,35 +42,6 @@ export const NotificationSocketProvider: React.FC<
 
     socketRef.current = newSocket
     queueMicrotask(() => setSocket(newSocket))
-
-    if ('Notification' in window && Notification.permission === 'default') {
-      const hasAsked = localStorage.getItem('asked_browser_notification')
-      if (!hasAsked) {
-        toast('Enable Browser Notifications?', {
-          description: 'Receive system alerts directly on your desktop.',
-          duration: 10000,
-          action: {
-            label: 'Enable',
-            onClick: async () => {
-              localStorage.setItem('asked_browser_notification', 'true')
-              const res = await Notification.requestPermission()
-              if (res === 'granted') {
-                toast.success('Browser notifications enabled')
-              }
-            },
-          },
-          cancel: {
-            label: 'Not now',
-            onClick: () => {
-              localStorage.setItem('asked_browser_notification', 'true')
-            },
-          },
-          onDismiss: () => {
-            localStorage.setItem('asked_browser_notification', 'true')
-          },
-        })
-      }
-    }
 
     return () => {
       newSocket.disconnect()
