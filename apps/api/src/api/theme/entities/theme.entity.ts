@@ -55,10 +55,6 @@ export class ThemeEntity extends AbstractEntity {
   })
   status: EThemeStatus;
 
-  @Index('IDX_themes_is_default')
-  @Column({ name: 'is_default', type: 'boolean', default: false })
-  isDefault: boolean;
-
   @Index('IDX_themes_created_by_admin_id')
   @Column({ name: 'created_by_admin_id', type: 'bigint', nullable: true })
   createdByAdminId?: AutoIncrementID | null;

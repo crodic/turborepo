@@ -63,7 +63,7 @@ export function PageMyEmails() {
     .ilike('subject', filter.subject)
     .ilike('to', filter.to)
     .in('status', filter.status || [])
-    .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
+    .applySorts(sortParser(sort))
 
   const { data, isFetching } = useDataMyEmails(builder.build())
 

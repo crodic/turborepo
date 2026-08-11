@@ -53,7 +53,7 @@ export class ThemeService {
       ThemeResDto,
       {
         ...theme,
-        isAdminDefault: runtimeThemeIds[EThemeTarget.ADMIN]
+        isDefault: runtimeThemeIds[EThemeTarget.ADMIN]
           ? String(runtimeThemeIds[EThemeTarget.ADMIN]) === id
           : false,
       },
@@ -92,20 +92,6 @@ export class ThemeService {
     return slug;
   }
 
-  private async clearDefaultTheme(ignoreId?: AutoIncrementID) {
-    const query = this.themeRepository
-      .createQueryBuilder()
-      .update(ThemeEntity)
-      .set({ isDefault: false })
-      .where('is_default = :isDefault', { isDefault: true });
-
-    if (ignoreId) {
-      query.andWhere('id != :id', { id: ignoreId });
-    }
-
-    await query.execute();
-  }
-
   private async getRuntimeThemeSettings(): Promise<RuntimeThemeSettings> {
     const settings = await this.settingsService.get<RuntimeThemeSettings>(
       SettingKeys.RUNTIME_THEMES,
@@ -141,18 +127,14 @@ export class ThemeService {
     theme: ThemeEntity,
     dto: CreateThemeReqDto | UpdateThemeReqDto,
   ) {
-    const setAdminDefault = dto.isAdminDefault ?? dto.isDefault;
-
-    if (setAdminDefault !== undefined) {
-      if (setAdminDefault) {
+    if (dto.isDefault !== undefined) {
+      if (dto.isDefault) {
         if (theme.status !== EThemeStatus.PUBLISHED) {
           throw new ValidationException(
             ErrorCode.V000,
             'Only published themes can be set for admin portal',
           );
         }
-        await this.clearDefaultTheme(theme.id);
-        theme.isDefault = true;
         await this.setRuntimeTheme(EThemeTarget.ADMIN, theme.id);
       } else {
         const runtimeThemeId = await this.resolveRuntimeThemeId(
@@ -161,7 +143,6 @@ export class ThemeService {
         if (runtimeThemeId && String(runtimeThemeId) === String(theme.id)) {
           await this.setRuntimeTheme(EThemeTarget.ADMIN, null);
         }
-        theme.isDefault = false;
       }
     }
   }
@@ -178,7 +159,6 @@ export class ThemeService {
         'name',
         'slug',
         'status',
-        'isDefault',
         'createdAt',
         'updatedAt',
       ],
@@ -188,7 +168,6 @@ export class ThemeService {
         name: [FilterOperator.ILIKE],
         slug: [FilterOperator.ILIKE],
         status: [FilterOperator.EQ, FilterOperator.IN],
-        isDefault: [FilterOperator.EQ],
         createdAt: [FilterOperator.GTE, FilterOperator.LTE],
         updatedAt: [FilterOperator.GTE, FilterOperator.LTE],
       },
@@ -241,7 +220,6 @@ export class ThemeService {
       description: dto.description ?? null,
       styles: dto.styles,
       status: dto.status ?? EThemeStatus.DRAFT,
-      isDefault: false,
       createdByAdminId: adminId,
       updatedByAdminId: adminId,
     });
@@ -281,16 +259,11 @@ export class ThemeService {
     if (dto.status !== undefined) {
       theme.status = dto.status;
       if (dto.status === EThemeStatus.DRAFT) {
-        theme.isDefault = false;
         const runtimeThemeIds = await this.getRuntimeThemeSettings();
         if (String(runtimeThemeIds[EThemeTarget.ADMIN]) === String(theme.id)) {
           await this.setRuntimeTheme(EThemeTarget.ADMIN, null);
         }
       }
-    }
-
-    if (dto.isDefault !== undefined) {
-      dto.isAdminDefault = dto.isDefault;
     }
 
     theme.updatedByAdminId = adminId;
@@ -324,7 +297,6 @@ export class ThemeService {
       description: theme.description,
       styles: theme.styles,
       status: EThemeStatus.DRAFT,
-      isDefault: false,
       createdByAdminId: adminId,
       updatedByAdminId: adminId,
     });
@@ -353,9 +325,6 @@ export class ThemeService {
 
     theme.updatedByAdminId = adminId;
 
-    await this.clearDefaultTheme(id);
-    theme.isDefault = true;
-
     await this.setRuntimeTheme(target, id);
 
     return this.toDto(
@@ -377,7 +346,6 @@ export class ThemeService {
       const adminThemeId = await this.resolveRuntimeThemeId(EThemeTarget.ADMIN);
       if (adminThemeId && String(adminThemeId) === String(id)) {
         await this.setRuntimeTheme(EThemeTarget.ADMIN, null);
-        theme.isDefault = false;
       }
     }
 

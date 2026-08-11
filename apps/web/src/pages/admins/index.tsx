@@ -48,7 +48,7 @@ export function PageAdminOverview() {
     .ilike('email', filter.email)
     .ilike('fullName', filter.fullName)
     .in('roles.id', filter.role || [])
-    .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
+    .applySorts(sortParser(sort))
 
   const { data, isFetching } = useDataAdminOverview(builder.build())
   const { data: rolesData } = useDataRoleFormOptions()

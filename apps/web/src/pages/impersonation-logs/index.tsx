@@ -49,7 +49,7 @@ export function PageImpersonationLogOverview() {
     .eq('targetUserId', filter.targetUserId)
     .ilike('reason', filter.reason)
     .in('status', filter.status || [])
-    .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
+    .applySorts(sortParser(sort))
 
   const { data, isFetching } = useDataImpersonationLogOverview(builder.build())
   const columns = useMemo(() => getImpersonationHistoriesTableColumns(), [])

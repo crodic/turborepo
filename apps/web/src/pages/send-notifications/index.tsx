@@ -69,7 +69,7 @@ export function PageSendNotifications() {
     .ilike('email', filter.email)
     .ilike('fullName', filter.fullName)
     .in('roles.id', filter.role || [])
-    .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
+    .applySorts(sortParser(sort))
 
   const { data: adminsData, isFetching: isFetchingAdmins } =
     useDataAdminOverview(builder.build())

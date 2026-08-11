@@ -52,7 +52,6 @@ export class ThemeController {
         'name',
         'slug',
         'status',
-        'isDefault',
         'createdAt',
         'updatedAt',
       ],
@@ -61,7 +60,6 @@ export class ThemeController {
         name: [FilterOperator.ILIKE],
         slug: [FilterOperator.ILIKE],
         status: [FilterOperator.EQ, FilterOperator.IN],
-        isDefault: [FilterOperator.EQ],
       },
     },
   })

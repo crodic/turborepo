@@ -27,7 +27,6 @@ export const themeSchema = z.object({
   styles: themeStylesSchema,
   status: themeStatusSchema,
   isDefault: booleanishSchema.default(false),
-  isAdminDefault: booleanishSchema.default(false),
   createdByAdminId: z.string().nullable().optional(),
   updatedByAdminId: z.string().nullable().optional(),
   createdAt: z.string(),

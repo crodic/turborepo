@@ -166,7 +166,7 @@ export function PageFileOverview() {
     .eq('resource_type', filter.resource_type)
     .eq('status', filter.status)
     .btw('createdAt', createdFrom, createdTo)
-    .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
+    .applySorts(sortParser(sort))
     .search(search)
 
   if (activeFolder) {

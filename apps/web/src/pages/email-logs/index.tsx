@@ -47,7 +47,7 @@ export function PageEmailLogOverview() {
     .ilike('subject', filter.subject)
     .in('status', filter.status || [])
     .in('source', filter.source || [])
-    .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
+    .applySorts(sortParser(sort))
 
   const { data, isFetching } = useDataEmailLogs(builder.build())
   const columns = useMemo(() => getEmailTableColumns(), [])

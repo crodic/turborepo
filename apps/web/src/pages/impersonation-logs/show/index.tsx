@@ -76,7 +76,7 @@ export default function PageImpersonationLogShow() {
     .ilike('action', filter.action)
     .ilike('endpoint', filter.endpoint)
     .in('status', filter.status || [])
-    .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
+    .applySorts(sortParser(sort))
 
   const { data: history, isFetching: isHistoryFetching } =
     useDataImpersonationLogDetail(id)

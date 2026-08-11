@@ -96,7 +96,7 @@ export default function ComponentTableRowActions({
         queryKey: themeQueryKeys.runtime,
       })
 
-      if (theme.isAdminDefault && !updatedTheme.isAdminDefault) {
+      if (theme.isDefault && !updatedTheme.isDefault) {
         setCachedRuntimeTheme(null)
         if (!hasPersonalThemeColor()) {
           clearRuntimeThemeStyles()
@@ -238,14 +238,14 @@ export default function ComponentTableRowActions({
                 <DropdownMenuItem
                   onClick={() =>
                     setRuntimeAction({
-                      type: theme.isAdminDefault ? 'unset' : 'set',
+                      type: theme.isDefault ? 'unset' : 'set',
                       target: 'admin',
                     })
                   }
                   disabled={isPending || theme.status !== 'published'}
                 >
                   <MonitorIcon className='size-4' />
-                  {theme.isAdminDefault
+                  {theme.isDefault
                     ? 'Unset admin portal'
                     : 'Set for admin portal'}
                 </DropdownMenuItem>

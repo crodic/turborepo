@@ -481,6 +481,24 @@ export class PaginateQueryBuilder {
   }
 
   /**
+   * Apply an array of sort objects
+   * @param sorts - Array of sort objects
+   * @returns This instance of PaginateQueryBuilder
+   */
+  public applySorts(
+    sorts: { sortBy: string; sortDirection: SortDirection }[]
+  ): this {
+    if (Array.isArray(sorts)) {
+      sorts.forEach((s) => {
+        if (s.sortBy && s.sortBy.trim() !== '') {
+          this.sortBys.push([s.sortBy, s.sortDirection])
+        }
+      })
+    }
+    return this
+  }
+
+  /**
    * Sort by a field
    * @param field - Field name to sort by
    * @param direction - Sort direction (ASC or DESC)

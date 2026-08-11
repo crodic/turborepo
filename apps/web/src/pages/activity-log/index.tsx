@@ -47,7 +47,7 @@ export function PageActivityLogOverview() {
     .ilike('entity', filter.entity)
     .eq('userId', filter.userId)
     .in('action', filter.action || [])
-    .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
+    .applySorts(sortParser(sort))
 
   const { data, isFetching } = useDataLogOverview(builder.build())
 

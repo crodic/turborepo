@@ -291,8 +291,7 @@ export function ThemeForm({
                     </Select>
                   </FormControl>
                   <p className='text-muted-foreground text-xs'>
-                    Only published themes can be assigned to admin or client
-                    runtime.
+                    Only published themes can be assigned to admin runtime.
                   </p>
                   <FormMessage />
                 </FormItem>

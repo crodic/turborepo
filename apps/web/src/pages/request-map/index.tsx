@@ -51,7 +51,7 @@ export function PageRequestMap() {
     .page(page)
     .limit(perPage)
     .ilike('method', filter.method)
-    .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
+    .applySorts(sortParser(sort))
 
   const { data, isFetching } = useDataRequestLogs(builder.build())
   const { data: mapLogs } = useDataRequestMapLogs()
