@@ -1,14 +1,6 @@
 import { SessionEntity } from '@/api/auth/entities/session.entity';
 import { EmailLogEntity } from '@/api/email/entities/email-log.entity';
-import { ImpersonateLogHistoryEntity } from '@/api/impersonate-log/entities/impersonate-log-history.entity';
-import { ImpersonateLogEntity } from '@/api/impersonate-log/entities/impersonate-log.entity';
-import {
-  isMutatingMethod,
-  normalizeChangedFields,
-  sanitizePayload,
-} from '@/api/impersonate-log/impersonate-log.util';
 import { NotificationEntity } from '@/api/notification/entities/notification.entity';
-import { EImpersonateLogStatus } from '@/constants/entity.enum';
 import { Logger } from '@nestjs/common';
 import { ClsServiceManager } from 'nestjs-cls';
 import {
@@ -29,8 +21,6 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
   private readonly ignoreEntities = [
     AuditLogEntity.name,
     SessionEntity.name,
-    ImpersonateLogEntity.name,
-    ImpersonateLogHistoryEntity.name,
     EmailLogEntity.name,
     NotificationEntity.name,
   ];
@@ -94,7 +84,6 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
     }
 
     const userType = cls.get('userType') || 'GuestEntity';
-    const impersonation = cls.get('impersonation');
 
     if (userType === 'AdminUserEntity') {
       const log = auditRepo.create({
@@ -124,7 +113,6 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
             null,
           roles: currentUser?.roles?.map((role: any) => role.name) ?? [],
           userType,
-          impersonation: impersonation ?? null,
         },
         description: this.buildDescription(
           action,
@@ -134,55 +122,6 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
 
       setImmediate(() => auditRepo.save(log));
     }
-
-    await this.saveImpersonateLog(action, event, cls);
-  }
-
-  private async saveImpersonateLog(
-    action: 'INSERT' | 'UPDATE' | 'DELETE' | 'RESTORE' | 'SOFT_DELETE',
-    event: any,
-    cls: any,
-  ) {
-    const impersonation = cls.get('impersonation');
-    const method = cls.get('method');
-
-    if (!impersonation || !isMutatingMethod(method)) {
-      return;
-    }
-
-    const impersonateLogRepo =
-      event.manager.getRepository(ImpersonateLogEntity);
-    const before = sanitizePayload(event.databaseEntity);
-    const after = sanitizePayload(event.entity);
-
-    const log = impersonateLogRepo.create({
-      historyId: impersonation.historyId,
-      sessionId: impersonation.sessionId,
-      adminId: impersonation.adminId,
-      targetUserId: impersonation.targetUserId,
-      action,
-      method: method.toUpperCase(),
-      endpoint: cls.get('endpoint') ?? '',
-      entityType: event.metadata.name,
-      entityId: String(
-        event.entity?.id ?? event.databaseEntity?.id ?? event.entityId ?? '',
-      ),
-      input: sanitizePayload(cls.get('body')),
-      output: after,
-      before,
-      after,
-      changedFields: normalizeChangedFields(
-        event.updatedColumns?.map((column) => column.propertyName),
-        event.databaseEntity,
-        event.entity,
-      ),
-      status: EImpersonateLogStatus.SUCCESS,
-      errorMessage: null,
-      ipAddress: cls.get('ip'),
-      userAgent: cls.get('userAgent'),
-    });
-
-    setImmediate(() => impersonateLogRepo.save(log));
   }
 
   private buildDescription = (action: string, entityType: string) => {

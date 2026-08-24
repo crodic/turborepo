@@ -1,28 +1,14 @@
 import { useState } from 'react'
 import { AxiosError } from 'axios'
 import { format } from 'date-fns'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeftIcon, EditIcon, ShieldIcon, TrashIcon } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { ArrowLeftIcon, EditIcon, TrashIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Authorize } from '@/components/authorize'
 import { DeleteAlertDialog } from '@/components/common/delete-alert-dialog'
 import { DescriptionItem, Descriptions } from '@/components/common/descriptions'
 import { ConfigDrawer } from '@/components/config-drawer'
@@ -32,11 +18,6 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-import {
-  apiGetActiveUserImpersonationSession,
-  apiImpersonateUser,
-  apiStopUserImpersonation,
-} from '@/pages/auth/queries'
 import { NotFoundError } from '@/pages/errors/not-found-error'
 import { apiDeleteUser, useDataGetUserDetail } from '../queries'
 
@@ -46,65 +27,8 @@ export function PageUserShow() {
   const queryClient = useQueryClient()
   const params = useParams()
   const id = params.id as string
-  const [isShowDeleteDialog, setIsShowDeleteDialog] = useState(false)
-  const [impersonationReason, setImpersonationReason] = useState('')
-
   const { data, isFetching } = useDataGetUserDetail(id)
-  const { data: activeImpersonationSession, isFetching: isCheckingSession } =
-    useQuery({
-      queryKey: ['user-active-impersonation-session', id],
-      queryFn: () => apiGetActiveUserImpersonationSession(id),
-      enabled: !!id,
-    })
-
-  const impersonateMutation = useMutation({
-    mutationFn: apiImpersonateUser,
-    onSuccess: (response) => {
-      queryClient.invalidateQueries({
-        queryKey: ['user-active-impersonation-session', id],
-      })
-      const redirectUrl = response.redirectUrl || response.callbackUrl
-
-      toast.success('Impersonation session created')
-
-      if (redirectUrl) {
-        window.open(redirectUrl, '_blank', 'noopener,noreferrer')
-      }
-
-      setImpersonationReason('')
-    },
-    onError: (error) => {
-      if (error instanceof AxiosError) {
-        toast.error(
-          error.response?.data.message || 'Failed to impersonate user'
-        )
-        return
-      }
-
-      toast.error('Failed to impersonate user')
-    },
-  })
-
-  const stopImpersonationMutation = useMutation({
-    mutationFn: () => apiStopUserImpersonation(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['user-active-impersonation-session', id],
-      })
-      toast.success('Impersonation session stopped')
-    },
-    onError: (error) => {
-      if (error instanceof AxiosError) {
-        toast.error(
-          error.response?.data.message || 'Failed to stop impersonation'
-        )
-        return
-      }
-
-      toast.error('Failed to stop impersonation')
-    },
-  })
-
+  const [isShowDeleteDialog, setIsShowDeleteDialog] = useState(false)
   const deleteUserMutation = useMutation({
     mutationFn: apiDeleteUser,
     onSuccess: () => {
@@ -126,26 +50,6 @@ export function PageUserShow() {
     if (params.id) {
       deleteUserMutation.mutate(id)
     }
-  }
-
-  const handleImpersonate = () => {
-    const reason = impersonationReason.trim()
-
-    if (!reason) {
-      toast.error('Please enter a reason for impersonation')
-      return
-    }
-
-    const clientUrl = import.meta.env.VITE_CLIENT_URL || 'http://localhost:3000'
-    const callbackUrl =
-      import.meta.env.VITE_IMPERSONATION_CALLBACK_URL ||
-      `${clientUrl}/auth/impersonation/callback`
-
-    impersonateMutation.mutate({
-      userId: id,
-      reason,
-      callbackUrl,
-    })
   }
 
   if (isFetching) return <DataLoader />
@@ -198,99 +102,6 @@ export function PageUserShow() {
               <EditIcon className='h-4 w-4' />
               {t('buttons.edit')}
             </Button>
-            <Authorize action='impersonate' subject='USER'>
-              {activeImpersonationSession ? (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant='destructive'
-                      disabled={stopImpersonationMutation.isPending}
-                    >
-                      <ShieldIcon className='h-4 w-4' />
-                      Stop impersonating
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Stop impersonation?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will revoke the active impersonation session for{' '}
-                        {data.fullName || data.email}. The client tab will lose
-                        access immediately.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel
-                        disabled={stopImpersonationMutation.isPending}
-                      >
-                        Cancel
-                      </AlertDialogCancel>
-                      <AlertDialogAction
-                        disabled={stopImpersonationMutation.isPending}
-                        onClick={() => stopImpersonationMutation.mutate()}
-                      >
-                        Stop impersonating
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              ) : (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant='secondary'
-                      disabled={
-                        impersonateMutation.isPending || isCheckingSession
-                      }
-                    >
-                      <ShieldIcon className='h-4 w-4' />
-                      Impersonate
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Start impersonation?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        You are about to open a new client tab and act as{' '}
-                        {data.fullName || data.email}. This session is temporary
-                        and all actions should be treated as sensitive.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <div className='grid gap-2'>
-                      <Label htmlFor='impersonation-reason'>
-                        Reason for impersonation
-                      </Label>
-                      <Textarea
-                        id='impersonation-reason'
-                        value={impersonationReason}
-                        onChange={(event) =>
-                          setImpersonationReason(event.target.value)
-                        }
-                        placeholder='Example: Investigating support ticket #1234'
-                        disabled={impersonateMutation.isPending}
-                        maxLength={500}
-                      />
-                    </div>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel
-                        disabled={impersonateMutation.isPending}
-                      >
-                        Cancel
-                      </AlertDialogCancel>
-                      <AlertDialogAction
-                        disabled={
-                          impersonateMutation.isPending ||
-                          !impersonationReason.trim()
-                        }
-                        onClick={handleImpersonate}
-                      >
-                        Start impersonating
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </Authorize>
             <Button
               variant='destructive'
               onClick={() => setIsShowDeleteDialog(true)}

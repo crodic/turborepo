@@ -7,7 +7,7 @@ import { EmailModule } from './email/email.module';
 import { FileModule } from './file/file.module';
 import { HealthModule } from './health/health.module';
 import { HomeModule } from './home/home.module';
-import { ImpersonateLogModule } from './impersonate-log/impersonate-log.module';
+
 import { NotificationModule } from './notification/notification.module';
 import { PermissionModule } from './permission/permission.module';
 import { PresenceModule } from './presence/presence.module';
@@ -25,7 +25,7 @@ import { UserModule } from './user/user.module';
     AuthModule,
     HomeModule,
     AuditLogModule,
-    ImpersonateLogModule,
+
     PresenceModule,
     PermissionModule,
     RoleModule,

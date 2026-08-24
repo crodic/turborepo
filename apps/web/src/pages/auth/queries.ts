@@ -17,7 +17,7 @@ export const sessionSchema = z.object({
   id: z.string(),
   userId: z.string(),
   userType: z.string(),
-  impersonatedBy: z.string().nullish(),
+
   ipAddress: z.string().nullish(),
   userAgent: z.string().nullish(),
   isSuspicious: z.boolean().default(false),
@@ -32,20 +32,6 @@ export const sessionSchema = z.object({
 })
 
 export type SessionSchema = z.infer<typeof sessionSchema>
-
-export const impersonateUserSchema = z.object({
-  userId: z.string(),
-  impersonatedBy: z.string(),
-  accessToken: z.string(),
-  refreshToken: z.string(),
-  tokenExpires: z.number(),
-  expiresAt: z.string(),
-  callbackUrl: z.string().nullish(),
-  redirectUrl: z.string().nullish(),
-  session: sessionSchema,
-})
-
-export type ImpersonateUserResponse = z.infer<typeof impersonateUserSchema>
 
 export interface ApiLoginResponse {
   accessToken?: string
@@ -176,28 +162,6 @@ export async function apiRevokeSession(id: string) {
 
 export async function apiRevokeAllSessions() {
   return await http.delete('/auth/sessions')
-}
-
-export async function apiImpersonateUser(data: {
-  userId: string
-  reason: string
-  callbackUrl?: string
-}): Promise<ImpersonateUserResponse> {
-  const res = await http.post('/auth/impersonate-user', data)
-
-  return impersonateUserSchema.parse(res.data)
-}
-
-export async function apiGetActiveUserImpersonationSession(
-  userId: string
-): Promise<SessionSchema | null> {
-  const res = await http.get(`/auth/impersonate-user/${userId}/active-session`)
-
-  return res.data ? sessionSchema.parse(res.data) : null
-}
-
-export async function apiStopUserImpersonation(userId: string) {
-  return await http.post(`/auth/impersonate-user/${userId}/stop`)
 }
 
 export async function apiRestoreAccount(values: {

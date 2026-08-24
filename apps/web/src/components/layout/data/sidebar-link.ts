@@ -5,7 +5,6 @@ import {
   Group,
   UserLock,
   FileClock,
-  HistoryIcon,
   ShieldCheck,
   Globe,
   Mail,
@@ -35,12 +34,7 @@ export const sidebarLink: SidebarData = {
           icon: FileClock,
           permission: 'LOG',
         },
-        {
-          title: 'navigation.general.impersonationLogs',
-          url: '/impersonation-logs',
-          icon: HistoryIcon,
-          permission: 'IMPERSONATE_LOG',
-        },
+
         {
           title: 'navigation.general.emailLogs',
           url: '/email-logs',

@@ -48,6 +48,7 @@ describe('AdminAuthService suspicious login detection', () => {
     email: 'admin@example.com',
     password: 'hashed-password',
     twoFactorEnabled: false,
+    verifiedAt: new Date(),
   } as AdminUserEntity;
 
   beforeEach(() => {

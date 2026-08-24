@@ -39,14 +39,6 @@ export class SessionEntity extends AbstractEntity {
   })
   userType: ESessionUserType;
 
-  @Index('IDX_sessions_impersonated_by')
-  @Column({
-    name: 'impersonated_by',
-    type: 'bigint',
-    nullable: true,
-  })
-  impersonatedBy?: AutoIncrementID;
-
   @Column({
     name: 'ip_address',
     type: 'varchar',

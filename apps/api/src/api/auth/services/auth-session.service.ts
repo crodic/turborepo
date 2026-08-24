@@ -50,7 +50,6 @@ export class AuthSessionService {
     sessionId: AutoIncrementID | string;
     userId: AutoIncrementID | string;
     userType: ESessionUserType;
-    impersonatedBy?: AutoIncrementID | string;
     revokedAt?: Date;
   }) {
     const revokedAt = params.revokedAt ?? new Date();
@@ -59,9 +58,7 @@ export class AuthSessionService {
         id: params.sessionId as AutoIncrementID,
         userId: params.userId as AutoIncrementID,
         userType: params.userType,
-        ...(params.impersonatedBy
-          ? { impersonatedBy: params.impersonatedBy as AutoIncrementID }
-          : {}),
+
         revokedAt: IsNull(),
       },
       { revokedAt },

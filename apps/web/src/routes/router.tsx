@@ -30,8 +30,6 @@ import { NotFoundError } from '@/pages/errors/not-found-error'
 import { UnauthorizedError } from '@/pages/errors/unauthorized-error'
 import { PageFileOverview } from '@/pages/files'
 import { PageHelpCenter } from '@/pages/help-center'
-import { PageImpersonationLogOverview } from '@/pages/impersonation-logs'
-import PageImpersonationLogShow from '@/pages/impersonation-logs/show'
 import { PagePermissionOverview } from '@/pages/permissions'
 import { PagePermissionEdit } from '@/pages/permissions/edit'
 import PagePermissionShow from '@/pages/permissions/show'
@@ -412,27 +410,7 @@ const appRoutes: RouteObject[] = [
           },
         ],
       },
-      {
-        path: 'impersonation-logs',
-        children: [
-          {
-            index: true,
-            element: (
-              <RouteAuthorize action='read' subject='IMPERSONATE_LOG'>
-                <PageImpersonationLogOverview />
-              </RouteAuthorize>
-            ),
-          },
-          {
-            path: ':id/show',
-            element: (
-              <RouteAuthorize action='read' subject='IMPERSONATE_LOG'>
-                <PageImpersonationLogShow />
-              </RouteAuthorize>
-            ),
-          },
-        ],
-      },
+
       {
         path: 'emails',
         children: [

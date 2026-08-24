@@ -500,10 +500,6 @@ export class UserAuthService {
   }
 
   async logout(userToken: JwtPayloadType): Promise<void> {
-    if (userToken.impersonatedBy) {
-      throw new BadRequestException('Stop impersonation before logging out');
-    }
-
     await this.revokeCurrentSession(userToken);
   }
 
@@ -732,9 +728,6 @@ export class UserAuthService {
       {
         ...user,
         hasPassword: !!user.password,
-        isImpersonating: !!userToken.impersonatedBy,
-        impersonatedBy: userToken.impersonatedBy,
-        impersonationExpiresAt: userToken.impersonationExpiresAt,
       },
       { excludeExtraneousValues: true },
     );
