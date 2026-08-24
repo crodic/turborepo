@@ -14,7 +14,6 @@ import {
   Files,
   FlaskConicalIcon,
   BookOpenText,
-  Map as MapIcon,
   Send,
 } from 'lucide-react'
 import { IS_RUNTIME_THEME_ENABLED } from '@/lib/feature-flags'
@@ -58,12 +57,6 @@ export const sidebarLink: SidebarData = {
           url: '/cms-pages',
           icon: BookOpenText,
           permission: 'PAGE',
-        },
-        {
-          title: 'navigation.general.requestMap',
-          url: '/request-map',
-          icon: MapIcon,
-          permission: 'LOG',
         },
       ],
     },

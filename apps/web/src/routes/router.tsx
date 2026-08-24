@@ -35,7 +35,6 @@ import PageImpersonationLogShow from '@/pages/impersonation-logs/show'
 import { PagePermissionOverview } from '@/pages/permissions'
 import { PagePermissionEdit } from '@/pages/permissions/edit'
 import PagePermissionShow from '@/pages/permissions/show'
-import { PageRequestMap } from '@/pages/request-map'
 import { PageRoleOverview } from '@/pages/roles'
 import PageRoleCreate from '@/pages/roles/create'
 import { PageRoleEdit } from '@/pages/roles/edit'
@@ -476,14 +475,7 @@ const appRoutes: RouteObject[] = [
           },
         ],
       },
-      {
-        path: '/request-map',
-        element: (
-          <RouteAuthorize action='read' subject='LOG'>
-            <PageRequestMap />
-          </RouteAuthorize>
-        ),
-      },
+
       {
         path: '/errors',
         children: [
