@@ -1,6 +1,8 @@
 import { AdminAuthGuard } from '@/guards/admin-auth.guard';
 import { PoliciesGuard } from '@/guards/policies.guard';
 import { Test, TestingModule } from '@nestjs/testing';
+import { FileChunkUploadService } from './file-chunk-upload.service';
+import { FileFolderService } from './file-folder.service';
 import { FileController } from './file.controller';
 import { FileService } from './file.service';
 import { SortableImageCacheService } from './sortable-image-cache.service';
@@ -12,15 +14,24 @@ describe('FileController', () => {
     findAll: jest.fn(),
     findOne: jest.fn(),
     update: jest.fn(),
+    upload: jest.fn(),
+    delete: jest.fn(),
+    uploadImage: jest.fn(),
+    uploadFile: jest.fn(),
+  };
+
+  const mockFileFolderService = {
     listFolders: jest.fn(),
     createFolder: jest.fn(),
     renameFolder: jest.fn(),
     deleteFolder: jest.fn(),
-    upload: jest.fn(),
-    delete: jest.fn(),
-    uploadImage: jest.fn(),
-    uploadImages: jest.fn(),
-    uploadFile: jest.fn(),
+  };
+
+  const mockFileChunkUploadService = {
+    createUploadSession: jest.fn(),
+    uploadChunk: jest.fn(),
+    completeUploadSession: jest.fn(),
+    abortUploadSession: jest.fn(),
   };
 
   const mockSortableImageCacheService = {
@@ -35,6 +46,14 @@ describe('FileController', () => {
         {
           provide: FileService,
           useValue: mockFileService,
+        },
+        {
+          provide: FileFolderService,
+          useValue: mockFileFolderService,
+        },
+        {
+          provide: FileChunkUploadService,
+          useValue: mockFileChunkUploadService,
         },
         {
           provide: SortableImageCacheService,

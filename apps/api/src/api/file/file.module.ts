@@ -5,8 +5,11 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FileEntity } from './entities/file.entity';
+import { FileChunkUploadService } from './file-chunk-upload.service';
 import { FileCleanupService } from './file-cleanup.service';
+import { FileFolderService } from './file-folder.service';
 import { FileQueueService } from './file-queue.service';
+import { FileStreamService } from './file-stream.service';
 import { FileController } from './file.controller';
 import { FileService } from './file.service';
 import { FileStorageAccessGuard } from './guards/file-storage-access.guard';
@@ -27,6 +30,9 @@ import { FileValidator } from './validators/file.validator';
   controllers: [FileController, TransformController],
   providers: [
     FileService,
+    FileFolderService,
+    FileChunkUploadService,
+    FileStreamService,
     FileQueueService,
     FileCleanupService,
     FileStorageAccessGuard,
@@ -36,6 +42,13 @@ import { FileValidator } from './validators/file.validator';
     SortableImageUploadService,
     SortableImageCacheService,
   ],
-  exports: [FileService, SortableImageUploadService, FileQueueService],
+  exports: [
+    FileService,
+    FileFolderService,
+    FileChunkUploadService,
+    FileStreamService,
+    SortableImageUploadService,
+    FileQueueService,
+  ],
 })
 export class FileModule {}
