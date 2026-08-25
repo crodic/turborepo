@@ -45,6 +45,7 @@ import { SocialLinkUrlResDto } from '../dto/users/social-link-url.res.dto';
 import { UpdateAuthUserMeReqDto } from '../dto/users/update-me.req.dto';
 import { ProdOnlyThrottleGuard } from '../guards/ProdOnlyThrottle.guard';
 import { AuthSessionService } from '../services/auth-session.service';
+import { UserAccountRecoveryService } from '../services/user-account-recovery.service';
 import { UserAuthService } from '../services/user-auth.service';
 import { JwtPayloadType } from '../types/jwt-payload.type';
 import { clearAuthCookies, setAuthCookies } from '../utils/auth-cookie.util';
@@ -59,6 +60,7 @@ export class UserAuthenticationController {
   constructor(
     private readonly userAuthService: UserAuthService,
     private readonly authSessionService: AuthSessionService,
+    private readonly userAccountRecoveryService: UserAccountRecoveryService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -178,7 +180,7 @@ export class UserAuthenticationController {
   async forgotPassword(
     @Body() dto: ForgotPasswordReqDto,
   ): Promise<ForgotPasswordResDto> {
-    return await this.userAuthService.forgotPassword(dto);
+    return await this.userAccountRecoveryService.forgotPassword(dto);
   }
 
   @ApiPublic({ type: ResetPasswordResDto, summary: 'Reset password' })
@@ -188,7 +190,7 @@ export class UserAuthenticationController {
     @Query('token') token: string,
     @Body() dto: ResetPasswordReqDto,
   ): Promise<ResetPasswordResDto> {
-    return await this.userAuthService.resetPassword(token, dto);
+    return await this.userAccountRecoveryService.resetPassword(token, dto);
   }
 
   @ApiPublic({ summary: 'Verify email' })
@@ -197,7 +199,7 @@ export class UserAuthenticationController {
   @Get('verify/email')
   async verifyEmail(@Query('token') token: string, @Res() res: Response) {
     try {
-      await this.userAuthService.verifyAccount(token);
+      await this.userAccountRecoveryService.verifyAccount(token);
       return res.redirect(this.getVerificationRedirectUrl('success'));
     } catch {
       return res.redirect(this.getVerificationRedirectUrl('failed'));
@@ -213,7 +215,7 @@ export class UserAuthenticationController {
   async resendVerifyEmail(
     @Body() dto: ResendEmailVerifyReqDto,
   ): Promise<ResendEmailVerifyResDto> {
-    return this.userAuthService.resendVerifyEmail(dto);
+    return this.userAccountRecoveryService.resendVerifyEmail(dto);
   }
 
   @ApiPublic({ summary: 'Start Google OAuth login' })

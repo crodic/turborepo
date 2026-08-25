@@ -5,8 +5,10 @@ import { UserEntity } from '@/api/user/entities/user.entity';
 import { verifyPassword } from '@/utils/password.util';
 import { JwtService } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
+import { AdminAccountRecoveryService } from './admin-account-recovery.service';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminSuspiciousLoginService } from './admin-suspicious-login.service';
+import { AdminTwoFactorService } from './admin-two-factor.service';
 import { AuthSessionService } from './auth-session.service';
 
 jest.mock('@/utils/password.util', () => ({
@@ -41,6 +43,10 @@ describe('AdminAuthService suspicious login detection', () => {
     verifyEmailCode: jest.Mock;
     verifyToken: jest.Mock;
   };
+  let twoFactorService: Partial<Record<keyof AdminTwoFactorService, jest.Mock>>;
+  let accountRecoveryService: Partial<
+    Record<keyof AdminAccountRecoveryService, jest.Mock>
+  >;
   let sessionIdSequence: number;
 
   const admin = {
@@ -79,6 +85,12 @@ describe('AdminAuthService suspicious login detection', () => {
     authSessionService = {
       blacklistSession: jest.fn(),
       clearSessionBlacklist: jest.fn(),
+    };
+    twoFactorService = {
+      consumeBackupCode: jest.fn(),
+    };
+    accountRecoveryService = {
+      sendVerificationEmail: jest.fn(),
     };
     suspiciousLoginService = {
       assess: jest.fn().mockResolvedValue({ score: 0, reasons: [] }),
@@ -123,6 +135,8 @@ describe('AdminAuthService suspicious login detection', () => {
       notificationService as unknown as NotificationService,
       authSessionService as unknown as AuthSessionService,
       suspiciousLoginService as unknown as AdminSuspiciousLoginService,
+      twoFactorService as unknown as AdminTwoFactorService,
+      accountRecoveryService as unknown as AdminAccountRecoveryService,
     );
 
     (verifyPassword as jest.Mock).mockResolvedValue(true);

@@ -7,6 +7,9 @@ import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminUserEntity } from '../admin-user/entities/admin-user.entity';
+import { AdminAccountRecoveryService } from './services/admin-account-recovery.service';
+import { AdminTwoFactorService } from './services/admin-two-factor.service';
+import { UserAccountRecoveryService } from './services/user-account-recovery.service';
 
 import { NotificationModule } from '../notification/notification.module';
 import { UserEntity } from '../user/entities/user.entity';
@@ -58,6 +61,9 @@ import { UserJwtStrategy } from './strategy/user.strategy';
   controllers: [AdminAuthenticationController, UserAuthenticationController],
   providers: [
     AdminAuthService,
+    AdminTwoFactorService,
+    AdminAccountRecoveryService,
+    UserAccountRecoveryService,
     AdminSuspiciousLoginService,
     AuthSessionService,
     UserAuthService,
@@ -66,6 +72,13 @@ import { UserJwtStrategy } from './strategy/user.strategy';
     GoogleStrategy,
     GoogleOAuthAdapter,
   ],
-  exports: [AdminAuthService, UserAuthService, AuthSessionService],
+  exports: [
+    AdminAuthService,
+    UserAuthService,
+    AuthSessionService,
+    AdminTwoFactorService,
+    AdminAccountRecoveryService,
+    UserAccountRecoveryService,
+  ],
 })
 export class AuthModule {}
