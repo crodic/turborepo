@@ -4,6 +4,7 @@ import { ChangePasswordReqDto } from '@/api/admin-user/dto/change-password.req.d
 import { ChangePasswordResDto } from '@/api/admin-user/dto/change-password.res.dto';
 import { UpdateMeReqDto } from '@/api/admin-user/dto/update-me.req.dto';
 import { AutoIncrementID } from '@/common/types/common.type';
+import { ESessionUserType } from '@/constants/entity.enum';
 import { CurrentUser } from '@/decorators/current-user.decorator';
 import {
   ApiAuth,
@@ -62,6 +63,7 @@ import { ResetPasswordResDto } from '../dto/reset-password.res.dto';
 import { SessionResDto } from '../dto/session.res.dto';
 import { ProdOnlyThrottleGuard } from '../guards/ProdOnlyThrottle.guard';
 import { AdminAuthService } from '../services/admin-auth.service';
+import { AuthSessionService } from '../services/auth-session.service';
 import { JwtPayloadType } from '../types/jwt-payload.type';
 import { clearAuthCookies, setAuthCookies } from '../utils/auth-cookie.util';
 
@@ -74,6 +76,7 @@ import { clearAuthCookies, setAuthCookies } from '../utils/auth-cookie.util';
 export class AdminAuthenticationController {
   constructor(
     private readonly adminAuthService: AdminAuthService,
+    private readonly authSessionService: AuthSessionService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -190,7 +193,7 @@ export class AdminAuthenticationController {
     @Res({ passthrough: true }) res?: Response,
   ): Promise<void> {
     if (userToken) {
-      await this.adminAuthService.logout(userToken);
+      await this.authSessionService.logout(userToken, ESessionUserType.ADMIN);
     }
     if (res) {
       clearAuthCookies({
@@ -207,7 +210,10 @@ export class AdminAuthenticationController {
   @SkipThrottle()
   @Get('sessions/activity')
   async getLoginActivity(@CurrentUser() userToken: JwtPayloadType) {
-    return this.adminAuthService.getLoginActivity(userToken);
+    return this.authSessionService.getLoginActivity(
+      userToken,
+      ESessionUserType.ADMIN,
+    );
   }
 
   @ApiAuth({
@@ -217,14 +223,20 @@ export class AdminAuthenticationController {
   @SkipThrottle()
   @Get('sessions')
   async sessions(@CurrentUser() userToken: JwtPayloadType) {
-    return this.adminAuthService.listSessions(userToken);
+    return this.authSessionService.listSessions(
+      userToken,
+      ESessionUserType.ADMIN,
+    );
   }
 
   @ApiAuth({ summary: 'Revoke all current admin sessions' })
   @SkipThrottle()
   @Delete('sessions')
   async revokeAllSessions(@CurrentUser() userToken: JwtPayloadType) {
-    return this.adminAuthService.revokeAllSessions(userToken);
+    return this.authSessionService.revokeAllSessions(
+      userToken,
+      ESessionUserType.ADMIN,
+    );
   }
 
   @ApiAuth({ summary: 'Revoke one current admin session' })
@@ -234,7 +246,11 @@ export class AdminAuthenticationController {
     @CurrentUser() userToken: JwtPayloadType,
     @Param('id') sessionId: AutoIncrementID,
   ) {
-    return this.adminAuthService.revokeSession(userToken, sessionId);
+    return this.authSessionService.revokeSessionById(
+      userToken,
+      ESessionUserType.ADMIN,
+      sessionId,
+    );
   }
 
   @ApiPublic({

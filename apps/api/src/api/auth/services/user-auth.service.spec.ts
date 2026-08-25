@@ -13,7 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { SessionEntity } from '../entities/session.entity';
 import { UserSocialAccountEntity } from '../entities/user-social-account.entity';
 import { AuthSessionService } from './auth-session.service';
@@ -313,31 +313,6 @@ describe('UserAuthService', () => {
 
       await expect(service.verifyAccessToken('access-token')).rejects.toThrow(
         UnauthorizedException,
-      );
-    });
-  });
-
-  describe('logout', () => {
-    it('blacklists and revokes the current session', async () => {
-      await service.logout({
-        id: '10',
-        sessionId: '20',
-        iat: Math.floor(new Date('2026-06-19T00:00:00.000Z').getTime() / 1000),
-        exp: Math.floor(new Date('2026-06-19T00:10:00.000Z').getTime() / 1000),
-      });
-
-      expect(authSessionService.blacklistSession).toHaveBeenCalledWith(
-        '20',
-        ESessionUserType.USER,
-      );
-      expect(sessionRepository.update).toHaveBeenCalledWith(
-        {
-          id: '20',
-          userId: '10',
-          userType: ESessionUserType.USER,
-          revokedAt: IsNull(),
-        },
-        { revokedAt: expect.any(Date) },
       );
     });
   });

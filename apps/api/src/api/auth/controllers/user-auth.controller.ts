@@ -2,6 +2,7 @@ import { UserChangePasswordReqDto } from '@/api/user/dto/user-change-password.re
 import { UserChangePasswordResDto } from '@/api/user/dto/user-change-password.res.dto';
 import { UserResDto } from '@/api/user/dto/user.res.dto';
 import { AutoIncrementID } from '@/common/types/common.type';
+import { ESessionUserType } from '@/constants/entity.enum';
 import { CurrentUser } from '@/decorators/current-user.decorator';
 import { ApiAuth, ApiPublic } from '@/decorators/http.decorators';
 import { SkipPolicies } from '@/decorators/skip-policies.decorator';
@@ -43,6 +44,7 @@ import { SocialExchangeReqDto } from '../dto/users/social-exchange.req.dto';
 import { SocialLinkUrlResDto } from '../dto/users/social-link-url.res.dto';
 import { UpdateAuthUserMeReqDto } from '../dto/users/update-me.req.dto';
 import { ProdOnlyThrottleGuard } from '../guards/ProdOnlyThrottle.guard';
+import { AuthSessionService } from '../services/auth-session.service';
 import { UserAuthService } from '../services/user-auth.service';
 import { JwtPayloadType } from '../types/jwt-payload.type';
 import { clearAuthCookies, setAuthCookies } from '../utils/auth-cookie.util';
@@ -56,6 +58,7 @@ import { clearAuthCookies, setAuthCookies } from '../utils/auth-cookie.util';
 export class UserAuthenticationController {
   constructor(
     private readonly userAuthService: UserAuthService,
+    private readonly authSessionService: AuthSessionService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -124,7 +127,7 @@ export class UserAuthenticationController {
     @CurrentUser() userToken: JwtPayloadType,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    await this.userAuthService.logout(userToken);
+    await this.authSessionService.logout(userToken, ESessionUserType.USER);
     clearAuthCookies({
       res,
       configService: this.configService,
@@ -139,14 +142,20 @@ export class UserAuthenticationController {
   @SkipThrottle()
   @Get('sessions')
   async sessions(@CurrentUser() userToken: JwtPayloadType) {
-    return this.userAuthService.listSessions(userToken);
+    return this.authSessionService.listSessions(
+      userToken,
+      ESessionUserType.USER,
+    );
   }
 
   @ApiAuth({ summary: 'Revoke all current user sessions' })
   @SkipThrottle()
   @Delete('sessions')
   async revokeAllSessions(@CurrentUser() userToken: JwtPayloadType) {
-    return this.userAuthService.revokeAllSessions(userToken);
+    return this.authSessionService.revokeAllSessions(
+      userToken,
+      ESessionUserType.USER,
+    );
   }
 
   @ApiAuth({ summary: 'Revoke one current user session' })
@@ -156,7 +165,11 @@ export class UserAuthenticationController {
     @CurrentUser() userToken: JwtPayloadType,
     @Param('id') sessionId: AutoIncrementID,
   ) {
-    return this.userAuthService.revokeSession(userToken, sessionId);
+    return this.authSessionService.revokeSessionById(
+      userToken,
+      ESessionUserType.USER,
+      sessionId,
+    );
   }
 
   @ApiPublic({ type: ForgotPasswordResDto, summary: 'Forgot password' })

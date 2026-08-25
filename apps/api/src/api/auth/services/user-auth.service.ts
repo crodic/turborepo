@@ -42,7 +42,7 @@ import { plainToInstance } from 'class-transformer';
 import { assert } from 'console';
 import crypto from 'crypto';
 import ms, { StringValue } from 'ms';
-import { In, IsNull, Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { ForgotPasswordReqDto } from '../dto/forgot-password.req.dto';
 import { ForgotPasswordResDto } from '../dto/forgot-password.res.dto';
 import { RefreshReqDto } from '../dto/refresh.req.dto';
@@ -52,7 +52,6 @@ import { ResendEmailVerifyReqDto } from '../dto/resend-email-verify.req.dto';
 import { ResendEmailVerifyResDto } from '../dto/resend-email-verify.res.dto';
 import { ResetPasswordReqDto } from '../dto/reset-password.req.dto';
 import { ResetPasswordResDto } from '../dto/reset-password.res.dto';
-import { SessionResDto } from '../dto/session.res.dto';
 import { LoginReqDto } from '../dto/users/login.req.dto';
 import { LoginResDto } from '../dto/users/login.res.dto';
 import { RegisterReqDto } from '../dto/users/register.req.dto';
@@ -497,103 +496,6 @@ export class UserAuthService {
     }
 
     return payload;
-  }
-
-  async logout(userToken: JwtPayloadType): Promise<void> {
-    await this.revokeCurrentSession(userToken);
-  }
-
-  async listSessions(userToken: JwtPayloadType): Promise<SessionResDto[]> {
-    const sessions = await this.sessionRepository.find({
-      where: {
-        userId: userToken.id as AutoIncrementID,
-        userType: ESessionUserType.USER,
-        revokedAt: IsNull(),
-      },
-      order: { createdAt: 'DESC' },
-    });
-
-    return plainToInstance(SessionResDto, sessions, {
-      excludeExtraneousValues: true,
-    });
-  }
-
-  async revokeSession(
-    userToken: JwtPayloadType,
-    sessionId: AutoIncrementID,
-  ): Promise<{ message: string }> {
-    const result = await this.sessionRepository.update(
-      {
-        id: sessionId,
-        userId: userToken.id as AutoIncrementID,
-        userType: ESessionUserType.USER,
-        revokedAt: IsNull(),
-      },
-      { revokedAt: new Date() },
-    );
-
-    if (result.affected === 0) {
-      throw new NotFoundException('Session not found');
-    }
-
-    await this.authSessionService.blacklistSession(
-      sessionId,
-      ESessionUserType.USER,
-    );
-
-    return { message: 'Session revoked successfully' };
-  }
-
-  async revokeAllSessions(
-    userToken: JwtPayloadType,
-  ): Promise<{ message: string }> {
-    const sessions = await this.sessionRepository.find({
-      where: {
-        userId: userToken.id as AutoIncrementID,
-        userType: ESessionUserType.USER,
-        revokedAt: IsNull(),
-      },
-      select: ['id'],
-    });
-
-    if (sessions.length > 0) {
-      await this.sessionRepository.update(
-        {
-          id: In(sessions.map((session) => session.id)),
-          userId: userToken.id as AutoIncrementID,
-          userType: ESessionUserType.USER,
-          revokedAt: IsNull(),
-        },
-        { revokedAt: new Date() },
-      );
-
-      await Promise.all(
-        sessions.map((session) =>
-          this.authSessionService.blacklistSession(
-            session.id,
-            ESessionUserType.USER,
-          ),
-        ),
-      );
-    }
-
-    return { message: 'Sessions revoked successfully' };
-  }
-
-  private async revokeCurrentSession(userToken: JwtPayloadType) {
-    await this.authSessionService.blacklistSession(
-      userToken.sessionId as AutoIncrementID,
-      ESessionUserType.USER,
-    );
-    await this.sessionRepository.update(
-      {
-        id: userToken.sessionId as AutoIncrementID,
-        userId: userToken.id as AutoIncrementID,
-        userType: ESessionUserType.USER,
-        revokedAt: IsNull(),
-      },
-      { revokedAt: new Date() },
-    );
   }
 
   private verifyRefreshToken(token: string): JwtRefreshPayloadType {

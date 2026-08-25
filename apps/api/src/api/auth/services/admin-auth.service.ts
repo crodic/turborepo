@@ -4,7 +4,6 @@ import { ChangePasswordReqDto } from '@/api/admin-user/dto/change-password.req.d
 import { ChangePasswordResDto } from '@/api/admin-user/dto/change-password.res.dto';
 import { UpdateMeReqDto } from '@/api/admin-user/dto/update-me.req.dto';
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { LoginActivityResDto } from '@/api/auth/dto/admin-users/login-activity.res.dto';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
 import {
   AdminNotificationType,
@@ -75,7 +74,6 @@ import { ResendEmailVerifyReqDto } from '../dto/resend-email-verify.req.dto';
 import { ResendEmailVerifyResDto } from '../dto/resend-email-verify.res.dto';
 import { ResetPasswordReqDto } from '../dto/reset-password.req.dto';
 import { ResetPasswordResDto } from '../dto/reset-password.res.dto';
-import { SessionResDto } from '../dto/session.res.dto';
 import { VerifyAccountResDto } from '../dto/verify-account.req.dto';
 import { JwtForgotPasswordPayload } from '../types/jwt-forgot-password-payload';
 import { JwtPayloadType } from '../types/jwt-payload.type';
@@ -775,180 +773,6 @@ export class AdminAuthService {
     });
   }
 
-  async logout(userToken: JwtPayloadType): Promise<void> {
-    await this.revokeCurrentSession(userToken);
-  }
-
-  async listSessions(userToken: JwtPayloadType): Promise<SessionResDto[]> {
-    const sessions = await this.sessionRepository.find({
-      where: {
-        userId: userToken.id as AutoIncrementID,
-        userType: ESessionUserType.ADMIN,
-        revokedAt: IsNull(),
-      },
-      order: { createdAt: 'DESC' },
-    });
-
-    return plainToInstance(
-      SessionResDto,
-      sessions.map((session) => ({
-        ...session,
-        isCurrent: String(session.id) === String(userToken.sessionId),
-      })),
-      {
-        excludeExtraneousValues: true,
-      },
-    );
-  }
-
-  async getLoginActivity(
-    userToken: JwtPayloadType,
-  ): Promise<
-    import('../dto/admin-users/login-activity.res.dto').LoginActivityResDto
-  > {
-    try {
-      const days = 180;
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(endDate.getDate() - days);
-
-      // Build array of last 180 days
-      const datesMap = new Map<string, number>();
-      for (let i = 0; i <= days; i++) {
-        const d = new Date(startDate);
-        d.setDate(d.getDate() + i);
-        const dateStr = d.toISOString().split('T')[0];
-        datesMap.set(dateStr, 0);
-      }
-
-      const sessions = await this.sessionRepository
-        .createQueryBuilder('session')
-        .select(
-          "TO_CHAR(session.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')",
-          'date',
-        )
-        .addSelect('COUNT(session.id)', 'count')
-        .where('session.userId = :userId', { userId: userToken.id })
-        .andWhere('session.userType = :userType', {
-          userType: ESessionUserType.ADMIN,
-        })
-        .andWhere('session.createdAt >= :startDate', { startDate })
-        .groupBy("TO_CHAR(session.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')")
-        .getRawMany();
-
-      let totalSessions = 0;
-      let activeDays = 0;
-
-      for (const session of sessions) {
-        if (datesMap.has(session.date)) {
-          const count = parseInt(session.count, 10);
-          datesMap.set(session.date, count);
-          totalSessions += count;
-          if (count > 0) activeDays++;
-        }
-      }
-
-      const data = Array.from(datesMap.entries()).map(([date, count]) => {
-        let level = 0;
-        if (count === 1) level = 1;
-        else if (count >= 2 && count <= 3) level = 2;
-        else if (count >= 4 && count <= 5) level = 3;
-        else if (count >= 6) level = 4;
-
-        return {
-          date,
-          count,
-          level,
-        };
-      });
-
-      return plainToInstance(LoginActivityResDto, {
-        totalSessions,
-        activeDays,
-        data,
-      });
-    } catch (e: any) {
-      console.error(e);
-      throw new BadRequestException(e.message);
-    }
-  }
-
-  async revokeSession(
-    userToken: JwtPayloadType,
-    sessionId: AutoIncrementID,
-  ): Promise<{ message: string }> {
-    const result = await this.sessionRepository.update(
-      {
-        id: sessionId,
-        userId: userToken.id as AutoIncrementID,
-        userType: ESessionUserType.ADMIN,
-        revokedAt: IsNull(),
-      },
-      { revokedAt: new Date() },
-    );
-
-    if (result.affected === 0) {
-      throw new NotFoundException('Session not found');
-    }
-
-    await this.authSessionService.blacklistSession(
-      sessionId,
-      ESessionUserType.ADMIN,
-    );
-    await this.notifyAdmin(
-      userToken.id,
-      AdminNotificationType.SessionRevoked,
-      'Session revoked',
-      'One of your admin sessions was revoked.',
-      { sessionId },
-    );
-
-    return { message: 'Session revoked successfully' };
-  }
-
-  async revokeAllSessions(
-    userToken: JwtPayloadType,
-  ): Promise<{ message: string }> {
-    const sessions = await this.sessionRepository.find({
-      where: {
-        userId: userToken.id as AutoIncrementID,
-        userType: ESessionUserType.ADMIN,
-        revokedAt: IsNull(),
-      },
-      select: ['id'],
-    });
-
-    if (sessions.length > 0) {
-      await this.sessionRepository.update(
-        {
-          id: In(sessions.map((session) => session.id)),
-          userId: userToken.id as AutoIncrementID,
-          userType: ESessionUserType.ADMIN,
-          revokedAt: IsNull(),
-        },
-        { revokedAt: new Date() },
-      );
-
-      await Promise.all(
-        sessions.map((session) =>
-          this.authSessionService.blacklistSession(
-            session.id,
-            ESessionUserType.ADMIN,
-          ),
-        ),
-      );
-      await this.notifyAdmin(
-        userToken.id,
-        AdminNotificationType.SessionsRevokedAll,
-        'All sessions revoked',
-        'All active admin sessions on your account were revoked.',
-        { sessionIds: sessions.map((session) => session.id) },
-      );
-    }
-
-    return { message: 'Sessions revoked successfully' };
-  }
-
   async verifyAccessToken(token: string): Promise<JwtPayloadType> {
     let payload: JwtPayloadType;
     try {
@@ -985,22 +809,6 @@ export class AdminAuthService {
     }
 
     return payload;
-  }
-
-  private async revokeCurrentSession(userToken: JwtPayloadType) {
-    await this.authSessionService.blacklistSession(
-      userToken.sessionId as AutoIncrementID,
-      ESessionUserType.ADMIN,
-    );
-    await this.sessionRepository.update(
-      {
-        id: userToken.sessionId as AutoIncrementID,
-        userId: userToken.id as AutoIncrementID,
-        userType: ESessionUserType.ADMIN,
-        revokedAt: IsNull(),
-      },
-      { revokedAt: new Date() },
-    );
   }
 
   private async createAdminLoginSession(
@@ -1263,7 +1071,10 @@ export class AdminAuthService {
     });
 
     await this.adminUserRepository.softDelete(user.id);
-    await this.revokeAllSessions(userToken);
+    await this.authSessionService.revokeAllSessions(
+      userToken,
+      ESessionUserType.ADMIN,
+    );
 
     const deletionDate = new Date();
     deletionDate.setDate(deletionDate.getDate() + 30);
