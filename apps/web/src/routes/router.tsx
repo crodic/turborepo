@@ -21,8 +21,6 @@ import { PageCmsPageShow } from '@/pages/cms-pages/show'
 import { Dashboard } from '@/pages/dashboard'
 import { PageEmailLogOverview } from '@/pages/email-logs'
 import PageEmailLogShow from '@/pages/email-logs/show'
-import { PageMyEmails } from '@/pages/emails'
-import PageMyEmailShow from '@/pages/emails/show'
 import { ForbiddenError } from '@/pages/errors/forbidden'
 import { GeneralError } from '@/pages/errors/general-error'
 import { MaintenanceError } from '@/pages/errors/maintenance-error'
@@ -411,27 +409,6 @@ const appRoutes: RouteObject[] = [
         ],
       },
 
-      {
-        path: 'emails',
-        children: [
-          {
-            index: true,
-            element: (
-              <RouteAuthorize action='read' subject='EMAIL'>
-                <PageMyEmails />
-              </RouteAuthorize>
-            ),
-          },
-          {
-            path: ':id/show',
-            element: (
-              <RouteAuthorize action='read' subject='EMAIL'>
-                <PageMyEmailShow />
-              </RouteAuthorize>
-            ),
-          },
-        ],
-      },
       {
         path: 'email-logs',
         children: [

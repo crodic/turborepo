@@ -14,9 +14,9 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { getEmailTableColumns } from '../emails/columns'
-import { useDataEmailLogs } from '../emails/queries'
-import { ColumnKey, type EmailLogSchema } from '../emails/schema'
+import { getEmailTableColumns } from './columns'
+import { useDataEmailLogs } from './queries'
+import { ColumnKey, type EmailLogSchema } from './schema'
 
 const emailLogFilterParsers = {
   subject: parseAsString.withDefault(''),

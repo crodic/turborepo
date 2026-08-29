@@ -1,15 +1,8 @@
 import { format } from 'date-fns'
 import type { ColumnDef } from '@tanstack/react-table'
-import { PencilIcon, BanIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header'
 import { ColumnKey, type EmailLogSchema } from './schema'
-
-type EmailColumnsOptions = {
-  onEdit?: (email: EmailLogSchema) => void
-  onCancel?: (email: EmailLogSchema) => void
-}
 
 const statusVariant: Record<string, 'default' | 'destructive' | 'secondary'> = {
   scheduled: 'secondary',
@@ -18,9 +11,7 @@ const statusVariant: Record<string, 'default' | 'destructive' | 'secondary'> = {
   cancelled: 'secondary',
 }
 
-export function getEmailTableColumns(
-  options: EmailColumnsOptions = {}
-): ColumnDef<EmailLogSchema>[] {
+export function getEmailTableColumns(): ColumnDef<EmailLogSchema>[] {
   return [
     {
       id: ColumnKey.status,
@@ -110,46 +101,6 @@ export function getEmailTableColumns(
       ),
       cell: ({ row }) =>
         format(new Date(row.original.createdAt), 'dd/MM/yyyy HH:mm'),
-    },
-    {
-      id: 'actions',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} label='Actions' />
-      ),
-      cell: ({ row }) => (
-        <div className='flex justify-end gap-1'>
-          {row.original.status === 'scheduled' && options.onEdit && (
-            <>
-              <Button
-                variant='ghost'
-                size='icon'
-                className='text-muted-foreground hover:text-foreground h-8 w-8'
-                onClick={(event) => {
-                  event.stopPropagation()
-                  options.onEdit?.(row.original)
-                }}
-                title='Edit Campaign'
-              >
-                <PencilIcon className='h-4 w-4' />
-              </Button>
-              <Button
-                variant='ghost'
-                size='icon'
-                className='text-destructive/70 hover:text-destructive h-8 w-8'
-                onClick={(event) => {
-                  event.stopPropagation()
-                  options.onCancel?.(row.original)
-                }}
-                title='Cancel Campaign'
-              >
-                <BanIcon className='h-4 w-4' />
-              </Button>
-            </>
-          )}
-        </div>
-      ),
-      enableSorting: false,
-      enableHiding: false,
     },
   ]
 }

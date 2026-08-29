@@ -47,10 +47,6 @@ export interface IUserImpersonationEndedEmailJob extends IEmailJob {
   actions: ImpersonationActionSummary[];
 }
 
-export interface IAdminSendEmailJob {
-  emailLogId: AutoIncrementID;
-}
-
 export interface IFileUploadJob {
   filePath: string;
   originalName: string;

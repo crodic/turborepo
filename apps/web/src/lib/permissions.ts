@@ -17,10 +17,6 @@ export const groupPermission = [
   },
 
   {
-    group: 'EMAIL',
-    permissions: ['create', 'read', 'update', 'delete'],
-  },
-  {
     group: 'EMAIL_LOG',
     permissions: ['read'],
   },
@@ -64,11 +60,7 @@ export const permissions = [
   // LOG
   { action: 'read', subject: 'LOG' },
 
-  // EMAIL
-  { action: 'create', subject: 'EMAIL' },
-  { action: 'read', subject: 'EMAIL' },
-  { action: 'update', subject: 'EMAIL' },
-  { action: 'delete', subject: 'EMAIL' },
+  // EMAIL_LOG
   { action: 'read', subject: 'EMAIL_LOG' },
 
   // THEME

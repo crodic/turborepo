@@ -7,7 +7,6 @@ import {
   FileClock,
   ShieldCheck,
   Globe,
-  Mail,
   MailSearch,
   PaintbrushIcon,
   Files,
@@ -102,12 +101,6 @@ export const sidebarLink: SidebarData = {
     {
       title: 'navigation.other.title',
       items: [
-        {
-          title: 'navigation.orders.myEmails',
-          url: '/emails',
-          icon: Mail,
-          permission: 'EMAIL',
-        },
         {
           title: 'navigation.orders.sendNotifications',
           url: '/send-notifications',

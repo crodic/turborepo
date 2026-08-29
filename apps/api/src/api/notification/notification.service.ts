@@ -22,9 +22,6 @@ export enum AdminNotificationType {
   PasswordReset = 'admin.security.password_reset',
   SessionRevoked = 'admin.session.revoked',
   SessionsRevokedAll = 'admin.session.revoked_all',
-  EmailSent = 'admin.email.sent',
-  EmailFailed = 'admin.email.failed',
-  EmailCancelled = 'admin.email.cancelled',
   ManualMessage = 'admin.manual.message',
 }
 
@@ -56,9 +53,6 @@ const NOTIFICATION_TYPE_CATEGORY: Partial<
   [AdminNotificationType.PasswordReset]: 'security',
   [AdminNotificationType.SessionRevoked]: 'security',
   [AdminNotificationType.SessionsRevokedAll]: 'security',
-  [AdminNotificationType.EmailSent]: 'email',
-  [AdminNotificationType.EmailFailed]: 'email',
-  [AdminNotificationType.EmailCancelled]: 'email',
   [AdminNotificationType.ManualMessage]: 'system',
 };
 

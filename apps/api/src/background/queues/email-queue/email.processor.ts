@@ -2,7 +2,6 @@ import {
   IAdminAccountDeletionRequestedEmailJob,
   IAdminAccountHardDeletedEmailJob,
   IAdminAccountHardDeletedReportEmailJob,
-  IAdminSendEmailJob,
   IAdminSuspiciousLoginEmailJob,
   IEmailJob,
   IForgotPasswordEmailJob,
@@ -78,10 +77,6 @@ export class EmailProcessor extends WorkerHost {
       case JobName.EMAIL_FORGOT_PASSWORD:
         return await this.emailQueueService.sendUserEmailForgotPassword(
           job.data as unknown as IForgotPasswordEmailJob,
-        );
-      case JobName.ADMIN_SEND_EMAIL:
-        return await this.emailQueueService.sendAdminEmail(
-          job.data as unknown as IAdminSendEmailJob,
         );
       case JobName.ADMIN_ACCOUNT_DELETION_REQUESTED:
         return await this.emailQueueService.sendAdminAccountDeletionRequested(

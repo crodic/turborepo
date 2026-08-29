@@ -13,7 +13,7 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { useDataEmailLogDetail } from '@/pages/emails/queries'
+import { useDataEmailLogDetail } from '@/pages/email-logs/queries'
 import { NotFoundError } from '@/pages/errors/not-found-error'
 import { EmailPreview } from './email-preview'
 
