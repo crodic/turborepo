@@ -28,7 +28,6 @@ import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   BadRequestException,
   ForbiddenException,
-  forwardRef,
   Inject,
   Injectable,
   Logger,
@@ -44,7 +43,6 @@ import { plainToInstance } from 'class-transformer';
 import { assert } from 'console';
 import crypto from 'crypto';
 import ms, { StringValue } from 'ms';
-import { verify as verifyTotp } from 'otplib';
 import { In, IsNull, Repository } from 'typeorm';
 import { AdminUserLoginReqDto } from '../dto/admin-users/admin-user-login.req.dto';
 import { AdminUserLoginResDto } from '../dto/admin-users/admin-user-login.res.dto';
@@ -56,13 +54,27 @@ import { RefreshResDto } from '../dto/refresh.res.dto';
 import { RegisterResDto } from '../dto/register.res.dto';
 import { JwtPayloadType } from '../types/jwt-payload.type';
 import { JwtRefreshPayloadType } from '../types/jwt-refresh-payload.type';
+import { SessionRequestInfo } from '../types/session-request-info.type';
 import { AdminAccountRecoveryService } from './admin-account-recovery.service';
 import {
   AdminSuspiciousLoginService,
   SuspiciousLoginReason,
 } from './admin-suspicious-login.service';
-import { AdminTwoFactorService } from './admin-two-factor.service';
+import {
+  AdminTwoFactorService,
+  TWO_FACTOR_ISSUER,
+  TWO_FACTOR_SETUP_TTL,
+  TwoFactorLoginPayload,
+  TwoFactorSetupPayload,
+} from './admin-two-factor.service';
 import { AuthSessionService } from './auth-session.service';
+
+export { TWO_FACTOR_ISSUER, TWO_FACTOR_SETUP_TTL };
+export type {
+  SessionRequestInfo,
+  TwoFactorLoginPayload,
+  TwoFactorSetupPayload,
+};
 
 type Token = Branded<
   {
@@ -72,27 +84,6 @@ type Token = Branded<
   },
   'token'
 >;
-
-export type SessionRequestInfo = {
-  ipAddress?: string;
-  userAgent?: string | string[];
-  method?: string;
-  endpoint?: string;
-};
-
-type TwoFactorSetupPayload = {
-  secret: string;
-  backupCodeHashes: string[];
-};
-
-export type TwoFactorLoginPayload = {
-  id: string;
-  purpose: 'admin-2fa-login';
-};
-
-export const TWO_FACTOR_ISSUER = 'Crodic Portal';
-export const TWO_FACTOR_SETUP_TTL = '10m' as StringValue;
-const TWO_FACTOR_LOGIN_TTL = '5m' as StringValue;
 
 @Injectable()
 export class AdminAuthService {
@@ -114,7 +105,6 @@ export class AdminAuthService {
     private readonly notificationService: NotificationService,
     private readonly authSessionService: AuthSessionService,
     private readonly suspiciousLoginService: AdminSuspiciousLoginService,
-    @Inject(forwardRef(() => AdminTwoFactorService))
     private readonly adminTwoFactorService: AdminTwoFactorService,
     private readonly adminAccountRecoveryService: AdminAccountRecoveryService,
   ) {}
@@ -185,10 +175,11 @@ export class AdminAuthService {
     }
 
     if (user.twoFactorEnabled) {
-      const twoFactorToken = await this.createTwoFactorLoginToken({
-        id: user.id,
-        purpose: 'admin-2fa-login',
-      });
+      const twoFactorToken =
+        await this.adminTwoFactorService.createTwoFactorLoginToken({
+          id: user.id,
+          purpose: 'admin-2fa-login',
+        });
 
       return plainToInstance(AdminUserLoginResDto, {
         userId: user.id,
@@ -241,9 +232,11 @@ export class AdminAuthService {
       );
     } else if (method === 'totp') {
       if (user.twoFactorEnabled && user.twoFactorSecret) {
-        isValid = await this.verifyTotpCode(
+        isValid = await this.adminTwoFactorService.verifyTotpCode(
           code,
-          this.decryptTwoFactorSecret(user.twoFactorSecret),
+          this.adminTwoFactorService.decryptTwoFactorSecret(
+            user.twoFactorSecret,
+          ),
         );
       }
     } else if (method === 'backup_code') {
@@ -592,83 +585,6 @@ export class AdminAuthService {
     if (!isPasswordValid) {
       throw new ValidationException(ErrorCode.V003);
     }
-  }
-
-  private async createTwoFactorLoginToken(
-    data: TwoFactorLoginPayload,
-  ): Promise<string> {
-    return this.jwtService.signAsync(data, {
-      secret: this.getTwoFactorSigningSecret(),
-      expiresIn: TWO_FACTOR_LOGIN_TTL,
-    });
-  }
-
-  getTwoFactorSigningSecret(): string {
-    return crypto
-      .createHash('sha256')
-      .update(
-        `${this.configService.getOrThrow('auth.secret', { infer: true })}:admin-2fa`,
-      )
-      .digest('hex');
-  }
-
-  private getTwoFactorEncryptionKey(): Buffer {
-    return crypto
-      .createHash('sha256')
-      .update(
-        `${this.configService.getOrThrow('auth.secret', { infer: true })}:admin-2fa-secret`,
-      )
-      .digest();
-  }
-
-  encryptTwoFactorSecret(secret: string): string {
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv(
-      'aes-256-gcm',
-      this.getTwoFactorEncryptionKey(),
-      iv,
-    );
-    const encrypted = Buffer.concat([
-      cipher.update(secret, 'utf8'),
-      cipher.final(),
-    ]);
-    const tag = cipher.getAuthTag();
-
-    return [
-      iv.toString('base64url'),
-      tag.toString('base64url'),
-      encrypted.toString('base64url'),
-    ].join('.');
-  }
-
-  decryptTwoFactorSecret(value: string): string {
-    const [ivValue, tagValue, encryptedValue] = value.split('.');
-
-    if (!ivValue || !tagValue || !encryptedValue) {
-      throw new UnauthorizedException('Invalid two-factor secret');
-    }
-
-    const decipher = crypto.createDecipheriv(
-      'aes-256-gcm',
-      this.getTwoFactorEncryptionKey(),
-      Buffer.from(ivValue, 'base64url'),
-    );
-    decipher.setAuthTag(Buffer.from(tagValue, 'base64url'));
-
-    return Buffer.concat([
-      decipher.update(Buffer.from(encryptedValue, 'base64url')),
-      decipher.final(),
-    ]).toString('utf8');
-  }
-
-  async verifyTotpCode(code: string, secret: string): Promise<boolean> {
-    const result = await verifyTotp({
-      token: code.trim().replace(/\s+/g, ''),
-      secret,
-      epochTolerance: 1,
-    });
-
-    return result.valid === true;
   }
 
   async selfDelete(userToken: JwtPayloadType): Promise<void> {

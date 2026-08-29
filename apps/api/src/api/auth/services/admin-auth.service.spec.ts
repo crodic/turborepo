@@ -88,6 +88,9 @@ describe('AdminAuthService suspicious login detection', () => {
     };
     twoFactorService = {
       consumeBackupCode: jest.fn(),
+      createTwoFactorLoginToken: jest.fn(),
+      verifyTotpCode: jest.fn(),
+      decryptTwoFactorSecret: jest.fn(),
     };
     accountRecoveryService = {
       sendVerificationEmail: jest.fn(),
