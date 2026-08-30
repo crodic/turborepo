@@ -4,6 +4,7 @@ import { ChangePasswordReqDto } from '@/api/admin-user/dto/change-password.req.d
 import { ChangePasswordResDto } from '@/api/admin-user/dto/change-password.res.dto';
 import { UpdateMeReqDto } from '@/api/admin-user/dto/update-me.req.dto';
 import { AutoIncrementID } from '@/common/types/common.type';
+import { ESessionUserType } from '@/constants/entity.enum';
 import { CurrentUser } from '@/decorators/current-user.decorator';
 import {
   ApiAuth,
@@ -61,7 +62,10 @@ import { ResetPasswordReqDto } from '../dto/reset-password.req.dto';
 import { ResetPasswordResDto } from '../dto/reset-password.res.dto';
 import { SessionResDto } from '../dto/session.res.dto';
 import { ProdOnlyThrottleGuard } from '../guards/ProdOnlyThrottle.guard';
+import { AdminAccountRecoveryService } from '../services/admin-account-recovery.service';
 import { AdminAuthService } from '../services/admin-auth.service';
+import { AdminTwoFactorService } from '../services/admin-two-factor.service';
+import { AuthSessionService } from '../services/auth-session.service';
 import { JwtPayloadType } from '../types/jwt-payload.type';
 import { clearAuthCookies, setAuthCookies } from '../utils/auth-cookie.util';
 
@@ -74,6 +78,9 @@ import { clearAuthCookies, setAuthCookies } from '../utils/auth-cookie.util';
 export class AdminAuthenticationController {
   constructor(
     private readonly adminAuthService: AdminAuthService,
+    private readonly authSessionService: AuthSessionService,
+    private readonly adminTwoFactorService: AdminTwoFactorService,
+    private readonly adminAccountRecoveryService: AdminAccountRecoveryService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -112,7 +119,7 @@ export class AdminAuthenticationController {
     @Req() req: any,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AdminUserLoginResDto> {
-    const result = await this.adminAuthService.verifyTwoFactorLogin(dto, {
+    const result = await this.adminTwoFactorService.verifyTwoFactorLogin(dto, {
       ipAddress: req.ip,
       userAgent: req.headers?.['user-agent'],
     });
@@ -190,7 +197,7 @@ export class AdminAuthenticationController {
     @Res({ passthrough: true }) res?: Response,
   ): Promise<void> {
     if (userToken) {
-      await this.adminAuthService.logout(userToken);
+      await this.authSessionService.logout(userToken, ESessionUserType.ADMIN);
     }
     if (res) {
       clearAuthCookies({
@@ -207,7 +214,10 @@ export class AdminAuthenticationController {
   @SkipThrottle()
   @Get('sessions/activity')
   async getLoginActivity(@CurrentUser() userToken: JwtPayloadType) {
-    return this.adminAuthService.getLoginActivity(userToken);
+    return this.authSessionService.getLoginActivity(
+      userToken,
+      ESessionUserType.ADMIN,
+    );
   }
 
   @ApiAuth({
@@ -217,14 +227,20 @@ export class AdminAuthenticationController {
   @SkipThrottle()
   @Get('sessions')
   async sessions(@CurrentUser() userToken: JwtPayloadType) {
-    return this.adminAuthService.listSessions(userToken);
+    return this.authSessionService.listSessions(
+      userToken,
+      ESessionUserType.ADMIN,
+    );
   }
 
   @ApiAuth({ summary: 'Revoke all current admin sessions' })
   @SkipThrottle()
   @Delete('sessions')
   async revokeAllSessions(@CurrentUser() userToken: JwtPayloadType) {
-    return this.adminAuthService.revokeAllSessions(userToken);
+    return this.authSessionService.revokeAllSessions(
+      userToken,
+      ESessionUserType.ADMIN,
+    );
   }
 
   @ApiAuth({ summary: 'Revoke one current admin session' })
@@ -234,7 +250,11 @@ export class AdminAuthenticationController {
     @CurrentUser() userToken: JwtPayloadType,
     @Param('id') sessionId: AutoIncrementID,
   ) {
-    return this.adminAuthService.revokeSession(userToken, sessionId);
+    return this.authSessionService.revokeSessionById(
+      userToken,
+      ESessionUserType.ADMIN,
+      sessionId,
+    );
   }
 
   @ApiPublic({
@@ -246,7 +266,7 @@ export class AdminAuthenticationController {
   async forgotPassword(
     @Body() dto: ForgotPasswordReqDto,
   ): Promise<ForgotPasswordResDto> {
-    return await this.adminAuthService.forgotPassword(dto);
+    return await this.adminAccountRecoveryService.forgotPassword(dto);
   }
 
   @ApiPublic({ summary: 'Verify account' })
@@ -255,7 +275,7 @@ export class AdminAuthenticationController {
   @Get('verify')
   async verifyAccount(@Query('token') token: string, @Res() res: Response) {
     try {
-      await this.adminAuthService.verifyAccount(token);
+      await this.adminAccountRecoveryService.verifyAccount(token);
       return res.redirect(this.getVerificationRedirectUrl('success'));
     } catch {
       return res.redirect(this.getVerificationRedirectUrl('failed'));
@@ -271,7 +291,7 @@ export class AdminAuthenticationController {
   async resendVerifyEmail(
     @Body() dto: ResendEmailVerifyReqDto,
   ): Promise<ResendEmailVerifyResDto> {
-    return this.adminAuthService.resendVerifyEmail(dto);
+    return this.adminAccountRecoveryService.resendVerifyEmail(dto);
   }
 
   @ApiPublic({ type: ResetPasswordResDto, summary: 'Reset password' })
@@ -282,7 +302,7 @@ export class AdminAuthenticationController {
     @Query('token') token: string,
     @Body() dto: ResetPasswordReqDto,
   ): Promise<ResetPasswordResDto> {
-    return this.adminAuthService.resetPassword(token, dto);
+    return this.adminAccountRecoveryService.resetPassword(token, dto);
   }
 
   @ApiAuth({
@@ -306,7 +326,7 @@ export class AdminAuthenticationController {
   async twoFactorStatus(
     @CurrentUser() userToken: JwtPayloadType,
   ): Promise<TwoFactorStatusResDto> {
-    return this.adminAuthService.twoFactorStatus(userToken);
+    return this.adminTwoFactorService.twoFactorStatus(userToken);
   }
 
   @ApiAuth({
@@ -319,7 +339,7 @@ export class AdminAuthenticationController {
     @CurrentUser() userToken: JwtPayloadType,
     @Body() dto: EnableTwoFactorReqDto,
   ): Promise<EnableTwoFactorResDto> {
-    return this.adminAuthService.enableTwoFactor(userToken, dto);
+    return this.adminTwoFactorService.enableTwoFactor(userToken, dto);
   }
 
   @ApiAuth({
@@ -332,7 +352,7 @@ export class AdminAuthenticationController {
     @CurrentUser() userToken: JwtPayloadType,
     @Body() dto: VerifyTwoFactorSetupReqDto,
   ): Promise<VerifyTwoFactorSetupResDto> {
-    return this.adminAuthService.verifyTwoFactorSetup(userToken, dto);
+    return this.adminTwoFactorService.verifyTwoFactorSetup(userToken, dto);
   }
 
   @ApiAuth({
@@ -345,7 +365,7 @@ export class AdminAuthenticationController {
     @CurrentUser() userToken: JwtPayloadType,
     @Body() dto: DisableTwoFactorReqDto,
   ): Promise<DisableTwoFactorResDto> {
-    return this.adminAuthService.disableTwoFactor(userToken, dto);
+    return this.adminTwoFactorService.disableTwoFactor(userToken, dto);
   }
 
   @ApiAuth({
@@ -358,7 +378,10 @@ export class AdminAuthenticationController {
     @CurrentUser() userToken: JwtPayloadType,
     @Body() dto: EnableTwoFactorReqDto,
   ): Promise<GenerateBackupCodesResDto> {
-    return this.adminAuthService.generateTwoFactorBackupCodes(userToken, dto);
+    return this.adminTwoFactorService.generateTwoFactorBackupCodes(
+      userToken,
+      dto,
+    );
   }
 
   @ApiConsumes('multipart/form-data')

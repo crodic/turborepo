@@ -3,8 +3,6 @@ export enum AppSubjects {
   Role = 'ROLE',
   Log = 'LOG',
   Admin = 'ADMIN',
-  ImpersonateLog = 'IMPERSONATE_LOG',
-  Email = 'EMAIL',
   EmailLog = 'EMAIL_LOG',
   Theme = 'THEME',
   File = 'FILE',
@@ -18,7 +16,6 @@ export enum AppActions {
   Read = 'read',
   Update = 'update',
   Delete = 'delete',
-  Impersonate = 'impersonate',
   Publish = 'publish',
 
   // ⚡ SUPER
@@ -98,13 +95,6 @@ export const ALL_PERMISSIONS = [
     'Delete users',
     'Remove customer or member user accounts.',
   ),
-  permissionMeta(
-    AppActions.Impersonate,
-    AppSubjects.User,
-    'User Management',
-    'Impersonate users',
-    'Start a temporary user session for support and troubleshooting.',
-  ),
 
   // Role
   permissionMeta(
@@ -144,43 +134,8 @@ export const ALL_PERMISSIONS = [
     'View activity logs',
     'Review audit trails and activity history.',
   ),
-  permissionMeta(
-    AppActions.Read,
-    AppSubjects.ImpersonateLog,
-    'Audit & Activity',
-    'View impersonation logs',
-    'Review admin impersonation sessions and actions.',
-  ),
 
   // Email
-  permissionMeta(
-    AppActions.Read,
-    AppSubjects.Email,
-    'Email',
-    'View own emails',
-    'View emails sent or scheduled by the current admin.',
-  ),
-  permissionMeta(
-    AppActions.Create,
-    AppSubjects.Email,
-    'Email',
-    'Send emails',
-    'Send or schedule administrative emails.',
-  ),
-  permissionMeta(
-    AppActions.Update,
-    AppSubjects.Email,
-    'Email',
-    'Edit scheduled emails',
-    'Edit emails that have been scheduled but not sent yet.',
-  ),
-  permissionMeta(
-    AppActions.Delete,
-    AppSubjects.Email,
-    'Email',
-    'Cancel scheduled emails',
-    'Cancel emails that have been scheduled but not sent yet.',
-  ),
   permissionMeta(
     AppActions.Read,
     AppSubjects.EmailLog,

@@ -64,7 +64,10 @@ export class AdminUserService {
     return hasAdmin;
   }
 
-  async createWithManager(manager: EntityManager, data: CreateAdminUserReqDto) {
+  async createWithManager(
+    manager: EntityManager,
+    data: CreateAdminUserReqDto & { verifiedAt?: Date },
+  ) {
     const repo = manager.getRepository(AdminUserEntity);
     const roleRepo = manager.getRepository(RoleEntity);
     const roles = await roleRepo.findBy({ id: In(data.roleIds) });
@@ -75,6 +78,7 @@ export class AdminUserService {
       repo.create({
         ...data,
         roles,
+        verifiedAt: data.verifiedAt ?? new Date(),
       }),
     );
     this.cacheManager.del(CacheKey.SYSTEM_HAS_ADMIN);

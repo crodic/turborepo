@@ -41,7 +41,7 @@ export function PagePermissionOverview() {
     .limit(perPage)
     .ilike('name', filter.name)
     .ilike('group', filter.group)
-    .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
+    .applySorts(sortParser(sort))
 
   const { data, isFetching } = useDataPermissionOverview(builder.build())
   const columns = useMemo(() => getPermissionsTableColumns(), [])

@@ -246,40 +246,6 @@ export class MailService {
     return html;
   }
 
-  renderAdminEmail(params: {
-    subject: string;
-    body: string;
-    logoUrl?: string | null;
-  }): string {
-    return this.renderTemplate('admin-email', {
-      subject: params.subject,
-      body: params.body,
-      logoUrl: params.logoUrl,
-    });
-  }
-
-  async sendAdminEmail(params: {
-    to: string[];
-    cc?: string[];
-    bcc?: string[];
-    subject: string;
-    body: string;
-    logoUrl?: string | null;
-    renderedHtml?: string;
-  }): Promise<string> {
-    const html = params.renderedHtml ?? this.renderAdminEmail(params);
-
-    await this.mailerService.sendMail({
-      to: params.to,
-      cc: params.cc,
-      bcc: params.bcc,
-      subject: params.subject,
-      html,
-    });
-
-    return html;
-  }
-
   renderAdminAccountDeletionRequested(
     adminName: string,
     deletionDate: string,

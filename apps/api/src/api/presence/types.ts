@@ -13,7 +13,6 @@ export type PresencePrincipal = {
   email: string;
   fullName?: string;
   avatar?: string;
-  impersonatedBy?: AutoIncrementID;
 };
 
 export type OnlinePresence = Omit<PresencePrincipal, 'tokenHash'> & {

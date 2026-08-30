@@ -46,7 +46,7 @@ export function PageThemeOverview() {
     .ilike('name', filter.name)
     .ilike('slug', filter.slug)
     .eq('status', filter.status)
-    .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
+    .applySorts(sortParser(sort))
 
   const { data, isFetching } = useDataThemeOverview(builder.build())
   const columns = useMemo(() => getThemesTableColumns(), [])

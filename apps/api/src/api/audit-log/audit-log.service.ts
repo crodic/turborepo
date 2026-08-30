@@ -26,13 +26,15 @@ export class AuditLogService {
 
     const result = await paginate(query, qb, {
       sortableColumns: ['id', 'timestamp'],
+      searchableColumns: ['description', 'entity', 'entityId', 'userId', 'ip'],
       defaultSortBy: [['timestamp', 'DESC']],
       filterableColumns: {
         timestamp: [FilterOperator.GTE, FilterOperator.LTE],
-        action: [FilterOperator.IN],
-        entity: [FilterOperator.ILIKE],
-        entityId: [FilterOperator.ILIKE],
+        action: [FilterOperator.IN, FilterOperator.EQ],
+        entity: [FilterOperator.ILIKE, FilterOperator.EQ],
+        entityId: [FilterOperator.ILIKE, FilterOperator.EQ],
         userId: [FilterOperator.EQ],
+        description: [FilterOperator.ILIKE],
       },
     });
 

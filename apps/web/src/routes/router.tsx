@@ -21,8 +21,6 @@ import { PageCmsPageShow } from '@/pages/cms-pages/show'
 import { Dashboard } from '@/pages/dashboard'
 import { PageEmailLogOverview } from '@/pages/email-logs'
 import PageEmailLogShow from '@/pages/email-logs/show'
-import { PageMyEmails } from '@/pages/emails'
-import PageMyEmailShow from '@/pages/emails/show'
 import { ForbiddenError } from '@/pages/errors/forbidden'
 import { GeneralError } from '@/pages/errors/general-error'
 import { MaintenanceError } from '@/pages/errors/maintenance-error'
@@ -30,12 +28,9 @@ import { NotFoundError } from '@/pages/errors/not-found-error'
 import { UnauthorizedError } from '@/pages/errors/unauthorized-error'
 import { PageFileOverview } from '@/pages/files'
 import { PageHelpCenter } from '@/pages/help-center'
-import { PageImpersonationLogOverview } from '@/pages/impersonation-logs'
-import PageImpersonationLogShow from '@/pages/impersonation-logs/show'
 import { PagePermissionOverview } from '@/pages/permissions'
 import { PagePermissionEdit } from '@/pages/permissions/edit'
 import PagePermissionShow from '@/pages/permissions/show'
-import { PageRequestMap } from '@/pages/request-map'
 import { PageRoleOverview } from '@/pages/roles'
 import PageRoleCreate from '@/pages/roles/create'
 import { PageRoleEdit } from '@/pages/roles/edit'
@@ -413,48 +408,7 @@ const appRoutes: RouteObject[] = [
           },
         ],
       },
-      {
-        path: 'impersonation-logs',
-        children: [
-          {
-            index: true,
-            element: (
-              <RouteAuthorize action='read' subject='IMPERSONATE_LOG'>
-                <PageImpersonationLogOverview />
-              </RouteAuthorize>
-            ),
-          },
-          {
-            path: ':id/show',
-            element: (
-              <RouteAuthorize action='read' subject='IMPERSONATE_LOG'>
-                <PageImpersonationLogShow />
-              </RouteAuthorize>
-            ),
-          },
-        ],
-      },
-      {
-        path: 'emails',
-        children: [
-          {
-            index: true,
-            element: (
-              <RouteAuthorize action='read' subject='EMAIL'>
-                <PageMyEmails />
-              </RouteAuthorize>
-            ),
-          },
-          {
-            path: ':id/show',
-            element: (
-              <RouteAuthorize action='read' subject='EMAIL'>
-                <PageMyEmailShow />
-              </RouteAuthorize>
-            ),
-          },
-        ],
-      },
+
       {
         path: 'email-logs',
         children: [
@@ -476,14 +430,7 @@ const appRoutes: RouteObject[] = [
           },
         ],
       },
-      {
-        path: '/request-map',
-        element: (
-          <RouteAuthorize action='read' subject='LOG'>
-            <PageRequestMap />
-          </RouteAuthorize>
-        ),
-      },
+
       {
         path: '/errors',
         children: [

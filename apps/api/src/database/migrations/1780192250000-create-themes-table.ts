@@ -16,7 +16,6 @@ export class CreateThemesTable1780192250000 implements MigrationInterface {
         "description" text,
         "styles" jsonb NOT NULL,
         "status" "public"."theme_status_enum" NOT NULL DEFAULT 'draft',
-        "is_default" boolean NOT NULL DEFAULT false,
         "created_by_admin_id" bigint,
         "updated_by_admin_id" bigint,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -31,9 +30,6 @@ export class CreateThemesTable1780192250000 implements MigrationInterface {
     );
     await queryRunner.query(
       `CREATE INDEX "IDX_themes_status" ON "themes" ("status")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_themes_is_default" ON "themes" ("is_default")`,
     );
     await queryRunner.query(
       `CREATE INDEX "IDX_themes_created_by_admin_id" ON "themes" ("created_by_admin_id")`,
@@ -68,7 +64,7 @@ export class CreateThemesTable1780192250000 implements MigrationInterface {
     await queryRunner.query(
       `DROP INDEX "public"."IDX_themes_created_by_admin_id"`,
     );
-    await queryRunner.query(`DROP INDEX "public"."IDX_themes_is_default"`);
+
     await queryRunner.query(`DROP INDEX "public"."IDX_themes_status"`);
     await queryRunner.query(`DROP INDEX "public"."UQ_themes_slug"`);
     await queryRunner.query(`DROP TABLE "themes"`);

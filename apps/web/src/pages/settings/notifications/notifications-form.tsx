@@ -3,7 +3,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { useAuthStore } from '@/stores/auth-store'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -52,9 +51,6 @@ const notificationOptions = [
 
 export function NotificationsForm({ user }: { user: AdminSchema }) {
   const queryClient = useQueryClient()
-  const permissions = useAuthStore((state) => state.permissions)
-  const isSuperAdmin = permissions.includes('manage:all')
-
   const form = useForm<NotificationsFormSchema>({
     resolver: zodResolver(notificationsFormSchema),
     defaultValues: {

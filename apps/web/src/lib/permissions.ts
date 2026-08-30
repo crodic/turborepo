@@ -1,7 +1,7 @@
 export const groupPermission = [
   {
     group: 'USER',
-    permissions: ['create', 'read', 'update', 'delete', 'impersonate'],
+    permissions: ['create', 'read', 'update', 'delete'],
   },
   {
     group: 'ADMIN',
@@ -15,14 +15,7 @@ export const groupPermission = [
     group: 'LOG',
     permissions: ['read'],
   },
-  {
-    group: 'IMPERSONATE_LOG',
-    permissions: ['read'],
-  },
-  {
-    group: 'EMAIL',
-    permissions: ['create', 'read', 'update', 'delete'],
-  },
+
   {
     group: 'EMAIL_LOG',
     permissions: ['read'],
@@ -51,7 +44,6 @@ export const permissions = [
   { action: 'read', subject: 'USER' },
   { action: 'update', subject: 'USER' },
   { action: 'delete', subject: 'USER' },
-  { action: 'impersonate', subject: 'USER' },
 
   // ROLE
   { action: 'create', subject: 'ROLE' },
@@ -67,13 +59,8 @@ export const permissions = [
 
   // LOG
   { action: 'read', subject: 'LOG' },
-  { action: 'read', subject: 'IMPERSONATE_LOG' },
 
-  // EMAIL
-  { action: 'create', subject: 'EMAIL' },
-  { action: 'read', subject: 'EMAIL' },
-  { action: 'update', subject: 'EMAIL' },
-  { action: 'delete', subject: 'EMAIL' },
+  // EMAIL_LOG
   { action: 'read', subject: 'EMAIL_LOG' },
 
   // THEME

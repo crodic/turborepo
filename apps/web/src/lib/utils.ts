@@ -96,12 +96,10 @@ export const sortQueryParser = (values: SortItem[]) => {
 }
 
 export const sortParser = (values: SortItem[]) => {
-  const sort = values.map((item) => ({
+  return values.map((item) => ({
     sortBy: item.id,
     sortDirection: (item.desc ? 'DESC' : 'ASC') as 'ASC' | 'DESC',
   }))
-
-  return sort?.[0] || {}
 }
 
 export function getAbsoluteUrl(path: string) {

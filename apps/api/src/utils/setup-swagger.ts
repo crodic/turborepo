@@ -24,56 +24,10 @@ function setupSwagger(app: INestApplication) {
     .build();
   const document = SwaggerModule.createDocument(app, config, {
     autoTagControllers: true,
-    operationIdFactory: (controllerKey, methodKey) => methodKey,
-    linkNameFactory(controllerKey, methodKey, fieldKey) {
+    operationIdFactory: (_controllerKey, methodKey) => methodKey,
+    linkNameFactory(_controllerKey, methodKey, _fieldKey) {
       return methodKey;
     },
-  });
-
-  // ==============================
-  // 🧹 FILTER CONFIG
-  // ==============================
-  const excludedPaths: string[] = ['/__nestlens__', '/nestlens'];
-
-  const excludedTags: string[] = ['NestLens'];
-
-  // ==============================
-  // 🧹 Remove paths by prefix
-  // ==============================
-  Object.keys(document.paths).forEach((path) => {
-    if (excludedPaths.some((p) => path.startsWith(p))) {
-      delete document.paths[path];
-    }
-  });
-
-  // ==============================
-  // 🧹 Remove tags
-  // ==============================
-  if (document.tags) {
-    document.tags = document.tags.filter(
-      (tag) => !excludedTags.includes(tag.name),
-    );
-  }
-
-  // ==============================
-  // 🧹 Remove operations that use excluded tags
-  // ==============================
-  Object.entries(document.paths).forEach(([path, pathItem]) => {
-    Object.keys(pathItem).forEach((method) => {
-      const operation = pathItem[method];
-
-      if (
-        operation?.tags &&
-        operation.tags.some((t) => excludedTags.includes(t))
-      ) {
-        delete document.paths[path][method];
-      }
-    });
-
-    // Remove empty pathItem
-    if (Object.keys(pathItem).length === 0) {
-      delete document.paths[path];
-    }
   });
 
   SwaggerModule.setup('api-docs', app, document, {

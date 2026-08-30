@@ -129,12 +129,12 @@ describe('NotificationService', () => {
   it('does not create a notification when the mapped category is disabled', async () => {
     adminRepoMock.findOne?.mockResolvedValue({
       id: '1',
-      notifications: { email: false },
+      notifications: { security: false },
     });
 
     const result = await service.createForAdmin({
       ...baseParams,
-      type: AdminNotificationType.EmailFailed,
+      type: AdminNotificationType.PasswordChanged,
     });
 
     expect(result).toBeNull();

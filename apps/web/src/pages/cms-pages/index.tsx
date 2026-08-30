@@ -51,7 +51,7 @@ export function PageCmsPageOverview() {
     .ilike('title', filter.title)
     .ilike('slug', filter.slug)
     .eq('status', filter.status)
-    .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
+    .applySorts(sortParser(sort))
 
   const { data, isFetching } = useDataCmsPageOverview(builder.build())
   const columns = useMemo(() => getCmsPagesTableColumns(), [])

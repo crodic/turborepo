@@ -98,7 +98,6 @@ export class PresenceAuthService {
       email: user.email,
       fullName: user.fullName,
       avatar: user.avatar,
-      impersonatedBy: session.impersonatedBy,
     };
   }
 

@@ -5,6 +5,7 @@ export const ColumnKey = {
   entityId: 'entityId',
   entity: 'entity',
   action: 'action',
+  description: 'description',
   userId: 'userId',
   timestamp: 'timestamp',
 }

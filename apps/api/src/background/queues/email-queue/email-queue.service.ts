@@ -1,13 +1,8 @@
 import { EmailLogEntity } from '@/api/email/entities/email-log.entity';
 import {
-  AdminNotificationType,
-  NotificationService,
-} from '@/api/notification/notification.service';
-import {
   IAdminAccountDeletionRequestedEmailJob,
   IAdminAccountHardDeletedEmailJob,
   IAdminAccountHardDeletedReportEmailJob,
-  IAdminSendEmailJob,
   IAdminSuspiciousLoginEmailJob,
   IForgotPasswordEmailJob,
   IUserImpersonationEndedEmailJob,
@@ -32,7 +27,6 @@ export class EmailQueueService {
     private readonly configService: ConfigService<AllConfigType>,
     @InjectRepository(EmailLogEntity)
     private readonly emailLogRepository: Repository<EmailLogEntity>,
-    private readonly notificationService: NotificationService,
   ) {}
 
   async sendAdminEmailVerification(data: IVerifyEmailJob): Promise<void> {
@@ -328,66 +322,6 @@ export class EmailQueueService {
     }
   }
 
-  async sendAdminEmail(data: IAdminSendEmailJob): Promise<void> {
-    const emailLog = await this.emailLogRepository.findOneBy({
-      id: data.emailLogId,
-    });
-
-    if (!emailLog || emailLog.status === EEmailLogStatus.CANCELLED) {
-      return;
-    }
-
-    try {
-      const renderedBody = this.mailService.renderAdminEmail({
-        subject: emailLog.subject,
-        body: emailLog.body ?? '',
-      });
-      emailLog.renderedBody = renderedBody;
-      await this.emailLogRepository.save(emailLog);
-      const bccList = emailLog.bcc ?? [];
-      const CHUNK_SIZE = 50;
-
-      if (bccList.length > CHUNK_SIZE) {
-        for (let i = 0; i < bccList.length; i += CHUNK_SIZE) {
-          const chunk = bccList.slice(i, i + CHUNK_SIZE);
-          await this.mailService.sendAdminEmail({
-            to: emailLog.to,
-            cc: emailLog.cc,
-            bcc: chunk,
-            subject: emailLog.subject,
-            body: emailLog.body ?? '',
-            renderedHtml: renderedBody,
-          });
-        }
-      } else {
-        await this.mailService.sendAdminEmail({
-          to: emailLog.to,
-          cc: emailLog.cc,
-          bcc: emailLog.bcc,
-          subject: emailLog.subject,
-          body: emailLog.body ?? '',
-          renderedHtml: renderedBody,
-        });
-      }
-      await this.markSent(emailLog, renderedBody);
-      await this.notifyEmailStatus(
-        emailLog,
-        AdminNotificationType.EmailSent,
-        'Email sent',
-        `Your email "${emailLog.subject}" was sent successfully.`,
-      );
-    } catch (error) {
-      await this.markFailed(emailLog, error);
-      await this.notifyEmailStatus(
-        emailLog,
-        AdminNotificationType.EmailFailed,
-        'Email failed',
-        `Your email "${emailLog.subject}" failed to send.`,
-      );
-      throw error;
-    }
-  }
-
   private async createSystemLog(params: {
     to: string[];
     subject: string;
@@ -464,32 +398,5 @@ export class EmailQueueService {
     const email = this.configService.get('mail.defaultEmail', { infer: true });
 
     return name ? `"${name}" <${email}>` : email;
-  }
-
-  private async notifyEmailStatus(
-    emailLog: EmailLogEntity,
-    type: AdminNotificationType,
-    title: string,
-    message: string,
-  ): Promise<void> {
-    if (!emailLog.createdByAdminId) {
-      return;
-    }
-
-    try {
-      await this.notificationService.createForAdmin({
-        adminId: emailLog.createdByAdminId,
-        type,
-        title,
-        message,
-        data: {
-          emailLogId: emailLog.id,
-          subject: emailLog.subject,
-          status: emailLog.status,
-        },
-      });
-    } catch (error) {
-      this.logger.warn(`Failed to create email notification: ${error}`);
-    }
   }
 }

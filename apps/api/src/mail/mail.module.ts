@@ -1,9 +1,8 @@
 import { AllConfigType } from '@/config/config.type';
-import { MailerModule, MailerService } from '@nestjs-modules/mailer';
+import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { NESTLENS_MAILER_SERVICE } from 'nestlens';
 import { join } from 'path';
 import { MailService } from './mail.service';
 
@@ -38,14 +37,7 @@ import { MailService } from './mail.service';
       inject: [ConfigService],
     }),
   ],
-  providers: [
-    MailService,
-    {
-      provide: NESTLENS_MAILER_SERVICE,
-      useFactory: (mailerService: MailerService) => mailerService,
-      inject: [MailerService],
-    },
-  ],
-  exports: [MailService, NESTLENS_MAILER_SERVICE],
+  providers: [MailService],
+  exports: [MailService],
 })
 export class MailModule {}

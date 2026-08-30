@@ -81,7 +81,7 @@ export default function PageThemeShow() {
         queryKey: themeQueryKeys.runtime,
       })
 
-      if (data?.isAdminDefault && !updatedTheme.isAdminDefault) {
+      if (data?.isDefault && !updatedTheme.isDefault) {
         setCachedRuntimeTheme(null)
         if (!hasPersonalThemeColor()) {
           clearRuntimeThemeStyles()
@@ -186,7 +186,7 @@ export default function PageThemeShow() {
               >
                 {data.status}
               </Badge>
-              {data.isAdminDefault && <Badge>Admin runtime</Badge>}
+              {data.isDefault && <Badge>Admin runtime</Badge>}
             </div>
             <p className='text-muted-foreground font-mono text-sm'>
               {data.slug}
@@ -221,14 +221,14 @@ export default function PageThemeShow() {
                     variant='outline'
                     onClick={() =>
                       setRuntimeAction({
-                        type: data.isAdminDefault ? 'unset' : 'set',
+                        type: data.isDefault ? 'unset' : 'set',
                         target: 'admin',
                       })
                     }
                     disabled={isPending || data.status !== 'published'}
                   >
                     <MonitorIcon className='size-4' />
-                    {data.isAdminDefault ? 'Unset admin' : 'Set admin'}
+                    {data.isDefault ? 'Unset admin' : 'Set admin'}
                   </Button>
                 )}
               </>

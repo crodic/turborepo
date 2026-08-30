@@ -46,8 +46,4 @@ export class CreateThemeReqDto {
   @IsBoolean()
   @IsOptional()
   isDefault?: boolean;
-
-  @IsBoolean()
-  @IsOptional()
-  isAdminDefault?: boolean;
 }

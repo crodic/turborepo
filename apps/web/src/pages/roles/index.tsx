@@ -43,7 +43,7 @@ export function PageRoleOverview() {
     .page(page)
     .limit(perPage)
     .ilike('name', filter.name)
-    .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
+    .applySorts(sortParser(sort))
 
   const { data, isFetching } = useDataRoleOverview(builder.build())
 

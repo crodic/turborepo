@@ -1,5 +1,4 @@
 import { EmailLogEntity } from '@/api/email/entities/email-log.entity';
-import { NotificationService } from '@/api/notification/notification.service';
 import { MailService } from '@/mail/mail.service';
 import { getQueueToken } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
@@ -23,13 +22,11 @@ describe('EmailQueueService', () => {
       sendAdminSuspiciousLogin: jest.fn(),
       sendUserEmailVerification: jest.fn(),
       sendUserEmailForgotPassword: jest.fn(),
-      sendAdminEmail: jest.fn(),
       renderAdminEmailVerification: jest.fn(),
       renderAdminEmailForgotPassword: jest.fn(),
       renderAdminSuspiciousLogin: jest.fn(),
       renderUserEmailVerification: jest.fn(),
       renderUserEmailForgotPassword: jest.fn(),
-      renderAdminEmail: jest.fn(),
     };
     emailLogRepository = {
       create: jest.fn((data) => data),
@@ -58,12 +55,6 @@ describe('EmailQueueService', () => {
         {
           provide: getRepositoryToken(EmailLogEntity),
           useValue: emailLogRepository,
-        },
-        {
-          provide: NotificationService,
-          useValue: {
-            createForAdmin: jest.fn(),
-          },
         },
         {
           provide: getQueueToken('email'),

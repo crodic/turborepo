@@ -1,5 +1,7 @@
+import { SettingKeys } from '@/api/settings/enums/setting-keys';
+import { SettingsService } from '@/api/settings/settings.service';
 import { ThemeEntity, ThemeStyles } from '@/api/theme/entities/theme.entity';
-import { EThemeStatus } from '@/constants/entity.enum';
+import { EThemeStatus, EThemeTarget } from '@/constants/entity.enum';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { existsSync, readFileSync } from 'node:fs';
@@ -63,19 +65,23 @@ export class ThemeSeedService {
   constructor(
     @InjectRepository(ThemeEntity)
     private readonly themeRepository: Repository<ThemeEntity>,
+    private readonly settingsService: SettingsService,
   ) {}
 
   async run(): Promise<void> {
     const themes = this.loadStaticThemes();
-    const hasDefaultTheme = await this.themeRepository.exists({
-      where: { isDefault: true, status: EThemeStatus.PUBLISHED },
-    });
+    const runtimeThemes = await this.settingsService.get<
+      Record<string, number>
+    >(SettingKeys.RUNTIME_THEMES, {});
+    const hasDefaultTheme = !!runtimeThemes[EThemeTarget.ADMIN];
 
     for (const theme of themes) {
       const shouldBootstrapDefault = !hasDefaultTheme && theme.slug === 'blue';
       const existingTheme = await this.themeRepository.findOne({
         where: { slug: theme.slug, deletedAt: IsNull() },
       });
+
+      let savedTheme = existingTheme;
 
       if (existingTheme) {
         existingTheme.name = theme.name;
@@ -84,22 +90,27 @@ export class ThemeSeedService {
 
         if (shouldBootstrapDefault) {
           existingTheme.status = EThemeStatus.PUBLISHED;
-          existingTheme.isDefault = true;
         }
 
-        await this.themeRepository.save(existingTheme);
-        continue;
+        savedTheme = await this.themeRepository.save(existingTheme);
+      } else {
+        savedTheme = await this.themeRepository.save(
+          this.themeRepository.create({
+            ...theme,
+            status: shouldBootstrapDefault
+              ? EThemeStatus.PUBLISHED
+              : EThemeStatus.DRAFT,
+          }),
+        );
       }
 
-      await this.themeRepository.save(
-        this.themeRepository.create({
-          ...theme,
-          status: shouldBootstrapDefault
-            ? EThemeStatus.PUBLISHED
-            : EThemeStatus.DRAFT,
-          isDefault: shouldBootstrapDefault,
-        }),
-      );
+      if (shouldBootstrapDefault) {
+        runtimeThemes[EThemeTarget.ADMIN] = Number(savedTheme.id);
+        await this.settingsService.set(
+          SettingKeys.RUNTIME_THEMES,
+          runtimeThemes,
+        );
+      }
     }
   }
 

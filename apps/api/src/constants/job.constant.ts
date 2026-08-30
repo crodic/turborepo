@@ -18,7 +18,6 @@ export enum JobName {
   USER_EMAIL_FORGOT_PASSWORD = 'user-email-forgot-password',
   USER_IMPERSONATION_STARTED = 'user-impersonation-started',
   USER_IMPERSONATION_ENDED = 'user-impersonation-ended',
-  ADMIN_SEND_EMAIL = 'admin-send-email',
   ADMIN_ACCOUNT_DELETION_REQUESTED = 'admin-account-deletion-requested',
   ADMIN_ACCOUNT_HARD_DELETED = 'admin-account-hard-deleted',
   ADMIN_ACCOUNT_HARD_DELETED_REPORT = 'admin-account-hard-deleted-report',

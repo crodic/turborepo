@@ -60,7 +60,7 @@ export function PageUserOverview() {
     .ilike('email', filter.email)
     .ilike('fullName', filter.fullName)
     .eq('id', filter.id)
-    .sortBy(sortParser(sort).sortBy, sortParser(sort).sortDirection)
+    .applySorts(sortParser(sort))
     .search(search)
 
   const { data, isFetching } = useDataUserOverview(builder.build())

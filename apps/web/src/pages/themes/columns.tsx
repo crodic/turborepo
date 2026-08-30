@@ -102,14 +102,14 @@ export function getThemesTableColumns(): ColumnDef<ThemeSchema>[] {
     },
     {
       id: ColumnKey.runtime,
-      accessorFn: (row) => (row.isAdminDefault ? 'admin' : ''),
+      accessorFn: (row) => (row.isDefault ? 'admin' : ''),
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label='Runtime' />
       ),
       cell: ({ row }) => {
         const theme = row.original
 
-        if (!theme.isAdminDefault) {
+        if (!theme.isDefault) {
           return <span className='text-muted-foreground text-sm'>-</span>
         }
 

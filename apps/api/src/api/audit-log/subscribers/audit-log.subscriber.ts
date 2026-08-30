@@ -1,14 +1,6 @@
 import { SessionEntity } from '@/api/auth/entities/session.entity';
 import { EmailLogEntity } from '@/api/email/entities/email-log.entity';
-import { ImpersonateLogHistoryEntity } from '@/api/impersonate-log/entities/impersonate-log-history.entity';
-import { ImpersonateLogEntity } from '@/api/impersonate-log/entities/impersonate-log.entity';
-import {
-  isMutatingMethod,
-  normalizeChangedFields,
-  sanitizePayload,
-} from '@/api/impersonate-log/impersonate-log.util';
 import { NotificationEntity } from '@/api/notification/entities/notification.entity';
-import { EImpersonateLogStatus } from '@/constants/entity.enum';
 import { Logger } from '@nestjs/common';
 import { ClsServiceManager } from 'nestjs-cls';
 import {
@@ -29,8 +21,6 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
   private readonly ignoreEntities = [
     AuditLogEntity.name,
     SessionEntity.name,
-    ImpersonateLogEntity.name,
-    ImpersonateLogHistoryEntity.name,
     EmailLogEntity.name,
     NotificationEntity.name,
   ];
@@ -63,11 +53,12 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
     action: 'INSERT' | 'UPDATE' | 'DELETE' | 'RESTORE' | 'SOFT_DELETE',
     event: any,
   ) {
+    const targetEntity = event.entity ?? event.databaseEntity ?? {};
     const entityId =
       event.entity?.id ?? event.databaseEntity?.id ?? event.entityId;
 
     if (
-      !event.entity ||
+      (!event.entity && !event.databaseEntity) ||
       !entityId ||
       this.ignoreEntities.includes(event.metadata.name)
     )
@@ -87,16 +78,41 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
 
     const oldValue = {};
     const newValue = {};
-    for (const key in event.entity) {
+    const changedFields: string[] = [];
+
+    const keysToInspect = new Set([
+      ...Object.keys(event.databaseEntity ?? {}),
+      ...Object.keys(event.entity ?? {}),
+    ]);
+
+    for (const key of keysToInspect) {
       if (excludeFields.includes(key)) continue;
-      oldValue[key] = event.databaseEntity?.[key];
-      newValue[key] = event.entity?.[key];
+      const oldVal = event.databaseEntity?.[key];
+      const newVal = event.entity?.[key];
+
+      if (oldVal !== undefined) oldValue[key] = oldVal;
+      if (newVal !== undefined) newValue[key] = newVal;
+
+      if (
+        action === 'UPDATE' &&
+        oldVal !== undefined &&
+        newVal !== undefined &&
+        !['updatedAt', 'updated_at', 'createdAt', 'created_at', 'id'].includes(
+          key,
+        )
+      ) {
+        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+          changedFields.push(key);
+        }
+      }
     }
 
     const userType = cls.get('userType') || 'GuestEntity';
-    const impersonation = cls.get('impersonation');
 
     if (userType === 'AdminUserEntity') {
+      const entityName = this.extractEntityIdentifier(targetEntity);
+      const entityLabel = this.formatEntityName(event.metadata.name);
+
       const log = auditRepo.create({
         entity: event.metadata.name,
         entityId,
@@ -113,92 +129,119 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
           actorEmail: currentUser?.email ?? null,
           actorName:
             currentUser?.fullName ??
+            (currentUser?.firstName || currentUser?.lastName
+              ? `${currentUser.firstName ?? ''} ${currentUser.lastName ?? ''}`.trim()
+              : null) ??
             currentUser?.name ??
-            currentUser?.firstName ??
             null,
-          entityName:
-            event.entity?.name ??
-            event.entity?.title ??
-            event.entity?.email ??
-            event.entity?.username ??
-            null,
+          entityName,
+          entityLabel,
+          changedFields: changedFields.length > 0 ? changedFields : undefined,
           roles: currentUser?.roles?.map((role: any) => role.name) ?? [],
           userType,
-          impersonation: impersonation ?? null,
         },
-        description: this.buildDescription(
+        description: this.buildDescription({
           action,
-          `${event.metadata.name}:${entityId}`,
-        ),
+          entityType: event.metadata.name,
+          entityId,
+          entityIdentifier: entityName,
+          changedFields,
+        }),
       });
 
       setImmediate(() => auditRepo.save(log));
     }
-
-    await this.saveImpersonateLog(action, event, cls);
   }
 
-  private async saveImpersonateLog(
-    action: 'INSERT' | 'UPDATE' | 'DELETE' | 'RESTORE' | 'SOFT_DELETE',
-    event: any,
-    cls: any,
-  ) {
-    const impersonation = cls.get('impersonation');
-    const method = cls.get('method');
-
-    if (!impersonation || !isMutatingMethod(method)) {
-      return;
+  private formatEntityName(rawName: string): string {
+    if (!rawName) return 'Resource';
+    const nameWithoutEntity = rawName.replace(/Entity$/, '');
+    const customMap: Record<string, string> = {
+      AdminUser: 'Admin User',
+      User: 'User',
+      Role: 'Role',
+      Permission: 'Permission',
+      CmsPage: 'CMS Page',
+      CmsPageTranslation: 'CMS Page Translation',
+      EmailLog: 'Email Log',
+      Notification: 'Notification',
+      Setting: 'Setting',
+      Theme: 'Theme',
+      File: 'File',
+      UserSocialAccount: 'User Social Account',
+    };
+    if (customMap[nameWithoutEntity]) {
+      return customMap[nameWithoutEntity];
     }
-
-    const impersonateLogRepo =
-      event.manager.getRepository(ImpersonateLogEntity);
-    const before = sanitizePayload(event.databaseEntity);
-    const after = sanitizePayload(event.entity);
-
-    const log = impersonateLogRepo.create({
-      historyId: impersonation.historyId,
-      sessionId: impersonation.sessionId,
-      adminId: impersonation.adminId,
-      targetUserId: impersonation.targetUserId,
-      action,
-      method: method.toUpperCase(),
-      endpoint: cls.get('endpoint') ?? '',
-      entityType: event.metadata.name,
-      entityId: String(
-        event.entity?.id ?? event.databaseEntity?.id ?? event.entityId ?? '',
-      ),
-      input: sanitizePayload(cls.get('body')),
-      output: after,
-      before,
-      after,
-      changedFields: normalizeChangedFields(
-        event.updatedColumns?.map((column) => column.propertyName),
-        event.databaseEntity,
-        event.entity,
-      ),
-      status: EImpersonateLogStatus.SUCCESS,
-      errorMessage: null,
-      ipAddress: cls.get('ip'),
-      userAgent: cls.get('userAgent'),
-    });
-
-    setImmediate(() => impersonateLogRepo.save(log));
+    return nameWithoutEntity.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
   }
 
-  private buildDescription = (action: string, entityType: string) => {
+  private extractEntityIdentifier(entity: any): string | null {
+    if (!entity) return null;
+    if (entity.name && typeof entity.name === 'string')
+      return entity.name.trim();
+    if (entity.fullName && typeof entity.fullName === 'string')
+      return entity.fullName.trim();
+    if (entity.firstName || entity.lastName) {
+      const fullName =
+        `${entity.firstName ?? ''} ${entity.lastName ?? ''}`.trim();
+      if (fullName) return fullName;
+    }
+    if (entity.title && typeof entity.title === 'string')
+      return entity.title.trim();
+    if (entity.email && typeof entity.email === 'string')
+      return entity.email.trim();
+    if (entity.username && typeof entity.username === 'string')
+      return entity.username.trim();
+    if (entity.key && typeof entity.key === 'string') return entity.key.trim();
+    if (entity.slug && typeof entity.slug === 'string')
+      return entity.slug.trim();
+    if (entity.originalName && typeof entity.originalName === 'string')
+      return entity.originalName.trim();
+    if (entity.fileName && typeof entity.fileName === 'string')
+      return entity.fileName.trim();
+    return null;
+  }
+
+  private buildDescription({
+    action,
+    entityType,
+    entityId,
+    entityIdentifier,
+    changedFields = [],
+  }: {
+    action: 'INSERT' | 'UPDATE' | 'DELETE' | 'RESTORE' | 'SOFT_DELETE';
+    entityType: string;
+    entityId: string | number;
+    entityIdentifier?: string | null;
+    changedFields?: string[];
+  }): string {
+    const formattedEntity = this.formatEntityName(entityType);
+    const targetLabel = entityIdentifier
+      ? `${formattedEntity} "${entityIdentifier}" (#${entityId})`
+      : `${formattedEntity} (#${entityId})`;
+
     switch (action) {
       case 'INSERT':
-        return `New ${entityType} created`;
-      case 'UPDATE':
-        return `Updated ${entityType}`;
-      case 'DELETE':
-        return `Deleted ${entityType}`;
-      case 'RESTORE':
-        return `Restored ${entityType}`;
+        return `Created ${targetLabel}`;
+      case 'UPDATE': {
+        if (changedFields.length > 0) {
+          const fieldsStr =
+            changedFields.length <= 4
+              ? changedFields.join(', ')
+              : `${changedFields.slice(0, 3).join(', ')} and ${changedFields.length - 3} more fields`;
+          return `Updated ${targetLabel} (changed: ${fieldsStr})`;
+        }
+        return `Updated ${targetLabel}`;
+      }
       case 'SOFT_DELETE':
-        return `Soft deleted ${entityType}`;
+        return `Moved ${targetLabel} to trash`;
+      case 'DELETE':
+        return `Permanently deleted ${targetLabel}`;
+      case 'RESTORE':
+        return `Restored ${targetLabel}`;
       default:
-        return `${action} ${entityType}`;
+        return `${action} ${targetLabel}`;
     }
-  };
+  }
 }

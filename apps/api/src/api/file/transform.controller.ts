@@ -2,14 +2,14 @@ import { Controller, Get, Param, Res, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { pipeline } from 'stream/promises';
-import { FileService } from './file.service';
+import { FileStreamService } from './file-stream.service';
 import { FileStorageAccessGuard } from './guards/file-storage-access.guard';
 
 @ApiTags('Files')
 @Controller({ path: 'storage/uploads' })
 @UseGuards(FileStorageAccessGuard)
 export class TransformController {
-  constructor(private readonly fileService: FileService) {}
+  constructor(private readonly fileStreamService: FileStreamService) {}
 
   @Get(':resourceType/:transformations/:publicId.:ext')
   async transformed(
@@ -19,7 +19,7 @@ export class TransformController {
     @Param('ext') ext: string,
     @Res() res: Response,
   ) {
-    const file = await this.fileService.transform(
+    const file = await this.fileStreamService.transform(
       resourceType,
       transformations,
       publicId,
@@ -40,7 +40,11 @@ export class TransformController {
     @Param('ext') ext: string,
     @Res() res: Response,
   ) {
-    const file = await this.fileService.original(resourceType, publicId, ext);
+    const file = await this.fileStreamService.original(
+      resourceType,
+      publicId,
+      ext,
+    );
 
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.setHeader('Content-Type', file.mime);

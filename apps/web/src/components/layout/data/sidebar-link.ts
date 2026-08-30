@@ -5,16 +5,13 @@ import {
   Group,
   UserLock,
   FileClock,
-  HistoryIcon,
   ShieldCheck,
   Globe,
-  Mail,
   MailSearch,
   PaintbrushIcon,
   Files,
   FlaskConicalIcon,
   BookOpenText,
-  Map as MapIcon,
   Send,
 } from 'lucide-react'
 import { IS_RUNTIME_THEME_ENABLED } from '@/lib/feature-flags'
@@ -36,12 +33,7 @@ export const sidebarLink: SidebarData = {
           icon: FileClock,
           permission: 'LOG',
         },
-        {
-          title: 'navigation.general.impersonationLogs',
-          url: '/impersonation-logs',
-          icon: HistoryIcon,
-          permission: 'IMPERSONATE_LOG',
-        },
+
         {
           title: 'navigation.general.emailLogs',
           url: '/email-logs',
@@ -58,12 +50,6 @@ export const sidebarLink: SidebarData = {
           url: '/cms-pages',
           icon: BookOpenText,
           permission: 'PAGE',
-        },
-        {
-          title: 'navigation.general.requestMap',
-          url: '/request-map',
-          icon: MapIcon,
-          permission: 'LOG',
         },
       ],
     },
@@ -115,12 +101,6 @@ export const sidebarLink: SidebarData = {
     {
       title: 'navigation.other.title',
       items: [
-        {
-          title: 'navigation.orders.myEmails',
-          url: '/emails',
-          icon: Mail,
-          permission: 'EMAIL',
-        },
         {
           title: 'navigation.orders.sendNotifications',
           url: '/send-notifications',

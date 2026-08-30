@@ -48,6 +48,8 @@ import {
 } from './dto/folder.dto';
 import { SortableImageListResDto } from './dto/sortable-image.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
+import { FileChunkUploadService } from './file-chunk-upload.service';
+import { FileFolderService } from './file-folder.service';
 import { FileService } from './file.service';
 import { SortableImageCacheService } from './sortable-image-cache.service';
 
@@ -57,6 +59,8 @@ import { SortableImageCacheService } from './sortable-image-cache.service';
 export class FileController {
   constructor(
     private readonly fileService: FileService,
+    private readonly fileFolderService: FileFolderService,
+    private readonly fileChunkUploadService: FileChunkUploadService,
     private readonly sortableImageCacheService: SortableImageCacheService,
   ) {}
 
@@ -112,7 +116,7 @@ export class FileController {
     ability.can(AppActions.Read, AppSubjects.File),
   )
   listFolders(): Promise<FileFolderResDto[]> {
-    return this.fileService.listFolders();
+    return this.fileFolderService.listFolders();
   }
 
   @Post('folders')
@@ -121,7 +125,7 @@ export class FileController {
     ability.can(AppActions.Create, AppSubjects.File),
   )
   createFolder(@Body() dto: CreateFolderDto): FileFolderResDto {
-    return this.fileService.createFolder(dto.folder);
+    return this.fileFolderService.createFolder(dto.folder);
   }
 
   @Put('folders/:folder')
@@ -133,7 +137,7 @@ export class FileController {
     @Param('folder') folder: string,
     @Body() dto: RenameFolderDto,
   ): Promise<FileFolderResDto> {
-    return this.fileService.renameFolder(folder, dto.folder);
+    return this.fileFolderService.renameFolder(folder, dto.folder);
   }
 
   @Delete('folders/:folder')
@@ -145,7 +149,7 @@ export class FileController {
     @Param('folder') folder: string,
     @Query('deleteFiles') deleteFiles?: string,
   ): Promise<{ message: string }> {
-    return this.fileService.deleteFolder(folder, deleteFiles === 'true');
+    return this.fileFolderService.deleteFolder(folder, deleteFiles === 'true');
   }
 
   @Post('upload')
@@ -197,7 +201,7 @@ export class FileController {
     ability.can(AppActions.Create, AppSubjects.File),
   )
   createUploadSession(@Body() dto: CreateChunkUploadSessionDto) {
-    return this.fileService.createUploadSession(dto);
+    return this.fileChunkUploadService.createUploadSession(dto);
   }
 
   @Post('uploads/:sessionId/chunks')
@@ -226,7 +230,7 @@ export class FileController {
     @UploadedFile() chunk: Express.Multer.File,
     @Body('index', ParseIntPipe) index: number,
   ) {
-    return this.fileService.uploadChunk(sessionId, index, chunk);
+    return this.fileChunkUploadService.uploadChunk(sessionId, index, chunk);
   }
 
   @Post('uploads/:sessionId/complete')
@@ -235,7 +239,7 @@ export class FileController {
     ability.can(AppActions.Create, AppSubjects.File),
   )
   completeUpload(@Param('sessionId') sessionId: string): Promise<FileResDto> {
-    return this.fileService.completeUploadSession(sessionId);
+    return this.fileChunkUploadService.completeUploadSession(sessionId);
   }
 
   @Delete('uploads/:sessionId')
@@ -244,7 +248,7 @@ export class FileController {
     ability.can(AppActions.Create, AppSubjects.File),
   )
   abortUpload(@Param('sessionId') sessionId: string) {
-    return this.fileService.abortUploadSession(sessionId);
+    return this.fileChunkUploadService.abortUploadSession(sessionId);
   }
 
   @Get('sortable-images/:ownerKey')

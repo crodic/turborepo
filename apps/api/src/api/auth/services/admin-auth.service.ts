@@ -4,7 +4,6 @@ import { ChangePasswordReqDto } from '@/api/admin-user/dto/change-password.req.d
 import { ChangePasswordResDto } from '@/api/admin-user/dto/change-password.res.dto';
 import { UpdateMeReqDto } from '@/api/admin-user/dto/update-me.req.dto';
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { LoginActivityResDto } from '@/api/auth/dto/admin-users/login-activity.res.dto';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
 import {
   AdminNotificationType,
@@ -12,11 +11,7 @@ import {
 } from '@/api/notification/notification.service';
 import { RoleEntity } from '@/api/role/entities/role.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
-import {
-  IEmailJob,
-  IForgotPasswordEmailJob,
-  IVerifyEmailJob,
-} from '@/common/interfaces/job.interface';
+import { IEmailJob } from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { Branded } from '@/common/types/types';
 import { AllConfigType } from '@/config/config.type';
@@ -33,8 +28,6 @@ import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   BadRequestException,
   ForbiddenException,
-  HttpException,
-  HttpStatus,
   Inject,
   Injectable,
   Logger,
@@ -50,41 +43,38 @@ import { plainToInstance } from 'class-transformer';
 import { assert } from 'console';
 import crypto from 'crypto';
 import ms, { StringValue } from 'ms';
-import { generateSecret, generateURI, verify as verifyTotp } from 'otplib';
 import { In, IsNull, Repository } from 'typeorm';
 import { AdminUserLoginReqDto } from '../dto/admin-users/admin-user-login.req.dto';
 import { AdminUserLoginResDto } from '../dto/admin-users/admin-user-login.res.dto';
 import { AdminUserRegisterReqDto } from '../dto/admin-users/admin-user-register.req.dto';
 import { RestoreAccountReqDto } from '../dto/admin-users/restore-account.req.dto';
-import { DisableTwoFactorReqDto } from '../dto/admin-users/two-factor/disable-two-factor.req.dto';
-import { DisableTwoFactorResDto } from '../dto/admin-users/two-factor/disable-two-factor.res.dto';
-import { EnableTwoFactorReqDto } from '../dto/admin-users/two-factor/enable-two-factor.req.dto';
-import { EnableTwoFactorResDto } from '../dto/admin-users/two-factor/enable-two-factor.res.dto';
-import { GenerateBackupCodesResDto } from '../dto/admin-users/two-factor/generate-backup-codes.res.dto';
-import { TwoFactorStatusResDto } from '../dto/admin-users/two-factor/two-factor-status.res.dto';
-import { VerifyTwoFactorLoginReqDto } from '../dto/admin-users/two-factor/verify-two-factor-login.req.dto';
-import { VerifyTwoFactorSetupReqDto } from '../dto/admin-users/two-factor/verify-two-factor-setup.req.dto';
-import { VerifyTwoFactorSetupResDto } from '../dto/admin-users/two-factor/verify-two-factor-setup.res.dto';
 import { VerifySuspiciousLoginReqDto } from '../dto/admin-users/verify-suspicious-login.req.dto';
-import { ForgotPasswordReqDto } from '../dto/forgot-password.req.dto';
-import { ForgotPasswordResDto } from '../dto/forgot-password.res.dto';
 import { RefreshReqDto } from '../dto/refresh.req.dto';
 import { RefreshResDto } from '../dto/refresh.res.dto';
 import { RegisterResDto } from '../dto/register.res.dto';
-import { ResendEmailVerifyReqDto } from '../dto/resend-email-verify.req.dto';
-import { ResendEmailVerifyResDto } from '../dto/resend-email-verify.res.dto';
-import { ResetPasswordReqDto } from '../dto/reset-password.req.dto';
-import { ResetPasswordResDto } from '../dto/reset-password.res.dto';
-import { SessionResDto } from '../dto/session.res.dto';
-import { VerifyAccountResDto } from '../dto/verify-account.req.dto';
-import { JwtForgotPasswordPayload } from '../types/jwt-forgot-password-payload';
 import { JwtPayloadType } from '../types/jwt-payload.type';
 import { JwtRefreshPayloadType } from '../types/jwt-refresh-payload.type';
+import { SessionRequestInfo } from '../types/session-request-info.type';
+import { AdminAccountRecoveryService } from './admin-account-recovery.service';
 import {
   AdminSuspiciousLoginService,
   SuspiciousLoginReason,
 } from './admin-suspicious-login.service';
+import {
+  AdminTwoFactorService,
+  TWO_FACTOR_ISSUER,
+  TWO_FACTOR_SETUP_TTL,
+  TwoFactorLoginPayload,
+  TwoFactorSetupPayload,
+} from './admin-two-factor.service';
 import { AuthSessionService } from './auth-session.service';
+
+export { TWO_FACTOR_ISSUER, TWO_FACTOR_SETUP_TTL };
+export type {
+  SessionRequestInfo,
+  TwoFactorLoginPayload,
+  TwoFactorSetupPayload,
+};
 
 type Token = Branded<
   {
@@ -94,27 +84,6 @@ type Token = Branded<
   },
   'token'
 >;
-
-type SessionRequestInfo = {
-  ipAddress?: string;
-  userAgent?: string | string[];
-  method?: string;
-  endpoint?: string;
-};
-
-type TwoFactorSetupPayload = {
-  secret: string;
-  backupCodeHashes: string[];
-};
-
-type TwoFactorLoginPayload = {
-  id: string;
-  purpose: 'admin-2fa-login';
-};
-
-const TWO_FACTOR_ISSUER = 'Crodic Portal';
-const TWO_FACTOR_SETUP_TTL = '10m' as StringValue;
-const TWO_FACTOR_LOGIN_TTL = '5m' as StringValue;
 
 @Injectable()
 export class AdminAuthService {
@@ -136,6 +105,8 @@ export class AdminAuthService {
     private readonly notificationService: NotificationService,
     private readonly authSessionService: AuthSessionService,
     private readonly suspiciousLoginService: AdminSuspiciousLoginService,
+    private readonly adminTwoFactorService: AdminTwoFactorService,
+    private readonly adminAccountRecoveryService: AdminAccountRecoveryService,
   ) {}
 
   async login(
@@ -204,10 +175,11 @@ export class AdminAuthService {
     }
 
     if (user.twoFactorEnabled) {
-      const twoFactorToken = await this.createTwoFactorLoginToken({
-        id: user.id,
-        purpose: 'admin-2fa-login',
-      });
+      const twoFactorToken =
+        await this.adminTwoFactorService.createTwoFactorLoginToken({
+          id: user.id,
+          purpose: 'admin-2fa-login',
+        });
 
       return plainToInstance(AdminUserLoginResDto, {
         userId: user.id,
@@ -222,180 +194,6 @@ export class AdminAuthService {
       requestInfo,
       suspiciousAssessment.reasons,
     );
-    const token = await this.createToken({
-      id: user.id,
-      sessionId: session.id,
-      hash: session.hash,
-    });
-    await this.notifyAdminLogin(user, session);
-
-    return plainToInstance(AdminUserLoginResDto, {
-      userId: user.id,
-      ...token,
-    });
-  }
-
-  async twoFactorStatus(
-    userToken: JwtPayloadType,
-  ): Promise<TwoFactorStatusResDto> {
-    const user = await this.adminUserRepository.findOneByOrFail({
-      id: userToken.id as AutoIncrementID,
-    });
-
-    return plainToInstance(TwoFactorStatusResDto, {
-      enabled: user.twoFactorEnabled,
-    });
-  }
-
-  async enableTwoFactor(
-    userToken: JwtPayloadType,
-    dto: EnableTwoFactorReqDto,
-  ): Promise<EnableTwoFactorResDto> {
-    const user = await this.adminUserRepository.findOneByOrFail({
-      id: userToken.id as AutoIncrementID,
-    });
-    await this.assertPassword(user, dto.password);
-
-    const secret = generateSecret();
-    const backupCodes = this.generateBackupCodes();
-    const backupCodeHashes = backupCodes.map((code) =>
-      this.hashBackupCode(code),
-    );
-
-    await this.cacheManager.set<TwoFactorSetupPayload>(
-      createCacheKey(CacheKey.ADMIN_TWO_FACTOR_SETUP, user.id),
-      { secret, backupCodeHashes },
-      ms(TWO_FACTOR_SETUP_TTL),
-    );
-
-    return plainToInstance(EnableTwoFactorResDto, {
-      totpUri: generateURI({
-        issuer: TWO_FACTOR_ISSUER,
-        label: user.email,
-        secret,
-      }),
-      backupCodes,
-    });
-  }
-
-  async verifyTwoFactorSetup(
-    userToken: JwtPayloadType,
-    dto: VerifyTwoFactorSetupReqDto,
-  ): Promise<VerifyTwoFactorSetupResDto> {
-    const user = await this.adminUserRepository.findOneByOrFail({
-      id: userToken.id as AutoIncrementID,
-    });
-    const cacheKey = createCacheKey(CacheKey.ADMIN_TWO_FACTOR_SETUP, user.id);
-    const setup = await this.cacheManager.get<TwoFactorSetupPayload>(cacheKey);
-
-    if (!setup) {
-      throw new BadRequestException('Two-factor setup has expired');
-    }
-
-    const isValid = await this.verifyTotpCode(dto.code, setup.secret);
-
-    if (!isValid) {
-      throw new BadRequestException('Invalid two-factor code');
-    }
-
-    await this.adminUserRepository.update(user.id, {
-      twoFactorEnabled: true,
-      twoFactorSecret: this.encryptTwoFactorSecret(setup.secret),
-      twoFactorBackupCodes: setup.backupCodeHashes,
-    });
-    await this.cacheManager.del(cacheKey);
-    await this.notifyAdmin(
-      user.id,
-      AdminNotificationType.TwoFactorEnabled,
-      'Two-factor authentication enabled',
-      'Two-factor authentication was enabled for your admin account.',
-    );
-
-    return plainToInstance(VerifyTwoFactorSetupResDto, {
-      enabled: true,
-      message: 'Two-factor authentication enabled successfully',
-    });
-  }
-
-  async disableTwoFactor(
-    userToken: JwtPayloadType,
-    dto: DisableTwoFactorReqDto,
-  ): Promise<DisableTwoFactorResDto> {
-    const user = await this.adminUserRepository.findOneByOrFail({
-      id: userToken.id as AutoIncrementID,
-    });
-    await this.assertPassword(user, dto.password);
-
-    await this.adminUserRepository.update(user.id, {
-      twoFactorEnabled: false,
-      twoFactorSecret: null,
-      twoFactorBackupCodes: null,
-    });
-    await this.cacheManager.del(
-      createCacheKey(CacheKey.ADMIN_TWO_FACTOR_SETUP, user.id),
-    );
-    await this.notifyAdmin(
-      user.id,
-      AdminNotificationType.TwoFactorDisabled,
-      'Two-factor authentication disabled',
-      'Two-factor authentication was disabled for your admin account.',
-    );
-
-    return plainToInstance(DisableTwoFactorResDto, {
-      enabled: false,
-      message: 'Two-factor authentication disabled successfully',
-    });
-  }
-
-  async generateTwoFactorBackupCodes(
-    userToken: JwtPayloadType,
-    dto: EnableTwoFactorReqDto,
-  ): Promise<GenerateBackupCodesResDto> {
-    const user = await this.adminUserRepository.findOneByOrFail({
-      id: userToken.id as AutoIncrementID,
-    });
-    await this.assertPassword(user, dto.password);
-
-    if (!user.twoFactorEnabled) {
-      throw new BadRequestException('Two-factor authentication is not enabled');
-    }
-
-    const backupCodes = this.generateBackupCodes();
-    await this.adminUserRepository.update(user.id, {
-      twoFactorBackupCodes: backupCodes.map((code) =>
-        this.hashBackupCode(code),
-      ),
-    });
-
-    return plainToInstance(GenerateBackupCodesResDto, {
-      backupCodes,
-    });
-  }
-
-  async verifyTwoFactorLogin(
-    dto: VerifyTwoFactorLoginReqDto,
-    requestInfo?: SessionRequestInfo,
-  ): Promise<AdminUserLoginResDto> {
-    const payload = this.verifyTwoFactorLoginToken(dto.twoFactorToken);
-    const user = await this.adminUserRepository.findOneBy({
-      id: payload.id as AutoIncrementID,
-    });
-
-    if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
-      throw new UnauthorizedException();
-    }
-
-    const isValid =
-      (await this.verifyTotpCode(
-        dto.code,
-        this.decryptTwoFactorSecret(user.twoFactorSecret),
-      )) || (await this.consumeBackupCode(user, dto.code));
-
-    if (!isValid) {
-      throw new BadRequestException('Invalid two-factor code');
-    }
-
-    const session = await this.createAdminLoginSession(user, requestInfo);
     const token = await this.createToken({
       id: user.id,
       sessionId: session.id,
@@ -434,14 +232,19 @@ export class AdminAuthService {
       );
     } else if (method === 'totp') {
       if (user.twoFactorEnabled && user.twoFactorSecret) {
-        isValid = await this.verifyTotpCode(
+        isValid = await this.adminTwoFactorService.verifyTotpCode(
           code,
-          this.decryptTwoFactorSecret(user.twoFactorSecret),
+          this.adminTwoFactorService.decryptTwoFactorSecret(
+            user.twoFactorSecret,
+          ),
         );
       }
     } else if (method === 'backup_code') {
       if (user.twoFactorEnabled) {
-        isValid = await this.consumeBackupCode(user, code);
+        isValid = await this.adminTwoFactorService.consumeBackupCode(
+          user,
+          code,
+        );
       }
     } else {
       throw new BadRequestException('Unsupported verification method');
@@ -501,86 +304,9 @@ export class AdminAuthService {
 
     await this.adminUserRepository.save(user);
 
-    const token = await this.createVerificationToken({ id: user.id });
-    const tokenExpiresIn = this.configService.getOrThrow(
-      'auth.confirmEmailExpires',
-      {
-        infer: true,
-      },
-    );
-    await this.cacheManager.set(
-      createCacheKey(CacheKey.EMAIL_VERIFICATION, user.id),
-      token,
-      ms(tokenExpiresIn as StringValue),
-    );
-    await this.emailQueue.add(
-      JobName.ADMIN_EMAIL_VERIFICATION,
-      {
-        email: dto.email,
-        token,
-      } as IVerifyEmailJob,
-      { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
-    );
+    await this.adminAccountRecoveryService.sendVerificationEmail(user);
 
     return plainToInstance(RegisterResDto, {
-      userId: user.id,
-    });
-  }
-
-  async verifyAccount(token: string): Promise<VerifyAccountResDto> {
-    const { id } = this.verifyEmailToken(token);
-
-    const user = await this.adminUserRepository.findOneBy({ id });
-
-    if (!user) {
-      throw new BadRequestException();
-    }
-
-    user.verifiedAt = new Date();
-    await user.save();
-
-    await this.cacheManager.del(
-      createCacheKey(CacheKey.EMAIL_VERIFICATION, id),
-    );
-
-    return plainToInstance(VerifyAccountResDto, {
-      verified: true,
-      message: 'Your account has been verified',
-      userId: user.id,
-    });
-  }
-
-  async resendVerifyEmail(
-    dto: ResendEmailVerifyReqDto,
-  ): Promise<ResendEmailVerifyResDto> {
-    const user = await AdminUserEntity.findOne({
-      where: { email: dto.email },
-    });
-
-    if (user) {
-      const token = await this.createVerificationToken({ id: user.id });
-      const tokenExpiresIn = this.configService.getOrThrow(
-        'auth.confirmEmailExpires',
-        {
-          infer: true,
-        },
-      );
-      await this.cacheManager.set(
-        createCacheKey(CacheKey.EMAIL_VERIFICATION, user.id),
-        token,
-        ms(tokenExpiresIn as StringValue),
-      );
-      await this.emailQueue.add(
-        JobName.ADMIN_EMAIL_VERIFICATION,
-        {
-          email: dto.email,
-          token,
-        } as IVerifyEmailJob,
-        { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
-      );
-    }
-
-    return plainToInstance(ResendEmailVerifyResDto, {
       userId: user.id,
     });
   }
@@ -621,83 +347,6 @@ export class AdminAuthService {
       id: user.id,
       sessionId: session.id,
       hash: newHash,
-    });
-  }
-
-  async forgotPassword(
-    dto: ForgotPasswordReqDto,
-  ): Promise<ForgotPasswordResDto> {
-    const admin = await this.adminUserRepository.findOneOrFail({
-      where: { email: dto.email },
-    });
-
-    if (!admin) {
-      throw new ValidationException(ErrorCode.E004);
-    }
-
-    const token = await this.createForgotToken({ id: admin.id });
-    const tokenExpiresIn = this.configService.getOrThrow('auth.forgotExpires', {
-      infer: true,
-    });
-
-    await this.cacheManager.set(
-      createCacheKey(CacheKey.FORGOT_PASSWORD, admin.id),
-      token,
-      ms(tokenExpiresIn as StringValue),
-    );
-
-    await this.emailQueue.add(
-      JobName.ADMIN_EMAIL_FORGOT_PASSWORD,
-      {
-        email: dto.email,
-        token,
-      } as IForgotPasswordEmailJob,
-      { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
-    );
-
-    const portalResetPasswordUrl = this.configService.getOrThrow(
-      'auth.portalResetPasswordUrl',
-      {
-        infer: true,
-      },
-    );
-
-    return plainToInstance(ForgotPasswordResDto, {
-      redirect: `${portalResetPasswordUrl}?token=${token}`,
-    });
-  }
-
-  async resetPassword(
-    token: string,
-    dto: ResetPasswordReqDto,
-  ): Promise<ResetPasswordResDto> {
-    const { id } = this.verifyForgotPasswordToken(token);
-
-    const user = await this.adminUserRepository.findOneBy({ id });
-
-    if (!user) {
-      throw new BadRequestException();
-    }
-
-    await this.cacheManager.del(createCacheKey(CacheKey.FORGOT_PASSWORD, id));
-
-    if (dto.password !== dto.confirmPassword) {
-      throw new BadRequestException();
-    }
-
-    user.password = dto.password;
-
-    await user.save();
-    await this.notifyAdmin(
-      user.id,
-      AdminNotificationType.PasswordReset,
-      'Password reset completed',
-      'Your admin account password was reset successfully.',
-    );
-
-    return plainToInstance(ResetPasswordResDto, {
-      success: true,
-      message: 'Reset password successfully. Please login to continue website',
     });
   }
 
@@ -775,180 +424,6 @@ export class AdminAuthService {
     });
   }
 
-  async logout(userToken: JwtPayloadType): Promise<void> {
-    await this.revokeCurrentSession(userToken);
-  }
-
-  async listSessions(userToken: JwtPayloadType): Promise<SessionResDto[]> {
-    const sessions = await this.sessionRepository.find({
-      where: {
-        userId: userToken.id as AutoIncrementID,
-        userType: ESessionUserType.ADMIN,
-        revokedAt: IsNull(),
-      },
-      order: { createdAt: 'DESC' },
-    });
-
-    return plainToInstance(
-      SessionResDto,
-      sessions.map((session) => ({
-        ...session,
-        isCurrent: String(session.id) === String(userToken.sessionId),
-      })),
-      {
-        excludeExtraneousValues: true,
-      },
-    );
-  }
-
-  async getLoginActivity(
-    userToken: JwtPayloadType,
-  ): Promise<
-    import('../dto/admin-users/login-activity.res.dto').LoginActivityResDto
-  > {
-    try {
-      const days = 180;
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(endDate.getDate() - days);
-
-      // Build array of last 180 days
-      const datesMap = new Map<string, number>();
-      for (let i = 0; i <= days; i++) {
-        const d = new Date(startDate);
-        d.setDate(d.getDate() + i);
-        const dateStr = d.toISOString().split('T')[0];
-        datesMap.set(dateStr, 0);
-      }
-
-      const sessions = await this.sessionRepository
-        .createQueryBuilder('session')
-        .select(
-          "TO_CHAR(session.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')",
-          'date',
-        )
-        .addSelect('COUNT(session.id)', 'count')
-        .where('session.userId = :userId', { userId: userToken.id })
-        .andWhere('session.userType = :userType', {
-          userType: ESessionUserType.ADMIN,
-        })
-        .andWhere('session.createdAt >= :startDate', { startDate })
-        .groupBy("TO_CHAR(session.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')")
-        .getRawMany();
-
-      let totalSessions = 0;
-      let activeDays = 0;
-
-      for (const session of sessions) {
-        if (datesMap.has(session.date)) {
-          const count = parseInt(session.count, 10);
-          datesMap.set(session.date, count);
-          totalSessions += count;
-          if (count > 0) activeDays++;
-        }
-      }
-
-      const data = Array.from(datesMap.entries()).map(([date, count]) => {
-        let level = 0;
-        if (count === 1) level = 1;
-        else if (count >= 2 && count <= 3) level = 2;
-        else if (count >= 4 && count <= 5) level = 3;
-        else if (count >= 6) level = 4;
-
-        return {
-          date,
-          count,
-          level,
-        };
-      });
-
-      return plainToInstance(LoginActivityResDto, {
-        totalSessions,
-        activeDays,
-        data,
-      });
-    } catch (e: any) {
-      console.error(e);
-      throw new BadRequestException(e.message);
-    }
-  }
-
-  async revokeSession(
-    userToken: JwtPayloadType,
-    sessionId: AutoIncrementID,
-  ): Promise<{ message: string }> {
-    const result = await this.sessionRepository.update(
-      {
-        id: sessionId,
-        userId: userToken.id as AutoIncrementID,
-        userType: ESessionUserType.ADMIN,
-        revokedAt: IsNull(),
-      },
-      { revokedAt: new Date() },
-    );
-
-    if (result.affected === 0) {
-      throw new NotFoundException('Session not found');
-    }
-
-    await this.authSessionService.blacklistSession(
-      sessionId,
-      ESessionUserType.ADMIN,
-    );
-    await this.notifyAdmin(
-      userToken.id,
-      AdminNotificationType.SessionRevoked,
-      'Session revoked',
-      'One of your admin sessions was revoked.',
-      { sessionId },
-    );
-
-    return { message: 'Session revoked successfully' };
-  }
-
-  async revokeAllSessions(
-    userToken: JwtPayloadType,
-  ): Promise<{ message: string }> {
-    const sessions = await this.sessionRepository.find({
-      where: {
-        userId: userToken.id as AutoIncrementID,
-        userType: ESessionUserType.ADMIN,
-        revokedAt: IsNull(),
-      },
-      select: ['id'],
-    });
-
-    if (sessions.length > 0) {
-      await this.sessionRepository.update(
-        {
-          id: In(sessions.map((session) => session.id)),
-          userId: userToken.id as AutoIncrementID,
-          userType: ESessionUserType.ADMIN,
-          revokedAt: IsNull(),
-        },
-        { revokedAt: new Date() },
-      );
-
-      await Promise.all(
-        sessions.map((session) =>
-          this.authSessionService.blacklistSession(
-            session.id,
-            ESessionUserType.ADMIN,
-          ),
-        ),
-      );
-      await this.notifyAdmin(
-        userToken.id,
-        AdminNotificationType.SessionsRevokedAll,
-        'All sessions revoked',
-        'All active admin sessions on your account were revoked.',
-        { sessionIds: sessions.map((session) => session.id) },
-      );
-    }
-
-    return { message: 'Sessions revoked successfully' };
-  }
-
   async verifyAccessToken(token: string): Promise<JwtPayloadType> {
     let payload: JwtPayloadType;
     try {
@@ -987,23 +462,7 @@ export class AdminAuthService {
     return payload;
   }
 
-  private async revokeCurrentSession(userToken: JwtPayloadType) {
-    await this.authSessionService.blacklistSession(
-      userToken.sessionId as AutoIncrementID,
-      ESessionUserType.ADMIN,
-    );
-    await this.sessionRepository.update(
-      {
-        id: userToken.sessionId as AutoIncrementID,
-        userId: userToken.id as AutoIncrementID,
-        userType: ESessionUserType.ADMIN,
-        revokedAt: IsNull(),
-      },
-      { revokedAt: new Date() },
-    );
-  }
-
-  private async createAdminLoginSession(
+  async createAdminLoginSession(
     user: AdminUserEntity,
     requestInfo?: SessionRequestInfo,
     suspiciousReasons: SuspiciousLoginReason[] = [],
@@ -1050,7 +509,7 @@ export class AdminAuthService {
     });
   }
 
-  private async notifyAdminLogin(
+  async notifyAdminLogin(
     user: AdminUserEntity,
     session: SessionEntity,
     options: { queueEmail?: boolean } = {},
@@ -1088,7 +547,7 @@ export class AdminAuthService {
     return data;
   }
 
-  private async notifyAdmin(
+  async notifyAdmin(
     adminId: AutoIncrementID | string,
     type: AdminNotificationType,
     title: string,
@@ -1120,141 +579,12 @@ export class AdminAuthService {
     }
   }
 
-  private async assertPassword(
-    user: AdminUserEntity,
-    password: string,
-  ): Promise<void> {
+  async assertPassword(user: AdminUserEntity, password: string): Promise<void> {
     const isPasswordValid = await verifyPassword(password, user.password);
 
     if (!isPasswordValid) {
       throw new ValidationException(ErrorCode.V003);
     }
-  }
-
-  private async createTwoFactorLoginToken(
-    data: TwoFactorLoginPayload,
-  ): Promise<string> {
-    return this.jwtService.signAsync(data, {
-      secret: this.getTwoFactorSigningSecret(),
-      expiresIn: TWO_FACTOR_LOGIN_TTL,
-    });
-  }
-
-  private verifyTwoFactorLoginToken(token: string): TwoFactorLoginPayload {
-    try {
-      const payload = this.jwtService.verify<TwoFactorLoginPayload>(token, {
-        secret: this.getTwoFactorSigningSecret(),
-      });
-
-      if (payload.purpose !== 'admin-2fa-login') {
-        throw new UnauthorizedException();
-      }
-
-      return payload;
-    } catch {
-      throw new UnauthorizedException('Two-factor verification expired');
-    }
-  }
-
-  private getTwoFactorSigningSecret(): string {
-    return crypto
-      .createHash('sha256')
-      .update(
-        `${this.configService.getOrThrow('auth.secret', { infer: true })}:admin-2fa`,
-      )
-      .digest('hex');
-  }
-
-  private getTwoFactorEncryptionKey(): Buffer {
-    return crypto
-      .createHash('sha256')
-      .update(
-        `${this.configService.getOrThrow('auth.secret', { infer: true })}:admin-2fa-secret`,
-      )
-      .digest();
-  }
-
-  private encryptTwoFactorSecret(secret: string): string {
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv(
-      'aes-256-gcm',
-      this.getTwoFactorEncryptionKey(),
-      iv,
-    );
-    const encrypted = Buffer.concat([
-      cipher.update(secret, 'utf8'),
-      cipher.final(),
-    ]);
-    const tag = cipher.getAuthTag();
-
-    return [
-      iv.toString('base64url'),
-      tag.toString('base64url'),
-      encrypted.toString('base64url'),
-    ].join('.');
-  }
-
-  private decryptTwoFactorSecret(value: string): string {
-    const [ivValue, tagValue, encryptedValue] = value.split('.');
-
-    if (!ivValue || !tagValue || !encryptedValue) {
-      throw new UnauthorizedException('Invalid two-factor secret');
-    }
-
-    const decipher = crypto.createDecipheriv(
-      'aes-256-gcm',
-      this.getTwoFactorEncryptionKey(),
-      Buffer.from(ivValue, 'base64url'),
-    );
-    decipher.setAuthTag(Buffer.from(tagValue, 'base64url'));
-
-    return Buffer.concat([
-      decipher.update(Buffer.from(encryptedValue, 'base64url')),
-      decipher.final(),
-    ]).toString('utf8');
-  }
-
-  private async verifyTotpCode(code: string, secret: string): Promise<boolean> {
-    const result = await verifyTotp({
-      token: code.trim().replace(/\s+/g, ''),
-      secret,
-      epochTolerance: 1,
-    });
-
-    return result.valid === true;
-  }
-
-  private generateBackupCodes(): string[] {
-    return Array.from({ length: 10 }, () =>
-      crypto.randomBytes(5).toString('hex').toUpperCase(),
-    );
-  }
-
-  private hashBackupCode(code: string): string {
-    return crypto
-      .createHash('sha256')
-      .update(code.trim().replace(/\s+/g, '').toUpperCase())
-      .digest('hex');
-  }
-
-  private async consumeBackupCode(
-    user: AdminUserEntity,
-    code: string,
-  ): Promise<boolean> {
-    const codeHash = this.hashBackupCode(code);
-    const backupCodeHashes = user.twoFactorBackupCodes ?? [];
-
-    if (!backupCodeHashes.includes(codeHash)) {
-      return false;
-    }
-
-    await this.adminUserRepository.update(user.id, {
-      twoFactorBackupCodes: backupCodeHashes.filter(
-        (hash) => hash !== codeHash,
-      ),
-    });
-
-    return true;
   }
 
   async selfDelete(userToken: JwtPayloadType): Promise<void> {
@@ -1263,7 +593,10 @@ export class AdminAuthService {
     });
 
     await this.adminUserRepository.softDelete(user.id);
-    await this.revokeAllSessions(userToken);
+    await this.authSessionService.revokeAllSessions(
+      userToken,
+      ESessionUserType.ADMIN,
+    );
 
     const deletionDate = new Date();
     deletionDate.setDate(deletionDate.getDate() + 30);
@@ -1313,39 +646,7 @@ export class AdminAuthService {
     });
   }
 
-  private async createVerificationToken(data: { id: string }): Promise<string> {
-    return await this.jwtService.signAsync(
-      {
-        id: data.id,
-      },
-      {
-        secret: this.configService.getOrThrow('auth.confirmEmailSecret', {
-          infer: true,
-        }),
-        expiresIn: this.configService.getOrThrow('auth.confirmEmailExpires', {
-          infer: true,
-        }),
-      },
-    );
-  }
-
-  private async createForgotToken(data: { id: string }): Promise<string> {
-    return await this.jwtService.signAsync(
-      {
-        id: data.id,
-      },
-      {
-        secret: this.configService.getOrThrow('auth.forgotSecret', {
-          infer: true,
-        }),
-        expiresIn: this.configService.getOrThrow('auth.forgotExpires', {
-          infer: true,
-        }),
-      },
-    );
-  }
-
-  private async createToken(data: {
+  async createToken(data: {
     id: string;
     sessionId: string;
     hash: string;
@@ -1387,30 +688,6 @@ export class AdminAuthService {
       refreshToken,
       tokenExpires,
     } as Token;
-  }
-
-  private verifyEmailToken(token: string): JwtForgotPasswordPayload {
-    try {
-      return this.jwtService.verify(token, {
-        secret: this.configService.getOrThrow('auth.confirmEmailSecret', {
-          infer: true,
-        }),
-      });
-    } catch {
-      throw new HttpException('URL không còn khả dụng', HttpStatus.GONE);
-    }
-  }
-
-  private verifyForgotPasswordToken(token: string): JwtForgotPasswordPayload {
-    try {
-      return this.jwtService.verify(token, {
-        secret: this.configService.getOrThrow('auth.forgotSecret', {
-          infer: true,
-        }),
-      });
-    } catch {
-      throw new HttpException('URL không còn khả dụng', HttpStatus.GONE);
-    }
   }
 }
 

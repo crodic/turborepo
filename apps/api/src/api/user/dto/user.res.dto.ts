@@ -2,7 +2,6 @@ import { AutoIncrementID } from '@/common/types/common.type';
 import {
   BooleanField,
   ClassField,
-  DateFieldOptional,
   JsonField,
   StringField,
   StringFieldOptional,
@@ -39,21 +38,9 @@ export class UserResDto {
   @Expose()
   hasPassword: boolean;
 
-  @BooleanField()
-  @Expose()
-  isImpersonating: boolean;
-
-  @StringFieldOptional()
-  @Expose()
-  impersonatedBy?: string;
-
   @JsonField()
   @Expose()
   notifications: Record<string, boolean>;
-
-  @DateFieldOptional()
-  @Expose()
-  impersonationExpiresAt?: Date;
 
   @BooleanField()
   @Transform(({ value }) => !!value)
