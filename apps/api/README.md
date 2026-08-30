@@ -46,7 +46,6 @@ docker compose down -v
 - API: http://localhost:3000
 - Swagger, in development: http://localhost:3000/api-docs
 - Bull Board: http://localhost:3000/api/queues
-- NestLens: http://localhost:3000/nestlens
 - Mailpit: http://localhost:8025
 - pgAdmin: http://localhost:5050
 

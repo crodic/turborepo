@@ -19,6 +19,7 @@
     "^uuid$": "<rootDir>/mocks/uuid.js"
   },
   "setupFiles": ["../setup-jest.mjs"],
+  "globalSetup": "<rootDir>/global-setup-e2e.ts",
   "cacheDirectory": "../.jest-cache/e2e",
   "clearMocks": true,
   "testTimeout": 120000

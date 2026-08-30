@@ -40,7 +40,7 @@ async function bootstrap() {
   });
 
   app.use(
-    ['/api-docs', '/api-docs-json', '/nestlens'],
+    ['/api-docs', '/api-docs-json'],
     basicAuth({
       users: {
         [configService.getOrThrow('auth.adminPanelUsername', { infer: true })]:
@@ -93,12 +93,6 @@ async function bootstrap() {
       exclude: [
         { method: RequestMethod.GET, path: '/' },
         { method: RequestMethod.GET, path: 'health' },
-        { method: RequestMethod.GET, path: 'nestlens' },
-        { method: RequestMethod.GET, path: 'nestlens/*path' },
-        { method: RequestMethod.GET, path: '__nestlens__/*path' },
-        { method: RequestMethod.POST, path: '__nestlens__/*path' },
-        { method: RequestMethod.PUT, path: '__nestlens__/*path' },
-        { method: RequestMethod.DELETE, path: '__nestlens__/*path' },
         'storage/uploads/*path',
       ],
     },
