@@ -11,7 +11,6 @@ import { HomeModule } from './home/home.module';
 import { NotificationModule } from './notification/notification.module';
 import { PermissionModule } from './permission/permission.module';
 import { PresenceModule } from './presence/presence.module';
-import { RequestLogModule } from './request-log/request-log.module';
 import { RoleModule } from './role/role.module';
 import { SentryMonitoringModule } from './sentry-monitoring/sentry-monitoring.module';
 import { SettingsModule } from './settings/settings.module';
@@ -37,7 +36,6 @@ import { UserModule } from './user/user.module';
     NotificationModule,
     ThemeModule,
     CmsPageModule,
-    RequestLogModule,
   ],
 })
 export class ApiModule {}
