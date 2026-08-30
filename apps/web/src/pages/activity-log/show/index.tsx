@@ -2,7 +2,6 @@ import { format } from 'date-fns'
 import { ArrowLeftIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DescriptionItem, Descriptions } from '@/components/common/descriptions'
@@ -14,6 +13,7 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { NotFoundError } from '@/pages/errors/not-found-error'
+import { getActionBadge } from '../columns'
 import { useDataGetLogDetail } from '../queries'
 import LogTable from './log-table'
 
@@ -28,37 +28,26 @@ export default function PageActivityLogShow() {
 
   if (!data) return <NotFoundError />
 
-  const getActionBadge = (action: string) => {
-    switch (action) {
-      case 'CREATE':
-        return (
-          <Badge className='bg-green-500 text-white hover:bg-green-600'>
-            {action}
-          </Badge>
-        )
-      case 'UPDATE':
-        return (
-          <Badge className='bg-blue-500 text-white hover:bg-blue-600'>
-            {action}
-          </Badge>
-        )
-      case 'DELETE':
-      case 'SOFT_DELETE':
-        return (
-          <Badge className='bg-destructive hover:bg-destructive/90 text-white'>
-            {action}
-          </Badge>
-        )
-      case 'RESTORE':
-        return (
-          <Badge className='bg-purple-500 text-white hover:bg-purple-600'>
-            {action}
-          </Badge>
-        )
-      default:
-        return <Badge variant='secondary'>{action}</Badge>
-    }
-  }
+  const entityLabel =
+    data.metadata?.entityLabel ??
+    data.entity?.replace(/Entity$/, '') ??
+    'Resource'
+
+  const entityDisplay = data.metadata?.entityName
+    ? `[${entityLabel} #${data.entityId}] "${data.metadata.entityName}"`
+    : `[${entityLabel} #${data.entityId}]`
+
+  const actorRoles =
+    Array.isArray(data.metadata?.roles) && data.metadata.roles.length > 0
+      ? `(${data.metadata.roles.join(', ')})`
+      : ''
+
+  const actorDisplay =
+    data.metadata?.actorName || data.metadata?.actorEmail
+      ? `${data.metadata.actorName || ''} ${data.metadata.actorEmail ? `<${data.metadata.actorEmail}>` : ''} [#${data.userId ?? data.metadata?.actorId}] ${actorRoles}`.trim()
+      : data.userId
+        ? `User #${data.userId}`
+        : 'System / Guest'
 
   return (
     <>
@@ -93,31 +82,58 @@ export default function PageActivityLogShow() {
               <Descriptions>
                 <DescriptionItem
                   label={t('activityLogs.show.id')}
-                  value={data.id}
-                />
-                <DescriptionItem
-                  label={t('activityLogs.show.actor')}
-                  value={
-                    data.metadata?.actorName || data.metadata?.actorEmail
-                      ? `${data.metadata.actorName || ''} ${data.metadata.actorEmail ? `(${data.metadata.actorEmail})` : ''} [#${data.userId}]`
-                      : data.userId || '-'
-                  }
+                  value={`#${data.id}`}
                 />
                 <DescriptionItem
                   label={t('activityLogs.show.action')}
                   value={getActionBadge(data.action)}
                 />
                 <DescriptionItem
-                  label={t('activityLogs.show.entity')}
+                  label={t('activityLogs.show.description')}
                   value={
-                    data.metadata?.entityName
-                      ? `[${data.entity} #${data.entityId}] ${data.metadata.entityName}`
-                      : `[${data.entity} #${data.entityId}]`
+                    <span className='text-foreground font-semibold'>
+                      {data.description || '-'}
+                    </span>
                   }
                 />
                 <DescriptionItem
+                  label={t('activityLogs.show.entity')}
+                  value={entityDisplay}
+                />
+                <DescriptionItem
+                  label={t('activityLogs.show.actor')}
+                  value={actorDisplay}
+                />
+                <DescriptionItem
                   label={t('activityLogs.show.timestamp')}
-                  value={format(data.timestamp, 'yyyy-MM-dd HH:mm aa')}
+                  value={format(
+                    new Date(data.timestamp),
+                    'yyyy-MM-dd HH:mm:ss aa'
+                  )}
+                />
+                <DescriptionItem
+                  label={t('activityLogs.show.ip')}
+                  value={data.ip || '-'}
+                />
+                <DescriptionItem
+                  label={t('activityLogs.show.requestId')}
+                  value={
+                    data.requestId ? (
+                      <span className='font-mono text-xs'>
+                        {data.requestId}
+                      </span>
+                    ) : (
+                      '-'
+                    )
+                  }
+                />
+                <DescriptionItem
+                  label={t('activityLogs.show.userAgent')}
+                  value={
+                    <span className='font-mono text-xs break-all'>
+                      {data.userAgent || '-'}
+                    </span>
+                  }
                 />
 
                 <div className='col-span-1 pt-4 sm:col-span-2 md:col-span-3'>

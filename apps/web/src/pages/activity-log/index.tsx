@@ -22,6 +22,7 @@ import { type ActivityLogSchema, ColumnKey } from './schema'
 const activitiesFilterParsers = {
   entityId: parseAsString.withDefault(''),
   entity: parseAsString.withDefault(''),
+  description: parseAsString.withDefault(''),
   action: parseAsArrayOf(parseAsString, ',').withDefault([]),
   userId: parseAsString.withDefault(''),
 } as const
@@ -45,6 +46,7 @@ export function PageActivityLogOverview() {
     .limit(perPage)
     .ilike('entityId', filter.entityId)
     .ilike('entity', filter.entity)
+    .ilike('description', filter.description)
     .eq('userId', filter.userId)
     .in('action', filter.action || [])
     .applySorts(sortParser(sort))
@@ -53,7 +55,9 @@ export function PageActivityLogOverview() {
 
   const columns = useMemo(
     () =>
-      getActivitiesTableColumns({ actions: ['UPDATE', 'INSERT', 'DELETE'] }),
+      getActivitiesTableColumns({
+        actions: ['INSERT', 'UPDATE', 'DELETE', 'SOFT_DELETE', 'RESTORE'],
+      }),
     []
   )
 
