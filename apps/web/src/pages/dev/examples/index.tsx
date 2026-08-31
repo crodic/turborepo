@@ -206,8 +206,7 @@ export function PageFormExamples() {
           coverIndex: data.coverIndex,
           cover: form.getValues('cover'),
         })
-      } catch (error) {
-        console.error(error)
+      } catch {
         toast.error('Could not load saved images')
       } finally {
         if (isMounted) {
@@ -250,8 +249,7 @@ export function PageFormExamples() {
         cover: data.cover,
       })
       toast.success('Images saved successfully')
-    } catch (error) {
-      console.error(error)
+    } catch {
       toast.error('Could not save images')
     } finally {
       setIsSavingImages(false)

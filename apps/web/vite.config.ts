@@ -1,18 +1,30 @@
 import path from 'path'
 import react from '@vitejs/plugin-react-swc'
 import tailwindcss from '@tailwindcss/vite'
-import { readFileSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { defineConfig } from 'vitest/config'
 
-const packageJson = JSON.parse(
-  readFileSync(new URL('./package.json', import.meta.url), 'utf8')
-) as { version?: string }
+function resolveAppVersion(): string {
+  const rootPkgUrl = new URL('../../package.json', import.meta.url)
+  const localPkgUrl = new URL('./package.json', import.meta.url)
+  const targetUrl = existsSync(rootPkgUrl) ? rootPkgUrl : localPkgUrl
+  try {
+    const pkg = JSON.parse(readFileSync(targetUrl, 'utf8')) as {
+      version?: string
+    }
+    return pkg.version ?? '1.0.0'
+  } catch {
+    return '1.0.0'
+  }
+}
+
+const appVersion = resolveAppVersion()
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   define: {
-    __APP_VERSION__: JSON.stringify(packageJson.version ?? '0.0.0'),
+    __APP_VERSION__: JSON.stringify(appVersion),
   },
   resolve: {
     alias: {

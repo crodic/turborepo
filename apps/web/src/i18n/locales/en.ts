@@ -13,6 +13,7 @@ export default {
   'navigation.management.roles': 'Roles',
   'navigation.management.permissions': 'Permissions',
   'navigation.management.themes': 'Themes',
+  'navigation.management.whiteLabels': 'White Label',
   'navigation.management.files': 'Files',
   'navigation.orders.title': 'Orders',
   'navigation.other.title': 'Other',

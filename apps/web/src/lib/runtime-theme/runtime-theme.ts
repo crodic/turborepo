@@ -1,21 +1,21 @@
 import { applyPersonalFontPreference } from '@/lib/personal-font'
 import type { ThemeMode, ThemeStyles } from '@/lib/theme-builder/default-theme'
 import { THEME_STYLE_KEYS } from '@/lib/theme-builder/default-theme'
-import { IS_RUNTIME_THEME_ENABLED } from '../feature-flags'
 
-export { IS_RUNTIME_THEME_ENABLED } from '../feature-flags'
-
-export const RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:current'
-const ADMIN_RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:admin'
+export const THEME_CACHE_VERSION = 'v1.0.0'
+export const THEME_VERSION_STORAGE_KEY = 'theme-cache-version'
+export const RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:admin'
+export const ADMIN_RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:admin'
 export const PERSONAL_THEME_COLOR_STORAGE_KEY = 'theme-color'
+export const WHITE_LABEL_ACTIVE_STORAGE_KEY = 'active-white-label:admin'
 
-type RuntimeTheme = {
+export type RuntimeTheme = {
   id: string
   styles: ThemeStyles
   updatedAt?: string
 }
 
-function isRuntimeTheme(value: unknown): value is RuntimeTheme {
+export function isRuntimeTheme(value: unknown): value is RuntimeTheme {
   if (!value || typeof value !== 'object') return false
 
   const theme = value as RuntimeTheme
@@ -26,9 +26,27 @@ function isRuntimeTheme(value: unknown): value is RuntimeTheme {
     return (
       !!styles &&
       typeof styles === 'object' &&
-      THEME_STYLE_KEYS.every((key) => typeof styles[key] === 'string')
+      THEME_STYLE_KEYS.every(
+        (key) => typeof styles[key] === 'string' && styles[key].length > 0
+      )
     )
   })
+}
+
+export function ensureThemeCacheVersion() {
+  try {
+    const currentVersion = localStorage.getItem(THEME_VERSION_STORAGE_KEY)
+    if (currentVersion !== THEME_CACHE_VERSION) {
+      localStorage.removeItem(ADMIN_RUNTIME_THEME_STORAGE_KEY)
+      localStorage.removeItem('runtime-theme:current')
+      localStorage.removeItem(WHITE_LABEL_ACTIVE_STORAGE_KEY)
+      localStorage.removeItem('active-white-label')
+      localStorage.setItem(THEME_VERSION_STORAGE_KEY, THEME_CACHE_VERSION)
+    }
+  } catch {
+    // Ignore localStorage access errors gracefully in private mode
+    void 0
+  }
 }
 
 function extractFontFamily(fontFamilyValue: string) {
@@ -73,24 +91,18 @@ function loadThemeFonts(styles: ThemeStyles, mode: ThemeMode) {
 }
 
 export function getCachedRuntimeTheme(): RuntimeTheme | null {
-  if (!IS_RUNTIME_THEME_ENABLED) {
-    clearCachedRuntimeTheme()
-    return null
-  }
-
+  ensureThemeCacheVersion()
   try {
-    const raw =
-      localStorage.getItem(ADMIN_RUNTIME_THEME_STORAGE_KEY) ??
-      localStorage.getItem(RUNTIME_THEME_STORAGE_KEY)
+    const raw = localStorage.getItem(ADMIN_RUNTIME_THEME_STORAGE_KEY)
     const theme = raw ? JSON.parse(raw) : null
 
     if (!theme) return null
     if (isRuntimeTheme(theme)) return theme
 
-    localStorage.removeItem(RUNTIME_THEME_STORAGE_KEY)
+    clearCachedRuntimeTheme()
     return null
   } catch {
-    localStorage.removeItem(RUNTIME_THEME_STORAGE_KEY)
+    clearCachedRuntimeTheme()
     return null
   }
 }
@@ -102,40 +114,38 @@ export function setCachedRuntimeTheme(theme: RuntimeTheme | null) {
   }
 
   localStorage.setItem(ADMIN_RUNTIME_THEME_STORAGE_KEY, JSON.stringify(theme))
-  localStorage.removeItem(RUNTIME_THEME_STORAGE_KEY)
+  localStorage.setItem(THEME_VERSION_STORAGE_KEY, THEME_CACHE_VERSION)
 }
 
 export function clearCachedRuntimeTheme() {
   localStorage.removeItem(ADMIN_RUNTIME_THEME_STORAGE_KEY)
-  localStorage.removeItem(RUNTIME_THEME_STORAGE_KEY)
+  localStorage.removeItem('runtime-theme:current')
 }
 
 export function applyRuntimeThemeStyles(styles: ThemeStyles, mode: ThemeMode) {
-  const root = document.documentElement
-
   loadThemeFonts(styles, mode)
-
+  const root = document.documentElement
   THEME_STYLE_KEYS.forEach((key) => {
     root.style.setProperty(`--${key}`, styles[mode][key])
   })
-
-  applyPersonalFontPreference()
+  root.style.fontFamily = styles[mode]['font-sans']
 }
 
 export function applyRuntimeThemeFont(styles: ThemeStyles, mode: ThemeMode) {
-  loadGoogleFont(styles[mode]['font-sans'])
-  document.documentElement.style.setProperty(
-    '--font-sans',
-    styles[mode]['font-sans']
-  )
+  loadThemeFonts(styles, mode)
+  const root = document.documentElement
+  root.style.setProperty('--font-sans', styles[mode]['font-sans'])
+  root.style.setProperty('--font-serif', styles[mode]['font-serif'])
+  root.style.setProperty('--font-mono', styles[mode]['font-mono'])
+  root.style.fontFamily = styles[mode]['font-sans']
 }
 
 export function clearRuntimeThemeStyles() {
   const root = document.documentElement
-
   THEME_STYLE_KEYS.forEach((key) => {
     root.style.removeProperty(`--${key}`)
   })
+  applyPersonalFontPreference()
 }
 
 export function getCurrentThemeMode(): ThemeMode {
@@ -151,17 +161,41 @@ export function hasPersonalThemeColor() {
   return localStorage.getItem(PERSONAL_THEME_COLOR_STORAGE_KEY) !== null
 }
 
-export async function fetchRuntimeTheme() {
-  if (!IS_RUNTIME_THEME_ENABLED) return null
+export async function fetchRuntimeTheme(): Promise<RuntimeTheme | null> {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/white-labels/active?target=admin`,
+      {
+        credentials: 'include',
+      }
+    )
 
-  const response = await fetch(
-    `${import.meta.env.VITE_API_URL}/themes/runtime/current`,
-    {
-      credentials: 'include',
+    if (!response.ok) return null
+    const theme = (await response.json()) as RuntimeTheme | null
+    if (isRuntimeTheme(theme)) {
+      setCachedRuntimeTheme(theme)
+      return theme
     }
-  )
+    return null
+  } catch {
+    return null
+  }
+}
 
-  if (!response.ok) return null
-  const theme = (await response.json()) as RuntimeTheme | null
-  return isRuntimeTheme(theme) ? theme : null
+export function initThemeSyncListener(
+  onThemeChange: (theme: RuntimeTheme | null) => void
+) {
+  const handler = (event: StorageEvent) => {
+    if (
+      event.key === ADMIN_RUNTIME_THEME_STORAGE_KEY ||
+      event.key === THEME_VERSION_STORAGE_KEY ||
+      event.key === 'vite-ui-white-label-enabled'
+    ) {
+      const updatedTheme = getCachedRuntimeTheme()
+      onThemeChange(updatedTheme)
+    }
+  }
+
+  window.addEventListener('storage', handler)
+  return () => window.removeEventListener('storage', handler)
 }

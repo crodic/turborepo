@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable react-hooks/use-memo */
 import { type DependencyList, useMemo } from 'react'
 import debounce from 'lodash.debounce'
 

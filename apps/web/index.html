@@ -154,15 +154,21 @@
     <script>
       ;(() => {
         try {
-          if ('%VITE_ENABLE_RUNTIME_THEME%' === 'false') {
+          const THEME_CACHE_VERSION = 'v1.0.0'
+          const currentVersion = localStorage.getItem('theme-cache-version')
+          if (currentVersion !== THEME_CACHE_VERSION) {
             localStorage.removeItem('runtime-theme:admin')
             localStorage.removeItem('runtime-theme:current')
-            return
+            localStorage.removeItem('active-white-label:admin')
+            localStorage.removeItem('active-white-label')
+            localStorage.setItem('theme-cache-version', THEME_CACHE_VERSION)
           }
 
-          const raw =
-            localStorage.getItem('runtime-theme:admin') ||
-            localStorage.getItem('runtime-theme:current')
+          const isWhiteLabelEnabled =
+            localStorage.getItem('vite-ui-white-label-enabled') !== 'false'
+          const raw = isWhiteLabelEnabled
+            ? localStorage.getItem('runtime-theme:admin')
+            : null
           const theme = raw ? JSON.parse(raw) : null
           const preference =
             document.cookie
@@ -229,17 +235,22 @@
 
           if (
             !requiredKeys.every(
-              (key) => typeof theme.styles[mode][key] === 'string'
+              (key) =>
+                typeof theme.styles[mode][key] === 'string' &&
+                theme.styles[mode][key].length > 0
             )
           ) {
             localStorage.removeItem('runtime-theme:admin')
-            localStorage.removeItem('runtime-theme:current')
             return
           }
 
           Object.entries(theme.styles[mode]).forEach(([key, value]) => {
             document.documentElement.style.setProperty(`--${key}`, value)
           })
+          if (theme.styles[mode]['font-sans']) {
+            document.documentElement.style.fontFamily =
+              theme.styles[mode]['font-sans']
+          }
         } catch {}
       })()
     </script>

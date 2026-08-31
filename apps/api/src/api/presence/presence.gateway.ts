@@ -169,7 +169,7 @@ export class PresenceGateway
   }
 
   private toPublicPrincipal(principal: PresencePrincipal) {
-    const { tokenHash, ...publicPrincipal } = principal;
+    const { tokenHash: _tokenHash, ...publicPrincipal } = principal;
 
     return publicPrincipal;
   }

@@ -3,7 +3,6 @@ import {
   RouterProvider,
   type RouteObject,
 } from 'react-router'
-import { IS_RUNTIME_THEME_ENABLED } from '@/lib/feature-flags'
 import { SetupGuard } from '@/components/layout/setup-guard'
 import { PageActivityLogOverview } from '@/pages/activity-log'
 import PageActivityLogShow from '@/pages/activity-log/show'
@@ -46,14 +45,14 @@ import { SettingsProfile } from '@/pages/settings/profile'
 import { SettingsSecurity } from '@/pages/settings/security'
 import { SettingsWebsite } from '@/pages/settings/website'
 import { PageSystemSetup } from '@/pages/setup'
-import { PageThemeOverview } from '@/pages/themes'
-import { PageThemeCreate } from '@/pages/themes/create'
-import { PageThemeEdit } from '@/pages/themes/edit'
-import PageThemeShow from '@/pages/themes/show'
 import { PageUserOverview } from '@/pages/users'
 import { PageUserCreate } from '@/pages/users/create'
 import { PageUserEdit } from '@/pages/users/edit'
 import { PageUserShow } from '@/pages/users/show'
+import { PageWhiteLabelOverview } from '@/pages/white-labels'
+import { PageWhiteLabelCreate } from '@/pages/white-labels/create'
+import { PageWhiteLabelEdit } from '@/pages/white-labels/edit'
+import PageWhiteLabelShow from '@/pages/white-labels/show'
 import ProtectedRoutes from './protected-route'
 import { RouteAuthorize } from './route-authorized'
 
@@ -301,47 +300,43 @@ const appRoutes: RouteObject[] = [
           },
         ],
       },
-      ...(IS_RUNTIME_THEME_ENABLED
-        ? [
-            {
-              path: '/themes',
-              children: [
-                {
-                  index: true,
-                  element: (
-                    <RouteAuthorize action='read' subject='THEME'>
-                      <PageThemeOverview />
-                    </RouteAuthorize>
-                  ),
-                },
-                {
-                  path: 'create',
-                  element: (
-                    <RouteAuthorize action='create' subject='THEME'>
-                      <PageThemeCreate />
-                    </RouteAuthorize>
-                  ),
-                },
-                {
-                  path: ':id/edit',
-                  element: (
-                    <RouteAuthorize action='update' subject='THEME'>
-                      <PageThemeEdit />
-                    </RouteAuthorize>
-                  ),
-                },
-                {
-                  path: ':id/show',
-                  element: (
-                    <RouteAuthorize action='read' subject='THEME'>
-                      <PageThemeShow />
-                    </RouteAuthorize>
-                  ),
-                },
-              ],
-            },
-          ]
-        : []),
+      {
+        path: '/white-labels',
+        children: [
+          {
+            index: true,
+            element: (
+              <RouteAuthorize action='read' subject='WHITE_LABEL'>
+                <PageWhiteLabelOverview />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: 'create',
+            element: (
+              <RouteAuthorize action='create' subject='WHITE_LABEL'>
+                <PageWhiteLabelCreate />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: ':id/edit',
+            element: (
+              <RouteAuthorize action='update' subject='WHITE_LABEL'>
+                <PageWhiteLabelEdit />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: ':id/show',
+            element: (
+              <RouteAuthorize action='read' subject='WHITE_LABEL'>
+                <PageWhiteLabelShow />
+              </RouteAuthorize>
+            ),
+          },
+        ],
+      },
       {
         path: '/files',
         element: (

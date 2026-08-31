@@ -109,7 +109,7 @@ export class PresenceService {
   }
 
   private toOnlinePresence(record: PresenceRecord): OnlinePresence {
-    const { sockets, tokenHash, ...data } = record;
+    const { sockets, tokenHash: _tokenHash, ...data } = record;
 
     return {
       ...data,

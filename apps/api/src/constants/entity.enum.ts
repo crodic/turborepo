@@ -24,11 +24,7 @@ export enum EOAuthProvider {
   GOOGLE = 'google',
 }
 
-export enum EThemeStatus {
-  DRAFT = 'draft',
-  PUBLISHED = 'published',
-}
-
-export enum EThemeTarget {
+export enum EWhiteLabelTarget {
   ADMIN = 'admin',
+  CLIENT = 'client',
 }

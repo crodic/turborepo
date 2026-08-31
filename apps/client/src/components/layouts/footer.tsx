@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useWhiteLabel } from "@/lib/white-label";
 import {
   FacebookIcon,
   InstagramIcon,
@@ -68,6 +69,11 @@ const socialLinks = [
 ];
 
 export function Footer() {
+  const { whiteLabel, isEnabled } = useWhiteLabel();
+  const copyrightText =
+    (isEnabled && whiteLabel?.copyrightText) ||
+    `© ${new Date().getFullYear()} Visel, All rights reserved`;
+
   return (
     <footer className="border-t">
       <div className="mx-auto max-w-6xl px-4 lg:px-6">
@@ -136,7 +142,7 @@ export function Footer() {
         </div>
         <div className="bg-border h-px" />
         <div className="text-muted-foreground py-4 text-center text-xs">
-          <p>&copy; {new Date().getFullYear()} Visel, All rights reserved</p>
+          <p>{copyrightText}</p>
         </div>
       </div>
     </footer>

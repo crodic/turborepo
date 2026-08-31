@@ -13,6 +13,7 @@ export default {
   'navigation.management.roles': 'Vai trò',
   'navigation.management.permissions': 'Quyền hạn',
   'navigation.management.themes': 'Giao diện',
+  'navigation.management.whiteLabels': 'White Label',
   'navigation.management.files': 'Tệp tin',
   'navigation.orders.title': 'Đơn hàng',
   'navigation.other.title': 'Khác',
