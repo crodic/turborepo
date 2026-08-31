@@ -7,6 +7,9 @@ import { MobileNav } from "@/components/layouts/mobile-nav";
 import UserAccount from "../user-account";
 import LanguageSwitcher from "../language-switcher";
 
+import { Link } from "@/i18n/navigation";
+import { WhiteLabelLogo } from "@/lib/white-label";
+
 export function Header() {
   const scrolled = useScroll(10);
 
@@ -19,11 +22,15 @@ export function Header() {
     >
       <nav className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4">
         <div className="flex items-center gap-5">
-          <a className="rounded-md px-3 py-2.5" href="/">
-            <span className="text-primary dancing-script-font text-2xl font-bold">
-              Visel Art
-            </span>
-          </a>
+          <Link className="flex items-center rounded-md px-3 py-2.5" href="/">
+            <WhiteLabelLogo
+              fallback={
+                <span className="text-primary dancing-script-font text-2xl font-bold">
+                  Visel Art
+                </span>
+              }
+            />
+          </Link>
           <DesktopNav />
         </div>
         <div className="hidden items-center gap-2 md:flex">

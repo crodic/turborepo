@@ -281,6 +281,10 @@ export class AdminAuthService {
       throw new ForbiddenException('Forbidden');
     }
 
+    if (user.avatar && !user.avatar.startsWith('http')) {
+      user.avatar = this.filesystemService.disk('public').url(user.avatar);
+    }
+
     return user.toDto(AdminUserResDto);
   }
 
@@ -315,7 +319,7 @@ export class AdminAuthService {
         mimeType: file.mimetype,
         visibility: 'public',
       });
-      avatarPath = filename;
+      avatarPath = this.filesystemService.disk('public').url(filename);
     }
 
     Object.assign(user, {

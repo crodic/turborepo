@@ -75,7 +75,10 @@ export class WhiteLabelSeedService {
   ) {}
 
   async run(): Promise<void> {
-    const profiles = this.loadStaticProfiles();
+    const adminProfiles = this.loadStaticProfiles(EWhiteLabelTarget.ADMIN);
+    const clientProfiles = this.loadStaticProfiles(EWhiteLabelTarget.CLIENT);
+    const allProfiles = [...adminProfiles, ...clientProfiles];
+
     const existingActiveAdmin = await this.whiteLabelRepository.findOne({
       where: {
         target: EWhiteLabelTarget.ADMIN,
@@ -83,12 +86,22 @@ export class WhiteLabelSeedService {
         deletedAt: IsNull(),
       },
     });
-
     const hasActiveAdmin = !!existingActiveAdmin;
 
-    for (const profile of profiles) {
-      const shouldBootstrapDefault =
-        !hasActiveAdmin && profile.slug === 'default-blue';
+    const existingActiveClient = await this.whiteLabelRepository.findOne({
+      where: {
+        target: EWhiteLabelTarget.CLIENT,
+        isActive: true,
+        deletedAt: IsNull(),
+      },
+    });
+    const hasActiveClient = !!existingActiveClient;
+
+    for (const profile of allProfiles) {
+      const isClientTarget = profile.target === EWhiteLabelTarget.CLIENT;
+      const shouldBootstrapDefault = isClientTarget
+        ? !hasActiveClient && profile.slug === 'client-default-blue'
+        : !hasActiveAdmin && profile.slug === 'default-blue';
 
       const existing = await this.whiteLabelRepository.findOne({
         where: { slug: profile.slug, deletedAt: IsNull() },
@@ -121,7 +134,9 @@ export class WhiteLabelSeedService {
     this.logger.log('White-label seeds completed successfully.');
   }
 
-  private loadStaticProfiles(): StaticWhiteLabelSeed[] {
+  private loadStaticProfiles(
+    target: EWhiteLabelTarget = EWhiteLabelTarget.ADMIN,
+  ): StaticWhiteLabelSeed[] {
     const themeColorPath = THEME_COLOR_PATHS.find((path) => existsSync(path));
 
     if (!themeColorPath) {
@@ -142,19 +157,25 @@ export class WhiteLabelSeedService {
     vm.createContext(sandbox);
     vm.runInContext(`${script}\nthis.themeColors = themeColors;`, sandbox);
 
+    const isClient = target === EWhiteLabelTarget.CLIENT;
+
     return Object.entries(sandbox.themeColors ?? {}).map(([key, value]) => {
-      const name = STATIC_THEME_NAMES[key] ?? this.toTitleCase(key);
-      const slug = key === 'blue' ? 'default-blue' : this.toSlug(key);
+      const baseName = STATIC_THEME_NAMES[key] ?? this.toTitleCase(key);
+      const baseSlug = key === 'blue' ? 'default-blue' : this.toSlug(key);
+      const name = isClient ? `[Client] ${baseName}` : baseName;
+      const slug = isClient ? `client-${baseSlug}` : baseSlug;
 
       return {
         slug,
         name,
-        description: `Preset brand and styling profile based on ${name}.`,
+        description: `Preset brand and styling profile for ${isClient ? 'Client' : 'Admin'} based on ${baseName}.`,
         brandName: 'Visel Art',
-        siteTitle: 'Visel Art Admin Portal',
+        siteTitle: isClient
+          ? 'Visel Art - Creative Platform'
+          : 'Visel Art Admin Portal',
         siteTagline: 'Creative Design & Modern Management Platform',
         copyrightText: '© 2026 Visel Art. All rights reserved.',
-        target: EWhiteLabelTarget.ADMIN,
+        target,
         styles: {
           light: this.toThemeStyleProps(value.light),
           dark: this.toThemeStyleProps(value.dark, value.light),

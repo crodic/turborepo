@@ -1,5 +1,7 @@
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
+import { WhiteLabelLogo } from "@/lib/white-label";
+import Image from "next/image";
 import React from "react";
 
 export default function AuthLayout({
@@ -16,17 +18,23 @@ export default function AuthLayout({
             "bg-accent text-white"
           )}
         >
-          <img
+          <Image
             src="/auth.jpg"
-            alt="img"
-            className="absolute top-1/2 left-1/2 h-full -translate-x-1/2 -translate-y-1/2 object-cover"
-          ></img>
+            alt="auth background"
+            fill
+            priority
+            className="object-cover"
+          />
 
           <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
           <Link href="/" className="relative z-10 flex items-center gap-2">
-            <span className="dancing-script-font text-primary text-4xl font-semibold text-shadow-2xs">
-              Visel Art
-            </span>
+            <WhiteLabelLogo
+              fallback={
+                <span className="dancing-script-font text-primary text-4xl font-semibold text-shadow-2xs">
+                  Visel Art
+                </span>
+              }
+            />
           </Link>
           <div className="relative z-10 max-w-md">
             <p className="text-muted dark:text-muted-foreground mb-2 text-sm">

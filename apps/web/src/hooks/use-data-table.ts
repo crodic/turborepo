@@ -1,5 +1,6 @@
 import * as React from 'react'
 import {
+  type ColumnDef,
   type ColumnFiltersState,
   getCoreRowModel,
   getExpandedRowModel,
@@ -40,6 +41,16 @@ const JOIN_OPERATOR_KEY = 'joinOperator'
 const ARRAY_SEPARATOR = ','
 const DEBOUNCE_MS = 300
 const THROTTLE_MS = 50
+
+function getColumnKey<TData>(
+  column: ColumnDef<TData, unknown>
+): string | undefined {
+  if (column.id) return column.id
+  if ('accessorKey' in column && typeof column.accessorKey === 'string') {
+    return column.accessorKey
+  }
+  return undefined
+}
 
 interface UseDataTableProps<TData>
   extends
@@ -155,7 +166,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
 
   const columnIds = React.useMemo(() => {
     return new Set(
-      columns.map((column) => column.id).filter(Boolean) as string[]
+      columns.map((column) => getColumnKey(column)).filter(Boolean) as string[]
     )
   }, [columns])
 
@@ -190,13 +201,16 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     return filterableColumns.reduce<
       Record<string, SingleParser<string> | SingleParser<string[]>>
     >((acc, column) => {
+      const colKey = getColumnKey(column)
+      if (!colKey) return acc
+
       if (column.meta?.options) {
-        acc[column.id ?? ''] = parseAsArrayOf(
+        acc[colKey] = parseAsArrayOf(
           parseAsString,
           ARRAY_SEPARATOR
         ).withOptions(queryStateOptions)
       } else {
-        acc[column.id ?? ''] = parseAsString.withOptions(queryStateOptions)
+        acc[colKey] = parseAsString.withOptions(queryStateOptions)
       }
       return acc
     }, {})
@@ -251,7 +265,11 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
         const filterUpdates = next.reduce<
           Record<string, string | string[] | null>
         >((acc, filter) => {
-          if (filterableColumns.find((column) => column.id === filter.id)) {
+          if (
+            filterableColumns.find(
+              (column) => getColumnKey(column) === filter.id
+            )
+          ) {
             acc[filter.id] = filter.value as string | string[]
           }
           return acc
@@ -270,7 +288,6 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     [debouncedSetFilterValues, filterableColumns, enableAdvancedFilter]
   )
 
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     ...tableProps,
     columns,

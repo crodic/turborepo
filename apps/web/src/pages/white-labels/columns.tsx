@@ -1,13 +1,24 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { SparklesIcon } from 'lucide-react'
+import { SearchIcon, SparklesIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header'
 import ComponentTableRowActions from './component-table-row-action'
 import { ColumnKey, type WhiteLabelSchema } from './schema'
 
 export const columns: ColumnDef<WhiteLabelSchema>[] = [
   {
-    accessorKey: ColumnKey.name,
-    header: 'Profile Name',
+    id: ColumnKey.name,
+    accessorFn: (row) => row.name,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} label='Profile Name' />
+    ),
+    meta: {
+      variant: 'text',
+      placeholder: 'Search profile name...',
+      label: 'Profile Name',
+      icon: SearchIcon,
+    },
+    enableColumnFilter: true,
     cell: ({ row }) => {
       const item = row.original
 
@@ -35,8 +46,11 @@ export const columns: ColumnDef<WhiteLabelSchema>[] = [
     },
   },
   {
-    accessorKey: ColumnKey.brandName,
-    header: 'Brand Identity',
+    id: ColumnKey.brandName,
+    accessorFn: (row) => row.brandName,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} label='Brand Identity' />
+    ),
     cell: ({ row }) => {
       const item = row.original
 
@@ -51,8 +65,20 @@ export const columns: ColumnDef<WhiteLabelSchema>[] = [
     },
   },
   {
-    accessorKey: ColumnKey.target,
-    header: 'Target',
+    id: ColumnKey.target,
+    accessorFn: (row) => row.target,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} label='Target' />
+    ),
+    meta: {
+      variant: 'select',
+      label: 'Target',
+      options: [
+        { label: 'Admin', value: 'admin' },
+        { label: 'Client', value: 'client' },
+      ],
+    },
+    enableColumnFilter: true,
     cell: ({ row }) => {
       const target = row.original.target
 
@@ -67,7 +93,7 @@ export const columns: ColumnDef<WhiteLabelSchema>[] = [
     },
   },
   {
-    accessorKey: ColumnKey.colors,
+    id: ColumnKey.colors,
     header: 'Color Palette',
     cell: ({ row }) => {
       const styles = row.original.styles?.light
@@ -99,8 +125,20 @@ export const columns: ColumnDef<WhiteLabelSchema>[] = [
     },
   },
   {
-    accessorKey: ColumnKey.isActive,
-    header: 'Status',
+    id: ColumnKey.isActive,
+    accessorFn: (row) => (row.isActive ? 'true' : 'false'),
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} label='Status' />
+    ),
+    meta: {
+      variant: 'select',
+      label: 'Status',
+      options: [
+        { label: 'Active', value: 'true' },
+        { label: 'Preset', value: 'false' },
+      ],
+    },
+    enableColumnFilter: true,
     cell: ({ row }) => {
       const isActive = row.original.isActive
 
@@ -117,8 +155,11 @@ export const columns: ColumnDef<WhiteLabelSchema>[] = [
     },
   },
   {
-    accessorKey: ColumnKey.updatedAt,
-    header: 'Updated At',
+    id: ColumnKey.updatedAt,
+    accessorFn: (row) => row.updatedAt,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} label='Updated At' />
+    ),
     cell: ({ row }) => {
       const dateStr = row.original.updatedAt
       if (!dateStr) return null
