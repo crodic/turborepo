@@ -40,7 +40,7 @@ describe('App (e2e)', () => {
     },
   };
 
-  const api = (path: string) => `/api${path}`;
+  const _api = (path: string) => `/api${path}`;
   const apiV1 = (path: string) => `/api/v1${path}`;
 
   const cleanDatabase = async () => {

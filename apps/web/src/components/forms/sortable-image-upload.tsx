@@ -232,8 +232,9 @@ export default function SortableImageUpload({
 
   // Cleanup preview URLs on unmount
   useEffect(() => {
+    const urls = previewUrlsRef.current
     return () => {
-      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
+      urls.forEach((url) => URL.revokeObjectURL(url))
     }
   }, [])
 

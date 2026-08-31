@@ -5,7 +5,7 @@ import { AuditLogService } from './audit-log.service';
 
 describe('AuditLogController', () => {
   let controller: AuditLogController;
-  let service: AuditLogService;
+  let _service: AuditLogService;
 
   const mockAuditLogService = {
     findAll: jest.fn(),
@@ -26,7 +26,7 @@ describe('AuditLogController', () => {
     }).compile();
 
     controller = module.get<AuditLogController>(AuditLogController);
-    service = module.get<AuditLogService>(AuditLogService);
+    _service = module.get<AuditLogService>(AuditLogService);
   });
 
   it('should be defined', () => {

@@ -5,7 +5,7 @@ import { RoleService } from './role.service';
 
 describe('RoleController', () => {
   let controller: RoleController;
-  let service: RoleService;
+  let _service: RoleService;
 
   const mockRoleService = {
     findAll: jest.fn(),
@@ -28,7 +28,7 @@ describe('RoleController', () => {
     }).compile();
 
     controller = module.get<RoleController>(RoleController);
-    service = module.get<RoleService>(RoleService);
+    _service = module.get<RoleService>(RoleService);
   });
 
   it('should be defined', () => {

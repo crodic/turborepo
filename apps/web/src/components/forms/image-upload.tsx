@@ -337,7 +337,17 @@ const ImageCropField = ({
   output,
   previewUri,
 }: ImageCropFieldProps) => {
-  const controlledOnChange = field?.onChange || onChange || (() => {})
+  const fieldOnChange = field?.onChange
+  const controlledOnChange = useCallback(
+    (val: any) => {
+      if (fieldOnChange) {
+        fieldOnChange(val)
+      } else if (onChange) {
+        onChange(val)
+      }
+    },
+    [fieldOnChange, onChange]
+  )
   const controlledValue = field?.value ?? value ?? null
 
   const inputRef = useRef<HTMLInputElement | null>(null)

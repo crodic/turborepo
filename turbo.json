@@ -11,7 +11,7 @@
     "DATABASE_*",
     "DEV",
     "FEATURE_*",
-    "FILESYSTEM_DISK",
+    "FILESYSTEM_*",
     "GOOGLE_*",
     "MAIL_*",
     "MODE",

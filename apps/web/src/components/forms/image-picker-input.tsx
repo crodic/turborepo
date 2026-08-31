@@ -63,10 +63,8 @@ export function ImagePickerInput({
             }),
           })
         }
-      } catch (err) {
+      } catch {
         toast.error(t('imagePicker.uploadFailed'))
-        // eslint-disable-next-line no-console
-        console.error(err)
       } finally {
         setIsUploading(false)
         if (fileInputRef.current) {
@@ -74,7 +72,7 @@ export function ImagePickerInput({
         }
       }
     },
-    [onChange]
+    [onChange, t]
   )
 
   return (

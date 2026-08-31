@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from 'react'
+import { useMemo } from 'react'
 import { PlusIcon } from 'lucide-react'
 import { parseAsString } from 'nuqs'
 import { useTranslation } from 'react-i18next'
@@ -62,17 +62,6 @@ export function PageCmsPageOverview() {
     pageCount: data?.meta.totalPages ?? 0,
     getRowId: (row) => row.id,
   })
-
-  useEffect(() => {
-    console.log(
-      'TABLE ROWS:',
-      table.getRowModel().rows.map((r) => ({
-        id: r.id,
-        depth: r.depth,
-        title: r.original.translations?.[0]?.title,
-      }))
-    )
-  }, [table.getRowModel().rows])
 
   return (
     <>

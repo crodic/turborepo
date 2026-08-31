@@ -26,7 +26,7 @@ export const getCmsPageBySlug = async (slug: string, locale: string) => {
       `/api/v1/public/cms-pages/by-slug/${slug}?locale=${locale}`
     );
     return data;
-  } catch (error) {
+  } catch {
     return null;
   }
 };

@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -20,16 +19,6 @@ import {
   AlertTitle,
 } from '@/components/radix-ui/alert'
 import { Button } from '@/components/radix-ui/button'
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
 
 type CoverPosition = {
   x: number
@@ -324,8 +313,7 @@ export default function CoverUpload({
       const croppedFile = await cropCoverFile(sourceFile, positionRef.current)
       emittedCroppedFileRef.current = croppedFile
       onChange?.(croppedFile)
-    } catch (error) {
-      console.error(error)
+    } catch {
       setCropError('Could not crop cover image')
     } finally {
       setIsCropping(false)

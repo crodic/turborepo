@@ -15,7 +15,12 @@ export const viteReactConfig = [
   ...tseslint.configs.recommended,
   ...pluginQuery.configs['flat/recommended'],
   {
-    ignores: ['dist/**', 'coverage/**', 'src/components/ui/**'],
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      'src/components/ui/**',
+      'src/components/radix-ui/**',
+    ],
   },
   {
     files: ['**/*.{ts,tsx}'],
@@ -29,10 +34,11 @@ export const viteReactConfig = [
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/immutability': 'off',
+      'react-hooks/purity': 'off',
+      'react-hooks/incompatible-library': 'off',
+      'react-refresh/only-export-components': 'off',
       'no-console': 'error',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [

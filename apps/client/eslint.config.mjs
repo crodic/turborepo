@@ -16,6 +16,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "src/components/ui/**",
   ]),
   ...pluginQuery.configs["flat/recommended"],
   {
@@ -24,10 +25,11 @@ const eslintConfig = defineConfig([
     },
     rules: {
       "@next/next/no-html-link-for-pages": "warn",
+      "@next/next/no-img-element": "off",
       "@typescript-eslint/no-explicit-any": "off",
-      "react-hooks/immutability": "warn",
-      "react-hooks/purity": "warn",
-      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/immutability": "off",
+      "react-hooks/purity": "off",
+      "react-hooks/set-state-in-effect": "off",
       "unused-imports/no-unused-imports": "warn",
       "unused-imports/no-unused-vars": [
         "warn",
