@@ -1,4 +1,4 @@
-import { FileStorageService } from '@/libs/filesystem/lib/file-storage.service';
+import { FilesystemService } from '@/filesystem/filesystem.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -17,7 +17,6 @@ describe('FileFolderService', () => {
     delete: jest.Mock;
   };
   let storageService: {
-    config: { default: string };
     disk: jest.Mock;
   };
 
@@ -52,7 +51,6 @@ describe('FileFolderService', () => {
       delete: jest.fn(),
     };
     storageService = {
-      config: { default: 'public' },
       disk: jest.fn(() => disk),
     };
 
@@ -64,7 +62,7 @@ describe('FileFolderService', () => {
           useValue: repository,
         },
         {
-          provide: FileStorageService,
+          provide: FilesystemService,
           useValue: storageService,
         },
       ],

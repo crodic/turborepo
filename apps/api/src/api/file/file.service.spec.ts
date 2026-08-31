@@ -1,11 +1,10 @@
-import { FileStorageService } from '@/libs/filesystem/lib/file-storage.service';
+import { FilesystemService } from '@/filesystem/filesystem.service';
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { createReadStream, createWriteStream } from 'fs';
+import { createReadStream } from 'fs';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import { dirname, join } from 'path';
-import { pipeline } from 'stream/promises';
 import { FileEntity } from './entities/file.entity';
 import { FileFolderService } from './file-folder.service';
 import { FileService } from './file.service';
@@ -26,14 +25,13 @@ describe('FileService', () => {
   let disk: {
     getDiskRoot: jest.Mock;
     put: jest.Mock;
-    putStream: jest.Mock;
     get: jest.Mock;
     delete: jest.Mock;
     exists: jest.Mock;
-    createReadStream: jest.Mock;
+    getStream: jest.Mock;
+    url: jest.Mock;
   };
   let storageService: {
-    config: { default: string };
     disk: jest.Mock;
   };
   let fileFolderService: FileFolderService;
@@ -56,13 +54,6 @@ describe('FileService', () => {
         await mkdir(dirname(target), { recursive: true });
         await writeFile(target, content);
       }),
-      putStream: jest.fn(
-        async (path: string, stream: NodeJS.ReadableStream) => {
-          const target = join(diskRoot, path);
-          await mkdir(dirname(target), { recursive: true });
-          await pipeline(stream, createWriteStream(target));
-        },
-      ),
       get: jest.fn((path: string) => readFile(join(diskRoot, path))),
       delete: jest.fn(),
       exists: jest.fn(async (path: string) => {
@@ -73,12 +64,12 @@ describe('FileService', () => {
           return false;
         }
       }),
-      createReadStream: jest.fn((path: string) =>
+      getStream: jest.fn((path: string) =>
         createReadStream(join(diskRoot, path)),
       ),
+      url: jest.fn((path: string) => `http://localhost:3000/storage/${path}`),
     };
     storageService = {
-      config: { default: 'public' },
       disk: jest.fn(() => disk),
     };
 
@@ -95,7 +86,7 @@ describe('FileService', () => {
           useValue: { validateImage: jest.fn(), validateFile: jest.fn() },
         },
         {
-          provide: FileStorageService,
+          provide: FilesystemService,
           useValue: storageService,
         },
       ],
@@ -188,7 +179,6 @@ describe('FileService', () => {
   });
 
   it('stores managed media on the configured default disk', async () => {
-    storageService.config.default = 'local';
     repository.create.mockImplementation((value) => value);
     repository.save.mockImplementation(async (value) => ({
       id: '1',
@@ -198,12 +188,16 @@ describe('FileService', () => {
       ...value,
     }));
 
-    await service.upload({
-      originalname: 'photo.jpg',
-      mimetype: 'image/jpeg',
-      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
-      size: 4,
-    } as Express.Multer.File);
+    await service.upload(
+      {
+        originalname: 'photo.jpg',
+        mimetype: 'image/jpeg',
+        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+        size: 4,
+      } as Express.Multer.File,
+      undefined,
+      'local',
+    );
 
     expect(storageService.disk).toHaveBeenCalledWith('local');
     expect(repository.create).toHaveBeenCalledWith(

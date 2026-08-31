@@ -1,19 +1,25 @@
 import { AllConfigType } from '@/config/config.type';
 import KeyvRedis from '@keyv/redis';
 import { CacheModule } from '@nestjs/cache-manager';
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheableMemory, Keyv } from 'cacheable';
+import { RedisService } from './redis.service';
+
+@Global()
 @Module({
   imports: [
     CacheModule.registerAsync({
       imports: [ConfigModule],
+      inject: [ConfigService],
+      isGlobal: true,
       useFactory: (config: ConfigService<AllConfigType>) => {
-        const host = config.getOrThrow('redis.host', { infer: true });
-        const port = config.getOrThrow('redis.port', { infer: true });
-        const password = config.getOrThrow('redis.password', { infer: true });
+        const host = String(config.getOrThrow('redis.host', { infer: true }));
+        const port = Number(config.getOrThrow('redis.port', { infer: true }));
+        const password = config.get('redis.password', { infer: true });
 
-        const uri = `redis://${password}@${host}:${port}`;
+        const auth = password ? `:${encodeURIComponent(password)}@` : '';
+        const uri = `redis://${auth}${host}:${port}`;
 
         return {
           stores: [
@@ -24,11 +30,9 @@ import { CacheableMemory, Keyv } from 'cacheable';
           ],
         };
       },
-      isGlobal: true,
-      inject: [ConfigService],
     }),
   ],
-  providers: [],
-  exports: [],
+  providers: [RedisService],
+  exports: [CacheModule, RedisService],
 })
 export class RedisModule {}

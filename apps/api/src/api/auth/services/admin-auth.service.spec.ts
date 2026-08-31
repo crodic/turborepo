@@ -113,6 +113,12 @@ describe('AdminAuthService login', () => {
         }),
       } as any,
       jwtService as any,
+      {
+        disk: jest.fn(() => ({
+          delete: jest.fn(),
+          put: jest.fn(),
+        })),
+      } as any,
       adminUserRepository as any,
       adminAccountRepository as any,
       sessionRepository as any,

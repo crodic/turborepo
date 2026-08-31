@@ -1,5 +1,5 @@
 import { AllConfigType } from '@/config/config.type';
-import { FileStorageService } from '@/libs/filesystem/lib/file-storage.service';
+import { FilesystemService } from '@/filesystem/filesystem.service';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
@@ -35,7 +35,7 @@ export class SortableImageUploadService {
   private readonly defaultMaxImageSize = 10 * 1024 * 1024;
 
   constructor(
-    private readonly storage: FileStorageService,
+    private readonly storage: FilesystemService,
     private readonly configService: ConfigService<AllConfigType>,
   ) {}
 
@@ -164,7 +164,7 @@ export class SortableImageUploadService {
     const path = posixPath.join('image', uploadFolder, `${publicId}.${ext}`);
 
     await this.storage.disk('public').put(path, file.buffer, {
-      ContentType: file.mimetype,
+      mimeType: file.mimetype,
       visibility: 'public',
     });
 
@@ -233,8 +233,6 @@ export class SortableImageUploadService {
   }
 
   private getPublicStorageUrl(path: string) {
-    const appUrl = this.configService.getOrThrow('app.url', { infer: true });
-
-    return `${appUrl.replace(/\/$/, '')}/storage/public/${path.replace(/^\/+/, '')}`;
+    return this.storage.disk('public').url(path);
   }
 }

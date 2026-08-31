@@ -4,7 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import authConfig from '@/api/auth/config/auth.config';
 import appConfig from '@/config/app.config';
 import databaseConfig from '@/database/config/database.config';
-import storageConfig from '@/libs/filesystem/config/storage.config';
+import storageConfig from '@/filesystem/config/storage.config';
 import mailConfig from '@/mail/config/mail.config';
 import redisConfig from '@/redis/config/redis.config';
 
@@ -27,17 +27,17 @@ import { LoggerModule } from 'nestjs-pino';
 
 import { ApiModule } from '@/api/api.module';
 import { BackgroundModule } from '@/background/background.module';
+import { FilesystemModule } from '@/filesystem/filesystem.module';
 import { LibsModule } from '@/libs/libs.module';
 import { MailModule } from '@/mail/mail.module';
 import { SharedModule } from '@/shared/shared.module';
 
-import { ServeStaticModule } from '@nestjs/serve-static';
 import { SentryModule } from '@sentry/nestjs/setup';
 import { ClsModule } from 'nestjs-cls';
 
 import { AllConfigType } from '@/config/config.type';
 import { Environment } from '@/constants/app.constant';
-import path, { join } from 'path';
+import path from 'path';
 import { DataSource, DataSourceOptions } from 'typeorm';
 
 import { APP_INTERCEPTOR } from '@nestjs/core';
@@ -169,28 +169,7 @@ import loggerFactory from './utils/logger-factory';
       useFactory: loggerFactory,
     }),
     RedisModule,
-
-    // -----------------
-    // STATIC FILES
-    // -----------------
-    ServeStaticModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: () => [
-        {
-          rootPath: join(process.cwd(), 'storage', 'public'),
-          serveRoot: '/storage/public',
-        },
-        {
-          rootPath: join(process.cwd(), 'public'),
-          serveRoot: '/',
-        },
-        {
-          rootPath: join(process.cwd(), 'storage', 'avatars'),
-          serveRoot: '/storage/avatars',
-        },
-      ],
-    }),
+    FilesystemModule,
     ClsModule.forRoot({
       middleware: { mount: true },
       global: true,

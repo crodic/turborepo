@@ -1,4 +1,3 @@
-import { AVATAR_PATH } from '@/api/admin-user/configs/multer.config';
 import { AdminUserResDto } from '@/api/admin-user/dto/admin-user.res.dto';
 import { ChangePasswordReqDto } from '@/api/admin-user/dto/change-password.req.dto';
 import { ChangePasswordResDto } from '@/api/admin-user/dto/change-password.res.dto';
@@ -21,8 +20,8 @@ import { EAccountProvider, ESessionUserType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { JobName, QueueName } from '@/constants/job.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
+import { FilesystemService } from '@/filesystem/filesystem.service';
 import { createCacheKey } from '@/utils/cache.util';
-import { deleteFile } from '@/utils/filesystem';
 import { verifyPassword } from '@/utils/password.util';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -44,6 +43,7 @@ import { plainToInstance } from 'class-transformer';
 import { assert } from 'console';
 import crypto from 'crypto';
 import ms, { StringValue } from 'ms';
+import path from 'path';
 import { In, IsNull, Repository } from 'typeorm';
 import { AdminUserLoginReqDto } from '../dto/admin-users/admin-user-login.req.dto';
 import { AdminUserLoginResDto } from '../dto/admin-users/admin-user-login.res.dto';
@@ -88,6 +88,7 @@ export class AdminAuthService {
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
     private readonly jwtService: JwtService,
+    private readonly filesystemService: FilesystemService,
     @InjectRepository(AdminUserEntity)
     private readonly adminUserRepository: Repository<AdminUserEntity>,
     @InjectRepository(AdminAccountEntity)
@@ -286,7 +287,7 @@ export class AdminAuthService {
   async updateMe(
     id: AutoIncrementID,
     dto: UpdateMeReqDto,
-    file: Express.Multer.File,
+    file?: Express.Multer.File,
   ): Promise<{ message: string }> {
     const user = await this.adminUserRepository.findOneBy({ id });
     if (!user) {
@@ -294,14 +295,33 @@ export class AdminAuthService {
     }
 
     if (dto.removeAvatar || file) {
-      await deleteFile(user.avatar);
+      if (user.avatar) {
+        const relativePath = user.avatar
+          .replace(/^.*\/storage\/public\//, '')
+          .replace(/^.*\/storage\//, '')
+          .replace(/^storage\/public\//, '')
+          .replace(/^storage\//, '')
+          .replace(/^\/+/, '');
+        await this.filesystemService.disk('public').delete(relativePath);
+      }
       user.avatar = null;
+    }
+
+    let avatarPath: string | undefined = undefined;
+    if (file) {
+      const ext = path.extname(file.originalname) || '.png';
+      const filename = `avatars/${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
+      await this.filesystemService.disk('public').put(filename, file.buffer, {
+        mimeType: file.mimetype,
+        visibility: 'public',
+      });
+      avatarPath = filename;
     }
 
     Object.assign(user, {
       ...dto,
       updatedBy: id,
-      ...(file && { avatar: AVATAR_PATH + '/' + file.filename }),
+      ...(avatarPath && { avatar: avatarPath }),
     });
 
     await this.adminUserRepository.save(user);

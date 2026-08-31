@@ -79,7 +79,7 @@ docker compose run --rm app pnpm migration:revert:docker
 To seed local relational data:
 
 ```bash
-docker compose run --rm app pnpm seed:run:relational
+docker compose run --rm app pnpm seed:run
 ```
 
 ## RBAC Permissions

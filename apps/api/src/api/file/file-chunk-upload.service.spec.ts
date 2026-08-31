@@ -1,8 +1,8 @@
-import { FileStorageService } from '@/libs/filesystem/lib/file-storage.service';
+import { FilesystemService } from '@/filesystem/filesystem.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { createWriteStream } from 'fs';
-import { mkdir, mkdtemp, readFile, rm } from 'fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { dirname, join } from 'path';
 import { pipeline } from 'stream/promises';
@@ -18,11 +18,9 @@ describe('FileChunkUploadService', () => {
   };
   let diskRoot: string;
   let disk: {
-    putStream: jest.Mock;
     put: jest.Mock;
   };
   let storageService: {
-    config: { default: string };
     disk: jest.Mock;
   };
   let fileFolderService: {
@@ -35,17 +33,26 @@ describe('FileChunkUploadService', () => {
       save: jest.fn(),
     };
     disk = {
-      putStream: jest.fn(
-        async (path: string, stream: NodeJS.ReadableStream) => {
+      put: jest.fn(
+        async (
+          path: string,
+          content: Buffer | NodeJS.ReadableStream,
+          _options?: any,
+        ) => {
           const target = join(diskRoot, path);
           await mkdir(dirname(target), { recursive: true });
-          await pipeline(stream, createWriteStream(target));
+          if (content && typeof (content as any).pipe === 'function') {
+            await pipeline(
+              content as NodeJS.ReadableStream,
+              createWriteStream(target),
+            );
+          } else {
+            await writeFile(target, content as Buffer);
+          }
         },
       ),
-      put: jest.fn(),
     };
     storageService = {
-      config: { default: 'public' },
       disk: jest.fn(() => disk),
     };
     fileFolderService = {
@@ -60,7 +67,7 @@ describe('FileChunkUploadService', () => {
           useValue: repository,
         },
         {
-          provide: FileStorageService,
+          provide: FilesystemService,
           useValue: storageService,
         },
         {

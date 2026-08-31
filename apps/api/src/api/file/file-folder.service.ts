@@ -1,5 +1,6 @@
-import { StorageDriver } from '@/libs/filesystem/lib/file-storage.interface';
-import { FileStorageService } from '@/libs/filesystem/lib/file-storage.service';
+import { StorageDisk } from '@/filesystem/config/storage-config.type';
+import { StorageDriver } from '@/filesystem/drivers/storage-driver.interface';
+import { FilesystemService } from '@/filesystem/filesystem.service';
 import { removeDiskPath } from '@/utils/filesystem';
 import {
   BadRequestException,
@@ -22,11 +23,11 @@ export class FileFolderService {
   constructor(
     @InjectRepository(FileEntity)
     private readonly fileRepository: Repository<FileEntity>,
-    private readonly storage: FileStorageService,
+    private readonly storage: FilesystemService,
   ) {}
 
   private diskForFile(file: Pick<FileEntity, 'disk'>): StorageDriver {
-    return this.storage.disk(file.disk ?? 'public');
+    return this.storage.disk((file.disk as StorageDisk) ?? 'public');
   }
 
   private toStorageKey(path: string): string {

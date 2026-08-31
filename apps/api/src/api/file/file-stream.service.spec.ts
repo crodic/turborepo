@@ -1,4 +1,4 @@
-import { FileStorageService } from '@/libs/filesystem/lib/file-storage.service';
+import { FilesystemService } from '@/filesystem/filesystem.service';
 import { ImageTransformer } from '@/utils/transformers/image.transformer';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -18,10 +18,9 @@ describe('FileStreamService', () => {
   let disk: {
     get: jest.Mock;
     exists: jest.Mock;
-    createReadStream: jest.Mock;
+    getStream: jest.Mock;
   };
   let storageService: {
-    config: { default: string };
     disk: jest.Mock;
   };
 
@@ -32,10 +31,9 @@ describe('FileStreamService', () => {
     disk = {
       get: jest.fn(),
       exists: jest.fn().mockResolvedValue(true),
-      createReadStream: jest.fn(),
+      getStream: jest.fn(),
     };
     storageService = {
-      config: { default: 'public' },
       disk: jest.fn(() => disk),
     };
 
@@ -47,7 +45,7 @@ describe('FileStreamService', () => {
           useValue: repository,
         },
         {
-          provide: FileStorageService,
+          provide: FilesystemService,
           useValue: storageService,
         },
         {

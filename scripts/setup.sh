@@ -98,7 +98,7 @@ main() {
   run_pnpm --filter api migration:run
 
   log "Running relational seeds"
-  run_pnpm --filter api seed:run:relational
+  run_pnpm --filter api seed:run
 
   log "Syncing permissions"
   run_pnpm --filter api permissions:sync

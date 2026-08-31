@@ -1,5 +1,4 @@
 import { QueueName } from '@/constants/job.constant';
-import { StorageModule } from '@/libs/filesystem/storage.module';
 import { ImageTransformer } from '@/utils/transformers/image.transformer';
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
@@ -22,7 +21,6 @@ import { FileValidator } from './validators/file.validator';
 @Module({
   imports: [
     TypeOrmModule.forFeature([FileEntity]),
-    StorageModule,
     BullModule.registerQueue({
       name: QueueName.FILE,
     }),

@@ -1,5 +1,6 @@
-import { StorageDriver } from '@/libs/filesystem/lib/file-storage.interface';
-import { FileStorageService } from '@/libs/filesystem/lib/file-storage.service';
+import { StorageDisk } from '@/filesystem/config/storage-config.type';
+import { StorageDriver } from '@/filesystem/drivers/storage-driver.interface';
+import { FilesystemService } from '@/filesystem/filesystem.service';
 import { removeDiskPath } from '@/utils/filesystem';
 import { ImageTransformer } from '@/utils/transformers/image.transformer';
 import {
@@ -31,13 +32,13 @@ export class FileStreamService {
   constructor(
     @InjectRepository(FileEntity)
     private readonly fileRepository: Repository<FileEntity>,
-    private readonly storage: FileStorageService,
+    private readonly storage: FilesystemService,
     private readonly transformationParser: TransformationParser,
     private readonly imageTransformer: ImageTransformer,
   ) {}
 
   private diskForFile(file: Pick<FileEntity, 'disk'>): StorageDriver {
-    return this.storage.disk(file.disk ?? 'public');
+    return this.storage.disk((file.disk as StorageDisk) ?? 'public');
   }
 
   private toStorageKey(path: string): string {
@@ -100,8 +101,10 @@ export class FileStreamService {
       throw new HttpException('File not found', HttpStatus.NOT_FOUND);
     }
 
+    const stream = await disk.getStream(storageKey);
+
     return {
-      stream: disk.createReadStream(storageKey),
+      stream,
       mime: media.mime,
       size: media.size,
     };

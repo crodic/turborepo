@@ -1,5 +1,6 @@
-import { StorageDriver } from '@/libs/filesystem/lib/file-storage.interface';
-import { FileStorageService } from '@/libs/filesystem/lib/file-storage.service';
+import { StorageDisk } from '@/filesystem/config/storage-config.type';
+import { StorageDriver } from '@/filesystem/drivers/storage-driver.interface';
+import { FilesystemService } from '@/filesystem/filesystem.service';
 import { applyFormat, extractExt, removeDiskPath } from '@/utils/filesystem';
 import {
   BadRequestException,
@@ -37,7 +38,7 @@ export class FileService {
     @InjectRepository(FileEntity)
     private readonly fileRepository: Repository<FileEntity>,
     private readonly fileValidator: FileValidator,
-    private readonly storage: FileStorageService,
+    private readonly storage: FilesystemService,
     private readonly fileFolderService: FileFolderService,
   ) {}
 
@@ -45,16 +46,16 @@ export class FileService {
     return this.storage.disk();
   }
 
-  private get currentDiskName(): string {
-    return (this.storage.config?.default as string | undefined) ?? 'public';
+  private get currentDiskName(): StorageDisk {
+    return 'public';
   }
 
   private writeDisk(disk?: string | null): StorageDriver {
-    return this.storage.disk(disk || this.currentDiskName);
+    return this.storage.disk((disk as StorageDisk) || this.currentDiskName);
   }
 
-  private normalizeUploadDisk(disk?: string | null): string {
-    const targetDisk = disk || this.currentDiskName;
+  private normalizeUploadDisk(disk?: string | null): StorageDisk {
+    const targetDisk = (disk as StorageDisk) || this.currentDiskName;
 
     if (!['local', 'public'].includes(targetDisk)) {
       throw new BadRequestException(
@@ -66,7 +67,7 @@ export class FileService {
   }
 
   private diskForFile(file: Pick<FileEntity, 'disk'>): StorageDriver {
-    return this.storage.disk(file.disk ?? 'public');
+    return this.storage.disk((file.disk as StorageDisk) ?? 'public');
   }
 
   private async deleteStoredFileIfExists(
@@ -177,7 +178,7 @@ export class FileService {
 
     const uploadDiskName = this.normalizeUploadDisk(disk);
     await this.writeDisk(uploadDiskName).put(storedPath, file.buffer, {
-      ContentType: mime,
+      mimeType: mime,
       visibility: 'public',
     });
 
@@ -246,7 +247,7 @@ export class FileService {
     const targetPath = this.makeStorageKey(folder, filename);
 
     await this.disk.put(targetPath, buffer, {
-      ContentType: `image/${ext}`,
+      mimeType: `image/${ext}`,
       visibility: 'public',
     });
 
@@ -267,7 +268,7 @@ export class FileService {
       const resizedPath = this.makeStorageKey(resizedFolder, resizedName);
 
       await this.disk.put(resizedPath, sizeBuffer, {
-        ContentType: `image/${ext}`,
+        mimeType: `image/${ext}`,
         visibility: 'public',
       });
 
@@ -286,7 +287,7 @@ export class FileService {
       const thumbnailPath = this.makeStorageKey(thumbFolder, thumbName);
 
       await this.disk.put(thumbnailPath, thumbnailBuffer, {
-        ContentType: `image/${ext}`,
+        mimeType: `image/${ext}`,
         visibility: 'public',
       });
 
@@ -311,7 +312,7 @@ export class FileService {
     const storedPath = this.makeStorageKey(folder, filename);
 
     await this.disk.put(storedPath, file.buffer, {
-      ContentType: file.mimetype,
+      mimeType: file.mimetype,
       visibility: 'public',
     });
 

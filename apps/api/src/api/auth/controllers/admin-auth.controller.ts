@@ -1,4 +1,3 @@
-import { avatarUploadOption } from '@/api/admin-user/configs/multer.config';
 import { AdminUserResDto } from '@/api/admin-user/dto/admin-user.res.dto';
 import { ChangePasswordReqDto } from '@/api/admin-user/dto/change-password.req.dto';
 import { ChangePasswordResDto } from '@/api/admin-user/dto/change-password.res.dto';
@@ -369,7 +368,7 @@ export class AdminAuthenticationController {
     summary: 'Update current user',
   })
   @SkipThrottle()
-  @UseInterceptors(FileInterceptor('avatar', avatarUploadOption))
+  @UseInterceptors(FileInterceptor('avatar'))
   @Put('me')
   async updateMe(
     @CurrentUser('id') userId: AutoIncrementID,

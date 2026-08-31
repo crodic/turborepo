@@ -1,5 +1,6 @@
-import { StorageDriver } from '@/libs/filesystem/lib/file-storage.interface';
-import { FileStorageService } from '@/libs/filesystem/lib/file-storage.service';
+import { StorageDisk } from '@/filesystem/config/storage-config.type';
+import { StorageDriver } from '@/filesystem/drivers/storage-driver.interface';
+import { FilesystemService } from '@/filesystem/filesystem.service';
 import {
   BadRequestException,
   Injectable,
@@ -46,20 +47,20 @@ export class FileChunkUploadService {
   constructor(
     @InjectRepository(FileEntity)
     private readonly fileRepository: Repository<FileEntity>,
-    private readonly storage: FileStorageService,
+    private readonly storage: FilesystemService,
     private readonly fileFolderService: FileFolderService,
   ) {}
 
-  private get currentDiskName(): string {
-    return (this.storage.config?.default as string | undefined) ?? 'public';
+  private get currentDiskName(): StorageDisk {
+    return 'public';
   }
 
   private writeDisk(disk?: string | null): StorageDriver {
-    return this.storage.disk(disk || this.currentDiskName);
+    return this.storage.disk((disk as StorageDisk) || this.currentDiskName);
   }
 
-  private normalizeUploadDisk(disk?: string | null): string {
-    const targetDisk = disk || this.currentDiskName;
+  private normalizeUploadDisk(disk?: string | null): StorageDisk {
+    const targetDisk = (disk as StorageDisk) || this.currentDiskName;
 
     if (!['local', 'public'].includes(targetDisk)) {
       throw new BadRequestException(
@@ -139,19 +140,10 @@ export class FileChunkUploadService {
   private async putStorageStream(
     path: string,
     stream: Readable,
-    options: { visibility?: 'public' | 'private'; ContentType?: string },
+    options: { visibility?: 'public' | 'private'; mimeType?: string },
     disk: StorageDriver,
   ): Promise<void> {
-    if (disk.putStream) {
-      await disk.putStream(path, stream, options);
-      return;
-    }
-
-    const chunks: Buffer[] = [];
-    for await (const chunk of stream) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    }
-    await disk.put(path, Buffer.concat(chunks), options);
+    await disk.put(path, stream, options);
   }
 
   private async createFileRecord({
@@ -330,7 +322,7 @@ export class FileChunkUploadService {
       storedPath,
       createReadStream(mergedPath),
       {
-        ContentType: session.mime,
+        mimeType: session.mime,
         visibility: 'public',
       },
       this.writeDisk(session.disk),

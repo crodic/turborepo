@@ -73,7 +73,7 @@ Run these commands after configuring `apps/api/.env` for the target database:
 pnpm --filter api build
 pnpm --filter api db:create
 pnpm --filter api migration:run:prod
-pnpm --filter api seed:run:relational:prod
+pnpm --filter api seed:run:prod
 pnpm --filter api permissions:sync:prod
 ```
 

@@ -280,7 +280,7 @@ Run API database commands with the API workspace filter:
 ```bash
 pnpm --filter api db:create
 pnpm --filter api migration:run
-pnpm --filter api seed:run:relational
+pnpm --filter api seed:run
 pnpm --filter api permissions:sync
 ```
 
@@ -289,7 +289,7 @@ Production commands:
 ```bash
 pnpm --filter api build
 pnpm --filter api migration:run:prod
-pnpm --filter api seed:run:relational:prod
+pnpm --filter api seed:run:prod
 pnpm --filter api permissions:sync:prod
 ```
 
