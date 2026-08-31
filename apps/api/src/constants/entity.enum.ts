@@ -3,16 +3,6 @@ export enum ESessionUserType {
   USER = 'UserEntity',
 }
 
-export enum EImpersonateLogStatus {
-  SUCCESS = 'success',
-  FAILED = 'failed',
-}
-
-export enum EImpersonateHistoryStatus {
-  ACTIVE = 'active',
-  STOPPED = 'stopped',
-}
-
 export enum EEmailLogSource {
   SYSTEM = 'system',
   ADMIN = 'admin',
@@ -23,6 +13,11 @@ export enum EEmailLogStatus {
   SENT = 'sent',
   FAILED = 'failed',
   CANCELLED = 'cancelled',
+}
+
+export enum EAccountProvider {
+  LOCAL = 'local',
+  GOOGLE = 'google',
 }
 
 export enum EOAuthProvider {

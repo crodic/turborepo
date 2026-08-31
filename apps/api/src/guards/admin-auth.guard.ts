@@ -49,7 +49,6 @@ export class AdminAuthGuard extends AuthGuard('admin-jwt') {
 
     this.cls.set('user', user);
     this.cls.set('userType', AdminUserEntity.name);
-    this.cls.set('impersonation', undefined);
 
     return user;
   }

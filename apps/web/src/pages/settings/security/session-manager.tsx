@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  AlertTriangleIcon,
   ChromeIcon,
   Globe2Icon,
   KeyRoundIcon,
@@ -224,32 +223,10 @@ function SessionRow({
                   Current
                 </Badge>
               )}
-              {session.isSuspicious && (
-                <Badge
-                  variant='destructive'
-                  className='h-5 gap-1 px-1.5 text-[10px]'
-                >
-                  <AlertTriangleIcon className='size-3' />
-                  {t('settings.security.sessionsSuspicious')}
-                </Badge>
-              )}
             </div>
             <p className='text-muted-foreground mt-1 truncate text-xs'>
               {session.userAgent || t('settings.security.sessionsUnknownAgent')}
             </p>
-            {session.isSuspicious && (
-              <div className='mt-2 flex flex-wrap gap-1.5'>
-                {(session.suspiciousReasons ?? []).map((reason) => (
-                  <Badge
-                    key={reason}
-                    variant='outline'
-                    className='h-5 px-1.5 text-[10px]'
-                  >
-                    {t(getSuspiciousReasonKey(reason))}
-                  </Badge>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       </TableCell>
@@ -332,22 +309,6 @@ function detectDeviceName(ua: string, os: string) {
   if (/Android/.test(ua)) return 'Android device'
 
   return os
-}
-
-function getSuspiciousReasonKey(reason: string) {
-  if (reason === 'new_ip_address') {
-    return 'settings.security.sessionsSuspiciousNewIp'
-  }
-
-  if (reason === 'new_device') {
-    return 'settings.security.sessionsSuspiciousNewDevice'
-  }
-
-  if (reason === 'failed_login_attempts') {
-    return 'settings.security.sessionsSuspiciousFailedAttempts'
-  }
-
-  return 'settings.security.sessionsSuspicious'
 }
 
 function DeviceIcon({ device }: { device: DeviceInfo }) {

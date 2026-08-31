@@ -1,6 +1,6 @@
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
-import { UserSocialAccountEntity } from '@/api/auth/entities/user-social-account.entity';
+import { UserAccountEntity } from '@/api/auth/entities/user-account.entity';
 import { UserChangePasswordReqDto } from '@/api/user/dto/user-change-password.req.dto';
 import { UserChangePasswordResDto } from '@/api/user/dto/user-change-password.res.dto';
 import { UserResDto } from '@/api/user/dto/user.res.dto';
@@ -10,7 +10,7 @@ import { AutoIncrementID } from '@/common/types/common.type';
 import { Branded } from '@/common/types/types';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
-import { EOAuthProvider, ESessionUserType } from '@/constants/entity.enum';
+import { EAccountProvider, ESessionUserType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { QueueName } from '@/constants/job.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
@@ -88,8 +88,8 @@ export class UserAuthService {
     private readonly adminUserRepository: Repository<AdminUserEntity>,
     @InjectRepository(SessionEntity)
     private readonly sessionRepository: Repository<SessionEntity>,
-    @InjectRepository(UserSocialAccountEntity)
-    private readonly socialAccountRepository: Repository<UserSocialAccountEntity>,
+    @InjectRepository(UserAccountEntity)
+    private readonly userAccountRepository: Repository<UserAccountEntity>,
     @InjectQueue(QueueName.EMAIL)
     private readonly emailQueue: Queue<IEmailJob, any, string>,
     @Inject(CACHE_MANAGER)
@@ -108,8 +108,21 @@ export class UserAuthService {
       where: { email },
     });
 
+    if (!user) {
+      throw new BadRequestException({ message: 'Invalid credentials' });
+    }
+
+    const localAccount = await this.userAccountRepository.findOne({
+      where: {
+        userId: user.id,
+        provider: EAccountProvider.LOCAL,
+      },
+    });
+
     const isPasswordValid =
-      user && (await verifyPassword(password, user.password));
+      localAccount &&
+      localAccount.password &&
+      (await verifyPassword(password, localAccount.password));
 
     if (!isPasswordValid) {
       throw new BadRequestException({ message: 'Invalid credentials' });
@@ -132,9 +145,20 @@ export class UserAuthService {
       firstName: dto.firstName,
       lastName: dto.lastName || '',
       email: dto.email,
-      password: dto.password,
     });
     const user = await this.userRepository.save(newUser);
+
+    // Create local credentials account
+    await this.userAccountRepository.save(
+      new UserAccountEntity({
+        userId: user.id,
+        provider: EAccountProvider.LOCAL,
+        providerAccountId: user.email,
+        password: dto.password,
+        email: user.email,
+        displayName: `${user.firstName} ${user.lastName}`.trim(),
+      }),
+    );
 
     // Send email verification
     await this.userAccountRecoveryService.sendVerificationEmail(user);
@@ -258,7 +282,7 @@ export class UserAuthService {
   async listSocialAccounts(
     userToken: JwtPayloadType,
   ): Promise<SocialAccountResDto[]> {
-    const accounts = await this.socialAccountRepository.find({
+    const accounts = await this.userAccountRepository.find({
       where: { userId: userToken.id as AutoIncrementID },
       order: { createdAt: 'DESC' },
     });
@@ -278,12 +302,30 @@ export class UserAuthService {
 
     const user = await this.userRepository.findOneByOrFail({ id: userId });
 
-    if (user.password) {
+    let localAccount = await this.userAccountRepository.findOne({
+      where: {
+        userId: user.id,
+        provider: EAccountProvider.LOCAL,
+      },
+    });
+
+    if (localAccount?.password) {
       throw new BadRequestException('Password has already been configured');
     }
 
-    user.password = dto.password;
-    await this.userRepository.save(user);
+    if (!localAccount) {
+      localAccount = new UserAccountEntity({
+        userId: user.id,
+        provider: EAccountProvider.LOCAL,
+        providerAccountId: user.email,
+        password: dto.password,
+        email: user.email,
+      });
+    } else {
+      localAccount.password = dto.password;
+    }
+
+    await this.userAccountRepository.save(localAccount);
 
     return plainToInstance(UserChangePasswordResDto, {
       message: 'Password configured successfully',
@@ -403,11 +445,18 @@ export class UserAuthService {
       throw new ForbiddenException('Forbidden');
     }
 
+    const localAccount = await this.userAccountRepository.findOne({
+      where: {
+        userId: user.id,
+        provider: EAccountProvider.LOCAL,
+      },
+    });
+
     return plainToInstance(
       UserResDto,
       {
         ...user,
-        hasPassword: !!user.password,
+        hasPassword: !!localAccount?.password,
       },
       { excludeExtraneousValues: true },
     );
@@ -418,16 +467,28 @@ export class UserAuthService {
     dto: UserChangePasswordReqDto,
   ): Promise<UserChangePasswordResDto> {
     const user = await this.userRepository.findOneByOrFail({ id });
-    const isPasswordValid = await verifyPassword(dto.password, user.password);
+
+    const localAccount = await this.userAccountRepository.findOne({
+      where: {
+        userId: user.id,
+        provider: EAccountProvider.LOCAL,
+      },
+    });
+
+    const isPasswordValid =
+      localAccount &&
+      localAccount.password &&
+      (await verifyPassword(dto.password, localAccount.password));
+
     if (!isPasswordValid) {
       throw new ValidationException(ErrorCode.E002);
     }
     if (dto.newPassword !== dto.confirmNewPassword) {
       throw new ValidationException(ErrorCode.E003);
     }
-    user.password = dto.newPassword;
 
-    await this.userRepository.save(user);
+    localAccount.password = dto.newPassword;
+    await this.userAccountRepository.save(localAccount);
 
     return plainToInstance(UserChangePasswordResDto, {
       message: 'Change password successfully',
@@ -448,16 +509,12 @@ export class UserAuthService {
       throw new NotFoundException('User not found');
     }
 
-    Object.assign(user, {
-      ...dto,
-      updatedBy: id,
-    });
+    user.firstName = dto.firstName;
+    user.lastName = dto.lastName;
 
     await this.userRepository.save(user);
 
-    return {
-      message: 'success',
-    };
+    return { message: 'Profile updated successfully' };
   }
 
   private async createLoginResponse(
@@ -491,7 +548,7 @@ export class UserAuthService {
     });
   }
 
-  private async consumeOAuthState(state: string): Promise<OAuthStateValue> {
+  private async consumeOAuthState(state: string) {
     const cacheKey = createCacheKey(CacheKey.SOCIAL_OAUTH_STATE, state);
     const value = await this.cacheManager.get<OAuthStateValue>(cacheKey);
 
@@ -519,9 +576,11 @@ export class UserAuthService {
     profile: OAuthProviderProfile,
     requestInfo?: SessionRequestInfo,
   ): Promise<LoginResDto> {
-    const existingAccount = await this.socialAccountRepository.findOne({
+    const existingAccount = await this.userAccountRepository.findOne({
       where: {
-        provider: profile.provider,
+        provider:
+          (profile.provider as unknown as EAccountProvider) ||
+          EAccountProvider.GOOGLE,
         providerAccountId: profile.providerAccountId,
       },
     });
@@ -576,9 +635,13 @@ export class UserAuthService {
       );
     }
 
-    const providerAccount = await this.socialAccountRepository.findOne({
+    const provider =
+      (profile.provider as unknown as EAccountProvider) ||
+      EAccountProvider.GOOGLE;
+
+    const providerAccount = await this.userAccountRepository.findOne({
       where: {
-        provider: profile.provider,
+        provider,
         providerAccountId: profile.providerAccountId,
       },
     });
@@ -589,10 +652,10 @@ export class UserAuthService {
       );
     }
 
-    const existingUserProvider = await this.socialAccountRepository.findOne({
+    const existingUserProvider = await this.userAccountRepository.findOne({
       where: {
         userId: user.id,
-        provider: profile.provider,
+        provider,
       },
     });
 
@@ -612,10 +675,12 @@ export class UserAuthService {
     userId: AutoIncrementID,
     profile: OAuthProviderProfile,
   ) {
-    return this.socialAccountRepository.save(
-      new UserSocialAccountEntity({
+    return this.userAccountRepository.save(
+      new UserAccountEntity({
         userId,
-        provider: profile.provider || EOAuthProvider.GOOGLE,
+        provider:
+          (profile.provider as unknown as EAccountProvider) ||
+          EAccountProvider.GOOGLE,
         providerAccountId: profile.providerAccountId,
         email: profile.email,
         emailVerified: profile.emailVerified,

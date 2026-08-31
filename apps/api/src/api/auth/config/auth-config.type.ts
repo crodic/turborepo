@@ -9,8 +9,6 @@ export type AuthConfig = {
   confirmEmailExpires: string;
   portalUrl: string;
   portalResetPasswordUrl: string;
-  impersonationSessionExpires: string;
-  suspiciousLoginEnabled: boolean;
 
   userSecret: string;
   userExpires: string;

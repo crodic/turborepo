@@ -23,13 +23,6 @@ export default function Profile() {
   const handledSocialStatusRef = useRef(false);
 
   const handleClientSignOut = async () => {
-    if (profile?.isImpersonating) {
-      toast.error(
-        "You cannot sign out while impersonating. Please stop impersonation first."
-      );
-      return;
-    }
-
     try {
       const data = await getClientToken();
       await http.post("/api/v1/user/auth/logout", {
@@ -192,19 +185,8 @@ export default function Profile() {
       <Button asChild>
         <Link href="/server-profile">Go to Server Profile</Link>
       </Button>
-      <Button
-        onClick={handleClientSignOut}
-        variant="destructive"
-        disabled={profile?.isImpersonating}
-        title={
-          profile?.isImpersonating
-            ? "Stop impersonation before signing out"
-            : undefined
-        }
-      >
-        {profile?.isImpersonating
-          ? "Stop impersonation to sign out"
-          : "SignOut"}
+      <Button onClick={handleClientSignOut} variant="destructive">
+        SignOut
       </Button>
     </div>
   );

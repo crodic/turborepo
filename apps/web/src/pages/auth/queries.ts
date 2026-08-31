@@ -10,7 +10,6 @@ import {
   type ResetPasswordSchema,
   type LoginSchema,
   type TwoFactorLoginSchema,
-  type SuspiciousLoginSchema,
 } from './schema'
 
 export const sessionSchema = z.object({
@@ -20,11 +19,6 @@ export const sessionSchema = z.object({
 
   ipAddress: z.string().nullish(),
   userAgent: z.string().nullish(),
-  isSuspicious: z.boolean().default(false),
-  suspiciousReasons: z
-    .array(z.enum(['new_ip_address', 'new_device', 'failed_login_attempts']))
-    .nullish()
-    .default([]),
   expiresAt: z.string().nullish(),
   revokedAt: z.string().nullish(),
   createdAt: z.string(),
@@ -41,10 +35,6 @@ export interface ApiLoginResponse {
   twoFactorRequired?: boolean
   twoFactorToken?: string
   twoFactorMethods?: string[]
-  suspiciousLoginRequired?: boolean
-  suspiciousLoginToken?: string
-  suspiciousLoginMethods?: string[]
-  suspiciousReasons?: string[]
   restoreAccountRequired?: boolean
   restoreToken?: string
 }
@@ -59,14 +49,6 @@ export async function apiVerifyTwoFactorLogin(
   values: TwoFactorLoginSchema & { twoFactorToken: string }
 ): Promise<ApiLoginResponse> {
   const res = await http.post('/auth/2fa/verify-login', values)
-
-  return res.data
-}
-
-export async function apiVerifySuspiciousLogin(
-  values: SuspiciousLoginSchema & { suspiciousLoginToken: string }
-): Promise<ApiLoginResponse> {
-  const res = await http.post('/auth/suspicious-login/verify', values)
 
   return res.data
 }

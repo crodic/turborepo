@@ -13,7 +13,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SessionEntity } from '../entities/session.entity';
-import { UserSocialAccountEntity } from '../entities/user-social-account.entity';
+import { UserAccountEntity } from '../entities/user-account.entity';
 import { AuthSessionService } from './auth-session.service';
 import { UserAccountRecoveryService } from './user-account-recovery.service';
 import { UserAuthService } from './user-auth.service';
@@ -31,8 +31,8 @@ describe('UserAuthService', () => {
   let sessionRepository: Partial<
     Record<keyof Repository<SessionEntity>, jest.Mock>
   >;
-  let socialAccountRepository: Partial<
-    Record<keyof Repository<UserSocialAccountEntity>, jest.Mock>
+  let userAccountRepository: Partial<
+    Record<keyof Repository<UserAccountEntity>, jest.Mock>
   >;
   let jwtService: { signAsync: jest.Mock; verify: jest.Mock };
   let cacheManager: { get: jest.Mock; set: jest.Mock; del: jest.Mock };
@@ -76,7 +76,7 @@ describe('UserAuthService', () => {
       save: jest.fn(),
       update: jest.fn(),
     };
-    socialAccountRepository = {
+    userAccountRepository = {
       find: jest.fn(),
       findOne: jest.fn(),
       save: jest.fn(),
@@ -127,8 +127,8 @@ describe('UserAuthService', () => {
           useValue: sessionRepository,
         },
         {
-          provide: getRepositoryToken(UserSocialAccountEntity),
-          useValue: socialAccountRepository,
+          provide: getRepositoryToken(UserAccountEntity),
+          useValue: userAccountRepository,
         },
         {
           provide: getQueueToken(QueueName.EMAIL),
@@ -167,11 +167,19 @@ describe('UserAuthService', () => {
       roleId: '1' as any,
     };
 
-    it('creates a user, stores a verification token, and queues email', async () => {
-      const user = new UserEntity({ id: '10' as any, email: dto.email });
+    it('creates a user, creates local account, stores a verification token, and queues email', async () => {
+      const user = new UserEntity({
+        id: '10' as any,
+        email: dto.email,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+      });
 
       jest.spyOn(UserEntity, 'exists').mockResolvedValue(false);
       userRepository.save.mockResolvedValue(user);
+      userAccountRepository.save?.mockResolvedValue(
+        new UserAccountEntity({ id: '1' as any }),
+      );
 
       const result = await service.signUp(dto);
 
@@ -179,9 +187,11 @@ describe('UserAuthService', () => {
         firstName: dto.firstName,
         lastName: dto.lastName || '',
         email: dto.email,
-        password: dto.password,
       });
       expect(userRepository.save).toHaveBeenCalledWith(expect.any(UserEntity));
+      expect(userAccountRepository.save).toHaveBeenCalledWith(
+        expect.any(UserAccountEntity),
+      );
       expect(result).toEqual(expect.objectContaining({ userId: user.id }));
     });
 
@@ -298,22 +308,30 @@ describe('UserAuthService', () => {
       const user = new UserEntity({
         id: '10' as any,
         email: 'user@example.com',
+      });
+      const account = new UserAccountEntity({
+        id: '1' as any,
+        userId: '10' as any,
         password: 'hashed-password',
       });
 
       userRepository.findOneByOrFail.mockResolvedValue(user);
+      userAccountRepository.findOne?.mockResolvedValue(account);
       (verifyPassword as jest.Mock).mockResolvedValue(true);
 
       const result = await service.changePassword('10' as any, dto);
 
-      expect(user.password).toBe(dto.newPassword);
-      expect(userRepository.save).toHaveBeenCalledWith(user);
+      expect(account.password).toBe(dto.newPassword);
+      expect(userAccountRepository.save).toHaveBeenCalledWith(account);
       expect(result.message).toBe('Change password successfully');
     });
 
     it('throws when current password is invalid', async () => {
       userRepository.findOneByOrFail.mockResolvedValue(
-        new UserEntity({ id: '10' as any, password: 'hashed-password' }),
+        new UserEntity({ id: '10' as any }),
+      );
+      userAccountRepository.findOne?.mockResolvedValue(
+        new UserAccountEntity({ id: '1' as any, password: 'hashed-password' }),
       );
       (verifyPassword as jest.Mock).mockResolvedValue(false);
 
@@ -322,12 +340,15 @@ describe('UserAuthService', () => {
       ).rejects.toMatchObject({
         response: { errorCode: ErrorCode.E002 },
       });
-      expect(userRepository.save).not.toHaveBeenCalled();
+      expect(userAccountRepository.save).not.toHaveBeenCalled();
     });
 
     it('throws when new password confirmation does not match', async () => {
       userRepository.findOneByOrFail.mockResolvedValue(
-        new UserEntity({ id: '10' as any, password: 'hashed-password' }),
+        new UserEntity({ id: '10' as any }),
+      );
+      userAccountRepository.findOne?.mockResolvedValue(
+        new UserAccountEntity({ id: '1' as any, password: 'hashed-password' }),
       );
       (verifyPassword as jest.Mock).mockResolvedValue(true);
 
@@ -339,7 +360,7 @@ describe('UserAuthService', () => {
       ).rejects.toMatchObject({
         response: { errorCode: ErrorCode.E003 },
       });
-      expect(userRepository.save).not.toHaveBeenCalled();
+      expect(userAccountRepository.save).not.toHaveBeenCalled();
     });
   });
 });

@@ -13,9 +13,6 @@ export type User = {
   fullName: string;
   avatar: string | null;
   hasPassword: boolean;
-  isImpersonating?: boolean;
-  impersonatedBy?: string;
-  impersonationExpiresAt?: string;
   verifiedAt: string | null;
   createdAt: string;
   updatedAt: string;

@@ -23,7 +23,6 @@ type PresencePrincipal = {
   email: string;
   fullName?: string;
   avatar?: string;
-  impersonatedBy?: string | number;
 };
 
 type PresenceSocketContextValue = {

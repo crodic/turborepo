@@ -24,23 +24,11 @@ export class SessionResDto {
 
   @StringFieldOptional()
   @Expose()
-  impersonatedBy?: string;
-
-  @StringFieldOptional()
-  @Expose()
   ipAddress?: string;
 
   @StringFieldOptional()
   @Expose()
   userAgent?: string;
-
-  @BooleanField()
-  @Expose()
-  isSuspicious: boolean;
-
-  @StringFieldOptional({ each: true })
-  @Expose()
-  suspiciousReasons?: string[] | null;
 
   @ClassField(() => Date, { required: false, nullable: true })
   @Expose()

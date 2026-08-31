@@ -15,6 +15,7 @@ import ms, { StringValue } from 'ms';
 import { generateSecret, generateURI, verify as verifyTotp } from 'otplib';
 import { Repository } from 'typeorm';
 
+import { AdminAccountEntity } from '@/api/auth/entities/admin-account.entity';
 import {
   AdminNotificationType,
   NotificationService,
@@ -22,7 +23,7 @@ import {
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
-import { ESessionUserType } from '@/constants/entity.enum';
+import { EAccountProvider, ESessionUserType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
 import { createCacheKey } from '@/utils/cache.util';
@@ -41,7 +42,6 @@ import { VerifyTwoFactorSetupResDto } from '../dto/admin-users/two-factor/verify
 import { SessionEntity } from '../entities/session.entity';
 import { JwtPayloadType } from '../types/jwt-payload.type';
 import { SessionRequestInfo } from '../types/session-request-info.type';
-import { AdminSuspiciousLoginService } from './admin-suspicious-login.service';
 import { AuthSessionService } from './auth-session.service';
 
 export type TwoFactorSetupPayload = {
@@ -69,6 +69,8 @@ export class AdminTwoFactorService {
   constructor(
     @InjectRepository(AdminUserEntity)
     private readonly adminUserRepository: Repository<AdminUserEntity>,
+    @InjectRepository(AdminAccountEntity)
+    private readonly adminAccountRepository: Repository<AdminAccountEntity>,
     @InjectRepository(SessionEntity)
     private readonly sessionRepository: Repository<SessionEntity>,
     @Inject(CACHE_MANAGER)
@@ -77,7 +79,6 @@ export class AdminTwoFactorService {
     private readonly configService: ConfigService<AllConfigType>,
     private readonly notificationService: NotificationService,
     private readonly authSessionService: AuthSessionService,
-    private readonly suspiciousLoginService: AdminSuspiciousLoginService,
   ) {}
 
   async twoFactorStatus(
@@ -246,7 +247,6 @@ export class AdminTwoFactorService {
       sessionId: session.id,
       hash: session.hash,
     });
-    await this.notifyAdminLogin(user, session);
 
     return plainToInstance(AdminUserLoginResDto, {
       userId: user.id,
@@ -355,7 +355,17 @@ export class AdminTwoFactorService {
     user: AdminUserEntity,
     password: string,
   ): Promise<void> {
-    const isPasswordValid = await verifyPassword(password, user.password);
+    const localAccount = await this.adminAccountRepository.findOne({
+      where: {
+        adminUserId: user.id,
+        provider: EAccountProvider.LOCAL,
+      },
+    });
+
+    const isPasswordValid =
+      localAccount &&
+      localAccount.password &&
+      (await verifyPassword(password, localAccount.password));
 
     if (!isPasswordValid) {
       throw new ValidationException(ErrorCode.V003);
@@ -401,8 +411,6 @@ export class AdminTwoFactorService {
       ipAddress: requestInfo?.ipAddress,
       userAgent: normalizeUserAgent(requestInfo?.userAgent),
       hash: crypto.randomBytes(32).toString('hex'),
-      isSuspicious: false,
-      suspiciousReasons: null,
     });
     const savedSession = await this.sessionRepository.save(session);
     await this.authSessionService.clearSessionBlacklist(savedSession.id);
@@ -453,28 +461,6 @@ export class AdminTwoFactorService {
       refreshToken,
       tokenExpires,
     };
-  }
-
-  private async notifyAdminLogin(
-    user: AdminUserEntity,
-    session: SessionEntity,
-  ): Promise<void> {
-    if (!session.isSuspicious) {
-      return;
-    }
-
-    await this.notifyAdmin(
-      user.id,
-      AdminNotificationType.SuspiciousLogin,
-      'Unusual sign-in detected',
-      'A new admin session used an IP address or device we have not seen before.',
-      {
-        sessionId: session.id,
-        ipAddress: session.ipAddress,
-        userAgent: session.userAgent,
-      },
-    );
-    await this.suspiciousLoginService.queueEmail(user, session);
   }
 
   private async notifyAdmin(

@@ -5,7 +5,6 @@ export default {
   'navigation.general.title': 'General',
   'navigation.general.dashboard': 'Dashboard',
   'navigation.general.activityLogs': 'Activity logs',
-  'navigation.general.impersonationLogs': 'Impersonation logs',
   'navigation.general.emailLogs': 'Email Logs',
   'navigation.general.website': 'Website',
   'navigation.management.title': 'Management',
@@ -406,11 +405,6 @@ export default {
   'settings.security.sessionsUnknownAgent': 'Unknown user agent',
   'settings.security.sessionsDeviceName': '{{browser}} on {{device}}',
   'settings.security.sessionsSessionNumber': 'Session #{{id}}',
-  'settings.security.sessionsSuspicious': 'Suspicious',
-  'settings.security.sessionsSuspiciousNewIp': 'New IP address',
-  'settings.security.sessionsSuspiciousNewDevice': 'New device',
-  'settings.security.sessionsSuspiciousFailedAttempts':
-    'Multiple failed password attempts',
   'settings.security.sessionsMessageRevoked': 'Session revoked successfully.',
   'settings.security.sessionsMessageRevokeFailed': 'Failed to revoke session.',
   'settings.security.sessionsMessageAllRevoked': 'All sessions revoked.',
@@ -476,32 +470,6 @@ export default {
   'auth.twoFactor.code': 'Authentication code',
   'auth.twoFactor.buttonVerify': 'Verify and sign in',
   'auth.twoFactor.buttonBack': 'Back to password',
-  'auth.suspiciousLogin.title': 'Unusual sign-in',
-  'auth.suspiciousLogin.description':
-    'Verify this sign-in before continuing to the admin portal.',
-  'auth.suspiciousLogin.badge': 'Step-up verification',
-  'auth.suspiciousLogin.reasonLabel': 'Why we paused this sign-in',
-  'auth.suspiciousLogin.chooseMethod': 'Choose how to verify',
-  'auth.suspiciousLogin.methodEmail': 'Email code',
-  'auth.suspiciousLogin.methodEmailDescription':
-    'Use the code sent to your admin email.',
-  'auth.suspiciousLogin.methodTotp': 'Authenticator',
-  'auth.suspiciousLogin.methodTotpDescription':
-    'Use your authenticator app code.',
-  'auth.suspiciousLogin.methodBackupCode': 'Backup code',
-  'auth.suspiciousLogin.methodBackupCodeDescription':
-    'Use a saved one-time recovery code.',
-  'auth.suspiciousLogin.code': 'Verification code',
-  'auth.suspiciousLogin.codeSourceEmail': 'Email',
-  'auth.suspiciousLogin.codeSourceTotp': 'Authenticator',
-  'auth.suspiciousLogin.codeSourceBackup': 'Recovery',
-  'auth.suspiciousLogin.emailHint':
-    'Enter the 6-digit code sent to your admin email.',
-  'auth.suspiciousLogin.totpHint':
-    'Enter the 6-digit code from your authenticator app.',
-  'auth.suspiciousLogin.backupCodeHint':
-    'Enter one of your saved backup codes.',
-  'auth.suspiciousLogin.buttonVerify': 'Verify and sign in',
   'signOut.title': 'Sign Out',
   'signOut.description':
     'Are you sure you want to sign out? You will need to sign in again to access your account.',

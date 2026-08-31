@@ -1,4 +1,5 @@
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
+import { AdminAccountEntity } from '@/api/auth/entities/admin-account.entity';
 import { PermissionEntity } from '@/api/permission/entities/permission.entity';
 import { syncPermissions } from '@/api/permission/permission-sync';
 import { RoleEntity } from '@/api/role/entities/role.entity';
@@ -6,6 +7,7 @@ import {
   SUPER_ADMIN_ACCOUNT,
   SYSTEM_ROLE_NAME,
 } from '@/constants/app.constant';
+import { EAccountProvider } from '@/constants/entity.enum';
 import { ADMIN_FULL_ACCESS } from '@/utils/permissions.constant';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -16,6 +18,8 @@ export class AdminSeedService {
   constructor(
     @InjectRepository(AdminUserEntity)
     private readonly adminUserRepository: Repository<AdminUserEntity>,
+    @InjectRepository(AdminAccountEntity)
+    private readonly adminAccountRepository: Repository<AdminAccountEntity>,
     @InjectRepository(PermissionEntity)
     private readonly permissionRepository: Repository<PermissionEntity>,
     @InjectRepository(RoleEntity)
@@ -48,24 +52,39 @@ export class AdminSeedService {
 
     superAdminRole = await this.roleRepository.save(superAdminRole);
 
-    const existingAdmin = await this.adminUserRepository.findOne({
+    let existingAdmin = await this.adminUserRepository.findOne({
       where: { email: SUPER_ADMIN_ACCOUNT.email },
       withDeleted: true,
     });
 
-    if (existingAdmin) {
-      return;
+    if (!existingAdmin) {
+      existingAdmin = await this.adminUserRepository.save(
+        this.adminUserRepository.create({
+          email: SUPER_ADMIN_ACCOUNT.email,
+          firstName: 'System',
+          lastName: 'Administrator',
+          roles: [superAdminRole],
+          verifiedAt: new Date(),
+        }),
+      );
     }
 
-    await this.adminUserRepository.save(
-      this.adminUserRepository.create({
-        email: SUPER_ADMIN_ACCOUNT.email,
-        firstName: 'System',
-        lastName: 'Administrator',
-        password: SUPER_ADMIN_ACCOUNT.password,
-        roles: [superAdminRole],
-        verifiedAt: new Date(),
-      }),
-    );
+    const existingAccount = await this.adminAccountRepository.findOne({
+      where: {
+        adminUserId: existingAdmin.id,
+        provider: EAccountProvider.LOCAL,
+      },
+    });
+
+    if (!existingAccount) {
+      await this.adminAccountRepository.save(
+        new AdminAccountEntity({
+          adminUserId: existingAdmin.id,
+          provider: EAccountProvider.LOCAL,
+          providerAccountId: existingAdmin.email,
+          password: SUPER_ADMIN_ACCOUNT.password,
+        }),
+      );
+    }
   }
 }

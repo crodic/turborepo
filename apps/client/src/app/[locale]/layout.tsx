@@ -6,7 +6,6 @@ import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { dancingScript, geistMono, geistSans } from "@/fonts";
-import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
 
 export const metadata: Metadata = {
   title: "Boilerplate Next.js",
@@ -53,7 +52,6 @@ export default async function LocaleLayout({
               disableTransitionOnChange
               storageKey={`${process.env.APP_NAME}-theme`}
             >
-              <ImpersonationBanner />
               {children}
             </ThemeProvider>
           </Provider>

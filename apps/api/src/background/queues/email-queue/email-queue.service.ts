@@ -3,10 +3,7 @@ import {
   IAdminAccountDeletionRequestedEmailJob,
   IAdminAccountHardDeletedEmailJob,
   IAdminAccountHardDeletedReportEmailJob,
-  IAdminSuspiciousLoginEmailJob,
   IForgotPasswordEmailJob,
-  IUserImpersonationEndedEmailJob,
-  IUserImpersonationStartedEmailJob,
   IVerifyEmailJob,
 } from '@/common/interfaces/job.interface';
 import { AllConfigType } from '@/config/config.type';
@@ -80,32 +77,6 @@ export class EmailQueueService {
         data.token,
         renderedBody,
       );
-      await this.markSent(log, renderedBody);
-    } catch (error) {
-      await this.markFailed(log, error);
-      throw error;
-    }
-  }
-
-  async sendAdminSuspiciousLogin(
-    data: IAdminSuspiciousLoginEmailJob,
-  ): Promise<void> {
-    this.logger.debug(`Sending suspicious admin login alert to ${data.email}`);
-    const renderedBody = this.mailService.renderAdminSuspiciousLogin(data);
-    const log = await this.createSystemLog({
-      to: [data.email],
-      subject: 'Unusual admin sign-in detected',
-      jobName: JobName.ADMIN_SUSPICIOUS_LOGIN,
-      templateName: 'admin-suspicious-login',
-      body: renderedBody,
-      renderedBody,
-    });
-
-    try {
-      await this.mailService.sendAdminSuspiciousLogin({
-        ...data,
-        renderedHtml: renderedBody,
-      });
       await this.markSent(log, renderedBody);
     } catch (error) {
       await this.markFailed(log, error);
@@ -263,58 +234,6 @@ export class EmailQueueService {
         data.token,
         renderedBody,
       );
-      await this.markSent(log, renderedBody);
-    } catch (error) {
-      await this.markFailed(log, error);
-      throw error;
-    }
-  }
-
-  async sendUserImpersonationStarted(
-    data: IUserImpersonationStartedEmailJob,
-  ): Promise<void> {
-    this.logger.debug(`Sending impersonation started email to ${data.email}`);
-    const renderedBody = this.mailService.renderUserImpersonationStarted(data);
-    const log = await this.createSystemLog({
-      to: [data.email],
-      subject: 'An administrator started a support session',
-      jobName: JobName.USER_IMPERSONATION_STARTED,
-      templateName: 'user-impersonation-started',
-      body: renderedBody,
-      renderedBody,
-    });
-
-    try {
-      await this.mailService.sendUserImpersonationStarted({
-        ...data,
-        renderedHtml: renderedBody,
-      });
-      await this.markSent(log, renderedBody);
-    } catch (error) {
-      await this.markFailed(log, error);
-      throw error;
-    }
-  }
-
-  async sendUserImpersonationEnded(
-    data: IUserImpersonationEndedEmailJob,
-  ): Promise<void> {
-    this.logger.debug(`Sending impersonation ended email to ${data.email}`);
-    const renderedBody = this.mailService.renderUserImpersonationEnded(data);
-    const log = await this.createSystemLog({
-      to: [data.email],
-      subject: 'Administrator support session ended',
-      jobName: JobName.USER_IMPERSONATION_ENDED,
-      templateName: 'user-impersonation-ended',
-      body: renderedBody,
-      renderedBody,
-    });
-
-    try {
-      await this.mailService.sendUserImpersonationEnded({
-        ...data,
-        renderedHtml: renderedBody,
-      });
       await this.markSent(log, renderedBody);
     } catch (error) {
       await this.markFailed(log, error);

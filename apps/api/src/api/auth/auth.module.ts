@@ -15,10 +15,10 @@ import { NotificationModule } from '../notification/notification.module';
 import { UserEntity } from '../user/entities/user.entity';
 import { AdminAuthenticationController } from './controllers/admin-auth.controller';
 import { UserAuthenticationController } from './controllers/user-auth.controller';
+import { AdminAccountEntity } from './entities/admin-account.entity';
 import { SessionEntity } from './entities/session.entity';
-import { UserSocialAccountEntity } from './entities/user-social-account.entity';
+import { UserAccountEntity } from './entities/user-account.entity';
 import { AdminAuthService } from './services/admin-auth.service';
-import { AdminSuspiciousLoginService } from './services/admin-suspicious-login.service';
 import { AuthSessionService } from './services/auth-session.service';
 import { UserAuthService } from './services/user-auth.service';
 import { GoogleOAuthAdapter } from './social/google-oauth.adapter';
@@ -32,7 +32,8 @@ import { UserJwtStrategy } from './strategy/user.strategy';
       UserEntity,
       AdminUserEntity,
       SessionEntity,
-      UserSocialAccountEntity,
+      AdminAccountEntity,
+      UserAccountEntity,
     ]),
     NotificationModule,
     JwtModule.register({}),
@@ -64,7 +65,6 @@ import { UserJwtStrategy } from './strategy/user.strategy';
     AdminTwoFactorService,
     AdminAccountRecoveryService,
     UserAccountRecoveryService,
-    AdminSuspiciousLoginService,
     AuthSessionService,
     UserAuthService,
     AdminJwtStrategy,

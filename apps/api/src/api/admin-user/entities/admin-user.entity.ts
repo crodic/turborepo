@@ -1,3 +1,4 @@
+import { AdminAccountEntity } from '@/api/auth/entities/admin-account.entity';
 import { RoleEntity } from '@/api/role/entities/role.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
@@ -12,12 +13,15 @@ import {
   Index,
   JoinTable,
   ManyToMany,
+  OneToMany,
   PrimaryGeneratedColumn,
   Relation,
 } from 'typeorm';
 
 @Entity('admin_users')
 export class AdminUserEntity extends AbstractEntity {
+  @OneToMany(() => AdminAccountEntity, (account) => account.admin)
+  accounts?: Relation<AdminAccountEntity>[];
   private previousPassword?: string;
 
   constructor(data?: Partial<AdminUserEntity>) {
@@ -49,8 +53,8 @@ export class AdminUserEntity extends AbstractEntity {
   @Index('UQ_admin_user_email', { where: '"deleted_at" IS NULL', unique: true })
   email!: string;
 
-  @Column()
-  password: string;
+  @Column({ nullable: true })
+  password?: string;
 
   @Column({ nullable: true })
   bio?: string;

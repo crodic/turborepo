@@ -168,7 +168,8 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
       Setting: 'Setting',
       Theme: 'Theme',
       File: 'File',
-      UserSocialAccount: 'User Social Account',
+      UserAccount: 'User Account',
+      AdminAccount: 'Admin Account',
     };
     if (customMap[nameWithoutEntity]) {
       return customMap[nameWithoutEntity];

@@ -16,6 +16,7 @@ import ms, { StringValue } from 'ms';
 import { Repository } from 'typeorm';
 
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
+import { AdminAccountEntity } from '@/api/auth/entities/admin-account.entity';
 import {
   AdminNotificationType,
   NotificationService,
@@ -28,6 +29,7 @@ import {
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
+import { EAccountProvider } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { JobName, QueueName } from '@/constants/job.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
@@ -49,6 +51,8 @@ export class AdminAccountRecoveryService {
     private readonly jwtService: JwtService,
     @InjectRepository(AdminUserEntity)
     private readonly adminUserRepository: Repository<AdminUserEntity>,
+    @InjectRepository(AdminAccountEntity)
+    private readonly adminAccountRepository: Repository<AdminAccountEntity>,
     @InjectQueue(QueueName.EMAIL)
     private readonly emailQueue: Queue<IEmailJob, any, string>,
     @Inject(CACHE_MANAGER)
@@ -235,9 +239,22 @@ export class AdminAccountRecoveryService {
       throw new BadRequestException();
     }
 
-    user.password = dto.password;
+    let localAccount = await this.adminAccountRepository.findOne({
+      where: { adminUserId: user.id, provider: EAccountProvider.LOCAL },
+    });
 
-    await user.save();
+    if (!localAccount) {
+      localAccount = new AdminAccountEntity({
+        adminUserId: user.id,
+        provider: EAccountProvider.LOCAL,
+        providerAccountId: user.email,
+        password: dto.password,
+      });
+    } else {
+      localAccount.password = dto.password;
+    }
+
+    await this.adminAccountRepository.save(localAccount);
     await this.notifyAdmin(
       user.id,
       AdminNotificationType.PasswordReset,

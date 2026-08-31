@@ -15,6 +15,7 @@ import { plainToInstance } from 'class-transformer';
 import ms, { StringValue } from 'ms';
 import { Repository } from 'typeorm';
 
+import { UserAccountEntity } from '@/api/auth/entities/user-account.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import {
   IEmailJob,
@@ -23,6 +24,7 @@ import {
 } from '@/common/interfaces/job.interface';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
+import { EAccountProvider } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { JobName, QueueName } from '@/constants/job.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
@@ -44,6 +46,8 @@ export class UserAccountRecoveryService {
     private readonly jwtService: JwtService,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(UserAccountEntity)
+    private readonly userAccountRepository: Repository<UserAccountEntity>,
     @InjectQueue(QueueName.EMAIL)
     private readonly emailQueue: Queue<IEmailJob, any, string>,
     @Inject(CACHE_MANAGER)
@@ -235,9 +239,23 @@ export class UserAccountRecoveryService {
       throw new BadRequestException();
     }
 
-    user.password = dto.password;
+    let localAccount = await this.userAccountRepository.findOne({
+      where: { userId: user.id, provider: EAccountProvider.LOCAL },
+    });
 
-    await user.save();
+    if (!localAccount) {
+      localAccount = new UserAccountEntity({
+        userId: user.id,
+        provider: EAccountProvider.LOCAL,
+        providerAccountId: user.email,
+        password: dto.password,
+        email: user.email,
+      });
+    } else {
+      localAccount.password = dto.password;
+    }
+
+    await this.userAccountRepository.save(localAccount);
 
     return plainToInstance(ResetPasswordResDto, {
       success: true,

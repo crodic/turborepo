@@ -4,6 +4,7 @@ import { ChangePasswordReqDto } from '@/api/admin-user/dto/change-password.req.d
 import { ChangePasswordResDto } from '@/api/admin-user/dto/change-password.res.dto';
 import { UpdateMeReqDto } from '@/api/admin-user/dto/update-me.req.dto';
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
+import { AdminAccountEntity } from '@/api/auth/entities/admin-account.entity';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
 import {
   AdminNotificationType,
@@ -16,7 +17,7 @@ import { AutoIncrementID } from '@/common/types/common.type';
 import { Branded } from '@/common/types/types';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
-import { ESessionUserType } from '@/constants/entity.enum';
+import { EAccountProvider, ESessionUserType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { JobName, QueueName } from '@/constants/job.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
@@ -48,7 +49,6 @@ import { AdminUserLoginReqDto } from '../dto/admin-users/admin-user-login.req.dt
 import { AdminUserLoginResDto } from '../dto/admin-users/admin-user-login.res.dto';
 import { AdminUserRegisterReqDto } from '../dto/admin-users/admin-user-register.req.dto';
 import { RestoreAccountReqDto } from '../dto/admin-users/restore-account.req.dto';
-import { VerifySuspiciousLoginReqDto } from '../dto/admin-users/verify-suspicious-login.req.dto';
 import { RefreshReqDto } from '../dto/refresh.req.dto';
 import { RefreshResDto } from '../dto/refresh.res.dto';
 import { RegisterResDto } from '../dto/register.res.dto';
@@ -56,10 +56,6 @@ import { JwtPayloadType } from '../types/jwt-payload.type';
 import { JwtRefreshPayloadType } from '../types/jwt-refresh-payload.type';
 import { SessionRequestInfo } from '../types/session-request-info.type';
 import { AdminAccountRecoveryService } from './admin-account-recovery.service';
-import {
-  AdminSuspiciousLoginService,
-  SuspiciousLoginReason,
-} from './admin-suspicious-login.service';
 import {
   AdminTwoFactorService,
   TWO_FACTOR_ISSUER,
@@ -94,6 +90,8 @@ export class AdminAuthService {
     private readonly jwtService: JwtService,
     @InjectRepository(AdminUserEntity)
     private readonly adminUserRepository: Repository<AdminUserEntity>,
+    @InjectRepository(AdminAccountEntity)
+    private readonly adminAccountRepository: Repository<AdminAccountEntity>,
     @InjectRepository(SessionEntity)
     private readonly sessionRepository: Repository<SessionEntity>,
     @InjectRepository(UserEntity)
@@ -104,7 +102,6 @@ export class AdminAuthService {
     private readonly cacheManager: Cache,
     private readonly notificationService: NotificationService,
     private readonly authSessionService: AuthSessionService,
-    private readonly suspiciousLoginService: AdminSuspiciousLoginService,
     private readonly adminTwoFactorService: AdminTwoFactorService,
     private readonly adminAccountRecoveryService: AdminAccountRecoveryService,
   ) {}
@@ -119,11 +116,21 @@ export class AdminAuthService {
       withDeleted: true,
     });
 
+    const localAccount = user
+      ? await this.adminAccountRepository.findOne({
+          where: {
+            adminUserId: user.id,
+            provider: EAccountProvider.LOCAL,
+          },
+        })
+      : null;
+
     const isPasswordValid =
-      user && (await verifyPassword(password, user.password));
+      localAccount &&
+      localAccount.password &&
+      (await verifyPassword(password, localAccount.password));
 
     if (!isPasswordValid) {
-      await this.suspiciousLoginService.recordFailedLogin(user?.id ?? email);
       throw new BadRequestException({ message: 'Invalid credentials' });
     }
 
@@ -153,27 +160,6 @@ export class AdminAuthService {
       });
     }
 
-    const failedAttempts =
-      await this.suspiciousLoginService.getFailedLoginAttempts(user.id);
-    await this.suspiciousLoginService.clearFailedLoginAttempts(user.id);
-    const suspiciousAssessment = await this.suspiciousLoginService.assess(
-      user.id,
-      requestInfo,
-      failedAttempts,
-    );
-
-    if (
-      this.suspiciousLoginService.shouldRequireVerification(
-        suspiciousAssessment,
-      )
-    ) {
-      return this.createSuspiciousLoginChallenge(
-        user,
-        requestInfo,
-        suspiciousAssessment.reasons,
-      );
-    }
-
     if (user.twoFactorEnabled) {
       const twoFactorToken =
         await this.adminTwoFactorService.createTwoFactorLoginToken({
@@ -189,87 +175,12 @@ export class AdminAuthService {
       });
     }
 
-    const session = await this.createAdminLoginSession(
-      user,
-      requestInfo,
-      suspiciousAssessment.reasons,
-    );
+    const session = await this.createAdminLoginSession(user, requestInfo);
     const token = await this.createToken({
       id: user.id,
       sessionId: session.id,
       hash: session.hash,
     });
-    await this.notifyAdminLogin(user, session);
-
-    return plainToInstance(AdminUserLoginResDto, {
-      userId: user.id,
-      ...token,
-    });
-  }
-
-  async verifySuspiciousLogin(
-    dto: VerifySuspiciousLoginReqDto,
-  ): Promise<AdminUserLoginResDto> {
-    const payload = this.suspiciousLoginService.verifyToken(
-      dto.suspiciousLoginToken,
-    );
-    const user = await this.adminUserRepository.findOneBy({
-      id: payload.id as AutoIncrementID,
-    });
-
-    if (!user) {
-      throw new UnauthorizedException();
-    }
-
-    const method = dto.method.trim().toLowerCase();
-    const code = dto.code.trim().replace(/\s+/g, '');
-    let isValid = false;
-
-    if (method === 'email') {
-      isValid = await this.suspiciousLoginService.verifyEmailCode(
-        payload.challengeId,
-        code,
-      );
-    } else if (method === 'totp') {
-      if (user.twoFactorEnabled && user.twoFactorSecret) {
-        isValid = await this.adminTwoFactorService.verifyTotpCode(
-          code,
-          this.adminTwoFactorService.decryptTwoFactorSecret(
-            user.twoFactorSecret,
-          ),
-        );
-      }
-    } else if (method === 'backup_code') {
-      if (user.twoFactorEnabled) {
-        isValid = await this.adminTwoFactorService.consumeBackupCode(
-          user,
-          code,
-        );
-      }
-    } else {
-      throw new BadRequestException('Unsupported verification method');
-    }
-
-    if (!isValid) {
-      throw new BadRequestException('Invalid verification code');
-    }
-
-    await this.suspiciousLoginService.clearChallenge(payload.challengeId);
-
-    const session = await this.createAdminLoginSession(
-      user,
-      {
-        ipAddress: payload.ipAddress,
-        userAgent: payload.userAgent,
-      },
-      payload.reasons,
-    );
-    const token = await this.createToken({
-      id: user.id,
-      sessionId: session.id,
-      hash: session.hash,
-    });
-    await this.notifyAdminLogin(user, session, { queueEmail: false });
 
     return plainToInstance(AdminUserLoginResDto, {
       userId: user.id,
@@ -298,11 +209,19 @@ export class AdminAuthService {
       firstName: dto.first_name,
       lastName: dto.last_name,
       email: dto.email,
-      password: dto.password,
       roles,
     });
 
     await this.adminUserRepository.save(user);
+
+    await this.adminAccountRepository.save(
+      new AdminAccountEntity({
+        adminUserId: user.id,
+        provider: EAccountProvider.LOCAL,
+        providerAccountId: user.email,
+        password: dto.password,
+      }),
+    );
 
     await this.adminAccountRecoveryService.sendVerificationEmail(user);
 
@@ -374,8 +293,6 @@ export class AdminAuthService {
       throw new NotFoundException('User not found');
     }
 
-    delete user.password;
-
     if (dto.removeAvatar || file) {
       await deleteFile(user.avatar);
       user.avatar = null;
@@ -399,7 +316,18 @@ export class AdminAuthService {
     dto: ChangePasswordReqDto,
   ): Promise<ChangePasswordResDto> {
     const user = await this.adminUserRepository.findOneByOrFail({ id });
-    const isPasswordValid = await verifyPassword(dto.password, user.password);
+    const localAccount = await this.adminAccountRepository.findOne({
+      where: {
+        adminUserId: user.id,
+        provider: EAccountProvider.LOCAL,
+      },
+    });
+
+    const isPasswordValid =
+      localAccount &&
+      localAccount.password &&
+      (await verifyPassword(dto.password, localAccount.password));
+
     if (!isPasswordValid) {
       throw new ValidationException(ErrorCode.V003);
     }
@@ -408,9 +336,19 @@ export class AdminAuthService {
       throw new ValidationException(ErrorCode.V003);
     }
 
-    user.password = dto.newPassword;
+    if (!localAccount) {
+      const newAccount = new AdminAccountEntity({
+        adminUserId: user.id,
+        provider: EAccountProvider.LOCAL,
+        providerAccountId: user.email,
+        password: dto.newPassword,
+      });
+      await this.adminAccountRepository.save(newAccount);
+    } else {
+      localAccount.password = dto.newPassword;
+      await this.adminAccountRepository.save(localAccount);
+    }
 
-    await this.adminUserRepository.save(user);
     await this.notifyAdmin(
       user.id,
       AdminNotificationType.PasswordChanged,
@@ -465,7 +403,6 @@ export class AdminAuthService {
   async createAdminLoginSession(
     user: AdminUserEntity,
     requestInfo?: SessionRequestInfo,
-    suspiciousReasons: SuspiciousLoginReason[] = [],
   ): Promise<SessionEntity> {
     const hash = crypto
       .createHash('sha256')
@@ -480,71 +417,11 @@ export class AdminAuthService {
       userType: ESessionUserType.ADMIN,
       ipAddress,
       userAgent,
-      isSuspicious: suspiciousReasons.length > 0,
-      suspiciousReasons: suspiciousReasons.length ? suspiciousReasons : null,
     });
     const savedSession = await this.sessionRepository.save(session);
     await this.authSessionService.clearSessionBlacklist(savedSession.id);
 
     return savedSession;
-  }
-
-  private async createSuspiciousLoginChallenge(
-    user: AdminUserEntity,
-    requestInfo: SessionRequestInfo | undefined,
-    reasons: SuspiciousLoginReason[],
-  ): Promise<AdminUserLoginResDto> {
-    const challenge = await this.suspiciousLoginService.createChallenge({
-      user,
-      requestInfo,
-      reasons,
-    });
-
-    return plainToInstance(AdminUserLoginResDto, {
-      userId: user.id,
-      suspiciousLoginRequired: true,
-      suspiciousLoginToken: challenge.token,
-      suspiciousLoginMethods: challenge.methods,
-      suspiciousReasons: challenge.reasons,
-    });
-  }
-
-  async notifyAdminLogin(
-    user: AdminUserEntity,
-    session: SessionEntity,
-    options: { queueEmail?: boolean } = {},
-  ): Promise<void> {
-    if (!session.isSuspicious) {
-      return;
-    }
-
-    await this.notifyAdmin(
-      user.id,
-      AdminNotificationType.SuspiciousLogin,
-      'Unusual sign-in detected',
-      'A new admin session used an IP address or device we have not seen before.',
-      this.buildSessionNotificationData(session),
-    );
-    if (options.queueEmail !== false) {
-      await this.suspiciousLoginService.queueEmail(user, session);
-    }
-  }
-
-  private buildSessionNotificationData(session: SessionEntity) {
-    const data = {
-      sessionId: session.id,
-      ipAddress: session.ipAddress,
-      userAgent: session.userAgent,
-    };
-
-    if (session.suspiciousReasons?.length) {
-      return {
-        ...data,
-        reasons: session.suspiciousReasons,
-      };
-    }
-
-    return data;
   }
 
   async notifyAdmin(
@@ -580,7 +457,17 @@ export class AdminAuthService {
   }
 
   async assertPassword(user: AdminUserEntity, password: string): Promise<void> {
-    const isPasswordValid = await verifyPassword(password, user.password);
+    const localAccount = await this.adminAccountRepository.findOne({
+      where: {
+        adminUserId: user.id,
+        provider: EAccountProvider.LOCAL,
+      },
+    });
+
+    const isPasswordValid =
+      localAccount &&
+      localAccount.password &&
+      (await verifyPassword(password, localAccount.password));
 
     if (!isPasswordValid) {
       throw new ValidationException(ErrorCode.V003);
@@ -632,13 +519,12 @@ export class AdminAuthService {
 
     await this.adminUserRepository.restore(user.id);
 
-    const session = await this.createAdminLoginSession(user, requestInfo, []);
+    const session = await this.createAdminLoginSession(user, requestInfo);
     const token = await this.createToken({
       id: user.id,
       sessionId: session.id,
       hash: session.hash,
     });
-    await this.notifyAdminLogin(user, session);
 
     return plainToInstance(AdminUserLoginResDto, {
       userId: user.id,

@@ -71,47 +71,6 @@ export class MailService {
     return html;
   }
 
-  renderAdminSuspiciousLogin(params: {
-    email: string;
-    loginAt: string;
-    ipAddress?: string;
-    userAgent?: string;
-    reasons: string[];
-    verificationCode?: string;
-  }): string {
-    return this.renderTemplate('admin-suspicious-login', {
-      email: params.email,
-      loginAt: formatEmailDate(params.loginAt),
-      ipAddress: params.ipAddress || 'Unknown',
-      userAgent: params.userAgent || 'Unknown',
-      reasons: params.reasons.map(formatSuspiciousReason),
-      verificationCode: params.verificationCode ?? '',
-      hasVerificationCode: Boolean(params.verificationCode),
-    });
-  }
-
-  async sendAdminSuspiciousLogin(params: {
-    email: string;
-    loginAt: string;
-    ipAddress?: string;
-    userAgent?: string;
-    reasons: string[];
-    verificationCode?: string;
-    renderedHtml?: string;
-  }): Promise<string> {
-    const html = params.renderedHtml ?? this.renderAdminSuspiciousLogin(params);
-
-    await this.mailerService.sendMail({
-      to: params.email,
-      subject: params.verificationCode
-        ? 'Verify unusual admin sign-in'
-        : 'Unusual admin sign-in detected',
-      html,
-    });
-
-    return html;
-  }
-
   renderUserEmailVerification(email: string, token: string): string {
     const url = `${this.configService.get('app.url', { infer: true })}/api/v1/user/auth/verify/email?token=${token}`;
 
@@ -163,83 +122,6 @@ export class MailService {
     await this.mailerService.sendMail({
       to: email,
       subject: 'Reset your password',
-      html,
-    });
-
-    return html;
-  }
-
-  renderUserImpersonationStarted(params: {
-    email: string;
-    userName?: string;
-    adminName?: string;
-    reason?: string;
-    startedAt: string;
-    expiresAt?: string;
-  }): string {
-    return this.renderTemplate('user-impersonation-started', {
-      ...params,
-      startedAt: formatEmailDate(params.startedAt),
-      expiresAt: params.expiresAt ? formatEmailDate(params.expiresAt) : '',
-    });
-  }
-
-  async sendUserImpersonationStarted(params: {
-    email: string;
-    userName?: string;
-    adminName?: string;
-    reason?: string;
-    startedAt: string;
-    expiresAt?: string;
-    renderedHtml?: string;
-  }): Promise<string> {
-    const html =
-      params.renderedHtml ?? this.renderUserImpersonationStarted(params);
-
-    await this.mailerService.sendMail({
-      to: params.email,
-      subject: 'An administrator started a support session',
-      html,
-    });
-
-    return html;
-  }
-
-  renderUserImpersonationEnded(params: {
-    email: string;
-    userName?: string;
-    adminName?: string;
-    startedAt?: string;
-    endedAt: string;
-    actions: { label: string; status: string; createdAt?: string }[];
-  }): string {
-    return this.renderTemplate('user-impersonation-ended', {
-      ...params,
-      startedAt: params.startedAt ? formatEmailDate(params.startedAt) : '',
-      endedAt: formatEmailDate(params.endedAt),
-      actions: params.actions.map((action) => ({
-        ...action,
-        createdAt: action.createdAt ? formatEmailDate(action.createdAt) : '',
-      })),
-      hasActions: params.actions.length > 0,
-    });
-  }
-
-  async sendUserImpersonationEnded(params: {
-    email: string;
-    userName?: string;
-    adminName?: string;
-    startedAt?: string;
-    endedAt: string;
-    actions: { label: string; status: string; createdAt?: string }[];
-    renderedHtml?: string;
-  }): Promise<string> {
-    const html =
-      params.renderedHtml ?? this.renderUserImpersonationEnded(params);
-
-    await this.mailerService.sendMail({
-      to: params.email,
-      subject: 'Administrator support session ended',
       html,
     });
 
@@ -327,11 +209,8 @@ export class MailService {
     templateName:
       | 'admin-email-verification'
       | 'admin-email-reset-password'
-      | 'admin-suspicious-login'
       | 'user-email-verification'
       | 'user-email-reset-password'
-      | 'user-impersonation-started'
-      | 'user-impersonation-ended'
       | 'admin-email'
       | 'admin-account-deletion-requested'
       | 'admin-account-hard-deleted'
@@ -343,34 +222,4 @@ export class MailService {
 
     return Handlebars.compile(template, { strict: true })(context);
   }
-}
-
-function formatEmailDate(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat('en', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'UTC',
-  }).format(date);
-}
-
-function formatSuspiciousReason(reason: string) {
-  if (reason === 'new_ip_address') {
-    return 'New IP address';
-  }
-
-  if (reason === 'new_device') {
-    return 'New device or browser';
-  }
-
-  if (reason === 'failed_login_attempts') {
-    return 'Multiple failed password attempts';
-  }
-
-  return reason;
 }

@@ -1,3 +1,4 @@
+import { UserAccountEntity } from '@/api/auth/entities/user-account.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
 import { hashPassword as hashPass } from '@/utils/password.util';
@@ -9,11 +10,15 @@ import {
   DeleteDateColumn,
   Entity,
   Index,
+  OneToMany,
   PrimaryGeneratedColumn,
+  Relation,
 } from 'typeorm';
 
 @Entity('users')
 export class UserEntity extends AbstractEntity {
+  @OneToMany(() => UserAccountEntity, (account) => account.user)
+  accounts?: Relation<UserAccountEntity>[];
   private previousPassword?: string;
 
   constructor(data?: Partial<UserEntity>) {

@@ -1,4 +1,4 @@
-import { EOAuthProvider } from '@/constants/entity.enum';
+import { EAccountProvider } from '@/constants/entity.enum';
 import {
   BooleanField,
   EnumField,
@@ -13,9 +13,9 @@ export class SocialAccountResDto {
   @Expose()
   id!: string;
 
-  @EnumField(() => EOAuthProvider)
+  @EnumField(() => EAccountProvider)
   @Expose()
-  provider!: EOAuthProvider;
+  provider!: EAccountProvider;
 
   @StringFieldOptional()
   @Expose()

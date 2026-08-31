@@ -12,41 +12,6 @@ export interface IForgotPasswordEmailJob extends IEmailJob {
   token: string;
 }
 
-export type AdminSuspiciousLoginReason =
-  | 'new_ip_address'
-  | 'new_device'
-  | 'failed_login_attempts';
-
-export interface IAdminSuspiciousLoginEmailJob extends IEmailJob {
-  loginAt: string;
-  ipAddress?: string;
-  userAgent?: string;
-  reasons: AdminSuspiciousLoginReason[];
-  verificationCode?: string;
-}
-
-export type ImpersonationActionSummary = {
-  label: string;
-  status: string;
-  createdAt?: string;
-};
-
-export interface IUserImpersonationStartedEmailJob extends IEmailJob {
-  userName?: string;
-  adminName?: string;
-  reason?: string;
-  startedAt: string;
-  expiresAt?: string;
-}
-
-export interface IUserImpersonationEndedEmailJob extends IEmailJob {
-  userName?: string;
-  adminName?: string;
-  startedAt?: string;
-  endedAt: string;
-  actions: ImpersonationActionSummary[];
-}
-
 export interface IFileUploadJob {
   filePath: string;
   originalName: string;

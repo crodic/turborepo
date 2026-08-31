@@ -40,22 +40,6 @@ export class AdminUserLoginResDto {
 
   @Expose()
   @BooleanFieldOptional()
-  suspiciousLoginRequired?: boolean;
-
-  @Expose()
-  @TokenFieldOptional()
-  suspiciousLoginToken?: string;
-
-  @Expose()
-  @ArrayField(String, { required: false })
-  suspiciousLoginMethods?: string[];
-
-  @Expose()
-  @ArrayField(String, { required: false })
-  suspiciousReasons?: string[];
-
-  @Expose()
-  @BooleanFieldOptional()
   restoreAccountRequired?: boolean;
 
   @Expose()

@@ -121,19 +121,6 @@ Google OAuth behavior:
 - Linking rejects Google accounts whose email differs from the current user email, which avoids accidentally merging two identities.
 - Users created through Google have no password by default; they can configure an initial password from the client profile page and then sign in with either Google or email/password.
 
-## Admin User Impersonation
-
-The admin portal can start a user impersonation session from the user detail page. Configure the admin app callback so the new tab opens the client website:
-
-```bash
-VITE_CLIENT_URL=http://localhost:3000
-VITE_IMPERSONATION_CALLBACK_URL=http://localhost:3000/auth/impersonation/callback
-```
-
-The API creates a short-lived one-time exchange token for the redirect. The client callback exchanges that token with `POST /api/v1/user/auth/impersonation/exchange`, stores the returned tokens in httpOnly cookies, then redirects to `/client-profile`.
-
-The client app renders `ImpersonationBanner` from `apps/client/src/components/impersonation`. To remove impersonation UI later, remove that component from `apps/client/src/app/[locale]/layout.tsx`; the rest of the client pages are not coupled to the banner.
-
 ## Run Locally
 
 Run everything through Turborepo:

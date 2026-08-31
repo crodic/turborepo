@@ -1,13 +1,7 @@
 import { IsMs } from '@/decorators/validators/is-ms.decorator';
 import validateConfig from '@/utils/validate-config';
 import { registerAs } from '@nestjs/config';
-import {
-  IsBooleanString,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  IsUrl,
-} from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUrl } from 'class-validator';
 import { AuthConfig } from './auth-config.type';
 
 class EnvironmentVariablesValidator {
@@ -52,15 +46,6 @@ class EnvironmentVariablesValidator {
   @IsOptional()
   @IsUrl({ require_tld: false })
   AUTH_PORTAL_URL: string;
-
-  @IsString()
-  @IsOptional()
-  @IsMs()
-  AUTH_IMPERSONATION_SESSION_EXPIRES_IN?: string;
-
-  @IsOptional()
-  @IsBooleanString()
-  AUTH_SUSPICIOUS_LOGIN_ENABLED?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -145,10 +130,6 @@ export default registerAs<AuthConfig>('auth', () => {
       getOriginFromUrl(process.env.AUTH_PORTAL_RESET_PASSWORD_URL) ||
       'http://localhost:5173',
     portalResetPasswordUrl: process.env.AUTH_PORTAL_RESET_PASSWORD_URL,
-    impersonationSessionExpires:
-      process.env.AUTH_IMPERSONATION_SESSION_EXPIRES_IN || '1h',
-    suspiciousLoginEnabled:
-      process.env.AUTH_SUSPICIOUS_LOGIN_ENABLED === 'true',
 
     // GUARD USER
     userSecret: process.env.USER_AUTH_JWT_SECRET,
