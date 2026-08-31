@@ -2,6 +2,7 @@ import { type AllConfigType } from '@/config/config.type';
 import { type INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { getPackageVersion } from './app-version.util';
 
 function setupSwagger(app: INestApplication) {
   const configService = app.get(ConfigService<AllConfigType>);
@@ -10,7 +11,7 @@ function setupSwagger(app: INestApplication) {
   const config = new DocumentBuilder()
     .setTitle(appName)
     .setDescription('A boilerplate project')
-    .setVersion('1.0')
+    .setVersion(getPackageVersion())
     .setContact(
       'Crodic Crystal',
       'https://crodic.id.vn',

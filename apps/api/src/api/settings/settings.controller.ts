@@ -1,6 +1,7 @@
 import { ApiAuth } from '@/decorators/http.decorators';
 import { AdminAuthGuard } from '@/guards/admin-auth.guard';
 import { SettingKeyValidationPipe } from '@/pipes/setting-key-validation.pipe';
+import { getPackageVersion } from '@/utils/app-version.util';
 import { deleteFile } from '@/utils/filesystem';
 import {
   BadRequestException,
@@ -18,7 +19,6 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { plainToInstance } from 'class-transformer';
 import { join } from 'path';
-import PackageJson from '../../../package.json';
 import {
   WEBSITE_MAX_FILE_SIZE,
   websiteUploadOptions,
@@ -226,7 +226,7 @@ export class SettingsController {
       WebsiteSettingResDto,
       {
         ...setting,
-        backend_version: PackageJson.version,
+        backend_version: getPackageVersion(),
       },
       {
         excludeExtraneousValues: true,

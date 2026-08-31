@@ -2,7 +2,7 @@ import { applyPersonalFontPreference } from '@/lib/personal-font'
 import type { ThemeMode, ThemeStyles } from '@/lib/theme-builder/default-theme'
 import { THEME_STYLE_KEYS } from '@/lib/theme-builder/default-theme'
 
-export const THEME_CACHE_VERSION = 'v2.2.0'
+export const THEME_CACHE_VERSION = 'v1.0.0'
 export const THEME_VERSION_STORAGE_KEY = 'theme-cache-version'
 export const RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:admin'
 export const ADMIN_RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:admin'
