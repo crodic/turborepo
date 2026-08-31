@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { restApiErrorHandler } from '@/lib/rest-api-handler'
@@ -20,6 +21,7 @@ import {
 import type { WhiteLabelFormSchema } from '../schema'
 
 export function PageWhiteLabelEdit() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -44,7 +46,11 @@ export function PageWhiteLabelEdit() {
           )
         }
       }
-      toast.success('White-label profile updated successfully')
+      toast.success(
+        t('whiteLabels.edit.success', {
+          defaultValue: 'White-label profile updated successfully',
+        })
+      )
       navigate(`/white-labels/${id}/show`)
     },
     onError: restApiErrorHandler,
@@ -77,11 +83,14 @@ export function PageWhiteLabelEdit() {
           </Button>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>
-              Edit White Label Profile
+              {t('whiteLabels.edit.title', {
+                defaultValue: 'Edit White Label Profile',
+              })}
             </h2>
             <p className='text-muted-foreground text-sm'>
-              Modify brand assets, theme tokens, and metadata for{' '}
-              {whiteLabel?.name || 'profile'}.
+              {t('whiteLabels.edit.description', {
+                defaultValue: `Modify brand assets, theme tokens, and metadata for ${whiteLabel?.name || 'profile'}.`,
+              })}
             </p>
           </div>
         </div>

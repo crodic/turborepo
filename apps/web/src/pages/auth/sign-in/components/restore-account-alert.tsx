@@ -1,4 +1,5 @@
 import { Loader2, RotateCcw } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 
 interface RestoreAccountAlertProps {
@@ -12,14 +13,17 @@ export function RestoreAccountAlert({
   onRestore,
   onCancel,
 }: RestoreAccountAlertProps) {
+  const { t } = useTranslation()
+
   return (
     <div className='bg-destructive/15 text-destructive rounded-lg border p-4 shadow-sm'>
       <div className='flex items-start gap-3'>
         <div className='flex-1 space-y-2'>
-          <h4 className='font-semibold'>Account Scheduled for Deletion</h4>
+          <h4 className='font-semibold'>
+            {t('auth.signIn.restoreAlertTitle')}
+          </h4>
           <p className='text-sm leading-snug'>
-            Your account is scheduled for deletion and cannot be accessed. Do
-            you want to cancel the deletion and restore your account?
+            {t('auth.signIn.restoreAlertDesc', { date: 'soon' })}
           </p>
           <div className='flex gap-2 pt-2'>
             <Button
@@ -33,7 +37,7 @@ export function RestoreAccountAlert({
               ) : (
                 <RotateCcw className='mr-2 h-4 w-4' />
               )}
-              Restore Account
+              {t('auth.signIn.restoreButton')}
             </Button>
             <Button
               size='sm'
@@ -41,7 +45,7 @@ export function RestoreAccountAlert({
               onClick={onCancel}
               disabled={isPending}
             >
-              Cancel
+              {t('common.actions.cancel', { defaultValue: 'Cancel' })}
             </Button>
           </div>
         </div>

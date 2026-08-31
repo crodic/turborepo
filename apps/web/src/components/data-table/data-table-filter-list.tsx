@@ -8,6 +8,7 @@ import type {
   FilterOperator,
   JoinOperator,
 } from '@/types/data-table'
+import type { TFunction } from 'i18next'
 import {
   CalendarIcon,
   Check,
@@ -17,6 +18,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { parseAsStringEnum, useQueryState } from 'nuqs'
+import { useTranslation } from 'react-i18next'
 import { getDefaultFilterOperator, getFilterOperators } from '@/lib/data-table'
 import { formatDate } from '@/lib/format'
 import { generateId } from '@/lib/id'
@@ -90,6 +92,7 @@ export function DataTableFilterList<TData>({
   disabled,
   ...props
 }: DataTableFilterListProps<TData>) {
+  const { t } = useTranslation()
   const id = React.useId()
   const labelId = React.useId()
   const descriptionId = React.useId()
@@ -177,6 +180,19 @@ export function DataTableFilterList<TData>({
     void setJoinOperator('and')
   }, [setFilters, setJoinOperator])
 
+  const onTriggerKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (
+        REMOVE_FILTER_SHORTCUTS.includes(event.key.toLowerCase()) &&
+        filters.length > 0
+      ) {
+        event.preventDefault()
+        onFilterRemove(filters[filters.length - 1]?.filterId ?? '')
+      }
+    },
+    [filters, onFilterRemove]
+  )
+
   React.useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (
@@ -202,22 +218,9 @@ export function DataTableFilterList<TData>({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  const onTriggerKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLButtonElement>) => {
-      if (
-        REMOVE_FILTER_SHORTCUTS.includes(event.key.toLowerCase()) &&
-        filters.length > 0
-      ) {
-        event.preventDefault()
-        onFilterRemove(filters[filters.length - 1]?.filterId ?? '')
-      }
-    },
-    [filters, onFilterRemove]
-  )
-
   return (
     <Sortable
-      value={filters}
+      value={filters ?? []}
       onValueChange={setFilters}
       getItemValue={(item) => item.filterId}
     >
@@ -231,8 +234,8 @@ export function DataTableFilterList<TData>({
             disabled={disabled}
           >
             <ListFilter className='text-muted-foreground' />
-            Filter
-            {filters.length > 0 && (
+            {t('dataTable.filter.filter')}
+            {filters && filters.length > 0 && (
               <Badge
                 variant='secondary'
                 className='h-[18.24px] rounded-[3.2px] px-[5.12px] font-mono text-[10.4px] font-normal'
@@ -250,21 +253,23 @@ export function DataTableFilterList<TData>({
         >
           <div className='flex flex-col gap-1'>
             <h4 id={labelId} className='leading-none font-medium'>
-              {filters.length > 0 ? 'Filters' : 'No filters applied'}
+              {filters && filters.length > 0
+                ? t('dataTable.filter.filter')
+                : t('dataTable.filter.resetFilters')}
             </h4>
             <p
               id={descriptionId}
               className={cn(
                 'text-muted-foreground text-sm',
-                filters.length > 0 && 'sr-only'
+                filters && filters.length > 0 && 'sr-only'
               )}
             >
-              {filters.length > 0
-                ? 'Modify filters to refine your rows.'
-                : 'Add filters to refine your rows.'}
+              {filters && filters.length > 0
+                ? t('dataTable.filter.filter')
+                : t('dataTable.filter.addFilter')}
             </p>
           </div>
-          {filters.length > 0 ? (
+          {filters && filters.length > 0 ? (
             <SortableContent asChild>
               <div
                 role='list'
@@ -293,16 +298,16 @@ export function DataTableFilterList<TData>({
               ref={addButtonRef}
               onClick={onFilterAdd}
             >
-              Add filter
+              {t('dataTable.filter.addFilter')}
             </Button>
-            {filters.length > 0 ? (
+            {filters && filters.length > 0 ? (
               <Button
                 variant='outline'
                 size='sm'
                 className='rounded'
                 onClick={onFiltersReset}
               >
-                Reset filters
+                {t('dataTable.filter.resetFilters')}
               </Button>
             ) : null}
           </div>
@@ -346,6 +351,7 @@ function DataTableFilterItem<TData>({
   onFilterUpdate,
   onFilterRemove,
 }: DataTableFilterItemProps<TData>) {
+  const { t } = useTranslation()
   const [showFieldSelector, setShowFieldSelector] = React.useState(false)
   const [showOperatorSelector, setShowOperatorSelector] = React.useState(false)
   const [showValueSelector, setShowValueSelector] = React.useState(false)
@@ -400,14 +406,16 @@ function DataTableFilterItem<TData>({
       >
         <div className='min-w-[72px] text-center'>
           {index === 0 ? (
-            <span className='text-muted-foreground text-sm'>Where</span>
+            <span className='text-muted-foreground text-sm'>
+              {t('dataTable.filter.where')}
+            </span>
           ) : index === 1 ? (
             <Select
               value={joinOperator}
               onValueChange={(value: JoinOperator) => setJoinOperator(value)}
             >
               <SelectTrigger
-                aria-label='Select join operator'
+                aria-label={t('dataTable.filter.selectJoinOperator')}
                 aria-controls={joinOperatorListboxId}
                 size='sm'
                 className='rounded lowercase'
@@ -453,9 +461,11 @@ function DataTableFilterItem<TData>({
             className='w-40 p-0'
           >
             <Command>
-              <CommandInput placeholder='Search fields...' />
+              <CommandInput placeholder={t('dataTable.filter.searchFields')} />
               <CommandList>
-                <CommandEmpty>No fields found.</CommandEmpty>
+                <CommandEmpty>
+                  {t('dataTable.filter.noFieldsFound')}
+                </CommandEmpty>
                 <CommandGroup>
                   {columns.map((column) => (
                     <CommandItem
@@ -534,6 +544,7 @@ function DataTableFilterItem<TData>({
             onFilterUpdate,
             showValueSelector,
             setShowValueSelector,
+            t,
           })}
         </div>
         <Button
@@ -563,6 +574,7 @@ function onFilterInputRender<TData>({
   onFilterUpdate,
   showValueSelector,
   setShowValueSelector,
+  t,
 }: {
   filter: ExtendedColumnFilter<TData>
   inputId: string
@@ -574,6 +586,7 @@ function onFilterInputRender<TData>({
   ) => void
   showValueSelector: boolean
   setShowValueSelector: (value: boolean) => void
+  t: TFunction
 }) {
   if (filter.operator === 'isEmpty' || filter.operator === 'isNotEmpty') {
     return (
@@ -653,11 +666,17 @@ function onFilterInputRender<TData>({
             size='sm'
             className='w-full rounded'
           >
-            <SelectValue placeholder={filter.value ? 'True' : 'False'} />
+            <SelectValue
+              placeholder={
+                filter.value
+                  ? t('dataTable.filter.true')
+                  : t('dataTable.filter.false')
+              }
+            />
           </SelectTrigger>
           <SelectContent id={inputListboxId}>
-            <SelectItem value='true'>True</SelectItem>
-            <SelectItem value='false'>False</SelectItem>
+            <SelectItem value='true'>{t('dataTable.filter.true')}</SelectItem>
+            <SelectItem value='false'>{t('dataTable.filter.false')}</SelectItem>
           </SelectContent>
         </Select>
       )
@@ -709,10 +728,14 @@ function onFilterInputRender<TData>({
           <FacetedContent id={inputListboxId} className='w-[200px]'>
             <FacetedInput
               aria-label={`Search ${columnMeta?.label} options`}
-              placeholder={columnMeta?.placeholder ?? 'Search options...'}
+              placeholder={
+                columnMeta?.placeholder ?? t('dataTable.filter.searchOptions')
+              }
             />
             <FacetedList>
-              <FacetedEmpty>No options found.</FacetedEmpty>
+              <FacetedEmpty>
+                {t('dataTable.filter.noOptionsFound')}
+              </FacetedEmpty>
               <FacetedGroup>
                 {columnMeta?.options?.map((option) => (
                   <FacetedItem key={option.value} value={option.value}>

@@ -19,6 +19,7 @@ import {
   Sun,
   Trash2,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
@@ -74,6 +75,7 @@ import {
 type TabType = 'brand' | 'colors' | 'seo' | 'preview'
 
 export default function PageWhiteLabelShow() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -304,19 +306,19 @@ export default function PageWhiteLabelShow() {
             <TabsList className='grid w-full grid-cols-2 sm:flex sm:w-auto'>
               <TabsTrigger value='brand' className='gap-1.5'>
                 <Sparkles className='size-4' />
-                <span>Brand & Assets</span>
+                <span>{t('whiteLabels.form.brandAssets')}</span>
               </TabsTrigger>
               <TabsTrigger value='colors' className='gap-1.5'>
                 <Paintbrush className='size-4' />
-                <span>Colors & Fonts</span>
+                <span>{t('whiteLabels.form.colorsFonts')}</span>
               </TabsTrigger>
               <TabsTrigger value='seo' className='gap-1.5'>
                 <Search className='size-4' />
-                <span>SEO & Meta</span>
+                <span>{t('whiteLabels.form.seoMeta')}</span>
               </TabsTrigger>
               <TabsTrigger value='preview' className='gap-1.5'>
                 <Eye className='text-primary size-4' />
-                <span>Live Preview</span>
+                <span>{t('whiteLabels.form.livePreview')}</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>

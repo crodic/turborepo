@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { PlusIcon } from 'lucide-react'
 import { parseAsBoolean, parseAsString } from 'nuqs'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { PaginateQueryBuilder } from '@/lib/query-builder'
@@ -29,6 +30,7 @@ const whiteLabelFilterParsers = {
 } as const
 
 export function PageWhiteLabelOverview() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { ability } = useAuthStore()
   const {
@@ -82,23 +84,24 @@ export function PageWhiteLabelOverview() {
       <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
         <div className='flex flex-wrap items-end justify-between gap-2'>
           <div>
-            <h2 className='text-2xl font-bold tracking-tight'>White Label</h2>
+            <h2 className='text-2xl font-bold tracking-tight'>
+              {t('whiteLabels.overview.title')}
+            </h2>
             <p className='text-muted-foreground'>
-              Manage unified brand identity, logos, SEO metadata, and OKLCH
-              color palettes.
+              {t('whiteLabels.overview.description')}
             </p>
           </div>
           {ability.can('create', 'WHITE_LABEL') && (
             <Button onClick={() => navigate('/white-labels/create')}>
               <PlusIcon className='size-4' />
-              Create Profile
+              {t('whiteLabels.actions.create')}
             </Button>
           )}
         </div>
 
         <DataTable
           table={table}
-          onClickRowAction={(item) => navigate(`/white-labels/${item.id}/show`)}
+          onClickRowAction={(row) => navigate(`/white-labels/${row.id}`)}
           isFetching={isFetching}
         >
           <DataTableToolbar table={table}>

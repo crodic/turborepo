@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell, CheckCheck, Circle, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -40,6 +41,7 @@ import {
 const NOTIFICATION_LIMIT = 20
 
 export function NotificationDropdown() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const socket = useNotificationSocket()
   const queryClient = useQueryClient()
@@ -190,7 +192,9 @@ export function NotificationDropdown() {
           className='w-[min(24rem,calc(100vw-2rem))] p-0'
         >
           <div className='flex items-center justify-between gap-3 px-4 py-3'>
-            <DropdownMenuLabel className='p-0'>Notifications</DropdownMenuLabel>
+            <DropdownMenuLabel className='p-0'>
+              {t('notificationDropdown.title')}
+            </DropdownMenuLabel>
             <Button
               variant='ghost'
               size='sm'
@@ -199,20 +203,22 @@ export function NotificationDropdown() {
               onClick={() => markAllReadMutation.mutate()}
             >
               <CheckCheck className='size-4' />
-              Mark all read
+              {t('notificationDropdown.markAllRead')}
             </Button>
           </div>
           <DropdownMenuSeparator />
           <ScrollArea className='max-h-[28rem]'>
             {notificationsQuery.isPending ? (
               <div className='text-muted-foreground px-4 py-8 text-center text-sm'>
-                Loading notifications...
+                {t('notificationDropdown.loading')}
               </div>
             ) : notifications.length === 0 ? (
               <div className='px-4 py-10 text-center'>
-                <p className='text-sm font-medium'>No notifications yet</p>
+                <p className='text-sm font-medium'>
+                  {t('notificationDropdown.emptyTitle')}
+                </p>
                 <p className='text-muted-foreground mt-1 text-xs'>
-                  Security and email updates will appear here.
+                  {t('notificationDropdown.emptyDesc')}
                 </p>
               </div>
             ) : (
@@ -266,7 +272,9 @@ export function NotificationDropdown() {
                           }}
                         >
                           <Trash2 className='size-3.5' />
-                          <span className='sr-only'>Delete notification</span>
+                          <span className='sr-only'>
+                            {t('notificationDropdown.delete')}
+                          </span>
                         </Button>
                       </div>
                     </div>

@@ -27,6 +27,7 @@ import {
   TriangleAlert,
   XIcon,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import {
   Sortable,
@@ -96,6 +97,7 @@ export default function SortableImageUpload({
   coverIndex,
   onCoverIndexChange,
 }: SortableImageUploadProps) {
+  const { t } = useTranslation()
   // UI state for display and drag/drop - contains ALL visible images
   const [uiImages, setUiImages] = useState<UIImage[]>([])
 
@@ -828,7 +830,7 @@ export default function SortableImageUpload({
               className='w-full sm:w-auto'
             >
               <Plus className='size-4' />
-              Add image
+              {t('forms.sortableImage.addImage')}
             </Button>
           )}
         </div>
@@ -901,10 +903,10 @@ export default function SortableImageUpload({
               <CloudUpload className='size-4' />
             </div>
             <h3 className='text-2sm text-foreground mb-0.5 font-semibold'>
-              Choose a file or drag & drop here.
+              {t('forms.sortableImage.dropzoneText')}
             </h3>
             <span className='text-secondary-foreground mb-3 block text-xs font-normal'>
-              JPEG, PNG, up to {formatBytes(maxSize)}.
+              {t('forms.sortableImage.dropzoneHint')} {formatBytes(maxSize)}.
             </span>
             <Button
               size='sm'
@@ -913,7 +915,7 @@ export default function SortableImageUpload({
               disabled={isDisabled}
               type='button'
             >
-              Browse File
+              {t('forms.sortableImage.browseFile')}
             </Button>
           </CardContent>
         </Card>
@@ -939,11 +941,14 @@ export default function SortableImageUpload({
                       </span>
                       {item.status === 'uploading' && (
                         <p className='text-muted-foreground text-xs'>
-                          Uploading... {Math.round(item.progress)}%
+                          {t('forms.sortableImage.uploading')}{' '}
+                          {Math.round(item.progress)}%
                         </p>
                       )}
                       {item.status === 'completed' && (
-                        <p className='text-xs text-green-600'>Completed</p>
+                        <p className='text-xs text-green-600'>
+                          {t('forms.sortableImage.completed')}
+                        </p>
                       )}
                     </div>
                     <Button
@@ -978,7 +983,7 @@ export default function SortableImageUpload({
             <TriangleAlert />
           </AlertIcon>
           <AlertContent>
-            <AlertTitle>File upload error(s)</AlertTitle>
+            <AlertTitle>{t('forms.coverUpload.uploadErrors')}</AlertTitle>
             <AlertDescription>
               {errors.map((error, index) => (
                 <p key={index} className='last:mb-0'>
@@ -994,7 +999,7 @@ export default function SortableImageUpload({
         <div
           role='dialog'
           aria-modal='true'
-          aria-label='Image preview'
+          aria-label={t('forms.sortableImage.preview')}
           className='fixed inset-0 z-[100] flex items-center justify-center bg-black/95'
           onClick={closeLightbox}
         >
@@ -1007,7 +1012,7 @@ export default function SortableImageUpload({
               event.stopPropagation()
               closeLightbox()
             }}
-            aria-label='Close image preview'
+            aria-label={t('forms.sortableImage.closePreview')}
           >
             <XIcon className='size-5' />
           </Button>
@@ -1023,7 +1028,7 @@ export default function SortableImageUpload({
                   event.stopPropagation()
                   showPreviousImage()
                 }}
-                aria-label='Previous image'
+                aria-label={t('forms.sortableImage.prevImage')}
               >
                 <ChevronLeft className='size-7' />
               </Button>
@@ -1037,7 +1042,7 @@ export default function SortableImageUpload({
                   event.stopPropagation()
                   showNextImage()
                 }}
-                aria-label='Next image'
+                aria-label={t('forms.sortableImage.nextImage')}
               >
                 <ChevronRight className='size-7' />
               </Button>

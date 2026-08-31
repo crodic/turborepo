@@ -9,6 +9,7 @@ import {
   Upload,
   XIcon,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useFileUpload, type FileWithPreview } from '@/hooks/use-file-upload'
 import {
@@ -143,6 +144,7 @@ export default function CoverUpload({
   disabled = false,
   name,
 }: CoverUploadProps) {
+  const { t } = useTranslation()
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [position, setPosition] = useState<CoverPosition>(DEFAULT_POSITION)
   const [imageLoading, setImageLoading] = useState(false)
@@ -182,20 +184,52 @@ export default function CoverUpload({
     }
   }, [])
 
+  const commitCrop = useCallback(async () => {
+    const file = sourceFileRef.current
+    if (!file) return
+
+    try {
+      setIsCropping(true)
+      setCropError(null)
+      const croppedFile = await cropCoverFile(file, positionRef.current)
+      emittedCroppedFileRef.current = croppedFile
+      onChange?.(croppedFile)
+    } catch {
+      setCropError('Could not process image crop')
+    } finally {
+      setIsCropping(false)
+    }
+  }, [onChange])
+
   useEffect(() => {
-    if (!value) {
+    if (value === undefined) {
+      if (!isCleared && defaultUri) {
+        sourceFileRef.current = null
+        emittedCroppedFileRef.current = null
+        if (previewObjectUrlRef.current) {
+          URL.revokeObjectURL(previewObjectUrlRef.current)
+          previewObjectUrlRef.current = null
+        }
+        setPreviewUrl(defaultUri)
+        setImageLoading(true)
+        setCanReposition(false)
+        setPosition(DEFAULT_POSITION)
+        positionRef.current = DEFAULT_POSITION
+      }
+      return
+    }
+
+    if (value === null) {
       sourceFileRef.current = null
       emittedCroppedFileRef.current = null
-      positionRef.current = DEFAULT_POSITION
-
       if (previewObjectUrlRef.current) {
         URL.revokeObjectURL(previewObjectUrlRef.current)
         previewObjectUrlRef.current = null
       }
-
-      setPreviewUrl(!isCleared ? (defaultUri ?? null) : null)
-      setPosition(DEFAULT_POSITION)
+      setPreviewUrl(null)
       setCanReposition(false)
+      setPosition(DEFAULT_POSITION)
+      positionRef.current = DEFAULT_POSITION
       return
     }
 
@@ -298,33 +332,15 @@ export default function CoverUpload({
     setIsCleared(true)
     setCanReposition(false)
     setPreviewUrl(null)
-    setCropError(null)
     onChange?.(null)
   }, [disabled, onChange, updatePosition])
 
-  const commitCrop = useCallback(async () => {
-    const sourceFile = sourceFileRef.current
-    if (!sourceFile) return
-
-    setIsCropping(true)
-    setCropError(null)
-
-    try {
-      const croppedFile = await cropCoverFile(sourceFile, positionRef.current)
-      emittedCroppedFileRef.current = croppedFile
-      onChange?.(croppedFile)
-    } catch {
-      setCropError('Could not crop cover image')
-    } finally {
-      setIsCropping(false)
-    }
-  }, [onChange])
-
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      if (disabled || !hasImage || !sourceFileRef.current) return
+      if (disabled || !canReposition) return
 
-      event.currentTarget.setPointerCapture(event.pointerId)
+      const target = event.currentTarget
+      target.setPointerCapture(event.pointerId)
       dragStateRef.current = {
         pointerId: event.pointerId,
         startX: event.clientX,
@@ -333,7 +349,7 @@ export default function CoverUpload({
       }
       setIsRepositioning(true)
     },
-    [disabled, hasImage]
+    [canReposition, disabled]
   )
 
   const handlePointerMove = useCallback(
@@ -342,6 +358,8 @@ export default function CoverUpload({
       if (!dragState || dragState.pointerId !== event.pointerId) return
 
       const rect = event.currentTarget.getBoundingClientRect()
+      if (!rect.width || !rect.height) return
+
       updatePosition({
         x:
           dragState.startPosition.x +
@@ -406,7 +424,9 @@ export default function CoverUpload({
               <div className='bg-muted absolute inset-0 flex animate-pulse items-center justify-center'>
                 <div className='text-muted-foreground flex flex-col items-center gap-2'>
                   <ImageIcon className='size-5' />
-                  <span className='text-sm'>Loading image...</span>
+                  <span className='text-sm'>
+                    {t('forms.coverUpload.loadingImage')}
+                  </span>
                 </div>
               </div>
             )}
@@ -433,7 +453,7 @@ export default function CoverUpload({
             {!disabled && canReposition && (
               <div className='pointer-events-none absolute start-3 bottom-3 flex items-center gap-1 rounded-full bg-black/65 px-2.5 py-1 text-xs font-medium text-white opacity-100 shadow-sm select-none sm:opacity-0 sm:group-hover:opacity-100'>
                 <Move className='size-3.5' />
-                Drag to crop
+                {t('forms.coverUpload.dragToCrop')}
               </div>
             )}
 
@@ -449,7 +469,9 @@ export default function CoverUpload({
                     className='pointer-events-auto bg-white/90 text-gray-900 hover:bg-white'
                   >
                     <Upload />
-                    <span className='hidden sm:inline'>Change Cover</span>
+                    <span className='hidden sm:inline'>
+                      {t('forms.coverUpload.changeCover')}
+                    </span>
                   </Button>
                   <Button
                     type='button'
@@ -460,7 +482,9 @@ export default function CoverUpload({
                     className='pointer-events-auto'
                   >
                     <XIcon />
-                    <span className='hidden sm:inline'>Remove</span>
+                    <span className='hidden sm:inline'>
+                      {t('common.actions.remove', { defaultValue: 'Remove' })}
+                    </span>
                   </Button>
                 </div>
               </div>
@@ -524,14 +548,21 @@ export default function CoverUpload({
             </div>
 
             <div className='space-y-2'>
-              <h3 className='text-lg font-semibold'>Upload Cover Image</h3>
+              <h3 className='text-lg font-semibold'>
+                {t('forms.coverUpload.title')}
+              </h3>
               <p className='text-muted-foreground text-sm'>
                 {disabled
-                  ? 'Upload is disabled'
-                  : 'Drag and drop an image here, or click to browse'}
+                  ? t('forms.uploadDisabled', {
+                      defaultValue: 'Upload is disabled',
+                    })
+                  : t('forms.dragDropPrompt', {
+                      defaultValue:
+                        'Drag and drop an image here, or click to browse',
+                    })}
               </p>
               <p className='text-muted-foreground text-xs'>
-                Recommended size: 1200x514px - Max size: {displaySize}
+                {t('forms.coverUpload.recommendedSize')} {displaySize}
               </p>
             </div>
 
@@ -543,7 +574,7 @@ export default function CoverUpload({
                 className='bg-transparent'
               >
                 <ImageIcon />
-                Browse Files
+                {t('forms.coverUpload.browseFiles')}
               </Button>
             )}
           </div>
@@ -556,7 +587,7 @@ export default function CoverUpload({
             <TriangleAlert />
           </AlertIcon>
           <AlertContent>
-            <AlertTitle>File upload error(s)</AlertTitle>
+            <AlertTitle>{t('forms.coverUpload.uploadErrors')}</AlertTitle>
             <AlertDescription>
               {errors.map((error, index) => (
                 <p key={index} className='last:mb-0'>
@@ -574,19 +605,21 @@ export default function CoverUpload({
             <TriangleAlert />
           </AlertIcon>
           <AlertContent>
-            <AlertTitle>Crop failed</AlertTitle>
+            <AlertTitle>{t('forms.coverUpload.cropFailed')}</AlertTitle>
             <AlertDescription>{cropError}</AlertDescription>
           </AlertContent>
         </Alert>
       )}
 
       <div className='bg-muted/50 rounded-lg p-4'>
-        <h4 className='mb-2 text-sm font-medium'>Cover Image Guidelines</h4>
+        <h4 className='mb-2 text-sm font-medium'>
+          {t('forms.coverUpload.guidelinesTitle')}
+        </h4>
         <ul className='text-muted-foreground space-y-1 text-xs'>
-          <li>Use high-quality images with good lighting and composition</li>
-          <li>Recommended aspect ratio: 21:9 for best results</li>
-          <li>Drag the image inside the frame to crop before submit</li>
-          <li>Supported formats: JPG, PNG, WebP</li>
+          <li>{t('forms.coverUpload.guideline1')}</li>
+          <li>{t('forms.coverUpload.guideline2')}</li>
+          <li>{t('forms.coverUpload.guideline3')}</li>
+          <li>{t('forms.coverUpload.guideline4')}</li>
         </ul>
       </div>
     </div>

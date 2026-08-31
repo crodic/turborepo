@@ -3,6 +3,7 @@ import { useForm, useWatch, type UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ImageIcon, RotateCcw, Save, Sparkles, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { restApiErrorHandler } from '@/lib/rest-api-handler'
 import { Button } from '@/components/ui/button'
@@ -76,6 +77,7 @@ function WebsiteSettingsForm({
 }: {
   settings: WebsiteSettingsSchema
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const form = useForm<WebsiteSettingsFormSchema>({
     resolver: zodResolver(websiteSettingsFormSchema),
@@ -106,7 +108,7 @@ function WebsiteSettingsForm({
   const updateWebsiteMutation = useMutation({
     mutationFn: apiUpdateWebsiteSettings,
     onSuccess: (data) => {
-      toast.success('Website settings updated successfully')
+      toast.success(t('settings.website.updateSuccess'))
       queryClient.setQueryData(WEBSITE_SETTINGS_QUERY_KEY, data)
       form.reset({
         site_brand: data.site_brand ?? '',
@@ -148,10 +150,9 @@ function WebsiteSettingsForm({
                 <Sparkles className='size-4' />
               </div>
               <div>
-                <CardTitle>Brand identity</CardTitle>
+                <CardTitle>{t('settings.website.brandIdentity')}</CardTitle>
                 <CardDescription>
-                  These values are used across navigation, browser metadata, and
-                  product-facing copy.
+                  {t('settings.website.brandIdentityDesc')}
                 </CardDescription>
               </div>
             </div>
@@ -162,7 +163,7 @@ function WebsiteSettingsForm({
               name='site_brand'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Brand name</FormLabel>
+                  <FormLabel>{t('settings.website.brandName')}</FormLabel>
                   <FormControl>
                     <Input placeholder='Crodic Portal' {...field} />
                   </FormControl>
@@ -175,7 +176,7 @@ function WebsiteSettingsForm({
               name='site_title'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Site title</FormLabel>
+                  <FormLabel>{t('settings.website.siteTitle')}</FormLabel>
                   <FormControl>
                     <Input placeholder='Admin Portal' {...field} />
                   </FormControl>
@@ -188,7 +189,7 @@ function WebsiteSettingsForm({
               name='site_tagline'
               render={({ field }) => (
                 <FormItem className='md:col-span-2'>
-                  <FormLabel>Tagline</FormLabel>
+                  <FormLabel>{t('settings.website.tagline')}</FormLabel>
                   <FormControl>
                     <Textarea
                       rows={3}
@@ -197,8 +198,7 @@ function WebsiteSettingsForm({
                     />
                   </FormControl>
                   <FormDescription>
-                    Keep it short. This is useful for auth screens, help pages,
-                    and future portal metadata.
+                    {t('settings.website.taglineHelp')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -214,10 +214,9 @@ function WebsiteSettingsForm({
                 <Sparkles className='size-4' />
               </div>
               <div>
-                <CardTitle>SEO metadata</CardTitle>
+                <CardTitle>{t('settings.website.seoMetadata')}</CardTitle>
                 <CardDescription>
-                  Configure browser metadata, Open Graph, and Twitter preview
-                  content. Empty values fall back to the brand identity above.
+                  {t('settings.website.seoMetadataDesc')}
                 </CardDescription>
               </div>
             </div>
@@ -228,7 +227,7 @@ function WebsiteSettingsForm({
               name='meta_title'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Meta title</FormLabel>
+                  <FormLabel>{t('settings.website.metaTitle')}</FormLabel>
                   <FormControl>
                     <Input
                       placeholder='Crodic Framework Admin Portal'
@@ -236,7 +235,7 @@ function WebsiteSettingsForm({
                     />
                   </FormControl>
                   <FormDescription>
-                    Used for document title and generic title meta tag.
+                    {t('settings.website.metaTitleHelp')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -247,12 +246,12 @@ function WebsiteSettingsForm({
               name='canonical_url'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Canonical URL</FormLabel>
+                  <FormLabel>{t('settings.website.canonicalUrl')}</FormLabel>
                   <FormControl>
                     <Input placeholder='https://admin.example.com' {...field} />
                   </FormControl>
                   <FormDescription>
-                    Used for canonical, Open Graph URL, and Twitter URL tags.
+                    {t('settings.website.canonicalUrlHelp')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -263,7 +262,7 @@ function WebsiteSettingsForm({
               name='meta_description'
               render={({ field }) => (
                 <FormItem className='md:col-span-2'>
-                  <FormLabel>Meta description</FormLabel>
+                  <FormLabel>{t('settings.website.metaDescription')}</FormLabel>
                   <FormControl>
                     <Textarea
                       rows={3}
@@ -280,7 +279,7 @@ function WebsiteSettingsForm({
               name='og_title'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Open Graph title</FormLabel>
+                  <FormLabel>{t('settings.website.ogTitle')}</FormLabel>
                   <FormControl>
                     <Input
                       placeholder='Crodic Framework Admin Portal'
@@ -296,7 +295,7 @@ function WebsiteSettingsForm({
               name='twitter_title'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Twitter title</FormLabel>
+                  <FormLabel>{t('settings.website.twitterTitle')}</FormLabel>
                   <FormControl>
                     <Input
                       placeholder='Crodic Framework Admin Portal'
@@ -312,7 +311,7 @@ function WebsiteSettingsForm({
               name='og_description'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Open Graph description</FormLabel>
+                  <FormLabel>{t('settings.website.ogDescription')}</FormLabel>
                   <FormControl>
                     <Textarea
                       rows={3}
@@ -329,7 +328,9 @@ function WebsiteSettingsForm({
               name='twitter_description'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Twitter description</FormLabel>
+                  <FormLabel>
+                    {t('settings.website.twitterDescription')}
+                  </FormLabel>
                   <FormControl>
                     <Textarea
                       rows={3}
@@ -351,10 +352,9 @@ function WebsiteSettingsForm({
                 <ImageIcon className='size-4' />
               </div>
               <div>
-                <CardTitle>Brand assets</CardTitle>
+                <CardTitle>{t('settings.website.brandAssets')}</CardTitle>
                 <CardDescription>
-                  Upload PNG or WebP images up to 2MB. Existing assets stay
-                  unchanged when no new file is selected.
+                  {t('settings.website.brandAssetsDesc')}
                 </CardDescription>
               </div>
             </div>
@@ -365,7 +365,7 @@ function WebsiteSettingsForm({
               name='site_logo'
               removeName='remove_site_logo'
               label='Logo'
-              description='Used in the sidebar on light backgrounds.'
+              description={t('settings.website.logoHelp')}
               previewUrl={settings.site_logo}
             />
             <AssetField
@@ -373,7 +373,7 @@ function WebsiteSettingsForm({
               name='site_dark_logo'
               removeName='remove_site_dark_logo'
               label='Dark logo'
-              description='Used when the interface is in dark mode.'
+              description={t('settings.website.darkLogoHelp')}
               previewUrl={settings.site_dark_logo}
             />
             <AssetField
@@ -381,7 +381,7 @@ function WebsiteSettingsForm({
               name='site_favicon'
               removeName='remove_site_favicon'
               label='Favicon'
-              description='Used as the browser tab icon.'
+              description={t('settings.website.faviconHelp')}
               previewUrl={settings.site_favicon}
             />
             <AssetField
@@ -389,7 +389,7 @@ function WebsiteSettingsForm({
               name='og_image'
               removeName='remove_og_image'
               label='Open Graph image'
-              description='Used when links are shared on social platforms.'
+              description={t('settings.website.ogImageHelp')}
               previewUrl={settings.og_image}
             />
             <AssetField
@@ -397,7 +397,7 @@ function WebsiteSettingsForm({
               name='twitter_image'
               removeName='remove_twitter_image'
               label='Twitter image'
-              description='Used for Twitter/X card previews.'
+              description={t('settings.website.twitterImageHelp')}
               previewUrl={settings.twitter_image}
             />
           </CardContent>
@@ -406,7 +406,11 @@ function WebsiteSettingsForm({
         <div className='flex justify-end'>
           <Button type='submit' disabled={updateWebsiteMutation.isPending}>
             <Save className='me-2 size-4' />
-            {updateWebsiteMutation.isPending ? 'Saving...' : 'Save changes'}
+            {updateWebsiteMutation.isPending
+              ? t('common.actions.saving', { defaultValue: 'Saving...' })
+              : t('common.actions.saveChanges', {
+                  defaultValue: 'Save changes',
+                })}
           </Button>
         </div>
       </form>
@@ -439,6 +443,7 @@ function AssetField({
   description: string
   previewUrl?: string | null
 }) {
+  const { t } = useTranslation()
   const selectedFile = useWatch({
     control: form.control,
     name,
@@ -498,12 +503,12 @@ function AssetField({
                 {isRemoved ? (
                   <>
                     <RotateCcw className='me-1 size-3.5' />
-                    Undo
+                    {t('settings.website.undo')}
                   </>
                 ) : (
                   <>
                     <Trash2 className='me-1 size-3.5' />
-                    Remove
+                    {t('settings.website.remove')}
                   </>
                 )}
               </Button>
@@ -519,7 +524,7 @@ function AssetField({
             ) : (
               <div className='text-muted-foreground flex flex-col items-center gap-2 text-sm'>
                 <ImageIcon className='size-6' />
-                No asset uploaded
+                {t('settings.website.noAssetUploaded')}
               </div>
             )}
           </div>

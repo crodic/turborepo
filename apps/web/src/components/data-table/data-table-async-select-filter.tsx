@@ -7,6 +7,7 @@ import { type PaginateQueryParams } from '@/global'
 import { type Option } from '@/types/data-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Check, Loader2, PlusCircle, XCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import useDebounce from '@/hooks/use-debounce'
 import { Badge } from '@/components/ui/badge'
@@ -48,6 +49,7 @@ export function DataTableAsyncSelectFilter<TData, TValue>({
   fetchOptions,
   limit = 10,
 }: DataTableAsyncSelectFilterProps<TData, TValue>) {
+  const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState('')
 
@@ -236,10 +238,10 @@ export function DataTableAsyncSelectFilter<TData, TValue>({
               {query.isLoading || query.isFetching ? (
                 <div className='flex flex-col items-center gap-2 p-2 text-sm'>
                   <Loader2 className='h-4 w-4 animate-spin' />
-                  Searching...
+                  {t('dataTable.filter.searching')}
                 </div>
               ) : (
-                'No results'
+                t('dataTable.filter.noResultsFound')
               )}
             </CommandEmpty>
 
@@ -301,7 +303,7 @@ export function DataTableAsyncSelectFilter<TData, TValue>({
               <>
                 <Separator />
                 <CommandItem onSelect={onReset} className='justify-center'>
-                  Clear filters
+                  {t('dataTable.filter.clearFilters')}
                 </CommandItem>
               </>
             )}

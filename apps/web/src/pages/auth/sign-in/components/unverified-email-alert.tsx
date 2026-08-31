@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Loader2, AlertCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -11,6 +12,7 @@ interface UnverifiedEmailAlertProps {
 }
 
 export function UnverifiedEmailAlert({ email }: UnverifiedEmailAlertProps) {
+  const { t } = useTranslation()
   const [cooldown, setCooldown] = useState(0)
 
   useEffect(() => {
@@ -22,20 +24,28 @@ export function UnverifiedEmailAlert({ email }: UnverifiedEmailAlertProps) {
   const resendMutation = useMutation({
     mutationFn: () => apiResendVerifyEmail({ email }),
     onSuccess: () => {
-      toast.success('Verification email sent! Please check your inbox.')
+      toast.success(
+        t('auth.resendVerification.success', {
+          defaultValue: 'Verification email sent! Please check your inbox.',
+        })
+      )
       setCooldown(60) // 60 seconds cooldown to prevent spam
     },
     onError: () => {
-      toast.error('Failed to send verification email. Please try again.')
+      toast.error(
+        t('auth.resendVerification.error', {
+          defaultValue: 'Failed to send verification email. Please try again.',
+        })
+      )
     },
   })
 
   return (
     <Alert variant='destructive' className='mb-4'>
       <AlertCircle className='h-4 w-4' />
-      <AlertTitle>Email not verified</AlertTitle>
+      <AlertTitle>{t('auth.signIn.unverifiedAlertTitle')}</AlertTitle>
       <AlertDescription className='mt-2 flex flex-col items-start gap-2'>
-        <p>Your account has not been verified yet. Please check your inbox.</p>
+        <p>{t('auth.signIn.unverifiedAlertDesc')}</p>
         <Button
           variant='outline'
           size='sm'
@@ -47,8 +57,8 @@ export function UnverifiedEmailAlert({ email }: UnverifiedEmailAlertProps) {
             <Loader2 className='mr-2 size-3 animate-spin' />
           )}
           {cooldown > 0
-            ? `Resend in ${cooldown}s`
-            : 'Resend verification email'}
+            ? `${t('auth.signIn.resendIn', { defaultValue: 'Resend in' })} ${cooldown}s`
+            : t('auth.signIn.resendButton')}
         </Button>
       </AlertDescription>
     </Alert>

@@ -4,6 +4,7 @@ import * as React from 'react'
 import type { Column } from '@tanstack/react-table'
 import { CalendarIcon, XCircle } from 'lucide-react'
 import type { DateRange } from 'react-day-picker'
+import { useTranslation } from 'react-i18next'
 import { formatDate } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -28,7 +29,9 @@ function parseAsDate(timestamp: number | string | undefined): Date | undefined {
   return !Number.isNaN(date.getTime()) ? date : undefined
 }
 
-function parseColumnFilterValue(value: unknown) {
+function parseColumnFilterValue(
+  value: unknown
+): (string | number | undefined)[] {
   if (value === null || value === undefined) {
     return []
   }
@@ -60,6 +63,7 @@ export function DataTableDateFilter<TData>({
   title,
   multiple,
 }: DataTableDateFilterProps<TData>) {
+  const { t } = useTranslation()
   const columnFilterValue = column.getFilterValue()
 
   const selectedDates = React.useMemo<DateSelection>(() => {
@@ -130,7 +134,7 @@ export function DataTableDateFilter<TData>({
       const hasSelectedDates = selectedDates.from || selectedDates.to
       const dateText = hasSelectedDates
         ? formatDateRange(selectedDates)
-        : 'Select date range'
+        : t('dataTable.filter.selectDateRange')
 
       return (
         <span className='flex items-center gap-2'>
@@ -153,7 +157,7 @@ export function DataTableDateFilter<TData>({
     const hasSelectedDate = selectedDates.length > 0
     const dateText = hasSelectedDate
       ? formatDate(selectedDates[0])
-      : 'Select date'
+      : t('dataTable.filter.selectDate')
 
     return (
       <span className='flex items-center gap-2'>
@@ -169,7 +173,7 @@ export function DataTableDateFilter<TData>({
         )}
       </span>
     )
-  }, [selectedDates, multiple, formatDateRange, title])
+  }, [selectedDates, multiple, formatDateRange, title, t])
 
   return (
     <Popover>
@@ -225,7 +229,7 @@ export function DataTableDateFilter<TData>({
             className='w-full rounded-none'
             onClick={() => onSelect(undefined)}
           >
-            Clear
+            {t('dataTable.filter.clearFilters')}
           </Button>
         )}
       </PopoverContent>

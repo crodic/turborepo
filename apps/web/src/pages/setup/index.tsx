@@ -1,5 +1,6 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -24,6 +25,7 @@ import { useSystemSetupMutation } from './queries'
 import { systemSetupSchema, type SystemSetupSchema } from './schema'
 
 export function PageSystemSetup() {
+  const { t } = useTranslation()
   const { mutateAsync: setupSystem, isPending } = useSystemSetupMutation()
 
   const form = useForm<SystemSetupSchema>({
@@ -41,11 +43,14 @@ export function PageSystemSetup() {
   const onSubmit = async (data: SystemSetupSchema) => {
     try {
       await setupSystem(data)
-      toast.success('System setup completed successfully!')
+      toast.success(t('setup.completeSuccess'))
       // Redirect to sign-in page, the guard will allow it now
       window.location.assign('/sign-in')
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to setup system')
+      toast.error(
+        error.response?.data?.message ||
+          t('setup.failed', { defaultValue: 'Failed to setup system' })
+      )
     }
   }
 
@@ -54,25 +59,24 @@ export function PageSystemSetup() {
       <Card className='mx-auto w-full max-w-full gap-4'>
         <CardHeader>
           <CardTitle className='text-lg tracking-tight'>
-            Welcome to the Setup Wizard
+            {t('setup.title')}
           </CardTitle>
-          <CardDescription>
-            Let's configure your website and create the first administrator
-            account.
-          </CardDescription>
+          <CardDescription>{t('setup.description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
               {/* Website Settings Section */}
               <div className='space-y-4 rounded-md border p-4'>
-                <h3 className='leading-none font-medium'>Website Details</h3>
+                <h3 className='leading-none font-medium'>
+                  {t('setup.websiteDetails')}
+                </h3>
                 <FormField
                   control={form.control}
                   name='site_brand'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Website Name</FormLabel>
+                      <FormLabel>{t('setup.websiteName')}</FormLabel>
                       <FormControl>
                         <Input placeholder='My Awesome Site' {...field} />
                       </FormControl>
@@ -85,7 +89,7 @@ export function PageSystemSetup() {
               {/* Account Settings Section */}
               <div className='space-y-4 rounded-md border p-4'>
                 <h3 className='leading-none font-medium'>
-                  Administrator Account
+                  {t('setup.adminAccount')}
                 </h3>
                 <div className='grid grid-cols-2 gap-4'>
                   <FormField
@@ -93,7 +97,7 @@ export function PageSystemSetup() {
                     name='firstName'
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>First Name</FormLabel>
+                        <FormLabel>{t('setup.firstName')}</FormLabel>
                         <FormControl>
                           <Input placeholder='John' {...field} />
                         </FormControl>
@@ -106,7 +110,7 @@ export function PageSystemSetup() {
                     name='lastName'
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Last Name</FormLabel>
+                        <FormLabel>{t('setup.lastName')}</FormLabel>
                         <FormControl>
                           <Input placeholder='Doe' {...field} />
                         </FormControl>
@@ -120,7 +124,7 @@ export function PageSystemSetup() {
                   name='email'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{t('setup.email')}</FormLabel>
                       <FormControl>
                         <Input
                           placeholder='admin@example.com'
@@ -137,7 +141,7 @@ export function PageSystemSetup() {
                   name='password'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel>{t('setup.password')}</FormLabel>
                       <FormControl>
                         <PasswordInput placeholder='********' {...field} />
                       </FormControl>
@@ -150,7 +154,7 @@ export function PageSystemSetup() {
                   name='confirmPassword'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Confirm Password</FormLabel>
+                      <FormLabel>{t('setup.confirmPassword')}</FormLabel>
                       <FormControl>
                         <PasswordInput placeholder='********' {...field} />
                       </FormControl>
@@ -161,7 +165,11 @@ export function PageSystemSetup() {
               </div>
 
               <Button type='submit' className='w-full' disabled={isPending}>
-                {isPending ? 'Setting up...' : 'Complete Setup'}
+                {isPending
+                  ? t('setup.settingUp', { defaultValue: 'Setting up...' })
+                  : t('setup.completeButton', {
+                      defaultValue: 'Complete Setup',
+                    })}
               </Button>
             </form>
           </Form>

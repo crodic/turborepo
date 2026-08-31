@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-table'
 import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual'
 import { ChevronRight, Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { getCommonPinningStyles } from '@/lib/data-table'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -59,6 +60,7 @@ export function DataTable<TData>({
   hidePagination,
   ...props
 }: DataTableProps<TData>) {
+  const { t } = useTranslation()
   const colSpan = table.getVisibleLeafColumns().length
 
   return (
@@ -142,7 +144,7 @@ export function DataTable<TData>({
                     colSpan={table.getAllColumns().length}
                     className='h-24 text-center'
                   >
-                    No results.
+                    {t('dataTable.common.noResults')}
                   </TableCell>
                 </TableRow>
               )}
@@ -189,6 +191,7 @@ function DataTableVirtualized<TData>({
   onVirtualEndReached?: () => void
   virtualEndReachedThreshold: number
 }) {
+  const { t } = useTranslation()
   const tableContainerRef = React.useRef<HTMLDivElement>(null)
   const rows = table.getRowModel().rows
   const visibleColumns = table.getVisibleLeafColumns()
@@ -347,7 +350,7 @@ function DataTableVirtualized<TData>({
             })
           ) : (
             <tr className='flex h-24 items-center justify-center'>
-              <td className='text-center'>No results.</td>
+              <td className='text-center'>{t('dataTable.common.noResults')}</td>
             </tr>
           )}
         </tbody>

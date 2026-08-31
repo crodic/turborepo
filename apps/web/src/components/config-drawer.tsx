@@ -1,6 +1,7 @@
 import { type SVGProps } from 'react'
 import { Check, CircleCheck, RotateCcw, Settings, Sparkles } from 'lucide-react'
 import { RadioGroup } from 'radix-ui'
+import { useTranslation } from 'react-i18next'
 import { IconDir } from '@/assets/custom/icon-dir'
 import { IconLayoutCompact } from '@/assets/custom/icon-layout-compact'
 import { IconLayoutDefault } from '@/assets/custom/icon-layout-default'
@@ -33,6 +34,7 @@ const Radio = RadioGroup.Root
 const Item = RadioGroup.Item
 
 export function ConfigDrawer() {
+  const { t } = useTranslation()
   const { setOpen } = useSidebar()
   const { resetDir } = useDirection()
   const { resetTheme, isWhiteLabelEnabled } = useTheme()
@@ -60,9 +62,9 @@ export function ConfigDrawer() {
       </SheetTrigger>
       <SheetContent className='flex flex-col'>
         <SheetHeader className='pb-0 text-start'>
-          <SheetTitle>Theme Settings</SheetTitle>
+          <SheetTitle>{t('configDrawer.themeSettings')}</SheetTitle>
           <SheetDescription id='config-drawer-description'>
-            Adjust the appearance and layout to suit your preferences.
+            {t('configDrawer.description')}
           </SheetDescription>
         </SheetHeader>
         <div className='space-y-6 overflow-y-auto px-4'>
@@ -79,7 +81,7 @@ export function ConfigDrawer() {
             onClick={handleReset}
             aria-label='Reset all settings to default values'
           >
-            Reset
+            {t('configDrawer.reset')}
           </Button>
         </SheetFooter>
       </SheetContent>
@@ -176,11 +178,12 @@ function RadioGroupItem({
 }
 
 function ThemeConfig() {
+  const { t } = useTranslation()
   const { defaultTheme, theme, setTheme } = useTheme()
   return (
     <div>
       <SectionTitle
-        title='Theme'
+        title={t('configDrawer.theme')}
         showReset={theme !== defaultTheme}
         onReset={() => setTheme(defaultTheme)}
       />
@@ -212,18 +215,19 @@ function ThemeConfig() {
         ))}
       </Radio>
       <div id='theme-description' className='sr-only'>
-        Choose between system preference, light mode, or dark mode
+        {t('configDrawer.themeDesc')}
       </div>
     </div>
   )
 }
 
 function SidebarConfig() {
+  const { t } = useTranslation()
   const { defaultVariant, variant, setVariant } = useLayout()
   return (
     <div className='max-md:hidden'>
       <SectionTitle
-        title='Sidebar'
+        title={t('configDrawer.sidebar')}
         showReset={defaultVariant !== variant}
         onReset={() => setVariant(defaultVariant)}
       />
@@ -255,13 +259,14 @@ function SidebarConfig() {
         ))}
       </Radio>
       <div id='sidebar-description' className='sr-only'>
-        Choose between inset, floating, or standard sidebar layout
+        {t('configDrawer.sidebarDesc')}
       </div>
     </div>
   )
 }
 
 function LayoutConfig() {
+  const { t } = useTranslation()
   const { open, setOpen } = useSidebar()
   const { defaultCollapsible, collapsible, setCollapsible } = useLayout()
 
@@ -270,7 +275,7 @@ function LayoutConfig() {
   return (
     <div className='max-md:hidden'>
       <SectionTitle
-        title='Layout'
+        title={t('configDrawer.layout')}
         showReset={radioState !== 'default'}
         onReset={() => {
           setOpen(true)
@@ -312,18 +317,19 @@ function LayoutConfig() {
         ))}
       </Radio>
       <div id='layout-description' className='sr-only'>
-        Choose between default expanded, compact icon-only, or full layout mode
+        {t('configDrawer.layoutDesc')}
       </div>
     </div>
   )
 }
 
 function DirConfig() {
+  const { t } = useTranslation()
   const { defaultDir, dir, setDir } = useDirection()
   return (
     <div>
       <SectionTitle
-        title='Direction'
+        title={t('configDrawer.direction')}
         showReset={defaultDir !== dir}
         onReset={() => setDir(defaultDir)}
       />
@@ -354,23 +360,24 @@ function DirConfig() {
         ))}
       </Radio>
       <div id='direction-description' className='sr-only'>
-        Choose between left-to-right or right-to-left site direction
+        {t('configDrawer.directionDesc')}
       </div>
     </div>
   )
 }
 
 function WhiteLabelConfig() {
+  const { t } = useTranslation()
   const { isWhiteLabelEnabled, setWhiteLabelEnabled } = useTheme()
 
   return (
     <div>
-      <SectionTitle title='White Label' />
+      <SectionTitle title={t('configDrawer.whiteLabel')} />
       <div className='bg-muted/30 flex items-center justify-between rounded-lg border p-3'>
         <div className='space-y-0.5'>
           <div className='flex items-center gap-1.5 text-xs font-semibold'>
             <Sparkles className='text-primary size-3.5' />
-            <span>Enable White Label Theme</span>
+            <span>{t('configDrawer.enableWhiteLabel')}</span>
           </div>
           <p className='text-muted-foreground text-[11px]'>
             {isWhiteLabelEnabled
@@ -389,13 +396,14 @@ function WhiteLabelConfig() {
 }
 
 function ThemeColorConfig() {
+  const { t } = useTranslation()
   const { setColorKey, colorKey, hasPersonalColor, clearPersonalColor } =
     useTheme()
 
   return (
     <div>
       <SectionTitle
-        title='Color'
+        title={t('configDrawer.color')}
         showReset={hasPersonalColor}
         onReset={clearPersonalColor}
       />

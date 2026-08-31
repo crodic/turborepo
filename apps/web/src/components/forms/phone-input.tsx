@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import * as React from 'react'
 import { CheckIcon, ChevronsUpDown } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import * as RPNInput from 'react-phone-number-input'
 import flags from 'react-phone-number-input/flags'
 import { cn } from '@/lib/utils'
@@ -85,6 +86,7 @@ const CountrySelect = ({
   options: countryList,
   onChange,
 }: CountrySelectProps) => {
+  const { t } = useTranslation()
   const scrollAreaRef = React.useRef<HTMLDivElement>(null)
   const [searchValue, setSearchValue] = React.useState('')
   const [isOpen, setIsOpen] = React.useState(false)
@@ -134,11 +136,11 @@ const CountrySelect = ({
                 }
               }, 0)
             }}
-            placeholder='Search country...'
+            placeholder={t('forms.phone.searchCountry')}
           />
           <CommandList>
             <ScrollArea ref={scrollAreaRef} className='h-72'>
-              <CommandEmpty>No country found.</CommandEmpty>
+              <CommandEmpty>{t('forms.phone.noCountryFound')}</CommandEmpty>
               <CommandGroup>
                 {countryList.map(({ value, label }) =>
                   value ? (

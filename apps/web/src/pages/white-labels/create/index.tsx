@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { restApiErrorHandler } from '@/lib/rest-api-handler'
@@ -15,6 +16,7 @@ import { apiCreateWhiteLabel, whiteLabelQueryKeys } from '../queries'
 import type { WhiteLabelFormSchema } from '../schema'
 
 export function PageWhiteLabelCreate() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -22,7 +24,11 @@ export function PageWhiteLabelCreate() {
     mutationFn: apiCreateWhiteLabel,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: whiteLabelQueryKeys.all })
-      toast.success('White-label profile created successfully')
+      toast.success(
+        t('whiteLabels.create.success', {
+          defaultValue: 'White-label profile created successfully',
+        })
+      )
       navigate(`/white-labels/${data.id}/show`)
     },
     onError: restApiErrorHandler,
@@ -54,11 +60,15 @@ export function PageWhiteLabelCreate() {
           </Button>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>
-              Create White Label Profile
+              {t('whiteLabels.create.title', {
+                defaultValue: 'Create White Label Profile',
+              })}
             </h2>
             <p className='text-muted-foreground text-sm'>
-              Customize brand logos, typography, metadata, and color themes with
-              live preview.
+              {t('whiteLabels.create.description', {
+                defaultValue:
+                  'Customize brand logos, typography, metadata, and color themes with live preview.',
+              })}
             </p>
           </div>
         </div>

@@ -3,6 +3,7 @@
 import * as React from 'react'
 import type { Column } from '@tanstack/react-table'
 import { PlusCircle, XCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -55,6 +56,7 @@ export function DataTableSliderFilter<TData>({
   column,
   title,
 }: DataTableSliderFilterProps<TData>) {
+  const { t } = useTranslation()
   const id = React.useId()
 
   const columnFilterValue = parseValuesAsNumbers(column.getFilterValue())
@@ -248,7 +250,7 @@ export function DataTableSliderFilter<TData>({
           size='sm'
           onClick={onReset}
         >
-          Clear
+          {t('dataTable.filter.clearFilters')}
         </Button>
       </PopoverContent>
     </Popover>

@@ -2,6 +2,7 @@
 
 import type { Column } from '@tanstack/react-table'
 import { ChevronDown, ChevronsUpDown, ChevronUp, EyeOff, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import {
   DropdownMenu,
@@ -25,6 +26,8 @@ export function DataTableColumnHeader<TData, TValue>({
   className,
   ...props
 }: DataTableColumnHeaderProps<TData, TValue>) {
+  const { t } = useTranslation()
+
   if (!column.getCanSort() && !column.getCanHide()) {
     return <div className={cn(className)}>{label}</div>
   }
@@ -57,7 +60,7 @@ export function DataTableColumnHeader<TData, TValue>({
               onClick={() => column.toggleSorting(false, true)}
             >
               <ChevronUp />
-              Asc
+              {t('dataTable.columnHeader.asc')}
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem
               className='[&_svg]:text-muted-foreground relative pr-8 pl-2 [&>span:first-child]:right-2 [&>span:first-child]:left-auto'
@@ -65,7 +68,7 @@ export function DataTableColumnHeader<TData, TValue>({
               onClick={() => column.toggleSorting(true, true)}
             >
               <ChevronDown />
-              Desc
+              {t('dataTable.columnHeader.desc')}
             </DropdownMenuCheckboxItem>
             {column.getIsSorted() && (
               <DropdownMenuItem
@@ -73,7 +76,7 @@ export function DataTableColumnHeader<TData, TValue>({
                 onClick={() => column.clearSorting()}
               >
                 <X />
-                Reset
+                {t('dataTable.columnHeader.reset')}
               </DropdownMenuItem>
             )}
           </>
@@ -85,7 +88,7 @@ export function DataTableColumnHeader<TData, TValue>({
             onClick={() => column.toggleVisibility(false)}
           >
             <EyeOff />
-            Hide
+            {t('dataTable.columnHeader.hide')}
           </DropdownMenuCheckboxItem>
         )}
       </DropdownMenuContent>

@@ -13,6 +13,7 @@ import {
   SparklesIcon,
   TerminalIcon,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -114,6 +115,8 @@ const faqs = [
 ]
 
 export function PageHelpCenter() {
+  const { t } = useTranslation()
+
   return (
     <>
       <Header fixed>
@@ -130,16 +133,14 @@ export function PageHelpCenter() {
           <div className='border-border/70 bg-card rounded-lg border p-6 sm:p-8'>
             <Badge variant='secondary' className='mb-5 gap-1.5'>
               <SparklesIcon className='size-3.5' />
-              Boilerplate portal guide
+              {t('helpCenter.guide')}
             </Badge>
             <div className='max-w-3xl space-y-4'>
               <h1 className='text-3xl font-bold tracking-tight sm:text-4xl'>
-                Help Center
+                {t('helpCenter.title')}
               </h1>
               <p className='text-muted-foreground text-base leading-7 sm:text-lg'>
-                Find the essentials for working with this admin portal:
-                onboarding, authentication, role management, deployment, and
-                common development workflows.
+                {t('helpCenter.description')}
               </p>
             </div>
             <div className='mt-6 flex flex-col gap-3 sm:flex-row'>
@@ -147,12 +148,12 @@ export function PageHelpCenter() {
                 <SearchIcon className='text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2' />
                 <Input
                   className='pl-9'
-                  placeholder='Search docs, workflows, or troubleshooting'
+                  placeholder={t('helpCenter.searchPlaceholder')}
                   aria-label='Search help articles'
                 />
               </div>
               <Button>
-                Browse topics
+                {t('helpCenter.browseTopics')}
                 <ChevronRightIcon className='size-4' />
               </Button>
             </div>
@@ -162,10 +163,10 @@ export function PageHelpCenter() {
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
                 <LifeBuoyIcon className='text-primary size-5' />
-                Need a fast answer?
+                {t('helpCenter.fastAnswer')}
               </CardTitle>
               <CardDescription>
-                Start with these checks before opening a ticket.
+                {t('helpCenter.fastAnswerDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className='space-y-4'>
@@ -221,10 +222,10 @@ export function PageHelpCenter() {
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
                 <BookOpenIcon className='text-primary size-5' />
-                Common workflows
+                {t('helpCenter.commonWorkflows')}
               </CardTitle>
               <CardDescription>
-                Practical paths that new developers usually need first.
+                {t('helpCenter.commonWorkflowsDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className='space-y-5'>
@@ -253,10 +254,10 @@ export function PageHelpCenter() {
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
                 <TerminalIcon className='text-primary size-5' />
-                Useful commands
+                {t('helpCenter.usefulCommands')}
               </CardTitle>
               <CardDescription>
-                Keep these close while customizing the portal.
+                {t('helpCenter.usefulCommandsDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className='space-y-3'>
@@ -279,11 +280,9 @@ export function PageHelpCenter() {
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
                 <Code2Icon className='text-primary size-5' />
-                Developer notes
+                {t('helpCenter.developerNotes')}
               </CardTitle>
-              <CardDescription>
-                Small conventions that keep the boilerplate easy to maintain.
-              </CardDescription>
+              <CardDescription>{t('helpCenter.devNotesDesc')}</CardDescription>
             </CardHeader>
             <CardContent className='space-y-3 text-sm leading-6'>
               <p className='text-muted-foreground'>
@@ -301,11 +300,9 @@ export function PageHelpCenter() {
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
                 <HelpCircleIcon className='text-primary size-5' />
-                Frequently asked questions
+                {t('helpCenter.faq')}
               </CardTitle>
-              <CardDescription>
-                Answers for the first week of working inside the portal.
-              </CardDescription>
+              <CardDescription>{t('helpCenter.faqDesc')}</CardDescription>
             </CardHeader>
             <CardContent className='grid gap-4 md:grid-cols-3'>
               {faqs.map((faq) => (

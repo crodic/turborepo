@@ -4,6 +4,7 @@ import * as React from 'react'
 import type { ColumnSort, SortDirection, Table } from '@tanstack/react-table'
 import { dataTableConfig } from '@/config/data-table'
 import { ArrowDownUp, ChevronsUpDown, GripVertical, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -35,9 +36,6 @@ import {
   SortableOverlay,
 } from '@/components/ui/sortable'
 
-const SORT_SHORTCUT_KEY = 's'
-const REMOVE_SORT_SHORTCUTS = ['backspace', 'delete']
-
 interface DataTableSortListProps<TData> extends React.ComponentProps<
   typeof PopoverContent
 > {
@@ -50,109 +48,86 @@ export function DataTableSortList<TData>({
   disabled,
   ...props
 }: DataTableSortListProps<TData>) {
+  const { t } = useTranslation()
   const id = React.useId()
   const labelId = React.useId()
   const descriptionId = React.useId()
+
   const [open, setOpen] = React.useState(false)
   const addButtonRef = React.useRef<HTMLButtonElement>(null)
 
   const sorting = table.getState().sorting
   const onSortingChange = table.setSorting
 
-  const { columnLabels, columns } = React.useMemo(() => {
+  const { columns, columnLabels } = React.useMemo(() => {
+    const sortableColumns = table
+      .getAllColumns()
+      .filter((column) => column.getCanSort())
+
     const labels = new Map<string, string>()
-    const sortingIds = new Set(sorting.map((s) => s.id))
-    const availableColumns: { id: string; label: string }[] = []
-
-    for (const column of table.getAllColumns()) {
-      if (!column.getCanSort()) continue
-
-      const label = column.columnDef.meta?.label ?? column.id
-      labels.set(column.id, label)
-
-      if (!sortingIds.has(column.id)) {
-        availableColumns.push({ id: column.id, label })
-      }
+    for (const column of sortableColumns) {
+      labels.set(column.id, column.columnDef.meta?.label ?? column.id)
     }
 
     return {
+      columns: sortableColumns.map((column) => ({
+        id: column.id,
+        label: column.columnDef.meta?.label ?? column.id,
+      })),
       columnLabels: labels,
-      columns: availableColumns,
     }
-  }, [sorting, table])
+  }, [table])
 
   const onSortAdd = React.useCallback(() => {
-    const firstColumn = columns[0]
-    if (!firstColumn) return
+    const firstAvailableColumn = columns.find(
+      (column) => !sorting.some((sort) => sort.id === column.id)
+    )
+    if (!firstAvailableColumn) return
 
-    onSortingChange((prevSorting) => [
-      ...prevSorting,
-      { id: firstColumn.id, desc: false },
+    onSortingChange((prev) => [
+      ...prev,
+      { id: firstAvailableColumn.id, desc: false },
     ])
-  }, [columns, onSortingChange])
+  }, [columns, sorting, onSortingChange])
 
   const onSortUpdate = React.useCallback(
     (sortId: string, updates: Partial<ColumnSort>) => {
-      onSortingChange((prevSorting) => {
-        if (!prevSorting) return prevSorting
-        return prevSorting.map((sort) =>
-          sort.id === sortId ? { ...sort, ...updates } : sort
-        )
-      })
+      onSortingChange((prev) =>
+        prev.map((sort) => {
+          if (sort.id === sortId) {
+            return { ...sort, ...updates }
+          }
+          return sort
+        })
+      )
     },
     [onSortingChange]
   )
 
   const onSortRemove = React.useCallback(
     (sortId: string) => {
-      onSortingChange((prevSorting) =>
-        prevSorting.filter((item) => item.id !== sortId)
-      )
+      onSortingChange((prev) => prev.filter((item) => item.id !== sortId))
     },
     [onSortingChange]
   )
 
-  const onSortingReset = React.useCallback(
-    () => onSortingChange(table.initialState.sorting),
-    [onSortingChange, table.initialState.sorting]
-  )
-
-  React.useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (
-        event.target instanceof HTMLInputElement ||
-        event.target instanceof HTMLTextAreaElement ||
-        (event.target instanceof HTMLElement &&
-          event.target.contentEditable === 'true')
-      ) {
-        return
-      }
-
-      if (
-        event.key.toLowerCase() === SORT_SHORTCUT_KEY &&
-        (event.ctrlKey || event.metaKey) &&
-        event.shiftKey
-      ) {
-        event.preventDefault()
-        setOpen((prev) => !prev)
-      }
-    }
-
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  const onSortingReset = React.useCallback(() => {
+    onSortingChange([])
+  }, [onSortingChange])
 
   const onTriggerKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLButtonElement>) => {
       if (
-        REMOVE_SORT_SHORTCUTS.includes(event.key.toLowerCase()) &&
-        sorting.length > 0
+        event.key === 'ArrowDown' ||
+        event.key === 'ArrowUp' ||
+        event.key === ' ' ||
+        event.key === 'Enter'
       ) {
         event.preventDefault()
-        onSortingReset()
+        setOpen(true)
       }
     },
-    [sorting.length, onSortingReset]
+    []
   )
 
   return (
@@ -171,7 +146,7 @@ export function DataTableSortList<TData>({
             disabled={disabled}
           >
             <ArrowDownUp className='text-muted-foreground' />
-            Sort
+            {t('dataTable.sort.sort')}
             {sorting.length > 0 && (
               <Badge
                 variant='secondary'
@@ -190,7 +165,9 @@ export function DataTableSortList<TData>({
         >
           <div className='flex flex-col gap-1'>
             <h4 id={labelId} className='leading-none font-medium'>
-              {sorting.length > 0 ? 'Sort by' : 'No sorting applied'}
+              {sorting.length > 0
+                ? t('dataTable.sort.sort')
+                : t('dataTable.sort.resetSorting')}
             </h4>
             <p
               id={descriptionId}
@@ -200,8 +177,8 @@ export function DataTableSortList<TData>({
               )}
             >
               {sorting.length > 0
-                ? 'Modify sorting to organize your rows.'
-                : 'Add sorting to organize your rows.'}
+                ? t('dataTable.sort.sort')
+                : t('dataTable.sort.addSort')}
             </p>
           </div>
           {sorting.length > 0 && (
@@ -232,7 +209,7 @@ export function DataTableSortList<TData>({
               onClick={onSortAdd}
               disabled={columns.length === 0}
             >
-              Add sort
+              {t('dataTable.sort.addSort')}
             </Button>
             {sorting.length > 0 && (
               <Button
@@ -241,7 +218,7 @@ export function DataTableSortList<TData>({
                 className='rounded'
                 onClick={onSortingReset}
               >
-                Reset sorting
+                {t('dataTable.sort.resetSorting')}
               </Button>
             )}
           </div>
@@ -276,44 +253,17 @@ function DataTableSortItem({
   onSortUpdate,
   onSortRemove,
 }: DataTableSortItemProps) {
-  const fieldListboxId = `${sortItemId}-field-listbox`
-  const fieldTriggerId = `${sortItemId}-field-trigger`
-  const directionListboxId = `${sortItemId}-direction-listbox`
-
+  const { t } = useTranslation()
+  const fieldTriggerId = React.useId()
+  const fieldListboxId = React.useId()
+  const directionListboxId = React.useId()
   const [showFieldSelector, setShowFieldSelector] = React.useState(false)
   const [showDirectionSelector, setShowDirectionSelector] =
     React.useState(false)
 
-  const onItemKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (
-        event.target instanceof HTMLInputElement ||
-        event.target instanceof HTMLTextAreaElement
-      ) {
-        return
-      }
-
-      if (showFieldSelector || showDirectionSelector) {
-        return
-      }
-
-      if (REMOVE_SORT_SHORTCUTS.includes(event.key.toLowerCase())) {
-        event.preventDefault()
-        onSortRemove(sort.id)
-      }
-    },
-    [sort.id, showFieldSelector, showDirectionSelector, onSortRemove]
-  )
-
   return (
     <SortableItem value={sort.id} asChild>
-      <div
-        role='listitem'
-        id={sortItemId}
-        tabIndex={-1}
-        className='flex items-center gap-2'
-        onKeyDown={onItemKeyDown}
-      >
+      <div className='flex items-center gap-2'>
         <Popover open={showFieldSelector} onOpenChange={setShowFieldSelector}>
           <PopoverTrigger asChild>
             <Button
@@ -332,9 +282,11 @@ function DataTableSortItem({
             className='w-(--radix-popover-trigger-width) p-0'
           >
             <Command>
-              <CommandInput placeholder='Search fields...' />
+              <CommandInput placeholder={t('dataTable.filter.searchFields')} />
               <CommandList>
-                <CommandEmpty>No fields found.</CommandEmpty>
+                <CommandEmpty>
+                  {t('dataTable.filter.noFieldsFound')}
+                </CommandEmpty>
                 <CommandGroup>
                   {columns.map((column) => (
                     <CommandItem

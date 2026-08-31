@@ -5,11 +5,13 @@ import {
   type Activity,
   type BlockElement,
 } from 'react-activity-calendar'
+import { useTranslation } from 'react-i18next'
 import { Tooltip as ReactTooltip } from 'react-tooltip'
 import 'react-tooltip/dist/react-tooltip.css'
 import { apiGetLoginActivity } from '@/pages/auth/queries'
 
 export function ActivityHeatmap() {
+  const { t } = useTranslation()
   const { data, isLoading, error } = useQuery({
     queryKey: ['loginActivity'],
     queryFn: apiGetLoginActivity,
@@ -26,7 +28,7 @@ export function ActivityHeatmap() {
   if (error || !data) {
     return (
       <div className='border-border text-destructive flex h-48 items-center justify-center rounded-md border text-sm'>
-        Failed to load activity data
+        {t('settings.profile.activityFailed')}
       </div>
     )
   }
@@ -37,20 +39,24 @@ export function ActivityHeatmap() {
         <div className='flex items-center justify-between'>
           <div>
             <h3 className='leading-none font-semibold tracking-tight'>
-              Login activity
+              {t('settings.profile.loginActivity')}
             </h3>
             <p className='text-muted-foreground mt-1 text-sm'>
-              Your session activity over the last 180 days.
+              {t('settings.profile.activityDesc')}
             </p>
           </div>
           <div className='flex space-x-6 text-sm'>
             <div className='flex flex-col items-end'>
               <span className='font-bold'>{data.totalSessions}</span>
-              <span className='text-muted-foreground'>sessions</span>
+              <span className='text-muted-foreground'>
+                {t('settings.profile.sessions')}
+              </span>
             </div>
             <div className='flex flex-col items-end'>
               <span className='font-bold'>{data.activeDays}</span>
-              <span className='text-muted-foreground'>active days</span>
+              <span className='text-muted-foreground'>
+                {t('settings.profile.activeDays')}
+              </span>
             </div>
           </div>
         </div>

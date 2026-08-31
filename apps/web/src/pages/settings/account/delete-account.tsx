@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
@@ -27,6 +28,7 @@ import {
 import { apiDeleteAccount, apiSignOut } from '@/pages/auth/queries'
 
 export default function DeleteAccount() {
+  const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const navigate = useNavigate()
   const { logout } = useAuthStore()
@@ -34,13 +36,21 @@ export default function DeleteAccount() {
   const deleteAccountMutation = useMutation({
     mutationFn: apiDeleteAccount,
     onSuccess: async () => {
-      toast.success('Account has been scheduled for deletion.')
+      toast.success(
+        t('settings.account.deleteSuccess', {
+          defaultValue: 'Account has been scheduled for deletion.',
+        })
+      )
       await apiSignOut()
       logout()
       navigate('/auth/sign-in', { replace: true })
     },
     onError: () => {
-      toast.error('Failed to delete account. Please try again.')
+      toast.error(
+        t('settings.account.deleteError', {
+          defaultValue: 'Failed to delete account. Please try again.',
+        })
+      )
       setIsOpen(false)
     },
   })
@@ -52,36 +62,38 @@ export default function DeleteAccount() {
   return (
     <Card className='border-destructive bg-destructive/10'>
       <CardHeader>
-        <CardTitle>Delete Account</CardTitle>
+        <CardTitle>{t('settings.account.deleteAccountTitle')}</CardTitle>
         <CardDescription>
-          Permanently delete your account and all of your data.
+          {t('settings.account.deleteAccountDesc')}
         </CardDescription>
       </CardHeader>
       <CardContent className='text-sm'>
-        <p>
-          Once you delete your account, there is no going back after 30 days.
-          Please be certain. Your account will be temporarily deactivated and
-          permanently deleted after the grace period.
-        </p>
+        <p>{t('settings.account.deleteAccountWarning')}</p>
       </CardContent>
       <CardFooter>
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
           <AlertDialogTrigger asChild>
-            <Button variant='destructive'>Delete Account</Button>
+            <Button variant='destructive'>
+              {t('settings.account.deleteAccountTitle')}
+            </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogTitle>
+                {t('common.dialog.areYouSure', {
+                  defaultValue: 'Are you absolutely sure?',
+                })}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                This action will schedule your account for deletion. You have 30
-                days to cancel this request by logging in and restoring your
-                account. After 30 days, your account and data will be
-                permanently deleted.
+                {t('settings.account.deleteAccountConfirmDesc', {
+                  defaultValue:
+                    'This action will schedule your account for deletion. You have 30 days to cancel this request by logging in and restoring your account. After 30 days, your account and data will be permanently deleted.',
+                })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={deleteAccountMutation.isPending}>
-                Cancel
+                {t('common.actions.cancel', { defaultValue: 'Cancel' })}
               </AlertDialogCancel>
               <AlertDialogAction
                 className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
@@ -94,7 +106,7 @@ export default function DeleteAccount() {
                 {deleteAccountMutation.isPending && (
                   <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                 )}
-                Continue
+                {t('common.actions.continue', { defaultValue: 'Continue' })}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

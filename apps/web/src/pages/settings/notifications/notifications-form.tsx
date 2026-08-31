@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,28 +29,8 @@ const defaultNotifications = {
   email: true,
 }
 
-const notificationOptions = [
-  {
-    name: 'system' as const,
-    label: 'System notifications',
-    description:
-      'Receive product, admin panel, and future system events that are not part of another category.',
-  },
-  {
-    name: 'security' as const,
-    label: 'Security notifications',
-    description:
-      'Receive sign-in, password, two-factor authentication, and session activity updates.',
-  },
-  {
-    name: 'email' as const,
-    label: 'Email notifications',
-    description:
-      'Receive updates when emails are sent, fail to send, or are cancelled.',
-  },
-]
-
 export function NotificationsForm({ user }: { user: AdminSchema }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const form = useForm<NotificationsFormSchema>({
     resolver: zodResolver(notificationsFormSchema),
@@ -61,18 +42,53 @@ export function NotificationsForm({ user }: { user: AdminSchema }) {
     },
   })
 
+  const notificationOptions = [
+    {
+      name: 'system' as const,
+      label: t('settings.notifications.systemLabel', {
+        defaultValue: 'System notifications',
+      }),
+      description: t('settings.notifications.systemDesc', {
+        defaultValue:
+          'Receive product, admin panel, and future system events that are not part of another category.',
+      }),
+    },
+    {
+      name: 'security' as const,
+      label: t('settings.notifications.securityLabel', {
+        defaultValue: 'Security notifications',
+      }),
+      description: t('settings.notifications.securityDesc', {
+        defaultValue:
+          'Receive sign-in, password, two-factor authentication, and session activity updates.',
+      }),
+    },
+    {
+      name: 'email' as const,
+      label: t('settings.notifications.emailLabel', {
+        defaultValue: 'Email notifications',
+      }),
+      description: t('settings.notifications.emailDesc', {
+        defaultValue:
+          'Receive updates when emails are sent, fail to send, or are cancelled.',
+      }),
+    },
+  ]
+
   const updateNotificationsMutation = useMutation({
     mutationFn: apiUpdateNotificationSettings,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['authenticated_user'] })
       queryClient.invalidateQueries({ queryKey: notificationKeys.all })
-      toast.success('Notification settings updated successfully')
+      toast.success(t('settings.notifications.success'))
     },
     onError: (error) => {
       if (isAxiosError(error)) {
         toast.error(
           error?.response?.data?.message ||
-            'Failed to update notification settings'
+            t('settings.notifications.error', {
+              defaultValue: 'Failed to update notification settings',
+            })
         )
       }
     },
@@ -116,7 +132,7 @@ export function NotificationsForm({ user }: { user: AdminSchema }) {
             type='submit'
             disabled={updateNotificationsMutation.isPending}
           >
-            Update notifications
+            {t('settings.notifications.submit')}
           </Button>
         </form>
       </Form>

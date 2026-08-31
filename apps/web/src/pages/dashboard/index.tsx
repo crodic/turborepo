@@ -17,6 +17,7 @@ import {
   XCircleIcon,
 } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import http from '@/lib/http'
 import { useSocket } from '@/context/socket-context'
@@ -156,41 +157,43 @@ async function apiGetSentrySummary(): Promise<SentrySummary> {
 }
 
 export function Dashboard() {
+  const { t } = useTranslation()
   const socket = useSocket()
   const navigate = useNavigate()
   const [snapshot, setSnapshot] = useState<PresenceSnapshot>(emptySnapshot)
   const healthQuery = useQuery({
     queryKey: HEALTH_QUERY_KEY,
     queryFn: apiGetSystemHealth,
-    refetchInterval: 60_000,
-    retry: 1,
+    refetchInterval: 30_000,
   })
   const sentryQuery = useQuery({
     queryKey: SENTRY_SUMMARY_QUERY_KEY,
     queryFn: apiGetSentrySummary,
-    refetchInterval: 5 * 60_000,
-    retry: 1,
+    refetchInterval: 60_000,
   })
 
   useEffect(() => {
     if (!socket) {
-      queueMicrotask(() => setSnapshot(emptySnapshot))
       return
     }
 
-    const handleSnapshot = (data: PresenceSnapshot) => {
-      setSnapshot(data)
+    const handleSnapshot = (nextSnapshot: PresenceSnapshot) => {
+      setSnapshot(nextSnapshot)
     }
 
     const handleCounts = (counts: PresenceSnapshot['counts']) => {
-      setSnapshot((current) => ({ ...current, counts }))
+      setSnapshot((current) => ({
+        ...current,
+        counts,
+      }))
     }
 
+    socket.emit('presence:subscribe')
     socket.on('presence:snapshot', handleSnapshot)
     socket.on('presence:counts', handleCounts)
-    socket.emit('presence:get')
 
     return () => {
+      socket.emit('presence:unsubscribe')
       socket.off('presence:snapshot', handleSnapshot)
       socket.off('presence:counts', handleCounts)
     }
@@ -199,8 +202,8 @@ export function Dashboard() {
   return (
     <>
       <Helmet>
-        <title>Dashboard</title>
-        <meta name='description' content='Dashboard' />
+        <title>{t('dashboard.title')}</title>
+        <meta name='description' content={t('dashboard.title')} />
       </Helmet>
 
       {/* ===== Top Heading ===== */}
@@ -217,30 +220,30 @@ export function Dashboard() {
       <Main className='flex flex-1 flex-col gap-6'>
         <div>
           <h1 className='text-2xl font-bold tracking-tight md:text-3xl'>
-            Dashboard
+            {t('dashboard.title')}
           </h1>
           <p className='text-muted-foreground'>
-            Monitor who is currently active in the admin portal and user app.
+            {t('dashboard.realtime.onlineAdminsDesc')}
           </p>
         </div>
 
         <div className='grid gap-4 md:grid-cols-3'>
           <PresenceMetricCard
-            title='Online admins'
+            title={t('dashboard.realtime.onlineAdmins')}
             value={snapshot.counts.admins}
-            description='Authenticated admin accounts connected now'
+            description={t('dashboard.realtime.onlineAdminsDesc')}
             icon={<ShieldCheckIcon className='size-5' />}
           />
           <PresenceMetricCard
-            title='Online users'
+            title={t('dashboard.realtime.onlineUsers')}
             value={snapshot.counts.users}
-            description='Authenticated user accounts connected now'
+            description={t('dashboard.realtime.onlineUsersDesc')}
             icon={<UsersIcon className='size-5' />}
           />
           <PresenceMetricCard
-            title='Total online'
+            title={t('dashboard.realtime.totalOnline')}
             value={snapshot.counts.total}
-            description='Unique accounts across all active sockets'
+            description={t('dashboard.realtime.totalOnlineDesc')}
             icon={<ActivityIcon className='size-5' />}
           />
         </div>
@@ -263,16 +266,16 @@ export function Dashboard() {
 
         <div className='grid gap-4 xl:grid-cols-2'>
           <OnlinePresenceList
-            title='Admins online'
-            description='Click an admin to open their detail page.'
-            emptyText='No admins online.'
+            title={t('dashboard.realtime.adminsOnlineTitle')}
+            description={t('dashboard.realtime.adminsOnlineDesc')}
+            emptyText={t('dashboard.realtime.noAdminsOnline')}
             items={snapshot.admins}
             onSelect={(item) => navigate(`/admins/${item.id}/show`)}
           />
           <OnlinePresenceList
-            title='Users online'
-            description='Click a user to open their detail page.'
-            emptyText='No users online.'
+            title={t('dashboard.realtime.usersOnlineTitle')}
+            description={t('dashboard.realtime.usersOnlineDesc')}
+            emptyText={t('dashboard.realtime.noUsersOnline')}
             items={snapshot.users}
             onSelect={(item) => navigate(`/users/${item.id}/show`)}
           />
@@ -295,6 +298,7 @@ function SentryHealthSection({
   updatedAt: number
   onRefresh: () => void
 }) {
+  const { t } = useTranslation()
   const unavailable = isError || summary?.unavailable
   const configured = summary?.configured ?? true
   const weeklyChange = summary?.weeklyReport?.changePercent ?? 0
@@ -305,12 +309,9 @@ function SentryHealthSection({
         <div className='space-y-1.5'>
           <CardTitle className='flex items-center gap-2'>
             <BugIcon className='text-primary size-5' />
-            Sentry error monitoring
+            {t('dashboard.sentry.title')}
           </CardTitle>
-          <CardDescription>
-            Error volume, affected users, release health, and recent issues from
-            Sentry.
-          </CardDescription>
+          <CardDescription>{t('dashboard.sentry.description')}</CardDescription>
         </div>
         <div className='flex flex-wrap items-center gap-2'>
           <Badge
@@ -337,7 +338,7 @@ function SentryHealthSection({
             <RefreshCwIcon
               className={isLoading ? 'size-4 animate-spin' : 'size-4'}
             />
-            Refresh
+            {t('dashboard.systemHealth.refresh')}
           </Button>
         </div>
       </CardHeader>
@@ -351,7 +352,7 @@ function SentryHealthSection({
           <>
             <div className='grid gap-3 md:grid-cols-4'>
               <HealthSummaryItem
-                label='Errors today'
+                label={t('dashboard.sentry.errorsToday')}
                 value={formatNumber(summary?.metrics?.totalErrorsToday)}
                 tone={
                   (summary?.metrics?.totalErrorsToday ?? 0) > 0
@@ -360,19 +361,19 @@ function SentryHealthSection({
                 }
               />
               <HealthSummaryItem
-                label='Affected users'
+                label={t('dashboard.sentry.affectedUsers')}
                 value={formatNumber(summary?.metrics?.affectedUsersToday)}
                 tone='neutral'
               />
               <HealthSummaryItem
-                label='Crash-free sessions'
+                label={t('dashboard.sentry.crashFreeSessions')}
                 value={formatPercent(summary?.releaseHealth?.crashFreeSessions)}
                 tone={getCrashFreeTone(
                   summary?.releaseHealth?.crashFreeSessions
                 )}
               />
               <HealthSummaryItem
-                label='Weekly change'
+                label={t('dashboard.sentry.weeklyChange')}
                 value={`${weeklyChange >= 0 ? '+' : ''}${weeklyChange.toFixed(
                   1
                 )}%`}
@@ -389,19 +390,19 @@ function SentryHealthSection({
 
             <div className='grid gap-4 xl:grid-cols-2'>
               <SentryIssueList
-                title='Top errors'
-                description='Most frequent unresolved issues in the last 24 hours.'
+                title={t('dashboard.sentry.topErrorsTitle')}
+                description={t('dashboard.sentry.topErrorsDesc')}
                 issues={summary?.topIssues ?? []}
               />
               <SentryIssueList
-                title='Latest errors'
-                description='Newest unresolved issues reported by Sentry.'
+                title={t('dashboard.sentry.latestErrorsTitle')}
+                description={t('dashboard.sentry.latestErrorsDesc')}
                 issues={summary?.latestIssues ?? []}
               />
             </div>
 
             <p className='text-muted-foreground text-xs'>
-              Last synced{' '}
+              {t('dashboard.sentry.lastSynced')}{' '}
               {updatedAt
                 ? formatDistanceToNow(new Date(updatedAt), { addSuffix: true })
                 : 'never'}
@@ -418,6 +419,7 @@ function SentryTrendCard({
 }: {
   trend: Array<{ date: string; errors: number }>
 }) {
+  const { t } = useTranslation()
   const max = Math.max(...trend.map((item) => item.errors), 1)
 
   return (
@@ -425,16 +427,16 @@ function SentryTrendCard({
       <CardHeader>
         <CardTitle className='flex items-center gap-2 text-base'>
           <BarChart3Icon className='size-4' />
-          Error trend
+          {t('dashboard.sentry.errorTrend')}
         </CardTitle>
         <CardDescription>
-          Accepted error events over the last 14 days.
+          {t('dashboard.sentry.errorTrendDesc')}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {trend.length === 0 ? (
           <div className='text-muted-foreground rounded-md border border-dashed p-4 text-sm'>
-            No trend data available.
+            {t('dashboard.sentry.noTrendData')}
           </div>
         ) : (
           <div className='flex h-32 items-end gap-1'>
@@ -466,18 +468,21 @@ function SentryEnvironmentCard({
 }: {
   environments: NonNullable<SentrySummary['errorsByEnvironment']>
 }) {
+  const { t } = useTranslation()
   return (
     <Card>
       <CardHeader>
-        <CardTitle className='text-base'>Errors by environment</CardTitle>
+        <CardTitle className='text-base'>
+          {t('dashboard.sentry.errorsByEnvironment')}
+        </CardTitle>
         <CardDescription>
-          Approximate event volume from unresolved issues per environment.
+          {t('dashboard.sentry.errorsByEnvDesc')}
         </CardDescription>
       </CardHeader>
       <CardContent className='space-y-2'>
         {environments.length === 0 ? (
           <div className='text-muted-foreground rounded-md border border-dashed p-4 text-sm'>
-            No environment data configured.
+            {t('dashboard.sentry.noEnvData')}
           </div>
         ) : (
           environments.map((item) => (
@@ -488,8 +493,10 @@ function SentryEnvironmentCard({
               <div>
                 <p className='font-medium'>{item.environment}</p>
                 <p className='text-muted-foreground text-xs'>
-                  {formatNumber(item.unresolvedIssues)} unresolved issues ·{' '}
-                  {formatNumber(item.affectedUsersApprox)} affected users
+                  {formatNumber(item.unresolvedIssues)}{' '}
+                  {t('dashboard.sentry.unresolvedIssues')} ·{' '}
+                  {formatNumber(item.affectedUsersApprox)}{' '}
+                  {t('dashboard.sentry.affectedUsers')}
                 </p>
               </div>
               <Badge
@@ -514,6 +521,7 @@ function SentryIssueList({
   description: string
   issues: SentryIssue[]
 }) {
+  const { t } = useTranslation()
   return (
     <Card>
       <CardHeader>
@@ -523,7 +531,7 @@ function SentryIssueList({
       <CardContent className='space-y-2'>
         {issues.length === 0 ? (
           <div className='text-muted-foreground rounded-md border border-dashed p-4 text-sm'>
-            No issues found.
+            {t('dashboard.sentry.noIssuesFound')}
           </div>
         ) : (
           issues.map((issue) => (
@@ -545,8 +553,8 @@ function SentryIssueList({
                   {issue.culprit || issue.shortId || issue.id}
                 </p>
                 <p className='text-muted-foreground mt-1 text-xs'>
-                  {formatNumber(issue.count)} events ·{' '}
-                  {formatNumber(issue.userCount)} users
+                  {formatNumber(issue.count)} {t('dashboard.sentry.events')} ·{' '}
+                  {formatNumber(issue.userCount)} {t('dashboard.sentry.users')}
                 </p>
               </div>
               <ExternalLinkIcon className='text-muted-foreground mt-1 size-4 shrink-0' />
@@ -571,6 +579,7 @@ function SystemHealthSection({
   updatedAt: number
   onRefresh: () => void
 }) {
+  const { t } = useTranslation()
   const overall = getHealthOverall(health, isError)
   const indicators = getHealthIndicators(health)
 
@@ -580,10 +589,10 @@ function SystemHealthSection({
         <div className='space-y-1.5'>
           <CardTitle className='flex items-center gap-2'>
             <ServerIcon className='text-primary size-5' />
-            System health
+            {t('dashboard.systemHealth.title')}
           </CardTitle>
           <CardDescription>
-            Live service checks from the backend health endpoint.
+            {t('dashboard.systemHealth.description')}
           </CardDescription>
         </div>
         <div className='flex flex-wrap items-center gap-2'>
@@ -601,24 +610,24 @@ function SystemHealthSection({
             <RefreshCwIcon
               className={isLoading ? 'size-4 animate-spin' : 'size-4'}
             />
-            Refresh
+            {t('dashboard.systemHealth.refresh')}
           </Button>
         </div>
       </CardHeader>
       <CardContent className='space-y-4'>
         <div className='grid gap-3 md:grid-cols-3'>
           <HealthSummaryItem
-            label='Overall status'
+            label={t('dashboard.systemHealth.overallStatus')}
             value={overall.label}
             tone={overall.tone}
           />
           <HealthSummaryItem
-            label='Indicators'
+            label={t('dashboard.systemHealth.indicators')}
             value={String(indicators.length)}
             tone='neutral'
           />
           <HealthSummaryItem
-            label='Last checked'
+            label={t('dashboard.systemHealth.lastChecked')}
             value={
               updatedAt
                 ? formatDistanceToNow(new Date(updatedAt), { addSuffix: true })
@@ -630,8 +639,7 @@ function SystemHealthSection({
 
         {isError ? (
           <div className='border-destructive/30 bg-destructive/5 text-destructive rounded-md border p-4 text-sm'>
-            Health endpoint is unreachable. Check the API process, network, or
-            reverse proxy configuration.
+            {t('dashboard.systemHealth.unreachable')}
           </div>
         ) : indicators.length === 0 ? (
           <div className='text-muted-foreground rounded-md border border-dashed p-4 text-sm'>
@@ -866,6 +874,7 @@ function OnlinePresenceList({
   items: OnlinePresence[]
   onSelect: (item: OnlinePresence) => void
 }) {
+  const { t } = useTranslation()
   return (
     <Card>
       <CardHeader>
@@ -896,7 +905,7 @@ function OnlinePresenceList({
                   </p>
                   <Badge variant='secondary' className='gap-1'>
                     <span className='size-1.5 rounded-full bg-emerald-500' />
-                    Online
+                    {t('common.online', { defaultValue: 'Online' })}
                   </Badge>
                 </div>
                 <p className='text-muted-foreground truncate text-sm'>
@@ -905,10 +914,11 @@ function OnlinePresenceList({
               </div>
               <div className='text-muted-foreground hidden text-right text-xs sm:block'>
                 <p>
-                  {item.socketCount} socket{item.socketCount > 1 ? 's' : ''}
+                  {item.socketCount} {t('dashboard.realtime.socket')}
+                  {item.socketCount > 1 ? 's' : ''}
                 </p>
                 <p>
-                  Seen{' '}
+                  {t('dashboard.realtime.seen')}{' '}
                   {formatDistanceToNow(new Date(item.lastSeenAt), {
                     addSuffix: true,
                   })}

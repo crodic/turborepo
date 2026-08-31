@@ -4,6 +4,7 @@ import * as React from 'react'
 import type { Column } from '@tanstack/react-table'
 import type { Option } from '@/types/data-table'
 import { Check, PlusCircle, XCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -36,18 +37,17 @@ export function DataTableFacetedFilter<TData, TValue>({
   options,
   multiple,
 }: DataTableFacetedFilterProps<TData, TValue>) {
+  const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
 
   const columnFilterValue = column?.getFilterValue()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const selectedValues = new Set(
-    Array.isArray(columnFilterValue) ? columnFilterValue : []
+  const selectedValues = React.useMemo(
+    () => new Set(Array.isArray(columnFilterValue) ? columnFilterValue : []),
+    [columnFilterValue]
   )
 
   const onItemSelect = React.useCallback(
     (option: Option, isSelected: boolean) => {
-      if (!column) return
-
       if (multiple) {
         const newSelectedValues = new Set(selectedValues)
         if (isSelected) {
@@ -56,9 +56,9 @@ export function DataTableFacetedFilter<TData, TValue>({
           newSelectedValues.add(option.value)
         }
         const filterValues = Array.from(newSelectedValues)
-        column.setFilterValue(filterValues.length ? filterValues : undefined)
+        column?.setFilterValue(filterValues.length ? filterValues : undefined)
       } else {
-        column.setFilterValue(isSelected ? undefined : [option.value])
+        column?.setFilterValue(isSelected ? undefined : [option.value])
         setOpen(false)
       }
     },
@@ -79,28 +79,21 @@ export function DataTableFacetedFilter<TData, TValue>({
         <Button
           variant='outline'
           size='sm'
-          className='border-dashed font-normal'
+          className='border-dashed'
+          aria-label={title}
         >
-          {selectedValues?.size > 0 ? (
-            <div
-              role='button'
-              aria-label={`Clear ${title} filter`}
-              tabIndex={0}
-              className='focus-visible:ring-ring rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-1 focus-visible:outline-none'
+          {selectedValues.size > 0 ? (
+            <XCircle
+              className='text-muted-foreground size-4'
               onClick={onReset}
-            >
-              <XCircle />
-            </div>
+            />
           ) : (
-            <PlusCircle />
+            <PlusCircle className='text-muted-foreground size-4' />
           )}
           {title}
           {selectedValues?.size > 0 && (
             <>
-              <Separator
-                orientation='vertical'
-                className='mx-0.5 data-[orientation=vertical]:h-4'
-              />
+              <Separator orientation='vertical' className='mx-0.5 h-4' />
               <Badge
                 variant='secondary'
                 className='rounded-sm px-1 font-normal lg:hidden'
@@ -113,7 +106,7 @@ export function DataTableFacetedFilter<TData, TValue>({
                     variant='secondary'
                     className='rounded-sm px-1 font-normal'
                   >
-                    {selectedValues.size} selected
+                    {selectedValues.size} {t('dataTable.filter.selected')}
                   </Badge>
                 ) : (
                   options
@@ -137,7 +130,7 @@ export function DataTableFacetedFilter<TData, TValue>({
         <Command>
           <CommandInput placeholder={title} />
           <CommandList className='max-h-full'>
-            <CommandEmpty>No results found.</CommandEmpty>
+            <CommandEmpty>{t('dataTable.filter.noResultsFound')}</CommandEmpty>
             <CommandGroup className='max-h-75 scroll-py-1 overflow-x-hidden overflow-y-auto'>
               {options.map((option) => {
                 const isSelected = selectedValues.has(option.value)
@@ -176,7 +169,7 @@ export function DataTableFacetedFilter<TData, TValue>({
                     onSelect={() => onReset()}
                     className='justify-center text-center'
                   >
-                    Clear filters
+                    {t('dataTable.filter.clearFilters')}
                   </CommandItem>
                 </CommandGroup>
               </>

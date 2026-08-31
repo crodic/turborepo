@@ -10,6 +10,7 @@ import {
   SparklesIcon,
   Trash2Icon,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
@@ -53,6 +54,7 @@ export default function ComponentTableRowActions({
 }: {
   row: Row<WhiteLabelSchema>
 }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { ability } = useAuthStore()
@@ -69,7 +71,11 @@ export default function ComponentTableRowActions({
     mutationFn: apiDuplicateWhiteLabel,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: whiteLabelQueryKeys.all })
-      toast.success('White-label profile duplicated successfully')
+      toast.success(
+        t('whiteLabels.actions.duplicateSuccess', {
+          defaultValue: 'White-label profile duplicated successfully',
+        })
+      )
     },
   })
 
@@ -77,7 +83,11 @@ export default function ComponentTableRowActions({
     mutationFn: apiDeleteWhiteLabel,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: whiteLabelQueryKeys.all })
-      toast.success('White-label profile deleted successfully')
+      toast.success(
+        t('whiteLabels.actions.deleteSuccess', {
+          defaultValue: 'White-label profile deleted successfully',
+        })
+      )
     },
   })
 
@@ -145,7 +155,8 @@ export default function ComponentTableRowActions({
   })
 
   const handleDelete = () => {
-    if (!window.confirm(`Delete profile "${item.name}"?`)) return
+    if (!window.confirm(`${t('whiteLabels.actions.delete')} "${item.name}"?`))
+      return
     deleteMutation.mutate(item.id)
   }
 
@@ -176,14 +187,16 @@ export default function ComponentTableRowActions({
             onClick={() => navigate(`/white-labels/${item.id}/show`)}
           >
             <EyeIcon className='size-4' />
-            View Studio
+            {t('whiteLabels.actions.viewStudio', {
+              defaultValue: 'View Studio',
+            })}
           </DropdownMenuItem>
           {canUpdate && (
             <DropdownMenuItem
               onClick={() => navigate(`/white-labels/${item.id}/edit`)}
             >
               <Edit2Icon className='size-4' />
-              Edit Profile
+              {t('whiteLabels.actions.edit')}
             </DropdownMenuItem>
           )}
           {canCreate && (
@@ -192,7 +205,9 @@ export default function ComponentTableRowActions({
               disabled={isPending}
             >
               <CopyIcon className='size-4' />
-              Duplicate
+              {t('whiteLabels.actions.duplicate', {
+                defaultValue: 'Duplicate',
+              })}
             </DropdownMenuItem>
           )}
           {canPublish && (
@@ -204,7 +219,9 @@ export default function ComponentTableRowActions({
                   disabled={isPending}
                 >
                   <PowerOffIcon className='size-4' />
-                  Deactivate
+                  {t('whiteLabels.actions.deactivate', {
+                    defaultValue: 'Deactivate',
+                  })}
                 </DropdownMenuItem>
               ) : (
                 <DropdownMenuItem
@@ -212,7 +229,10 @@ export default function ComponentTableRowActions({
                   disabled={isPending}
                 >
                   <SparklesIcon className='size-4' />
-                  Set as Active ({item.target})
+                  {t('whiteLabels.actions.setAsActive', {
+                    defaultValue: 'Set as Active',
+                  })}{' '}
+                  ({item.target})
                 </DropdownMenuItem>
               )}
             </>
@@ -226,7 +246,7 @@ export default function ComponentTableRowActions({
                 disabled={isPending}
               >
                 <Trash2Icon className='size-4' />
-                Delete
+                {t('whiteLabels.actions.delete')}
               </DropdownMenuItem>
             </>
           )}
@@ -243,8 +263,8 @@ export default function ComponentTableRowActions({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {activationTarget === 'activate'
-                ? `Activate "${item.name}"?`
-                : `Deactivate "${item.name}"?`}
+                ? `${t('whiteLabels.actions.activate', { defaultValue: 'Activate' })} "${item.name}"?`
+                : `${t('whiteLabels.actions.deactivate', { defaultValue: 'Deactivate' })} "${item.name}"?`}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {activationTarget === 'activate'
@@ -253,9 +273,17 @@ export default function ComponentTableRowActions({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isPending}>
+              {t('common.actions.cancel', { defaultValue: 'Cancel' })}
+            </AlertDialogCancel>
             <AlertDialogAction onClick={confirmActivation} disabled={isPending}>
-              {activationTarget === 'activate' ? 'Activate Now' : 'Deactivate'}
+              {activationTarget === 'activate'
+                ? t('whiteLabels.actions.activateNow', {
+                    defaultValue: 'Activate Now',
+                  })
+                : t('whiteLabels.actions.deactivate', {
+                    defaultValue: 'Deactivate',
+                  })}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
