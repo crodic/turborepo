@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AdminAccountEntity } from '../auth/entities/admin-account.entity';
 import { PermissionEntity } from '../permission/entities/permission.entity';
 import { RoleEntity } from '../role/entities/role.entity';
 import { AuthModule } from './../auth/auth.module';
@@ -13,7 +14,12 @@ import { AdminUserEntity } from './entities/admin-user.entity';
 @Module({
   imports: [
     AuthModule,
-    TypeOrmModule.forFeature([RoleEntity, PermissionEntity, AdminUserEntity]),
+    TypeOrmModule.forFeature([
+      RoleEntity,
+      PermissionEntity,
+      AdminUserEntity,
+      AdminAccountEntity,
+    ]),
     JwtModule.register({}),
     BullModule.registerQueue({
       name: QueueName.EMAIL,

@@ -10,6 +10,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ClsService } from 'nestjs-cls';
 import { Repository } from 'typeorm';
+import { AdminAccountEntity } from '../auth/entities/admin-account.entity';
 import { RoleEntity } from '../role/entities/role.entity';
 import { SettingsService } from '../settings/settings.service';
 import { AdminUserService } from './admin-user.service';
@@ -20,6 +21,9 @@ describe('AdminUserService', () => {
 
   let adminRepoMock: Partial<
     Record<keyof Repository<AdminUserEntity>, jest.Mock>
+  >;
+  let adminAccountRepoMock: Partial<
+    Record<keyof Repository<AdminAccountEntity>, jest.Mock>
   >;
   let roleRepoMock: Partial<Record<keyof Repository<RoleEntity>, jest.Mock>>;
   let cacheMock: { get: jest.Mock; set: jest.Mock; del: jest.Mock };
@@ -38,6 +42,11 @@ describe('AdminUserService', () => {
       findOneBy: jest.fn(),
       softRemove: jest.fn(),
       createQueryBuilder: jest.fn(),
+    };
+
+    adminAccountRepoMock = {
+      findOne: jest.fn(),
+      save: jest.fn(),
     };
 
     roleRepoMock = {
@@ -67,6 +76,10 @@ describe('AdminUserService', () => {
         {
           provide: getRepositoryToken(AdminUserEntity),
           useValue: adminRepoMock,
+        },
+        {
+          provide: getRepositoryToken(AdminAccountEntity),
+          useValue: adminAccountRepoMock,
         },
         {
           provide: getRepositoryToken(RoleEntity),

@@ -1,6 +1,7 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
+import { EAccountProvider } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { JobName, QueueName } from '@/constants/job.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
@@ -24,6 +25,7 @@ import {
   PaginateQuery,
 } from 'nestjs-paginate';
 import { EntityManager, In, LessThan, Repository } from 'typeorm';
+import { AdminAccountEntity } from '../auth/entities/admin-account.entity';
 import { RoleEntity } from '../role/entities/role.entity';
 import { SettingsService } from '../settings/settings.service';
 import { AdminUserResDto } from './dto/admin-user.res.dto';
@@ -38,6 +40,8 @@ export class AdminUserService {
   constructor(
     @InjectRepository(AdminUserEntity)
     private readonly adminUserRepository: Repository<AdminUserEntity>,
+    @InjectRepository(AdminAccountEntity)
+    private readonly adminAccountRepository: Repository<AdminAccountEntity>,
     @InjectRepository(RoleEntity)
     private readonly roleRepository: Repository<RoleEntity>,
     private cls: ClsService,
@@ -69,6 +73,7 @@ export class AdminUserService {
     data: CreateAdminUserReqDto & { verifiedAt?: Date },
   ) {
     const repo = manager.getRepository(AdminUserEntity);
+    const accountRepo = manager.getRepository(AdminAccountEntity);
     const roleRepo = manager.getRepository(RoleEntity);
     const roles = await roleRepo.findBy({ id: In(data.roleIds) });
     if (roles.length !== data.roleIds.length) {
@@ -81,6 +86,18 @@ export class AdminUserService {
         verifiedAt: data.verifiedAt ?? new Date(),
       }),
     );
+
+    if (data.password) {
+      await accountRepo.save(
+        new AdminAccountEntity({
+          adminUserId: adminUser.id,
+          provider: EAccountProvider.LOCAL,
+          providerAccountId: adminUser.email,
+          password: data.password,
+        }),
+      );
+    }
+
     this.cacheManager.del(CacheKey.SYSTEM_HAS_ADMIN);
 
     return adminUser;
@@ -120,7 +137,6 @@ export class AdminUserService {
       firstName,
       lastName,
       email,
-      password,
       bio,
       roles,
       birthday: birthday ? new Date(birthday) : null,
@@ -128,6 +144,18 @@ export class AdminUserService {
     });
 
     const savedUser = await this.adminUserRepository.save(newUser);
+
+    if (password) {
+      await this.adminAccountRepository.save(
+        new AdminAccountEntity({
+          adminUserId: savedUser.id,
+          provider: EAccountProvider.LOCAL,
+          providerAccountId: savedUser.email,
+          password,
+        }),
+      );
+    }
+
     await this.sendVerificationEmail(savedUser);
 
     return plainToInstance(AdminUserResDto, savedUser);

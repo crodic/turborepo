@@ -52,8 +52,10 @@ describe('App (e2e)', () => {
       TRUNCATE TABLE
         "sessions",
         "users",
+        "user_accounts",
         "admin_user_role",
         "role_permission",
+        "admin_accounts",
         "admin_users",
         "roles",
         "permissions",

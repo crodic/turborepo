@@ -2,6 +2,7 @@ import { IVerifyEmailJob } from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
+import { EAccountProvider } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { JobName, QueueName } from '@/constants/job.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
@@ -24,6 +25,7 @@ import {
   PaginateQuery,
 } from 'nestjs-paginate';
 import { Repository } from 'typeorm';
+import { UserAccountEntity } from '../auth/entities/user-account.entity';
 import { CreateUserReqDto } from './dto/create-user.req.dto';
 import { UpdateUserReqDto } from './dto/update-user.req.dto';
 import { UserResDto } from './dto/user.res.dto';
@@ -36,6 +38,8 @@ export class UserService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(UserAccountEntity)
+    private readonly userAccountRepository: Repository<UserAccountEntity>,
     private cls: ClsService,
     private readonly configService: ConfigService<AllConfigType>,
     private readonly jwtService: JwtService,
@@ -89,10 +93,24 @@ export class UserService {
     const newUser = new UserEntity({
       ...dto,
       email,
-      password,
     });
 
     const savedUser = await this.userRepository.save(newUser);
+
+    if (password) {
+      await this.userAccountRepository.save(
+        new UserAccountEntity({
+          userId: savedUser.id,
+          provider: EAccountProvider.LOCAL,
+          providerAccountId: savedUser.email,
+          password,
+          email: savedUser.email,
+          displayName:
+            `${savedUser.firstName} ${savedUser.lastName ?? ''}`.trim(),
+        }),
+      );
+    }
+
     await this.sendVerificationEmail(savedUser);
 
     return plainToInstance(UserResDto, savedUser);
