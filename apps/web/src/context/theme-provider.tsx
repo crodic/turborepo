@@ -3,11 +3,12 @@ import { getCookie, setCookie, removeCookie } from '@/lib/cookies'
 import { applyPersonalFontPreference } from '@/lib/personal-font'
 import {
   applyRuntimeThemeStyles,
+  ensureThemeCacheVersion,
   fetchRuntimeTheme,
   getCachedRuntimeTheme,
   hasPersonalThemeColor,
+  initThemeSyncListener,
   PERSONAL_THEME_COLOR_STORAGE_KEY,
-  setCachedRuntimeTheme,
   clearRuntimeThemeStyles,
 } from '@/lib/runtime-theme/runtime-theme'
 import { themeColors } from '@/lib/theme-colors'
@@ -52,6 +53,9 @@ export function ThemeProvider({
   defaultColor = DEFAULT_COLOR,
   storageKey = THEME_COOKIE_NAME,
 }: ThemeProviderProps) {
+  // Ensure version integrity on init
+  ensureThemeCacheVersion()
+
   const [theme, _setTheme] = useState<Theme>(
     () => (getCookie(storageKey) as Theme) || defaultTheme
   )
@@ -82,6 +86,15 @@ export function ThemeProvider({
     return theme as ResolvedTheme
   }, [theme])
 
+  // ✅ Cross-tab synchronization
+  useEffect(() => {
+    return initThemeSyncListener((updatedTheme) => {
+      if (isWhiteLabelEnabled && updatedTheme?.styles) {
+        applyRuntimeThemeStyles(updatedTheme.styles, resolvedTheme)
+      }
+    })
+  }, [isWhiteLabelEnabled, resolvedTheme])
+
   // ✅ Apply class + theme variables
   useEffect(() => {
     const root = document.documentElement
@@ -111,7 +124,6 @@ export function ThemeProvider({
     if (isWhiteLabelEnabled) {
       fetchRuntimeTheme()
         .then((runtimeTheme) => {
-          setCachedRuntimeTheme(runtimeTheme)
           if (runtimeTheme?.styles) {
             applyRuntimeThemeStyles(runtimeTheme.styles, resolvedTheme)
           } else {
