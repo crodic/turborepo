@@ -14,8 +14,8 @@ import { PresenceModule } from './presence/presence.module';
 import { RoleModule } from './role/role.module';
 import { SentryMonitoringModule } from './sentry-monitoring/sentry-monitoring.module';
 import { SettingsModule } from './settings/settings.module';
-import { ThemeModule } from './theme/theme.module';
 import { UserModule } from './user/user.module';
+import { WhiteLabelModule } from './white-label/white-label.module';
 
 @Module({
   imports: [
@@ -34,7 +34,7 @@ import { UserModule } from './user/user.module';
     FileModule,
     SentryMonitoringModule,
     NotificationModule,
-    ThemeModule,
+    WhiteLabelModule,
     CmsPageModule,
   ],
 })

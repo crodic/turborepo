@@ -21,7 +21,7 @@ export const groupPermission = [
     permissions: ['read'],
   },
   {
-    group: 'THEME',
+    group: 'WHITE_LABEL',
     permissions: ['create', 'read', 'update', 'delete', 'publish'],
   },
   {
@@ -63,12 +63,12 @@ export const permissions = [
   // EMAIL_LOG
   { action: 'read', subject: 'EMAIL_LOG' },
 
-  // THEME
-  { action: 'create', subject: 'THEME' },
-  { action: 'read', subject: 'THEME' },
-  { action: 'update', subject: 'THEME' },
-  { action: 'delete', subject: 'THEME' },
-  { action: 'publish', subject: 'THEME' },
+  // WHITE_LABEL
+  { action: 'create', subject: 'WHITE_LABEL' },
+  { action: 'read', subject: 'WHITE_LABEL' },
+  { action: 'update', subject: 'WHITE_LABEL' },
+  { action: 'delete', subject: 'WHITE_LABEL' },
+  { action: 'publish', subject: 'WHITE_LABEL' },
 
   // FILE
   { action: 'create', subject: 'FILE' },

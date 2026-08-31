@@ -110,29 +110,71 @@ export function applyThemeStylesToElement(
 
 export function parseThemeCss(
   input: string,
-  fallback: ThemeStyles
+  fallback: ThemeStyles,
+  targetMode?: ThemeMode
 ): ThemeStyles {
   const next = normalizeThemeStyles(fallback)
+  const sanitized = input.replace(/\/\*[\s\S]*?\*\//g, '')
 
-  ;(['light', 'dark'] as ThemeMode[]).forEach((mode) => {
-    const selector = mode === 'dark' ? '.dark' : ':root'
-    const content = input.match(
-      new RegExp(`${selector.replace('.', '\\.')}\\s*{([^}]+)}`, 'm')
-    )?.[1]
+  let foundBlocks = false
 
-    if (!content) return
-
-    const declarations = content.match(/--[^:]+:\s*[^;]+/g) ?? []
-
-    declarations.forEach((declaration) => {
-      const [name, value] = declaration.split(':').map((part) => part.trim())
-      const key = name.replace('--', '') as ThemeStyleKey
-
-      if (THEME_STYLE_KEYS.includes(key)) {
-        next[mode][key] = value
+  // 1. Check for Dark mode block
+  const darkBlock = sanitized.match(
+    /(?:\.dark|\[data-theme=["']?dark["']?\])\s*\{([^}]+)\}/i
+  )?.[1]
+  if (darkBlock) {
+    foundBlocks = true
+    const declarations = darkBlock.match(/--[\w-]+:\s*[^;]+/g) ?? []
+    declarations.forEach((decl) => {
+      const [name, ...valParts] = decl.split(':')
+      const key = name.trim().replace(/^--/, '') as ThemeStyleKey
+      const value = valParts.join(':').trim()
+      if (THEME_STYLE_KEYS.includes(key) && value) {
+        next.dark[key] = value
+        if (COMMON_THEME_STYLE_KEYS.includes(key)) {
+          next.light[key] = value
+        }
       }
     })
-  })
+  }
+
+  // 2. Check for Light / Root mode block
+  const lightBlock = sanitized.match(
+    /(?::root|\.light|body|@theme)\s*\{([^}]+)\}/i
+  )?.[1]
+  if (lightBlock) {
+    foundBlocks = true
+    const declarations = lightBlock.match(/--[\w-]+:\s*[^;]+/g) ?? []
+    declarations.forEach((decl) => {
+      const [name, ...valParts] = decl.split(':')
+      const key = name.trim().replace(/^--/, '') as ThemeStyleKey
+      const value = valParts.join(':').trim()
+      if (THEME_STYLE_KEYS.includes(key) && value) {
+        next.light[key] = value
+        if (COMMON_THEME_STYLE_KEYS.includes(key)) {
+          next.dark[key] = value
+        }
+      }
+    })
+  }
+
+  // 3. If no selectors found, parse loose --variable: value lines into targetMode or light
+  if (!foundBlocks) {
+    const declarations = sanitized.match(/--[\w-]+:\s*[^;]+/g) ?? []
+    const mode = targetMode ?? 'light'
+    declarations.forEach((decl) => {
+      const [name, ...valParts] = decl.split(':')
+      const key = name.trim().replace(/^--/, '') as ThemeStyleKey
+      const value = valParts.join(':').trim()
+      if (THEME_STYLE_KEYS.includes(key) && value) {
+        next[mode][key] = value
+        if (COMMON_THEME_STYLE_KEYS.includes(key)) {
+          const otherMode = mode === 'light' ? 'dark' : 'light'
+          next[otherMode][key] = value
+        }
+      }
+    })
+  }
 
   return next
 }

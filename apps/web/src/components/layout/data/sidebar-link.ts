@@ -14,7 +14,6 @@ import {
   BookOpenText,
   Send,
 } from 'lucide-react'
-import { IS_RUNTIME_THEME_ENABLED } from '@/lib/feature-flags'
 import { type SidebarData } from '../types'
 
 export const sidebarLink: SidebarData = {
@@ -80,16 +79,12 @@ export const sidebarLink: SidebarData = {
           icon: UserLock,
           permission: 'USER',
         },
-        ...(IS_RUNTIME_THEME_ENABLED
-          ? [
-              {
-                title: 'navigation.management.themes',
-                url: '/themes',
-                icon: PaintbrushIcon,
-                permission: 'THEME' as const,
-              },
-            ]
-          : []),
+        {
+          title: 'navigation.management.whiteLabels',
+          url: '/white-labels',
+          icon: PaintbrushIcon,
+          permission: 'WHITE_LABEL' as const,
+        },
         {
           title: 'navigation.management.files',
           url: '/files',

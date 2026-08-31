@@ -154,15 +154,12 @@
     <script>
       ;(() => {
         try {
-          if ('%VITE_ENABLE_RUNTIME_THEME%' === 'false') {
-            localStorage.removeItem('runtime-theme:admin')
-            localStorage.removeItem('runtime-theme:current')
-            return
-          }
-
-          const raw =
-            localStorage.getItem('runtime-theme:admin') ||
-            localStorage.getItem('runtime-theme:current')
+          const isWhiteLabelEnabled =
+            localStorage.getItem('vite-ui-white-label-enabled') !== 'false'
+          const raw = isWhiteLabelEnabled
+            ? localStorage.getItem('runtime-theme:admin') ||
+              localStorage.getItem('runtime-theme:current')
+            : null
           const theme = raw ? JSON.parse(raw) : null
           const preference =
             document.cookie

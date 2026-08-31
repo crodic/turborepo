@@ -166,7 +166,7 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
       EmailLog: 'Email Log',
       Notification: 'Notification',
       Setting: 'Setting',
-      Theme: 'Theme',
+      WhiteLabel: 'White Label',
       File: 'File',
       UserAccount: 'User Account',
       AdminAccount: 'Admin Account',

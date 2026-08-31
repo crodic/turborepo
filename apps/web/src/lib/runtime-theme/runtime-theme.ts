@@ -1,9 +1,6 @@
 import { applyPersonalFontPreference } from '@/lib/personal-font'
 import type { ThemeMode, ThemeStyles } from '@/lib/theme-builder/default-theme'
 import { THEME_STYLE_KEYS } from '@/lib/theme-builder/default-theme'
-import { IS_RUNTIME_THEME_ENABLED } from '../feature-flags'
-
-export { IS_RUNTIME_THEME_ENABLED } from '../feature-flags'
 
 export const RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:current'
 const ADMIN_RUNTIME_THEME_STORAGE_KEY = 'runtime-theme:admin'
@@ -73,11 +70,6 @@ function loadThemeFonts(styles: ThemeStyles, mode: ThemeMode) {
 }
 
 export function getCachedRuntimeTheme(): RuntimeTheme | null {
-  if (!IS_RUNTIME_THEME_ENABLED) {
-    clearCachedRuntimeTheme()
-    return null
-  }
-
   try {
     const raw =
       localStorage.getItem(ADMIN_RUNTIME_THEME_STORAGE_KEY) ??
@@ -111,31 +103,29 @@ export function clearCachedRuntimeTheme() {
 }
 
 export function applyRuntimeThemeStyles(styles: ThemeStyles, mode: ThemeMode) {
-  const root = document.documentElement
-
   loadThemeFonts(styles, mode)
-
+  const root = document.documentElement
   THEME_STYLE_KEYS.forEach((key) => {
     root.style.setProperty(`--${key}`, styles[mode][key])
   })
-
-  applyPersonalFontPreference()
+  root.style.fontFamily = styles[mode]['font-sans']
 }
 
 export function applyRuntimeThemeFont(styles: ThemeStyles, mode: ThemeMode) {
-  loadGoogleFont(styles[mode]['font-sans'])
-  document.documentElement.style.setProperty(
-    '--font-sans',
-    styles[mode]['font-sans']
-  )
+  loadThemeFonts(styles, mode)
+  const root = document.documentElement
+  root.style.setProperty('--font-sans', styles[mode]['font-sans'])
+  root.style.setProperty('--font-serif', styles[mode]['font-serif'])
+  root.style.setProperty('--font-mono', styles[mode]['font-mono'])
+  root.style.fontFamily = styles[mode]['font-sans']
 }
 
 export function clearRuntimeThemeStyles() {
   const root = document.documentElement
-
   THEME_STYLE_KEYS.forEach((key) => {
     root.style.removeProperty(`--${key}`)
   })
+  applyPersonalFontPreference()
 }
 
 export function getCurrentThemeMode(): ThemeMode {
@@ -152,10 +142,8 @@ export function hasPersonalThemeColor() {
 }
 
 export async function fetchRuntimeTheme() {
-  if (!IS_RUNTIME_THEME_ENABLED) return null
-
   const response = await fetch(
-    `${import.meta.env.VITE_API_URL}/themes/runtime/current`,
+    `${import.meta.env.VITE_API_URL}/white-labels/active?target=admin`,
     {
       credentials: 'include',
     }

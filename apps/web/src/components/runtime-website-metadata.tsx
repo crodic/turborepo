@@ -6,8 +6,10 @@ import {
   getCachedWebsiteSettings,
   WEBSITE_SETTINGS_QUERY_KEY,
 } from '@/pages/settings/queries'
+import { useDataActiveWhiteLabel } from '@/pages/white-labels/queries'
 
 export function RuntimeWebsiteMetadata() {
+  const { data: whiteLabel } = useDataActiveWhiteLabel('admin')
   const { data: websiteSettings } = useQuery({
     queryKey: WEBSITE_SETTINGS_QUERY_KEY,
     queryFn: apiGetWebsiteSettings,
@@ -16,8 +18,25 @@ export function RuntimeWebsiteMetadata() {
   })
 
   useEffect(() => {
+    if (whiteLabel) {
+      applyWebsiteMetadata({
+        site_brand: whiteLabel.brandName ?? undefined,
+        site_title: whiteLabel.siteTitle ?? undefined,
+        site_tagline: whiteLabel.siteTagline ?? undefined,
+        meta_title: whiteLabel.metaTitle ?? undefined,
+        meta_description: whiteLabel.metaDescription ?? undefined,
+        canonical_url: whiteLabel.canonicalUrl ?? undefined,
+        site_logo: whiteLabel.siteLogo ?? undefined,
+        site_dark_logo: whiteLabel.siteDarkLogo ?? undefined,
+        site_favicon: whiteLabel.siteFavicon ?? undefined,
+        og_image: whiteLabel.ogImage ?? undefined,
+        twitter_image: whiteLabel.twitterImage ?? undefined,
+      })
+      return
+    }
+
     applyWebsiteMetadata(websiteSettings)
-  }, [websiteSettings])
+  }, [whiteLabel, websiteSettings])
 
   return null
 }

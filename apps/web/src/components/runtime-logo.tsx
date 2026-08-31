@@ -7,6 +7,7 @@ import {
   getCachedWebsiteSettings,
   WEBSITE_SETTINGS_QUERY_KEY,
 } from '@/pages/settings/queries'
+import { useDataActiveWhiteLabel } from '@/pages/white-labels/queries'
 
 type RuntimeLogoProps = {
   className?: string
@@ -18,6 +19,7 @@ export function RuntimeLogo({
   placeholderClassName,
 }: RuntimeLogoProps) {
   const { resolvedTheme } = useTheme()
+  const { data: whiteLabel } = useDataActiveWhiteLabel('admin')
   const { data: websiteSettings, isFetched } = useQuery({
     queryKey: WEBSITE_SETTINGS_QUERY_KEY,
     queryFn: apiGetWebsiteSettings,
@@ -25,13 +27,20 @@ export function RuntimeLogo({
     staleTime: 5 * 60 * 1000,
   })
 
-  const configuredLogoSrc =
+  const whiteLabelLogo =
+    resolvedTheme === 'dark'
+      ? whiteLabel?.siteDarkLogo || whiteLabel?.siteLogo
+      : whiteLabel?.siteLogo
+
+  const websiteSettingsLogo =
     resolvedTheme === 'dark'
       ? websiteSettings?.site_dark_logo || websiteSettings?.site_logo
       : websiteSettings?.site_logo
-  const hasWebsiteSettings = Boolean(websiteSettings)
+
+  const configuredLogoSrc = whiteLabelLogo || websiteSettingsLogo
+  const hasConfiguredBrand = Boolean(whiteLabel || websiteSettings)
   const logoSrc =
-    configuredLogoSrc || (hasWebsiteSettings || isFetched ? Logo : null)
+    configuredLogoSrc || (hasConfiguredBrand || isFetched ? Logo : null)
 
   if (!logoSrc) {
     return <div className={placeholderClassName} aria-hidden='true' />
@@ -41,7 +50,7 @@ export function RuntimeLogo({
     <img
       className={cn('h-auto w-auto object-contain', className)}
       src={logoSrc}
-      alt={websiteSettings?.site_brand || 'Logo'}
+      alt={whiteLabel?.brandName || websiteSettings?.site_brand || 'Logo'}
     />
   )
 }

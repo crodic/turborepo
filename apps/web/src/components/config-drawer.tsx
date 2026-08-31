@@ -1,5 +1,5 @@
 import { type SVGProps } from 'react'
-import { Check, CircleCheck, RotateCcw, Settings } from 'lucide-react'
+import { Check, CircleCheck, RotateCcw, Settings, Sparkles } from 'lucide-react'
 import { RadioGroup } from 'radix-ui'
 import { IconDir } from '@/assets/custom/icon-dir'
 import { IconLayoutCompact } from '@/assets/custom/icon-layout-compact'
@@ -11,7 +11,6 @@ import { IconSidebarSidebar } from '@/assets/custom/icon-sidebar-sidebar'
 import { IconThemeDark } from '@/assets/custom/icon-theme-dark'
 import { IconThemeLight } from '@/assets/custom/icon-theme-light'
 import { IconThemeSystem } from '@/assets/custom/icon-theme-system'
-import { IS_RUNTIME_THEME_ENABLED } from '@/lib/feature-flags'
 import { themeColors } from '@/lib/theme-colors'
 import { cn } from '@/lib/utils'
 import { useDirection } from '@/context/direction-provider'
@@ -27,6 +26,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { Switch } from '@/components/ui/switch'
 import { useSidebar } from './ui/sidebar'
 
 const Radio = RadioGroup.Root
@@ -35,7 +35,7 @@ const Item = RadioGroup.Item
 export function ConfigDrawer() {
   const { setOpen } = useSidebar()
   const { resetDir } = useDirection()
-  const { resetTheme } = useTheme()
+  const { resetTheme, isWhiteLabelEnabled } = useTheme()
   const { resetLayout } = useLayout()
 
   const handleReset = () => {
@@ -67,7 +67,8 @@ export function ConfigDrawer() {
         </SheetHeader>
         <div className='space-y-6 overflow-y-auto px-4'>
           <ThemeConfig />
-          <ThemeColorConfig />
+          <WhiteLabelConfig />
+          {!isWhiteLabelEnabled && <ThemeColorConfig />}
           <SidebarConfig />
           <LayoutConfig />
           <DirConfig />
@@ -359,6 +360,34 @@ function DirConfig() {
   )
 }
 
+function WhiteLabelConfig() {
+  const { isWhiteLabelEnabled, setWhiteLabelEnabled } = useTheme()
+
+  return (
+    <div>
+      <SectionTitle title='White Label' />
+      <div className='bg-muted/30 flex items-center justify-between rounded-lg border p-3'>
+        <div className='space-y-0.5'>
+          <div className='flex items-center gap-1.5 text-xs font-semibold'>
+            <Sparkles className='text-primary size-3.5' />
+            <span>Enable White Label Theme</span>
+          </div>
+          <p className='text-muted-foreground text-[11px]'>
+            {isWhiteLabelEnabled
+              ? 'Using active White Label brand colors.'
+              : 'Using standard built-in color palette.'}
+          </p>
+        </div>
+        <Switch
+          checked={isWhiteLabelEnabled}
+          onCheckedChange={setWhiteLabelEnabled}
+          aria-label='Toggle White Label Theme'
+        />
+      </div>
+    </div>
+  )
+}
+
 function ThemeColorConfig() {
   const { setColorKey, colorKey, hasPersonalColor, clearPersonalColor } =
     useTheme()
@@ -367,7 +396,7 @@ function ThemeColorConfig() {
     <div>
       <SectionTitle
         title='Color'
-        showReset={IS_RUNTIME_THEME_ENABLED && hasPersonalColor}
+        showReset={hasPersonalColor}
         onReset={clearPersonalColor}
       />
       <div className='flex flex-wrap gap-2'>

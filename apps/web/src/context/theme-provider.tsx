@@ -6,7 +6,6 @@ import {
   fetchRuntimeTheme,
   getCachedRuntimeTheme,
   hasPersonalThemeColor,
-  IS_RUNTIME_THEME_ENABLED,
   PERSONAL_THEME_COLOR_STORAGE_KEY,
   setCachedRuntimeTheme,
   clearRuntimeThemeStyles,
@@ -22,6 +21,8 @@ const DEFAULT_COLOR = Object.keys(themeColors)[0] as ColorKey
 const THEME_COOKIE_NAME = 'vite-ui-theme'
 const THEME_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
 
+const WHITE_LABEL_ENABLED_STORAGE_KEY = 'vite-ui-white-label-enabled'
+
 type ThemeProviderProps = {
   children: React.ReactNode
   defaultTheme?: Theme
@@ -35,9 +36,11 @@ type ThemeProviderState = {
   defaultTheme: Theme
   colorKey: ColorKey
   hasPersonalColor: boolean
+  isWhiteLabelEnabled: boolean
   setTheme: (theme: Theme) => void
   setColorKey: (color: ColorKey) => void
   clearPersonalColor: () => void
+  setWhiteLabelEnabled: (enabled: boolean) => void
   resetTheme: () => void
 }
 
@@ -58,8 +61,15 @@ export function ThemeProvider({
       ? (storedColor as ColorKey)
       : defaultColor
   })
-  const [hasPersonalColor, setHasPersonalColor] = useState(
-    () => !IS_RUNTIME_THEME_ENABLED || hasPersonalThemeColor()
+  const [hasPersonalColor, setHasPersonalColor] = useState(() =>
+    hasPersonalThemeColor()
+  )
+  const [isWhiteLabelEnabled, _setIsWhiteLabelEnabled] = useState<boolean>(
+    () => {
+      const stored = localStorage.getItem(WHITE_LABEL_ENABLED_STORAGE_KEY)
+      if (stored !== null) return stored === 'true'
+      return !hasPersonalThemeColor()
+    }
   )
 
   // ✅ Resolve dark/light from system or user
@@ -88,26 +98,21 @@ export function ThemeProvider({
     root.classList.remove('light', 'dark')
     root.classList.add(resolvedTheme)
 
-    const cachedRuntimeTheme = IS_RUNTIME_THEME_ENABLED
+    const cachedRuntimeTheme = isWhiteLabelEnabled
       ? getCachedRuntimeTheme()
       : null
-    const shouldUsePersonalTheme = !IS_RUNTIME_THEME_ENABLED || hasPersonalColor
 
-    if (
-      IS_RUNTIME_THEME_ENABLED &&
-      cachedRuntimeTheme?.styles &&
-      !shouldUsePersonalTheme
-    ) {
+    if (isWhiteLabelEnabled && cachedRuntimeTheme?.styles) {
       applyRuntimeThemeStyles(cachedRuntimeTheme.styles, resolvedTheme)
     } else {
       applyStaticTheme(resolvedTheme)
     }
 
-    if (IS_RUNTIME_THEME_ENABLED) {
+    if (isWhiteLabelEnabled) {
       fetchRuntimeTheme()
         .then((runtimeTheme) => {
           setCachedRuntimeTheme(runtimeTheme)
-          if (runtimeTheme?.styles && !shouldUsePersonalTheme) {
+          if (runtimeTheme?.styles) {
             applyRuntimeThemeStyles(runtimeTheme.styles, resolvedTheme)
           } else {
             clearRuntimeThemeStyles()
@@ -117,7 +122,7 @@ export function ThemeProvider({
         .catch(() => undefined)
     } else {
       clearRuntimeThemeStyles()
-      setCachedRuntimeTheme(null)
+      applyStaticTheme(resolvedTheme)
     }
 
     const handleChange = () => {
@@ -125,14 +130,10 @@ export function ThemeProvider({
         const systemTheme = mediaQuery.matches ? 'dark' : 'light'
         root.classList.remove('light', 'dark')
         root.classList.add(systemTheme)
-        const runtimeTheme = IS_RUNTIME_THEME_ENABLED
+        const runtimeTheme = isWhiteLabelEnabled
           ? getCachedRuntimeTheme()
           : null
-        if (
-          IS_RUNTIME_THEME_ENABLED &&
-          runtimeTheme?.styles &&
-          !shouldUsePersonalTheme
-        ) {
+        if (isWhiteLabelEnabled && runtimeTheme?.styles) {
           applyRuntimeThemeStyles(runtimeTheme.styles, systemTheme)
         } else {
           applyStaticTheme(systemTheme)
@@ -142,7 +143,7 @@ export function ThemeProvider({
 
     mediaQuery.addEventListener('change', handleChange)
     return () => mediaQuery.removeEventListener('change', handleChange)
-  }, [theme, colorKey, resolvedTheme, hasPersonalColor])
+  }, [theme, colorKey, resolvedTheme, isWhiteLabelEnabled])
 
   const setTheme = (t: Theme) => {
     setCookie(storageKey, t, THEME_COOKIE_MAX_AGE)
@@ -152,20 +153,26 @@ export function ThemeProvider({
   const setColorKey = (key: ColorKey) => {
     _setColorKey(key)
     localStorage.setItem(PERSONAL_THEME_COLOR_STORAGE_KEY, key)
+    localStorage.setItem(WHITE_LABEL_ENABLED_STORAGE_KEY, 'false')
+    _setIsWhiteLabelEnabled(false)
     setHasPersonalColor(true)
   }
 
   const clearPersonalColor = () => {
-    if (!IS_RUNTIME_THEME_ENABLED) {
-      localStorage.setItem(PERSONAL_THEME_COLOR_STORAGE_KEY, DEFAULT_COLOR)
-      _setColorKey(DEFAULT_COLOR)
-      setHasPersonalColor(true)
-      return
-    }
-
     localStorage.removeItem(PERSONAL_THEME_COLOR_STORAGE_KEY)
     _setColorKey(DEFAULT_COLOR)
     setHasPersonalColor(false)
+    localStorage.setItem(WHITE_LABEL_ENABLED_STORAGE_KEY, 'true')
+    _setIsWhiteLabelEnabled(true)
+  }
+
+  const setWhiteLabelEnabled = (enabled: boolean) => {
+    _setIsWhiteLabelEnabled(enabled)
+    localStorage.setItem(WHITE_LABEL_ENABLED_STORAGE_KEY, String(enabled))
+    if (enabled) {
+      localStorage.removeItem(PERSONAL_THEME_COLOR_STORAGE_KEY)
+      setHasPersonalColor(false)
+    }
   }
 
   const resetTheme = () => {
@@ -182,9 +189,11 @@ export function ThemeProvider({
         defaultTheme,
         colorKey,
         hasPersonalColor,
+        isWhiteLabelEnabled,
         setTheme,
         setColorKey,
         clearPersonalColor,
+        setWhiteLabelEnabled,
         resetTheme,
       }}
     >
