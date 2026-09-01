@@ -13,7 +13,6 @@ import { RoleEntity } from '@/api/role/entities/role.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { IEmailJob } from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';
-import { Branded } from '@/common/types/types';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
 import { EAccountProvider, ESessionUserType } from '@/constants/entity.enum';
@@ -34,16 +33,12 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
 import { assert } from 'console';
-import crypto from 'crypto';
-import ms, { StringValue } from 'ms';
-import path from 'path';
 import { In, IsNull, Repository } from 'typeorm';
 import { AdminUserLoginReqDto } from '../dto/admin-users/admin-user-login.req.dto';
 import { AdminUserLoginResDto } from '../dto/admin-users/admin-user-login.res.dto';
@@ -53,7 +48,6 @@ import { RefreshReqDto } from '../dto/refresh.req.dto';
 import { RefreshResDto } from '../dto/refresh.res.dto';
 import { RegisterResDto } from '../dto/register.res.dto';
 import { JwtPayloadType } from '../types/jwt-payload.type';
-import { JwtRefreshPayloadType } from '../types/jwt-refresh-payload.type';
 import { SessionRequestInfo } from '../types/session-request-info.type';
 import { AdminAccountRecoveryService } from './admin-account-recovery.service';
 import {
@@ -64,6 +58,7 @@ import {
   TwoFactorSetupPayload,
 } from './admin-two-factor.service';
 import { AuthSessionService } from './auth-session.service';
+import { AuthTokenService, TokenSigningConfig } from './auth-token.service';
 
 export { TWO_FACTOR_ISSUER, TWO_FACTOR_SETUP_TTL };
 export type {
@@ -71,15 +66,6 @@ export type {
   TwoFactorLoginPayload,
   TwoFactorSetupPayload,
 };
-
-type Token = Branded<
-  {
-    accessToken: string;
-    refreshToken: string;
-    tokenExpires: number;
-  },
-  'token'
->;
 
 @Injectable()
 export class AdminAuthService {
@@ -89,6 +75,7 @@ export class AdminAuthService {
     private readonly configService: ConfigService<AllConfigType>,
     private readonly jwtService: JwtService,
     private readonly filesystemService: FilesystemService,
+    private readonly authTokenService: AuthTokenService,
     @InjectRepository(AdminUserEntity)
     private readonly adminUserRepository: Repository<AdminUserEntity>,
     @InjectRepository(AdminAccountEntity)
@@ -106,6 +93,19 @@ export class AdminAuthService {
     private readonly adminTwoFactorService: AdminTwoFactorService,
     private readonly adminAccountRecoveryService: AdminAccountRecoveryService,
   ) {}
+
+  private getTokenConfig(): TokenSigningConfig {
+    return {
+      secret: this.configService.getOrThrow('auth.secret', { infer: true }),
+      expiresIn: this.configService.getOrThrow('auth.expires', { infer: true }),
+      refreshSecret: this.configService.getOrThrow('auth.refreshSecret', {
+        infer: true,
+      }),
+      refreshExpiresIn: this.configService.getOrThrow('auth.refreshExpires', {
+        infer: true,
+      }),
+    };
+  }
 
   async login(
     dto: AdminUserLoginReqDto,
@@ -176,12 +176,20 @@ export class AdminAuthService {
       });
     }
 
-    const session = await this.createAdminLoginSession(user, requestInfo);
-    const token = await this.createToken({
-      id: user.id,
-      sessionId: session.id,
-      hash: session.hash,
+    const session = await this.authSessionService.createLoginSession({
+      userId: user.id,
+      userType: ESessionUserType.ADMIN,
+      hash: this.authTokenService.generateSessionHash(),
+      requestInfo,
     });
+    const token = await this.authTokenService.createTokenPair(
+      {
+        id: user.id,
+        sessionId: session.id,
+        hash: session.hash,
+      },
+      this.getTokenConfig(),
+    );
 
     return plainToInstance(AdminUserLoginResDto, {
       userId: user.id,
@@ -232,7 +240,10 @@ export class AdminAuthService {
   }
 
   async refreshToken(dto: RefreshReqDto): Promise<RefreshResDto> {
-    const { sessionId, hash } = this.verifyRefreshToken(dto.refreshToken);
+    const { sessionId, hash } = this.authTokenService.verifyRefreshToken(
+      dto.refreshToken,
+      this.configService.getOrThrow('auth.refreshSecret', { infer: true }),
+    );
     const session = await this.sessionRepository.findOneBy({
       id: sessionId,
       userType: ESessionUserType.ADMIN,
@@ -248,10 +259,7 @@ export class AdminAuthService {
       select: ['id'],
     });
 
-    const newHash = crypto
-      .createHash('sha256')
-      .update(randomStringGenerator())
-      .digest('hex');
+    const newHash = this.authTokenService.generateSessionHash();
 
     await this.sessionRepository.update(
       {
@@ -263,11 +271,14 @@ export class AdminAuthService {
       { hash: newHash },
     );
 
-    return await this.createToken({
-      id: user.id,
-      sessionId: session.id,
-      hash: newHash,
-    });
+    return await this.authTokenService.createTokenPair(
+      {
+        id: user.id,
+        sessionId: session.id,
+        hash: newHash,
+      },
+      this.getTokenConfig(),
+    );
   }
 
   async me(id: AutoIncrementID): Promise<AdminUserResDto> {
@@ -298,27 +309,13 @@ export class AdminAuthService {
       throw new NotFoundException('User not found');
     }
 
-    if (dto.removeAvatar || file) {
-      if (user.avatar) {
-        const relativePath = user.avatar
-          .replace(/^.*\/storage\/public\//, '')
-          .replace(/^.*\/storage\//, '')
-          .replace(/^storage\/public\//, '')
-          .replace(/^storage\//, '')
-          .replace(/^\/+/, '');
-        await this.filesystemService.disk('public').delete(relativePath);
-      }
-      user.avatar = null;
-    }
+    let avatarPath: string | undefined;
 
-    let avatarPath: string | undefined = undefined;
     if (file) {
-      const ext = path.extname(file.originalname) || '.png';
-      const filename = `avatars/${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
-      await this.filesystemService.disk('public').put(filename, file.buffer, {
-        mimeType: file.mimetype,
-        visibility: 'public',
-      });
+      const filename = `avatars/admin-${id}-${Date.now()}${file.originalname.substring(file.originalname.lastIndexOf('.'))}`;
+      await this.filesystemService
+        .disk('public')
+        .put(filename, file.buffer, { mimeType: file.mimetype });
       avatarPath = this.filesystemService.disk('public').url(filename);
     }
 
@@ -387,14 +384,10 @@ export class AdminAuthService {
   }
 
   async verifyAccessToken(token: string): Promise<JwtPayloadType> {
-    let payload: JwtPayloadType;
-    try {
-      payload = this.jwtService.verify(token, {
-        secret: this.configService.getOrThrow('auth.secret', { infer: true }),
-      });
-    } catch {
-      throw new UnauthorizedException();
-    }
+    const payload = this.authTokenService.verifyAccessToken(
+      token,
+      this.configService.getOrThrow('auth.secret', { infer: true }),
+    );
 
     // Force logout if the session is in the blacklist
     const isSessionBlacklisted = await this.cacheManager.get<boolean>(
@@ -424,30 +417,6 @@ export class AdminAuthService {
     return payload;
   }
 
-  async createAdminLoginSession(
-    user: AdminUserEntity,
-    requestInfo?: SessionRequestInfo,
-  ): Promise<SessionEntity> {
-    const hash = crypto
-      .createHash('sha256')
-      .update(randomStringGenerator())
-      .digest('hex');
-    const ipAddress = requestInfo?.ipAddress;
-    const userAgent = normalizeUserAgent(requestInfo?.userAgent);
-
-    const session = new SessionEntity({
-      hash,
-      userId: user.id as AutoIncrementID,
-      userType: ESessionUserType.ADMIN,
-      ipAddress,
-      userAgent,
-    });
-    const savedSession = await this.sessionRepository.save(session);
-    await this.authSessionService.clearSessionBlacklist(savedSession.id);
-
-    return savedSession;
-  }
-
   async notifyAdmin(
     adminId: AutoIncrementID | string,
     type: AdminNotificationType,
@@ -465,18 +434,6 @@ export class AdminAuthService {
       });
     } catch (error) {
       this.logger.warn(`Failed to create admin notification: ${error}`);
-    }
-  }
-
-  private verifyRefreshToken(token: string): JwtRefreshPayloadType {
-    try {
-      return this.jwtService.verify(token, {
-        secret: this.configService.getOrThrow('auth.refreshSecret', {
-          infer: true,
-        }),
-      });
-    } catch {
-      throw new UnauthorizedException();
     }
   }
 
@@ -543,64 +500,24 @@ export class AdminAuthService {
 
     await this.adminUserRepository.restore(user.id);
 
-    const session = await this.createAdminLoginSession(user, requestInfo);
-    const token = await this.createToken({
-      id: user.id,
-      sessionId: session.id,
-      hash: session.hash,
+    const session = await this.authSessionService.createLoginSession({
+      userId: user.id,
+      userType: ESessionUserType.ADMIN,
+      hash: this.authTokenService.generateSessionHash(),
+      requestInfo,
     });
+    const token = await this.authTokenService.createTokenPair(
+      {
+        id: user.id,
+        sessionId: session.id,
+        hash: session.hash,
+      },
+      this.getTokenConfig(),
+    );
 
     return plainToInstance(AdminUserLoginResDto, {
       userId: user.id,
       ...token,
     });
   }
-
-  async createToken(data: {
-    id: string;
-    sessionId: string;
-    hash: string;
-  }): Promise<Token> {
-    const tokenExpiresIn = this.configService.getOrThrow('auth.expires', {
-      infer: true,
-    });
-    const tokenExpires = Date.now() + ms(tokenExpiresIn as StringValue);
-
-    const [accessToken, refreshToken] = await Promise.all([
-      await this.jwtService.signAsync(
-        {
-          id: data.id,
-          sessionId: data.sessionId,
-          hash: data.hash,
-        },
-        {
-          secret: this.configService.getOrThrow('auth.secret', { infer: true }),
-          expiresIn: tokenExpiresIn as StringValue,
-        },
-      ),
-      await this.jwtService.signAsync(
-        {
-          sessionId: data.sessionId,
-          hash: data.hash,
-        },
-        {
-          secret: this.configService.getOrThrow('auth.refreshSecret', {
-            infer: true,
-          }),
-          expiresIn: this.configService.getOrThrow('auth.refreshExpires', {
-            infer: true,
-          }),
-        },
-      ),
-    ]);
-    return {
-      accessToken,
-      refreshToken,
-      tokenExpires,
-    } as Token;
-  }
-}
-
-function normalizeUserAgent(userAgent?: string | string[]) {
-  return Array.isArray(userAgent) ? userAgent.join(', ') : userAgent;
 }

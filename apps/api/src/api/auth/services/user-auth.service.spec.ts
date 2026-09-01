@@ -15,6 +15,8 @@ import { Repository } from 'typeorm';
 import { SessionEntity } from '../entities/session.entity';
 import { UserAccountEntity } from '../entities/user-account.entity';
 import { AuthSessionService } from './auth-session.service';
+import { AuthTokenService } from './auth-token.service';
+import { SocialAuthService } from './social-auth.service';
 import { UserAccountRecoveryService } from './user-account-recovery.service';
 import { UserAuthService } from './user-auth.service';
 
@@ -37,10 +39,7 @@ describe('UserAuthService', () => {
   let jwtService: { signAsync: jest.Mock; verify: jest.Mock };
   let cacheManager: { get: jest.Mock; set: jest.Mock; del: jest.Mock };
   let emailQueue: { add: jest.Mock };
-  let authSessionService: {
-    blacklistSession: jest.Mock;
-    clearSessionBlacklist: jest.Mock;
-  };
+  let authSessionService: Partial<Record<keyof AuthSessionService, jest.Mock>>;
   let userAccountRecoveryService: Partial<
     Record<keyof UserAccountRecoveryService, jest.Mock>
   >;
@@ -96,6 +95,13 @@ describe('UserAuthService', () => {
     authSessionService = {
       blacklistSession: jest.fn(),
       clearSessionBlacklist: jest.fn(),
+      createLoginSession: jest.fn(async (params) => ({
+        id: 'session-id',
+        userId: params.userId,
+        userType: params.userType,
+        hash: params.hash,
+        createdAt: new Date(),
+      })),
     };
     userAccountRecoveryService = {
       sendVerificationEmail: jest.fn(),
@@ -104,6 +110,8 @@ describe('UserAuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserAuthService,
+        AuthTokenService,
+        SocialAuthService,
         {
           provide: ConfigService,
           useValue: {

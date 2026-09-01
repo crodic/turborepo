@@ -1,10 +1,21 @@
+import { useEffect } from 'react'
 import { useLocation, Navigate, Outlet } from 'react-router'
+import { useAuthStore } from '@/stores/auth-store'
 import Loader from '@/components/loader'
 import { useGetSetupStatusQuery } from '@/pages/setup/queries'
 
 export function SetupGuard() {
   const location = useLocation()
   const { data, isLoading, error } = useGetSetupStatusQuery()
+  const { isAuthenticated, logout } = useAuthStore()
+
+  const initialized = data?.initialized ?? true
+
+  useEffect(() => {
+    if (!initialized && isAuthenticated) {
+      logout()
+    }
+  }, [initialized, isAuthenticated, logout])
 
   if (isLoading) {
     return <Loader />
@@ -22,7 +33,6 @@ export function SetupGuard() {
     )
   }
 
-  const initialized = data?.initialized ?? true
   const isSetupRoute = location.pathname === '/setup'
 
   if (!initialized && !isSetupRoute) {
