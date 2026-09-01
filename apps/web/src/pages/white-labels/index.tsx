@@ -101,7 +101,7 @@ export function PageWhiteLabelOverview() {
 
         <DataTable
           table={table}
-          onClickRowAction={(row) => navigate(`/white-labels/${row.id}`)}
+          onClickRowAction={(row) => navigate(`/white-labels/${row.id}/show`)}
           isFetching={isFetching}
         >
           <DataTableToolbar table={table}>

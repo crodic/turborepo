@@ -1,8 +1,8 @@
 import { ApiAuth } from '@/decorators/http.decorators';
+import { FilesystemService } from '@/filesystem/filesystem.service';
 import { AdminAuthGuard } from '@/guards/admin-auth.guard';
 import { SettingKeyValidationPipe } from '@/pipes/setting-key-validation.pipe';
 import { getPackageVersion } from '@/utils/app-version.util';
-import { deleteFile } from '@/utils/filesystem';
 import {
   BadRequestException,
   Body,
@@ -18,7 +18,6 @@ import {
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { plainToInstance } from 'class-transformer';
-import { join } from 'path';
 import {
   WEBSITE_MAX_FILE_SIZE,
   websiteUploadOptions,
@@ -34,7 +33,12 @@ import { ValidSettingKey } from './validations/valid-setting-key.validate';
   version: '1',
 })
 export class SettingsController {
-  constructor(private readonly settingsService: SettingsService) {}
+  private readonly uploadFolder = 'website';
+
+  constructor(
+    private readonly settingsService: SettingsService,
+    private readonly storage: FilesystemService,
+  ) {}
 
   @Get(':key')
   async getSettingByKey(
@@ -239,10 +243,9 @@ export class SettingsController {
       return undefined;
     }
 
-    return join('storage', 'public', 'website', file.filename).replaceAll(
-      '\\',
-      '/',
-    );
+    return this.storage
+      .disk('public')
+      .url(`${this.uploadFolder}/${file.filename}`);
   }
 
   private async cleanupUnusedWebsiteAssets(
@@ -281,31 +284,23 @@ export class SettingsController {
       return;
     }
 
-    const relativePath = this.getWebsiteAssetRelativePath(currentValue);
-
-    if (!relativePath) {
-      return;
+    let relativePath: string | null = null;
+    const folderPrefix = `${this.uploadFolder}/`;
+    if (currentValue.includes(folderPrefix)) {
+      const parts = currentValue.split(folderPrefix);
+      const filename = parts[parts.length - 1]?.split('?')[0]?.split('#')[0];
+      if (filename) {
+        relativePath = `${this.uploadFolder}/${filename}`;
+      }
     }
 
-    await deleteFile(relativePath);
-  }
-
-  private getWebsiteAssetRelativePath(value: string): string | undefined {
-    if (value.startsWith('http')) {
-      return undefined;
+    if (relativePath) {
+      try {
+        await this.storage.disk('public').delete(relativePath);
+      } catch {
+        // Ignore deletion errors gracefully
+      }
     }
-
-    const normalizedValue = value.startsWith('/') ? value.slice(1) : value;
-
-    if (normalizedValue.startsWith('storage/public/website/')) {
-      return normalizedValue;
-    }
-
-    if (normalizedValue.startsWith('uploads/website/')) {
-      return join('public', normalizedValue);
-    }
-
-    return undefined;
   }
 
   private resolveWebsiteAsset(

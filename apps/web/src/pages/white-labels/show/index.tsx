@@ -126,7 +126,12 @@ export default function PageWhiteLabelShow() {
         })
       }
 
-      toast.success(`"${updated.name}" is now active for ${updated.target}`)
+      toast.success(
+        t('whiteLabels.show.activatedProfile', {
+          target: updated.target,
+          defaultValue: `"${updated.name}" is now active for ${updated.target}`,
+        })
+      )
     },
   })
 
@@ -134,14 +139,14 @@ export default function PageWhiteLabelShow() {
     mutationFn: apiDeleteWhiteLabel,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: whiteLabelQueryKeys.all })
-      toast.success('White-label profile deleted')
+      toast.success(t('whiteLabels.message.deleted'))
       navigate('/white-labels')
     },
   })
 
   const handleDelete = () => {
     if (!item) return
-    if (!window.confirm(`Delete profile "${item.name}"?`)) return
+    if (!window.confirm(t('whiteLabels.show.deleteConfirm'))) return
     deleteMutation.mutate(item.id)
   }
 
@@ -151,7 +156,7 @@ export default function PageWhiteLabelShow() {
   const copyCss = async () => {
     if (!cssText) return
     await navigator.clipboard.writeText(cssText)
-    toast.success('Theme CSS copied to clipboard')
+    toast.success(t('whiteLabels.message.copied'))
   }
 
   const exportJson = () => {
@@ -170,13 +175,15 @@ export default function PageWhiteLabelShow() {
   if (!item) {
     return (
       <Main className='flex flex-1 flex-col items-center justify-center'>
-        <p className='text-muted-foreground'>White-label profile not found.</p>
+        <p className='text-muted-foreground'>
+          {t('whiteLabels.show.notFound')}
+        </p>
         <Button
           variant='outline'
           className='mt-4'
           onClick={() => navigate('/white-labels')}
         >
-          Back to list
+          {t('whiteLabels.show.back')}
         </Button>
       </Main>
     )
@@ -201,6 +208,7 @@ export default function PageWhiteLabelShow() {
               variant='ghost'
               size='icon'
               onClick={() => navigate('/white-labels')}
+              title={t('whiteLabels.show.back')}
             >
               <ArrowLeft className='size-5' />
             </Button>
@@ -218,11 +226,11 @@ export default function PageWhiteLabelShow() {
                 {item.isActive ? (
                   <Badge className='gap-1 bg-emerald-600 text-white'>
                     <Sparkles className='size-3' />
-                    Active
+                    {t('whiteLabels.show.activeBadge')}
                   </Badge>
                 ) : (
                   <Badge variant='outline' className='text-muted-foreground'>
-                    Preset
+                    {t('whiteLabels.show.presetBadge')}
                   </Badge>
                 )}
               </div>
@@ -242,7 +250,7 @@ export default function PageWhiteLabelShow() {
                   className='gap-1.5'
                 >
                   <Code2Icon className='size-4' />
-                  <span>CSS</span>
+                  <span>{t('whiteLabels.show.downloadCss')}</span>
                 </Button>
                 <Button
                   variant='outline'
@@ -251,7 +259,7 @@ export default function PageWhiteLabelShow() {
                   className='gap-1.5'
                 >
                   <DownloadIcon className='size-4' />
-                  <span>JSON</span>
+                  <span>{t('whiteLabels.show.exportJson')}</span>
                 </Button>
               </>
             )}
@@ -265,7 +273,7 @@ export default function PageWhiteLabelShow() {
                 className='gap-1.5'
               >
                 <Sparkles className='size-4' />
-                Activate for {item.target}
+                {t('whiteLabels.show.activateTarget', { target: item.target })}
               </Button>
             )}
 
@@ -277,7 +285,7 @@ export default function PageWhiteLabelShow() {
                 className='gap-1.5'
               >
                 <Edit2 className='size-4' />
-                Edit
+                {t('whiteLabels.actions.edit')}
               </Button>
             )}
 
@@ -290,7 +298,7 @@ export default function PageWhiteLabelShow() {
                 className='gap-1.5'
               >
                 <Trash2 className='size-4' />
-                Delete
+                {t('whiteLabels.actions.delete')}
               </Button>
             )}
           </div>
@@ -332,24 +340,28 @@ export default function PageWhiteLabelShow() {
               <Card>
                 <CardHeader>
                   <CardTitle className='text-base font-semibold'>
-                    Profile Details
+                    {t('whiteLabels.show.profileDetails')}
                   </CardTitle>
                   <CardDescription>
-                    Profile scope, identifier, and target environment.
+                    {t('whiteLabels.show.profileDetailsDesc')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-3 text-sm'>
                   <div className='flex justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>Profile Name:</span>
+                    <span className='text-muted-foreground'>
+                      {t('whiteLabels.form.name')}:
+                    </span>
                     <span className='font-medium'>{item.name}</span>
                   </div>
                   <div className='flex justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>Slug:</span>
+                    <span className='text-muted-foreground'>
+                      {t('whiteLabels.form.slug')}:
+                    </span>
                     <span className='font-mono text-xs'>{item.slug}</span>
                   </div>
                   <div className='flex justify-between border-b pb-2'>
                     <span className='text-muted-foreground'>
-                      Target Platform:
+                      {t('whiteLabels.show.targetPlatform')}
                     </span>
                     <Badge
                       variant={
@@ -361,15 +373,21 @@ export default function PageWhiteLabelShow() {
                     </Badge>
                   </div>
                   <div className='flex justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>Status:</span>
+                    <span className='text-muted-foreground'>
+                      {t('whiteLabels.show.status')}
+                    </span>
                     <span className='font-medium'>
-                      {item.isActive ? 'Active (Live)' : 'Preset (Inactive)'}
+                      {item.isActive
+                        ? t('whiteLabels.show.activeLive')
+                        : t('whiteLabels.show.presetInactive')}
                     </span>
                   </div>
                   <div className='flex flex-col gap-1'>
-                    <span className='text-muted-foreground'>Description:</span>
+                    <span className='text-muted-foreground'>
+                      {t('whiteLabels.show.description')}
+                    </span>
                     <p className='text-muted-foreground text-xs'>
-                      {item.description || 'No description provided.'}
+                      {item.description || t('whiteLabels.show.noDescription')}
                     </p>
                   </div>
                 </CardContent>
@@ -378,36 +396,44 @@ export default function PageWhiteLabelShow() {
               <Card>
                 <CardHeader>
                   <CardTitle className='text-base font-semibold'>
-                    Brand Identity
+                    {t('whiteLabels.show.brandIdentity')}
                   </CardTitle>
                   <CardDescription>
-                    Customer-facing naming, tagline, and corporate copyright.
+                    {t('whiteLabels.show.brandIdentityDesc')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-3 text-sm'>
                   <div className='flex justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>Brand Name:</span>
+                    <span className='text-muted-foreground'>
+                      {t('whiteLabels.form.brandName')}:
+                    </span>
                     <span className='font-medium'>{item.brandName || '—'}</span>
                   </div>
                   <div className='flex justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>Site Title:</span>
+                    <span className='text-muted-foreground'>
+                      {t('whiteLabels.form.siteTitle')}:
+                    </span>
                     <span className='font-medium'>{item.siteTitle || '—'}</span>
                   </div>
                   <div className='flex justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>Tagline:</span>
+                    <span className='text-muted-foreground'>
+                      {t('whiteLabels.form.tagline')}:
+                    </span>
                     <span className='font-medium'>
                       {item.siteTagline || '—'}
                     </span>
                   </div>
                   <div className='flex justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>Copyright:</span>
+                    <span className='text-muted-foreground'>
+                      {t('whiteLabels.show.copyright')}
+                    </span>
                     <span className='font-medium'>
                       {item.copyrightText || '—'}
                     </span>
                   </div>
                   <div className='flex justify-between'>
                     <span className='text-muted-foreground'>
-                      Canonical URL:
+                      {t('whiteLabels.show.canonicalUrl')}
                     </span>
                     <span className='font-medium'>
                       {item.canonicalUrl ? (
@@ -431,29 +457,28 @@ export default function PageWhiteLabelShow() {
               <Card>
                 <CardHeader>
                   <CardTitle className='text-base font-semibold'>
-                    Uploaded Media Assets
+                    {t('whiteLabels.show.uploadedMediaAssets')}
                   </CardTitle>
                   <CardDescription>
-                    Brand logos and favicon icons rendered across light/dark
-                    modes.
+                    {t('whiteLabels.show.uploadedMediaAssetsDesc')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className='grid gap-4 sm:grid-cols-3'>
                   <div className='space-y-1.5'>
                     <p className='text-muted-foreground text-xs font-medium'>
-                      Light Logo
+                      {t('whiteLabels.form.lightLogo')}
                     </p>
                     <div className='bg-muted/30 flex aspect-video items-center justify-center rounded-md border p-2'>
                       {item.siteLogo ? (
                         <img
                           src={item.siteLogo}
-                          alt='Light logo'
+                          alt={t('whiteLabels.form.lightLogo')}
                           className='max-h-full max-w-full object-contain'
                         />
                       ) : (
                         <div className='text-muted-foreground flex flex-col items-center gap-1 text-xs'>
                           <ImageIcon className='size-4' />
-                          <span>None</span>
+                          <span>{t('whiteLabels.form.none')}</span>
                         </div>
                       )}
                     </div>
@@ -461,19 +486,19 @@ export default function PageWhiteLabelShow() {
 
                   <div className='space-y-1.5'>
                     <p className='text-muted-foreground text-xs font-medium'>
-                      Dark Logo
+                      {t('whiteLabels.form.darkLogo')}
                     </p>
                     <div className='bg-muted/30 flex aspect-video items-center justify-center rounded-md border p-2'>
                       {item.siteDarkLogo ? (
                         <img
                           src={item.siteDarkLogo}
-                          alt='Dark logo'
+                          alt={t('whiteLabels.form.darkLogo')}
                           className='max-h-full max-w-full object-contain'
                         />
                       ) : (
                         <div className='text-muted-foreground flex flex-col items-center gap-1 text-xs'>
                           <ImageIcon className='size-4' />
-                          <span>None</span>
+                          <span>{t('whiteLabels.form.none')}</span>
                         </div>
                       )}
                     </div>
@@ -481,19 +506,19 @@ export default function PageWhiteLabelShow() {
 
                   <div className='space-y-1.5'>
                     <p className='text-muted-foreground text-xs font-medium'>
-                      Favicon Icon
+                      {t('whiteLabels.form.favicon')}
                     </p>
                     <div className='bg-muted/30 flex aspect-video items-center justify-center rounded-md border p-2'>
                       {item.siteFavicon ? (
                         <img
                           src={item.siteFavicon}
-                          alt='Favicon'
+                          alt={t('whiteLabels.form.favicon')}
                           className='size-8 object-contain'
                         />
                       ) : (
                         <div className='text-muted-foreground flex flex-col items-center gap-1 text-xs'>
                           <Globe className='size-4' />
-                          <span>None</span>
+                          <span>{t('whiteLabels.form.none')}</span>
                         </div>
                       )}
                     </div>
@@ -515,7 +540,7 @@ export default function PageWhiteLabelShow() {
                     className='gap-1.5'
                   >
                     <Sun className='size-4' />
-                    Light Tokens
+                    {t('whiteLabels.show.lightTokens')}
                   </Button>
                   <Button
                     variant={colorMode === 'dark' ? 'default' : 'outline'}
@@ -524,7 +549,7 @@ export default function PageWhiteLabelShow() {
                     className='gap-1.5'
                   >
                     <Moon className='size-4' />
-                    Dark Tokens
+                    {t('whiteLabels.show.darkTokens')}
                   </Button>
                 </div>
                 <div className='flex items-center gap-2'>
@@ -535,7 +560,7 @@ export default function PageWhiteLabelShow() {
                     className='gap-1.5 text-xs'
                   >
                     <Copy className='size-3.5' />
-                    Copy CSS
+                    {t('whiteLabels.actions.copyCss')}
                   </Button>
                 </div>
               </div>
@@ -579,13 +604,13 @@ export default function PageWhiteLabelShow() {
                   <Card>
                     <CardHeader className='py-3'>
                       <CardTitle className='text-sm font-semibold'>
-                        Typography & Spacing
+                        {t('whiteLabels.preview.typographySpacing')}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className='grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-3'>
                       <div className='flex justify-between border-b pb-2'>
                         <span className='text-muted-foreground'>
-                          Font Sans:
+                          {t('whiteLabels.preview.fontSans')}
                         </span>
                         <span className='font-mono font-medium'>
                           {styles[colorMode]?.['font-sans'] || '—'}
@@ -593,7 +618,7 @@ export default function PageWhiteLabelShow() {
                       </div>
                       <div className='flex justify-between border-b pb-2'>
                         <span className='text-muted-foreground'>
-                          Font Serif:
+                          {t('whiteLabels.preview.fontSerif')}
                         </span>
                         <span className='font-mono font-medium'>
                           {styles[colorMode]?.['font-serif'] || '—'}
@@ -601,27 +626,31 @@ export default function PageWhiteLabelShow() {
                       </div>
                       <div className='flex justify-between border-b pb-2'>
                         <span className='text-muted-foreground'>
-                          Font Mono:
+                          {t('whiteLabels.preview.fontMono')}
                         </span>
                         <span className='font-mono font-medium'>
                           {styles[colorMode]?.['font-mono'] || '—'}
                         </span>
                       </div>
                       <div className='flex justify-between border-b pb-2'>
-                        <span className='text-muted-foreground'>Radius:</span>
+                        <span className='text-muted-foreground'>
+                          {t('whiteLabels.preview.radius')}
+                        </span>
                         <span className='font-mono font-medium'>
                           {styles[colorMode]?.['radius'] || '—'}
                         </span>
                       </div>
                       <div className='flex justify-between border-b pb-2'>
-                        <span className='text-muted-foreground'>Spacing:</span>
+                        <span className='text-muted-foreground'>
+                          {t('whiteLabels.preview.spacing')}
+                        </span>
                         <span className='font-mono font-medium'>
                           {styles[colorMode]?.['spacing'] || '—'}
                         </span>
                       </div>
                       <div className='flex justify-between border-b pb-2'>
                         <span className='text-muted-foreground'>
-                          Shadow Blur:
+                          {t('whiteLabels.preview.shadowBlur')}
                         </span>
                         <span className='font-mono font-medium'>
                           {styles[colorMode]?.['shadow-blur'] || '—'}
@@ -641,11 +670,10 @@ export default function PageWhiteLabelShow() {
               <Card>
                 <CardHeader>
                   <CardTitle className='text-base font-semibold'>
-                    Google Search Preview
+                    {t('whiteLabels.preview.googleSearchPreview')}
                   </CardTitle>
                   <CardDescription>
-                    Simulation of how search engines will index and render your
-                    brand.
+                    {t('whiteLabels.preview.googleSearchDesc')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -654,7 +682,7 @@ export default function PageWhiteLabelShow() {
                       {item.siteFavicon ? (
                         <img
                           src={item.siteFavicon}
-                          alt='Favicon'
+                          alt={t('whiteLabels.form.favicon')}
                           className='size-4 rounded-full object-contain'
                         />
                       ) : (
@@ -683,11 +711,10 @@ export default function PageWhiteLabelShow() {
               <Card>
                 <CardHeader>
                   <CardTitle className='text-base font-semibold'>
-                    Social Share Card Preview
+                    {t('whiteLabels.preview.socialSharePreview')}
                   </CardTitle>
                   <CardDescription>
-                    OpenGraph / Twitter card previews for social feeds and
-                    messengers.
+                    {t('whiteLabels.preview.socialShareDesc')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-4'>
@@ -702,7 +729,7 @@ export default function PageWhiteLabelShow() {
                       ) : (
                         <div className='text-muted-foreground flex flex-col items-center gap-1 text-xs'>
                           <Share2 className='size-6' />
-                          <span>No OpenGraph image uploaded</span>
+                          <span>{t('whiteLabels.preview.noOgUploaded')}</span>
                         </div>
                       )}
                     </div>
@@ -725,31 +752,35 @@ export default function PageWhiteLabelShow() {
               <Card>
                 <CardHeader>
                   <CardTitle className='text-base font-semibold'>
-                    Metadata Configuration
+                    {t('whiteLabels.show.metadataConfig')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className='space-y-3 text-sm'>
                   <div className='flex justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>Meta Title:</span>
+                    <span className='text-muted-foreground'>
+                      {t('whiteLabels.form.metaTitle')}:
+                    </span>
                     <span className='font-medium'>{item.metaTitle || '—'}</span>
                   </div>
                   <div className='flex flex-col gap-1 border-b pb-2'>
                     <span className='text-muted-foreground'>
-                      Meta Description:
+                      {t('whiteLabels.form.metaDescription')}:
                     </span>
                     <span className='text-muted-foreground text-xs'>
                       {item.metaDescription || '—'}
                     </span>
                   </div>
                   <div className='flex justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>OG Image:</span>
+                    <span className='text-muted-foreground'>
+                      {t('whiteLabels.form.ogImage')}:
+                    </span>
                     <span className='max-w-62.5 truncate font-mono text-xs'>
                       {item.ogImage || '—'}
                     </span>
                   </div>
                   <div className='flex justify-between'>
                     <span className='text-muted-foreground'>
-                      Twitter Image:
+                      {t('whiteLabels.form.twitterImage')}:
                     </span>
                     <span className='max-w-62.5 truncate font-mono text-xs'>
                       {item.twitterImage || '—'}
@@ -781,10 +812,11 @@ export default function PageWhiteLabelShow() {
       <Dialog open={isCodeDialogOpen} onOpenChange={setIsCodeDialogOpen}>
         <DialogContent className='max-w-2xl'>
           <DialogHeader>
-            <DialogTitle>Generated Theme CSS</DialogTitle>
+            <DialogTitle>{t('whiteLabels.cssDialog.title')}</DialogTitle>
             <DialogDescription>
-              Standard OKLCH CSS variables for root and dark mode for profile "
-              {item.name}".
+              {t('whiteLabels.cssDialog.description', {
+                name: item.name,
+              })}
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className='bg-muted/40 h-80 rounded-md border p-4'>
@@ -795,10 +827,10 @@ export default function PageWhiteLabelShow() {
           <DialogFooter className='gap-2 sm:gap-0'>
             <Button variant='outline' size='sm' onClick={copyCss}>
               <Copy className='size-4' />
-              Copy CSS
+              {t('whiteLabels.actions.copyCss')}
             </Button>
             <DialogClose asChild>
-              <Button size='sm'>Close</Button>
+              <Button size='sm'>{t('whiteLabels.show.close')}</Button>
             </DialogClose>
           </DialogFooter>
         </DialogContent>

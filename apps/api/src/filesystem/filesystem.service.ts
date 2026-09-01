@@ -43,7 +43,7 @@ export class FilesystemService {
       this.configService.get('storage.localRoot', { infer: true }) ?? 'storage';
     const appUrl =
       this.configService.get('app.url', { infer: true }) ??
-      'http://localhost:3000';
+      'http://localhost:8000';
 
     switch (diskName) {
       case 'local':

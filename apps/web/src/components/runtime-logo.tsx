@@ -18,7 +18,7 @@ export function RuntimeLogo({
   className,
   placeholderClassName,
 }: RuntimeLogoProps) {
-  const { resolvedTheme } = useTheme()
+  const { resolvedTheme, isWhiteLabelEnabled } = useTheme()
   const { data: whiteLabel } = useDataActiveWhiteLabel('admin')
   const { data: websiteSettings, isFetched } = useQuery({
     queryKey: WEBSITE_SETTINGS_QUERY_KEY,
@@ -27,10 +27,11 @@ export function RuntimeLogo({
     staleTime: 5 * 60 * 1000,
   })
 
-  const whiteLabelLogo =
-    resolvedTheme === 'dark'
+  const whiteLabelLogo = isWhiteLabelEnabled
+    ? resolvedTheme === 'dark'
       ? whiteLabel?.siteDarkLogo || whiteLabel?.siteLogo
       : whiteLabel?.siteLogo
+    : null
 
   const websiteSettingsLogo =
     resolvedTheme === 'dark'
@@ -38,7 +39,9 @@ export function RuntimeLogo({
       : websiteSettings?.site_logo
 
   const configuredLogoSrc = whiteLabelLogo || websiteSettingsLogo
-  const hasConfiguredBrand = Boolean(whiteLabel || websiteSettings)
+  const hasConfiguredBrand = Boolean(
+    (isWhiteLabelEnabled && whiteLabel) || websiteSettings
+  )
   const logoSrc =
     configuredLogoSrc || (hasConfiguredBrand || isFetched ? Logo : null)
 
@@ -50,7 +53,11 @@ export function RuntimeLogo({
     <img
       className={cn('h-auto w-auto object-contain', className)}
       src={logoSrc}
-      alt={whiteLabel?.brandName || websiteSettings?.site_brand || 'Logo'}
+      alt={
+        (isWhiteLabelEnabled && whiteLabel?.brandName) ||
+        websiteSettings?.site_brand ||
+        'Logo'
+      }
     />
   )
 }

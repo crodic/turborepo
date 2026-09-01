@@ -3,10 +3,10 @@ import { LocalDriver } from './local.driver';
 
 export class PublicDriver extends LocalDriver {
   constructor(
-    root: string,
-    private readonly appUrl = 'http://localhost:3000',
+    private readonly localRoot: string,
+    private readonly appUrl = 'http://localhost:8000',
   ) {
-    super(root, 'public');
+    super(localRoot, 'public');
   }
 
   override url(filePath: string): string {
@@ -17,7 +17,8 @@ export class PublicDriver extends LocalDriver {
       .replace(/^\//, '');
 
     const baseUrl = this.appUrl.replace(/\/+$/, '');
-    return `${baseUrl}/storage/${normalized}`;
+    const cleanRoot = this.localRoot.replace(/^\/+|\/+$/g, '');
+    return `${baseUrl}/${cleanRoot}/${normalized}`;
   }
 
   override async temporaryUrl(

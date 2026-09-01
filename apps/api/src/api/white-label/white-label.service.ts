@@ -2,7 +2,7 @@ import { AutoIncrementID } from '@/common/types/common.type';
 import { EWhiteLabelTarget } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
-import { deleteFile } from '@/utils/filesystem';
+import { FilesystemService } from '@/filesystem/filesystem.service';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
@@ -12,7 +12,6 @@ import {
   Paginated,
   PaginateQuery,
 } from 'nestjs-paginate';
-import { join } from 'path';
 import slugify from 'slugify';
 import { DataSource, IsNull, Not, Repository } from 'typeorm';
 import { ActiveWhiteLabelResDto } from './dto/active-white-label.res.dto';
@@ -35,10 +34,13 @@ export type WhiteLabelUploadFiles = {
 
 @Injectable()
 export class WhiteLabelService {
+  private readonly uploadFolder = 'white-label';
+
   constructor(
     @InjectRepository(WhiteLabelEntity)
     private readonly whiteLabelRepository: Repository<WhiteLabelEntity>,
     private readonly dataSource: DataSource,
+    private readonly storage: FilesystemService,
   ) {}
 
   private toDto(whiteLabel: WhiteLabelEntity): WhiteLabelResDto {
@@ -90,10 +92,9 @@ export class WhiteLabelService {
       return undefined;
     }
 
-    return join('storage', 'public', 'white-label', file.filename).replaceAll(
-      '\\',
-      '/',
-    );
+    return this.storage
+      .disk('public')
+      .url(`${this.uploadFolder}/${file.filename}`);
   }
 
   private resolveAsset(
@@ -113,14 +114,22 @@ export class WhiteLabelService {
   ): Promise<void> {
     if (!currentValue || currentValue === nextValue) return;
 
-    if (currentValue.startsWith('http')) return;
+    let relativePath: string | null = null;
+    const folderPrefix = `${this.uploadFolder}/`;
+    if (currentValue.includes(folderPrefix)) {
+      const parts = currentValue.split(folderPrefix);
+      const filename = parts[parts.length - 1]?.split('?')[0]?.split('#')[0];
+      if (filename) {
+        relativePath = `${this.uploadFolder}/${filename}`;
+      }
+    }
 
-    const normalizedValue = currentValue.startsWith('/')
-      ? currentValue.slice(1)
-      : currentValue;
-
-    if (normalizedValue.startsWith('storage/public/white-label/')) {
-      await deleteFile(normalizedValue);
+    if (relativePath) {
+      try {
+        await this.storage.disk('public').delete(relativePath);
+      } catch {
+        // Ignore deletion errors gracefully
+      }
     }
   }
 

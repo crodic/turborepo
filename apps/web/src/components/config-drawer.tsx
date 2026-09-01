@@ -381,14 +381,14 @@ function WhiteLabelConfig() {
           </div>
           <p className='text-muted-foreground text-[11px]'>
             {isWhiteLabelEnabled
-              ? 'Using active White Label brand colors.'
-              : 'Using standard built-in color palette.'}
+              ? t('configDrawer.whiteLabelEnabledDesc')
+              : t('configDrawer.whiteLabelDisabledDesc')}
           </p>
         </div>
         <Switch
           checked={isWhiteLabelEnabled}
           onCheckedChange={setWhiteLabelEnabled}
-          aria-label='Toggle White Label Theme'
+          aria-label={t('configDrawer.enableWhiteLabel')}
         />
       </div>
     </div>

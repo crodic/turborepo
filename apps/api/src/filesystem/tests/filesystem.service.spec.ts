@@ -78,6 +78,6 @@ describe('FilesystemService', () => {
     expect(content.toString('utf-8')).toBe('hello facade');
 
     const url = service.url('facade.txt');
-    expect(url).toBe('http://localhost:3000/storage/facade.txt');
+    expect(url).toBe(`http://localhost:3000/${testRoot}/facade.txt`);
   });
 });

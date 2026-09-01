@@ -18,12 +18,12 @@ describe('PublicDriver', () => {
 
   it('should generate correct public URL', () => {
     const url = driver.url('avatars/user1.png');
-    expect(url).toBe('http://localhost:3000/storage/avatars/user1.png');
+    expect(url).toBe(`http://localhost:3000/${testRoot}/avatars/user1.png`);
   });
 
   it('should generate temporaryUrl identical to public url', async () => {
     const tempUrl = await driver.temporaryUrl('images/banner.jpg', 3600);
-    expect(tempUrl).toBe('http://localhost:3000/storage/images/banner.jpg');
+    expect(tempUrl).toBe(`http://localhost:3000/${testRoot}/images/banner.jpg`);
   });
 
   it('should put and retrieve public files', async () => {

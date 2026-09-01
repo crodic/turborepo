@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { applyWebsiteMetadata } from '@/lib/website-metadata'
+import { useTheme } from '@/context/theme-provider'
 import {
   apiGetWebsiteSettings,
   getCachedWebsiteSettings,
@@ -9,6 +10,7 @@ import {
 import { useDataActiveWhiteLabel } from '@/pages/white-labels/queries'
 
 export function RuntimeWebsiteMetadata() {
+  const { isWhiteLabelEnabled } = useTheme()
   const { data: whiteLabel } = useDataActiveWhiteLabel('admin')
   const { data: websiteSettings } = useQuery({
     queryKey: WEBSITE_SETTINGS_QUERY_KEY,
@@ -18,7 +20,7 @@ export function RuntimeWebsiteMetadata() {
   })
 
   useEffect(() => {
-    if (whiteLabel) {
+    if (isWhiteLabelEnabled && whiteLabel) {
       applyWebsiteMetadata({
         site_brand: whiteLabel.brandName ?? undefined,
         site_title: whiteLabel.siteTitle ?? undefined,
@@ -36,7 +38,7 @@ export function RuntimeWebsiteMetadata() {
     }
 
     applyWebsiteMetadata(websiteSettings)
-  }, [whiteLabel, websiteSettings])
+  }, [isWhiteLabelEnabled, whiteLabel, websiteSettings])
 
   return null
 }

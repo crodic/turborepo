@@ -26,7 +26,7 @@ import { FilesystemService } from './filesystem.service';
         return [
           {
             rootPath: publicStoragePath,
-            serveRoot: '/storage',
+            serveRoot: `/${localRoot}`,
             serveStaticOptions: {
               index: false,
               fallthrough: true,

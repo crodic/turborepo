@@ -19,6 +19,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from '@/components/ui/command'
 import {
   Popover,
@@ -67,28 +68,31 @@ export function DataTableAsyncSelectFilter<TData, TValue>({
   const searchKey =
     column?.columnDef.meta?.searchKey ?? column?.columnDef.id ?? 'search'
 
+  const fetchOptionsRef = React.useRef(fetchOptions)
+  fetchOptionsRef.current = fetchOptions
+
   /*
   =========================
   QUERY
   =========================
   */
 
+  // eslint-disable-next-line @tanstack/query/exhaustive-deps
   const query = useInfiniteQuery({
     queryKey: [
       'datatable-async-filter',
       column?.id,
       debouncedSearch,
       limit,
-      fetchOptions,
       searchKey,
     ],
 
-    enabled: open,
+    enabled: open && Boolean(fetchOptions),
 
     initialPageParam: 1,
 
     queryFn: async ({ pageParam }) => {
-      if (!fetchOptions) {
+      if (!fetchOptionsRef.current) {
         return { data: [], meta: { totalItems: 0 } }
       }
 
@@ -98,7 +102,7 @@ export function DataTableAsyncSelectFilter<TData, TValue>({
         [searchKey]: debouncedSearch,
       }
 
-      return fetchOptions(params)
+      return fetchOptionsRef.current(params)
     },
 
     getNextPageParam: (lastPage, pages) => {
@@ -113,10 +117,25 @@ export function DataTableAsyncSelectFilter<TData, TValue>({
     refetchOnWindowFocus: false,
   })
 
-  const options = React.useMemo(
-    () => query.data?.pages.flatMap((p) => p.data) ?? [],
-    [query.data]
-  )
+  const {
+    data,
+    isLoading,
+    isFetching,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = query
+
+  // Flatten and deduplicate options by value
+  const options = React.useMemo(() => {
+    const all = data?.pages.flatMap((p) => p.data) ?? []
+    const seen = new Set<string>()
+    return all.filter((item) => {
+      if (!item || seen.has(item.value)) return false
+      seen.add(item.value)
+      return true
+    })
+  }, [data])
 
   /*
   =========================
@@ -147,42 +166,54 @@ export function DataTableAsyncSelectFilter<TData, TValue>({
     if (
       options.length > 0 &&
       lastItem.index >= options.length - 3 &&
-      query.hasNextPage &&
-      !query.isFetchingNextPage
+      hasNextPage &&
+      !isFetchingNextPage
     ) {
-      void query.fetchNextPage()
+      void fetchNextPage()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [virtualItems, options.length])
+  }, [
+    virtualItems,
+    options.length,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  ])
 
   /*
   =========================
-  SELECT
+  SELECT & RESET
   =========================
   */
 
-  const onItemSelect = (option: Option, isSelected: boolean) => {
-    if (!column) return
+  const onItemSelect = React.useCallback(
+    (option: Option, isSelected: boolean) => {
+      if (!column) return
 
-    if (multiple) {
-      const newValues = new Set(selectedValues)
+      if (multiple) {
+        const newValues = new Set(selectedValues)
 
-      if (isSelected) newValues.delete(option.value)
-      else newValues.add(option.value)
+        if (isSelected) newValues.delete(option.value)
+        else newValues.add(option.value)
 
-      const values = Array.from(newValues)
+        const values = Array.from(newValues)
 
-      column.setFilterValue(values.length ? values : undefined)
-    } else {
-      column.setFilterValue(isSelected ? undefined : [option.value])
-      setOpen(false)
-    }
-  }
+        column.setFilterValue(values.length ? values : undefined)
+      } else {
+        column.setFilterValue(isSelected ? undefined : [option.value])
+        setOpen(false)
+      }
+    },
+    [column, multiple, selectedValues]
+  )
 
-  const onReset = () => {
-    column?.setFilterValue(undefined)
-    setSearch('')
-  }
+  const onReset = React.useCallback(
+    (event?: React.MouseEvent) => {
+      event?.stopPropagation()
+      column?.setFilterValue(undefined)
+      setSearch('')
+    },
+    [column]
+  )
 
   /*
   =========================
@@ -193,21 +224,19 @@ export function DataTableAsyncSelectFilter<TData, TValue>({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant='outline' size='sm' className='border-dashed'>
-          {selectedValues.size ? (
-            <div
-              role='button'
-              tabIndex={0}
-              onPointerDown={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                onReset()
-              }}
-            >
-              <XCircle className='h-4 w-4' />
-            </div>
+        <Button
+          variant='outline'
+          size='sm'
+          className='border-dashed'
+          aria-label={title}
+        >
+          {selectedValues.size > 0 ? (
+            <XCircle
+              className='text-muted-foreground size-4'
+              onClick={onReset}
+            />
           ) : (
-            <PlusCircle className='h-4 w-4' />
+            <PlusCircle className='text-muted-foreground size-4' />
           )}
 
           {title}
@@ -229,13 +258,9 @@ export function DataTableAsyncSelectFilter<TData, TValue>({
             onValueChange={setSearch}
           />
 
-          <CommandList
-            ref={parentRef}
-            key={String(open)}
-            className='max-h-72 overflow-auto'
-          >
+          <CommandList ref={parentRef} className='max-h-72 overflow-y-auto'>
             <CommandEmpty>
-              {query.isLoading || query.isFetching ? (
+              {isLoading || isFetching ? (
                 <div className='flex flex-col items-center gap-2 p-2 text-sm'>
                   <Loader2 className='h-4 w-4 animate-spin' />
                   {t('dataTable.filter.searching')}
@@ -261,7 +286,8 @@ export function DataTableAsyncSelectFilter<TData, TValue>({
 
                   return (
                     <CommandItem
-                      key={option.value + Math.random().toString(36).slice(2)}
+                      key={option.value}
+                      value={option.value}
                       onSelect={() => {
                         onItemSelect(option, isSelected)
                       }}
@@ -292,7 +318,7 @@ export function DataTableAsyncSelectFilter<TData, TValue>({
                 })}
               </div>
 
-              {query.isFetchingNextPage && (
+              {isFetchingNextPage && (
                 <div className='flex justify-center p-2'>
                   <Loader2 className='h-4 w-4 animate-spin' />
                 </div>
@@ -301,10 +327,15 @@ export function DataTableAsyncSelectFilter<TData, TValue>({
 
             {selectedValues.size > 0 && (
               <>
-                <Separator />
-                <CommandItem onSelect={onReset} className='justify-center'>
-                  {t('dataTable.filter.clearFilters')}
-                </CommandItem>
+                <CommandSeparator />
+                <CommandGroup>
+                  <CommandItem
+                    onSelect={() => onReset()}
+                    className='justify-center text-center'
+                  >
+                    {t('dataTable.filter.clearFilters')}
+                  </CommandItem>
+                </CommandGroup>
               </>
             )}
           </CommandList>

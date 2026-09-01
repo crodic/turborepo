@@ -742,6 +742,41 @@ export default {
   'whiteLabels.message.updated': 'White-label profile updated successfully',
   'whiteLabels.message.deleted': 'White-label profile deleted',
   'whiteLabels.message.copied': 'Theme CSS copied to clipboard',
+  'whiteLabels.show.back': 'Back to White Labels',
+  'whiteLabels.show.downloadCss': 'CSS',
+  'whiteLabels.show.exportJson': 'JSON',
+  'whiteLabels.show.activateTarget': 'Activate for {{target}}',
+  'whiteLabels.show.activeBadge': 'Active',
+  'whiteLabels.show.presetBadge': 'Preset',
+  'whiteLabels.show.activeThemeLive': 'Active Theme (Live)',
+  'whiteLabels.show.presetThemeInactive': 'Preset Theme (Inactive)',
+  'whiteLabels.show.profileDetails': 'Profile Details',
+  'whiteLabels.show.profileDetailsDesc':
+    'Profile scope, identifier, and target environment.',
+  'whiteLabels.show.targetPlatform': 'Target Platform:',
+  'whiteLabels.show.status': 'Status:',
+  'whiteLabels.show.activeLive': 'Active (Live)',
+  'whiteLabels.show.presetInactive': 'Preset (Inactive)',
+  'whiteLabels.show.description': 'Description:',
+  'whiteLabels.show.noDescription': 'No description provided.',
+  'whiteLabels.show.brandIdentity': 'Brand Identity',
+  'whiteLabels.show.brandIdentityDesc':
+    'Customer-facing naming, tagline, and corporate copyright.',
+  'whiteLabels.show.copyright': 'Copyright:',
+  'whiteLabels.show.canonicalUrl': 'Canonical URL:',
+  'whiteLabels.show.uploadedMediaAssets': 'Uploaded Media Assets',
+  'whiteLabels.show.uploadedMediaAssetsDesc':
+    'Brand logos and favicon icons rendered across light/dark modes.',
+  'whiteLabels.show.lightTokens': 'Light Tokens',
+  'whiteLabels.show.darkTokens': 'Dark Tokens',
+  'whiteLabels.show.metadataConfig': 'Metadata Configuration',
+  'whiteLabels.show.deleteConfirm':
+    'Are you sure you want to delete this white label profile?',
+  'whiteLabels.show.themeApplied': 'Theme applied',
+  'whiteLabels.show.activatedProfile':
+    'Activated white-label profile for {{target}}',
+  'whiteLabels.show.notFound': 'Profile not found',
+  'whiteLabels.show.close': 'Close',
   'auth.signUp.createAccount': 'Create an account',
   'auth.signUp.createAccountDesc':
     'Enter your email and password to create an account.',
@@ -878,6 +913,10 @@ export default {
     'Choose between left-to-right or right-to-left site direction',
   'configDrawer.whiteLabel': 'White Label',
   'configDrawer.enableWhiteLabel': 'Enable White Label Theme',
+  'configDrawer.whiteLabelEnabledDesc':
+    'Using active brand theme colors and assets.',
+  'configDrawer.whiteLabelDisabledDesc':
+    'Using standard built-in color palette.',
   'configDrawer.color': 'Color',
   'notificationDropdown.title': 'Notifications',
   'notificationDropdown.markAllRead': 'Mark all read',
