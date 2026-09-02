@@ -1,44 +1,43 @@
+import { TwoFactorEntity } from '@/api/two-factor/entities/two-factor.entity';
+import { TwoFactorModule } from '@/api/two-factor/two-factor.module';
+import { AccountEntity } from '@/api/user/entities/account.entity';
+import { AdminProfileEntity } from '@/api/user/entities/admin-profile.entity';
+import { UserProfileEntity } from '@/api/user/entities/user-profile.entity';
+import { UserEntity } from '@/api/user/entities/user.entity';
+import { UserModule } from '@/api/user/user.module';
+import { EmailQueueModule } from '@/background/queues/email-queue/email-queue.module';
 import { QueueName, QueuePrefix } from '@/constants/job.constant';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AdminUserEntity } from '../admin-user/entities/admin-user.entity';
-import { AdminAccountRecoveryService } from './services/admin-account-recovery.service';
-import { AdminTwoFactorService } from './services/admin-two-factor.service';
-import { AuthRecoveryService } from './services/auth-recovery.service';
-import { AuthTokenService } from './services/auth-token.service';
-import { SocialAuthService } from './services/social-auth.service';
-import { UserAccountRecoveryService } from './services/user-account-recovery.service';
-
 import { NotificationModule } from '../notification/notification.module';
-import { UserEntity } from '../user/entities/user.entity';
 import { AdminAuthenticationController } from './controllers/admin-auth.controller';
 import { UserAuthenticationController } from './controllers/user-auth.controller';
-import { AdminAccountEntity } from './entities/admin-account.entity';
-import { SessionEntity } from './entities/session.entity';
-import { UserAccountEntity } from './entities/user-account.entity';
-import { AdminAuthService } from './services/admin-auth.service';
-import { AuthSessionService } from './services/auth-session.service';
-import { UserAuthService } from './services/user-auth.service';
+import { AuthService } from './services/auth.service';
+import { SocialAuthService } from './services/social-auth.service';
 import { GoogleOAuthAdapter } from './social/google-oauth.adapter';
-import { AdminJwtStrategy } from './strategy/admin.strategy';
 import { GoogleStrategy } from './strategy/google.strategy';
-import { UserJwtStrategy } from './strategy/user.strategy';
+import { JwtStrategy } from './strategy/jwt.strategy';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       UserEntity,
-      AdminUserEntity,
-      SessionEntity,
-      AdminAccountEntity,
-      UserAccountEntity,
+      AdminProfileEntity,
+      UserProfileEntity,
+      TwoFactorEntity,
+      AccountEntity,
     ]),
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     NotificationModule,
+    EmailQueueModule,
+    UserModule,
+    TwoFactorModule,
     JwtModule.register({}),
     BullModule.registerQueue({
       name: QueueName.EMAIL,
@@ -64,30 +63,12 @@ import { UserJwtStrategy } from './strategy/user.strategy';
   ],
   controllers: [AdminAuthenticationController, UserAuthenticationController],
   providers: [
-    AuthTokenService,
-    AuthRecoveryService,
+    AuthService,
     SocialAuthService,
-    AdminAuthService,
-    AdminTwoFactorService,
-    AdminAccountRecoveryService,
-    UserAccountRecoveryService,
-    AuthSessionService,
-    UserAuthService,
-    AdminJwtStrategy,
-    UserJwtStrategy,
+    JwtStrategy,
     GoogleStrategy,
     GoogleOAuthAdapter,
   ],
-  exports: [
-    AuthTokenService,
-    AuthRecoveryService,
-    SocialAuthService,
-    AdminAuthService,
-    UserAuthService,
-    AuthSessionService,
-    AdminTwoFactorService,
-    AdminAccountRecoveryService,
-    UserAccountRecoveryService,
-  ],
+  exports: [AuthService, SocialAuthService],
 })
 export class AuthModule {}

@@ -1,12 +1,9 @@
-import { AllConfigType } from '@/config/config.type';
-import { Environment } from '@/constants/app.constant';
-import { ConfigService } from '@nestjs/config';
+import { DomainType } from '@/constants/entity.enum';
 import type { Response } from 'express';
-import ms, { type StringValue } from 'ms';
 
-type AuthCookiePrefix = 'admin' | 'user';
+export type AuthCookiePrefix = 'admin' | 'user';
 
-type AuthCookieTokens = {
+export type AuthCookieTokens = {
   accessToken?: string;
   refreshToken?: string;
   tokenExpires?: number;
@@ -25,75 +22,87 @@ const cookieNames = {
 
 export function setAuthCookies({
   res,
-  configService,
   prefix,
+  domain,
+  accessToken,
+  refreshToken,
+  tokenExpires,
   tokens,
 }: {
   res: Response;
-  configService: ConfigService<AllConfigType>;
-  prefix: AuthCookiePrefix;
-  tokens: AuthCookieTokens;
+  configService?: any;
+  prefix?: AuthCookiePrefix;
+  domain?: DomainType;
+  accessToken?: string;
+  refreshToken?: string;
+  tokenExpires?: number;
+  tokens?: AuthCookieTokens;
 }) {
-  const names = cookieNames[prefix];
-  const options = getCookieOptions(configService);
+  const p = prefix ?? (domain === DomainType.ADMIN ? 'admin' : 'user');
+  const names = cookieNames[p];
+  const access = accessToken ?? tokens?.accessToken;
+  const refresh = refreshToken ?? tokens?.refreshToken;
+  const expires = tokenExpires ?? tokens?.tokenExpires;
 
-  if (tokens.accessToken) {
-    res.cookie(names.access, tokens.accessToken, {
-      ...options,
-      maxAge: tokens.tokenExpires
-        ? Math.max(tokens.tokenExpires - Date.now(), 0)
-        : undefined,
+  const secure = process.env.NODE_ENV === 'production';
+  const cookieOptions = {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure,
+    path: '/',
+  };
+
+  if (access) {
+    res.cookie(names.access, access, {
+      ...cookieOptions,
+      maxAge: expires ? Math.max(expires - Date.now(), 0) : undefined,
     });
   }
 
-  if (tokens.refreshToken) {
-    const refreshExpiresKey =
-      prefix === 'admin' ? 'auth.refreshExpires' : 'auth.userRefreshExpires';
-    const refreshExpires = configService.getOrThrow<AllConfigType>(
-      refreshExpiresKey,
-      { infer: true },
-    );
-
-    res.cookie(names.refresh, tokens.refreshToken, {
-      ...options,
-      maxAge: ms(refreshExpires as StringValue),
+  if (refresh) {
+    res.cookie(names.refresh, refresh, {
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
   }
 }
 
-export function clearAuthCookies({
-  res,
-  configService,
-  prefix,
-}: {
-  res: Response;
-  configService: ConfigService<AllConfigType>;
-  prefix: AuthCookiePrefix;
-}) {
-  const names = cookieNames[prefix];
-  const options = getCookieOptions(configService);
+export function clearAuthCookies(
+  resOrParams:
+    | Response
+    | {
+        res: Response;
+        configService?: any;
+        prefix?: AuthCookiePrefix;
+      },
+  domainOrPrefix?: DomainType | string,
+) {
+  let res: Response;
+  let p: AuthCookiePrefix = 'admin';
 
-  res.clearCookie(names.access, options);
-  res.clearCookie(names.refresh, options);
+  if ('res' in resOrParams) {
+    res = resOrParams.res;
+    p = resOrParams.prefix ?? 'admin';
+  } else {
+    res = resOrParams;
+    p =
+      domainOrPrefix === DomainType.ADMIN || String(domainOrPrefix) === 'admin'
+        ? 'admin'
+        : 'user';
+  }
+
+  const names = cookieNames[p];
+  const cookieOptions = {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+  };
+
+  res.clearCookie(names.access, cookieOptions);
+  res.clearCookie(names.refresh, cookieOptions);
 }
 
 export function getAuthCookieNames(prefix: AuthCookiePrefix) {
   return cookieNames[prefix];
-}
-
-function getCookieOptions(configService: ConfigService<AllConfigType>) {
-  const nodeEnv = configService.getOrThrow<AllConfigType>('app.nodeEnv', {
-    infer: true,
-  });
-
-  return {
-    httpOnly: true,
-    sameSite: 'lax' as const,
-    secure: ![
-      Environment.LOCAL,
-      Environment.DEVELOPMENT,
-      Environment.TEST,
-    ].includes(nodeEnv as Environment),
-    path: '/',
-  };
 }

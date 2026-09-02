@@ -1,8 +1,8 @@
 import { AutoIncrementID } from '@/common/types/common.type';
+import { DomainType } from '@/constants/entity.enum';
+import { Domain } from '@/decorators/domain.decorator';
 import { ApiAuth } from '@/decorators/http.decorators';
 import { CheckPolicies } from '@/decorators/policies.decorator';
-import { AdminAuthGuard } from '@/guards/admin-auth.guard';
-import { PoliciesGuard } from '@/guards/policies.guard';
 import { AppAbility } from '@/libs/casl/ability.factory';
 import { AppActions, AppSubjects } from '@/utils/permissions.constant';
 import {
@@ -13,7 +13,6 @@ import {
   Param,
   Post,
   Put,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiParam, ApiTags } from '@nestjs/swagger';
 import {
@@ -29,7 +28,7 @@ import { RoleService } from './role.service';
 
 @ApiTags('Roles')
 @Controller({ path: 'roles', version: '1' })
-@UseGuards(AdminAuthGuard, PoliciesGuard)
+@Domain(DomainType.ADMIN)
 export class RoleController {
   constructor(private readonly roleService: RoleService) {}
 

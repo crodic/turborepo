@@ -1,4 +1,4 @@
-import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
+import { UserEntity } from '@/api/user/entities/user.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { EEmailLogSource, EEmailLogStatus } from '@/constants/entity.enum';
 import {
@@ -96,7 +96,7 @@ export class EmailLogEntity {
   @Column({ name: 'created_by_admin_id', type: 'bigint', nullable: true })
   createdByAdminId?: AutoIncrementID;
 
-  @ManyToOne(() => AdminUserEntity, {
+  @ManyToOne(() => UserEntity, {
     nullable: true,
     onDelete: 'SET NULL',
     onUpdate: 'CASCADE',
@@ -105,7 +105,7 @@ export class EmailLogEntity {
     name: 'created_by_admin_id',
     foreignKeyConstraintName: 'FK_email_logs_created_by_admin',
   })
-  createdByAdmin?: Relation<AdminUserEntity>;
+  createdByAdmin?: Relation<UserEntity>;
 
   @CreateDateColumn({
     name: 'created_at',

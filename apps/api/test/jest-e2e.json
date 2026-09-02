@@ -13,6 +13,8 @@
       }
     ]
   },
+  "maxWorkers": 1,
+  "forceExit": true,
   "transformIgnorePatterns": ["node_modules/(?!.*(@scure|@noble|otplib))"],
   "moduleNameMapper": {
     "^@/(.*)$": "<rootDir>/../src/$1",

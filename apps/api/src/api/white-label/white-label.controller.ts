@@ -1,10 +1,9 @@
 import { AutoIncrementID } from '@/common/types/common.type';
-import { EWhiteLabelTarget } from '@/constants/entity.enum';
+import { DomainType, EWhiteLabelTarget } from '@/constants/entity.enum';
 import { CurrentUser } from '@/decorators/current-user.decorator';
+import { Domain } from '@/decorators/domain.decorator';
 import { ApiAuth, ApiPublic } from '@/decorators/http.decorators';
 import { CheckPolicies } from '@/decorators/policies.decorator';
-import { AdminAuthGuard } from '@/guards/admin-auth.guard';
-import { PoliciesGuard } from '@/guards/policies.guard';
 import { AppAbility } from '@/libs/casl/ability.factory';
 import { AppActions, AppSubjects } from '@/utils/permissions.constant';
 import {
@@ -18,7 +17,6 @@ import {
   Put,
   Query,
   UploadedFiles,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -95,7 +93,7 @@ export class WhiteLabelController {
   }
 
   @Get()
-  @UseGuards(AdminAuthGuard, PoliciesGuard)
+  @Domain(DomainType.ADMIN)
   @ApiAuth({
     type: WhiteLabelResDto,
     summary: 'Get paginated white label profiles',
@@ -129,7 +127,7 @@ export class WhiteLabelController {
   }
 
   @Get(':id')
-  @UseGuards(AdminAuthGuard, PoliciesGuard)
+  @Domain(DomainType.ADMIN)
   @ApiAuth({
     type: WhiteLabelResDto,
     summary: 'Find white label profile by ID',
@@ -143,7 +141,7 @@ export class WhiteLabelController {
   }
 
   @Post()
-  @UseGuards(AdminAuthGuard, PoliciesGuard)
+  @Domain(DomainType.ADMIN)
   @ApiConsumes('multipart/form-data')
   @ApiAuth({ type: WhiteLabelResDto, summary: 'Create white label profile' })
   @UseInterceptors(
@@ -171,7 +169,7 @@ export class WhiteLabelController {
   }
 
   @Put(':id')
-  @UseGuards(AdminAuthGuard, PoliciesGuard)
+  @Domain(DomainType.ADMIN)
   @ApiConsumes('multipart/form-data')
   @ApiAuth({ type: WhiteLabelResDto, summary: 'Update white label profile' })
   @ApiParam({ name: 'id', type: 'String' })
@@ -201,7 +199,7 @@ export class WhiteLabelController {
   }
 
   @Post(':id/activate')
-  @UseGuards(AdminAuthGuard, PoliciesGuard)
+  @Domain(DomainType.ADMIN)
   @ApiAuth({
     type: WhiteLabelResDto,
     summary: 'Activate white label profile for target',
@@ -218,7 +216,7 @@ export class WhiteLabelController {
   }
 
   @Post(':id/deactivate')
-  @UseGuards(AdminAuthGuard, PoliciesGuard)
+  @Domain(DomainType.ADMIN)
   @ApiAuth({
     type: WhiteLabelResDto,
     summary: 'Deactivate white label profile',
@@ -235,7 +233,7 @@ export class WhiteLabelController {
   }
 
   @Post(':id/duplicate')
-  @UseGuards(AdminAuthGuard, PoliciesGuard)
+  @Domain(DomainType.ADMIN)
   @ApiAuth({
     type: WhiteLabelResDto,
     summary: 'Duplicate white label profile',
@@ -252,7 +250,7 @@ export class WhiteLabelController {
   }
 
   @Delete(':id')
-  @UseGuards(AdminAuthGuard, PoliciesGuard)
+  @Domain(DomainType.ADMIN)
   @ApiAuth({ summary: 'Delete white label profile' })
   @ApiParam({ name: 'id', type: 'String' })
   @CheckPolicies((ability: AppAbility) =>

@@ -1,5 +1,3 @@
-import { AdminAuthGuard } from '@/guards/admin-auth.guard';
-import { PoliciesGuard } from '@/guards/policies.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { FileChunkUploadService } from './file-chunk-upload.service';
 import { FileFolderService } from './file-folder.service';
@@ -60,12 +58,7 @@ describe('FileController', () => {
           useValue: mockSortableImageCacheService,
         },
       ],
-    })
-      .overrideGuard(AdminAuthGuard)
-      .useValue({ canActivate: jest.fn().mockReturnValue(true) })
-      .overrideGuard(PoliciesGuard)
-      .useValue({ canActivate: jest.fn().mockReturnValue(true) })
-      .compile();
+    }).compile();
 
     controller = module.get<FileController>(FileController);
   });

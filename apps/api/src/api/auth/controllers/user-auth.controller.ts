@@ -1,29 +1,35 @@
+import { SessionService } from '@/api/session/session.service';
 import { UserChangePasswordReqDto } from '@/api/user/dto/user-change-password.req.dto';
 import { UserChangePasswordResDto } from '@/api/user/dto/user-change-password.res.dto';
 import { UserResDto } from '@/api/user/dto/user.res.dto';
+import { UserService } from '@/api/user/user.service';
 import { AutoIncrementID } from '@/common/types/common.type';
-import { ESessionUserType } from '@/constants/entity.enum';
+import { DomainType, EAccountProvider } from '@/constants/entity.enum';
 import { CurrentUser } from '@/decorators/current-user.decorator';
+import { Domain } from '@/decorators/domain.decorator';
 import { ApiAuth, ApiPublic } from '@/decorators/http.decorators';
 import { SkipPolicies } from '@/decorators/skip-policies.decorator';
 import { GoogleOAuthGuard } from '@/guards/google-oauth.guard';
-import { UserAuthGuard } from '@/guards/user-auth.guard';
+import { hashPassword } from '@/utils/password.util';
 import {
   Body,
+  ConflictException,
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Post,
   Put,
   Query,
-  Request,
+  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import { plainToInstance } from 'class-transformer';
 import type { Response } from 'express';
 import { ForgotPasswordReqDto } from '../dto/forgot-password.req.dto';
 import { ForgotPasswordResDto } from '../dto/forgot-password.res.dto';
@@ -44,10 +50,8 @@ import { SocialExchangeReqDto } from '../dto/users/social-exchange.req.dto';
 import { SocialLinkUrlResDto } from '../dto/users/social-link-url.res.dto';
 import { UpdateAuthUserMeReqDto } from '../dto/users/update-me.req.dto';
 import { ProdOnlyThrottleGuard } from '../guards/ProdOnlyThrottle.guard';
-import { AuthSessionService } from '../services/auth-session.service';
-import { UserAccountRecoveryService } from '../services/user-account-recovery.service';
-import { UserAuthService } from '../services/user-auth.service';
-import { JwtPayloadType } from '../types/jwt-payload.type';
+import { AuthService } from '../services/auth.service';
+import { SocialAuthService } from '../services/social-auth.service';
 import { clearAuthCookies, setAuthCookies } from '../utils/auth-cookie.util';
 
 @ApiTags('User Authentication')
@@ -55,65 +59,93 @@ import { clearAuthCookies, setAuthCookies } from '../utils/auth-cookie.util';
   path: 'user/auth',
   version: '1',
 })
-@UseGuards(UserAuthGuard, ProdOnlyThrottleGuard)
+@Domain(DomainType.CLIENT)
+@UseGuards(ProdOnlyThrottleGuard)
 export class UserAuthenticationController {
   constructor(
-    private readonly userAuthService: UserAuthService,
-    private readonly authSessionService: AuthSessionService,
-    private readonly userAccountRecoveryService: UserAccountRecoveryService,
+    private readonly authService: AuthService,
+    private readonly userService: UserService,
+    private readonly authSessionService: SessionService,
+    private readonly socialAuthService: SocialAuthService,
     private readonly configService: ConfigService,
   ) {}
 
   @ApiPublic({
     type: LoginResDto,
-    summary: 'Sign-in',
+    summary: 'Sign-in for Client User',
   })
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('login')
   async signIn(
     @Body() userLoginDto: LoginReqDto,
-    @Request() req,
+    @Req() req: any,
     @Res({ passthrough: true }) res: Response,
   ): Promise<LoginResDto> {
-    const result = await this.userAuthService.signIn(userLoginDto, {
+    const result = await this.authService.login(
+      userLoginDto,
+      DomainType.CLIENT,
+      {
+        ipAddress: req.ip,
+        userAgent: req.headers?.['user-agent'],
+      },
+    );
+    setAuthCookies({
+      res,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      tokenExpires: result.tokenExpires,
+      domain: DomainType.CLIENT,
+    });
+    return plainToInstance(LoginResDto, result);
+  }
+
+  @ApiPublic({
+    type: RegisterResDto,
+    summary: 'Sign-up for Client User',
+  })
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('register')
+  async signUp(
+    @Body() dto: RegisterReqDto,
+    @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<RegisterResDto> {
+    const result = await this.authService.register(dto, DomainType.CLIENT, {
       ipAddress: req.ip,
       userAgent: req.headers?.['user-agent'],
     });
     setAuthCookies({
       res,
-      configService: this.configService,
-      prefix: 'user',
-      tokens: result,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      tokenExpires: result.tokenExpires,
+      domain: DomainType.CLIENT,
     });
     return result;
   }
 
   @ApiPublic({
-    type: RegisterResDto,
-    summary: 'Sign-up',
-  })
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
-  @Post('register')
-  async signUp(@Body() dto: RegisterReqDto): Promise<RegisterResDto> {
-    return await this.userAuthService.signUp(dto);
-  }
-
-  @ApiPublic({
     type: RefreshResDto,
-    summary: 'Refresh token',
+    summary: 'Refresh token for Client User',
   })
   @SkipThrottle()
   @Post('refresh')
   async refresh(
     @Body() dto: RefreshReqDto,
+    @Req() req: any,
     @Res({ passthrough: true }) res: Response,
   ): Promise<RefreshResDto> {
-    const result = await this.userAuthService.refreshToken(dto);
+    const refreshToken = req.cookies?.refreshToken || dto.refreshToken;
+    const result = await this.authService.refreshToken(
+      refreshToken,
+      DomainType.CLIENT,
+    );
     setAuthCookies({
       res,
-      configService: this.configService,
-      prefix: 'user',
-      tokens: result,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      tokenExpires: result.tokenExpires,
+      domain: DomainType.CLIENT,
     });
     return result;
   }
@@ -126,15 +158,11 @@ export class UserAuthenticationController {
   @SkipPolicies()
   @Post('logout')
   async logout(
-    @CurrentUser() userToken: JwtPayloadType,
+    @CurrentUser() user: any,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    await this.authSessionService.logout(userToken, ESessionUserType.USER);
-    clearAuthCookies({
-      res,
-      configService: this.configService,
-      prefix: 'user',
-    });
+    await this.authService.logout(user.id, user.sid ?? user.sessionId);
+    clearAuthCookies(res, DomainType.CLIENT);
   }
 
   @ApiAuth({
@@ -143,33 +171,29 @@ export class UserAuthenticationController {
   })
   @SkipThrottle()
   @Get('sessions')
-  async sessions(@CurrentUser() userToken: JwtPayloadType) {
-    return this.authSessionService.listSessions(
-      userToken,
-      ESessionUserType.USER,
-    );
+  async sessions(@CurrentUser() user: any): Promise<SessionResDto[]> {
+    return this.authSessionService.listSessions(user, DomainType.CLIENT);
   }
 
-  @ApiAuth({ summary: 'Revoke all current user sessions' })
+  @ApiAuth({ summary: 'Revoke all other current user sessions' })
   @SkipThrottle()
   @Delete('sessions')
-  async revokeAllSessions(@CurrentUser() userToken: JwtPayloadType) {
-    return this.authSessionService.revokeAllSessions(
-      userToken,
-      ESessionUserType.USER,
-    );
+  async revokeAllSessions(
+    @CurrentUser() user: any,
+  ): Promise<{ message: string }> {
+    return this.authSessionService.revokeAllSessions(user, DomainType.CLIENT);
   }
 
   @ApiAuth({ summary: 'Revoke one current user session' })
   @SkipThrottle()
   @Delete('sessions/:id')
   async revokeSession(
-    @CurrentUser() userToken: JwtPayloadType,
+    @CurrentUser() user: any,
     @Param('id') sessionId: AutoIncrementID,
-  ) {
+  ): Promise<{ message: string }> {
     return this.authSessionService.revokeSessionById(
-      userToken,
-      ESessionUserType.USER,
+      user,
+      DomainType.CLIENT,
       sessionId,
     );
   }
@@ -180,7 +204,11 @@ export class UserAuthenticationController {
   async forgotPassword(
     @Body() dto: ForgotPasswordReqDto,
   ): Promise<ForgotPasswordResDto> {
-    return await this.userAccountRecoveryService.forgotPassword(dto);
+    const result = await this.authService.forgotPassword(
+      dto,
+      DomainType.CLIENT,
+    );
+    return plainToInstance(ForgotPasswordResDto, result);
   }
 
   @ApiPublic({ type: ResetPasswordResDto, summary: 'Reset password' })
@@ -190,7 +218,11 @@ export class UserAuthenticationController {
     @Query('token') token: string,
     @Body() dto: ResetPasswordReqDto,
   ): Promise<ResetPasswordResDto> {
-    return await this.userAccountRecoveryService.resetPassword(token, dto);
+    const result = await this.authService.resetPassword(
+      { token: token, password: dto.password },
+      DomainType.CLIENT,
+    );
+    return plainToInstance(ResetPasswordResDto, result);
   }
 
   @ApiPublic({ summary: 'Verify email' })
@@ -199,7 +231,7 @@ export class UserAuthenticationController {
   @Get('verify/email')
   async verifyEmail(@Query('token') token: string, @Res() res: Response) {
     try {
-      await this.userAccountRecoveryService.verifyAccount(token);
+      await this.authService.verifyEmail(token, DomainType.CLIENT);
       return res.redirect(this.getVerificationRedirectUrl('success'));
     } catch {
       return res.redirect(this.getVerificationRedirectUrl('failed'));
@@ -215,7 +247,11 @@ export class UserAuthenticationController {
   async resendVerifyEmail(
     @Body() dto: ResendEmailVerifyReqDto,
   ): Promise<ResendEmailVerifyResDto> {
-    return this.userAccountRecoveryService.resendVerifyEmail(dto);
+    const result = await this.authService.resendVerificationEmail(
+      dto,
+      DomainType.CLIENT,
+    );
+    return plainToInstance(ResendEmailVerifyResDto, result);
   }
 
   @ApiPublic({ summary: 'Start Google OAuth login' })
@@ -228,18 +264,101 @@ export class UserAuthenticationController {
   @ApiPublic({ summary: 'Handle Google OAuth callback' })
   @Get('social/google/callback')
   @UseGuards(GoogleOAuthGuard)
-  async googleAuthRedirect(@Request() req, @Res() res: Response) {
+  async googleAuthRedirect(@Req() req: any, @Res() res: Response) {
     try {
-      const redirectUrl = await this.userAuthService.handleSocialLoginCallback(
-        req.user,
-        req.query?.state,
+      const googleProfile = req.user;
+      const state = req.query?.state;
+
+      let user: any;
+      if (state) {
+        const stateData = await this.socialAuthService.consumeOAuthState(state);
+        const existingUser = await this.userService.findById(
+          stateData.userId as AutoIncrementID,
+        );
+        if (!existingUser) throw new NotFoundException('User not found');
+
+        await this.userService.linkAccount({
+          userId: existingUser.id,
+          provider: EAccountProvider.GOOGLE,
+          providerAccountId: googleProfile.id,
+          type: 'oauth',
+          tokens: {
+            accessToken: googleProfile.accessToken,
+            refreshToken: googleProfile.refreshToken,
+          },
+        });
+        return res.redirect(
+          this.socialAuthService.buildClientRedirectUrl('/profile', {
+            linked: 'google',
+          }),
+        );
+      }
+
+      const existingAccount = await this.userService.findByOAuth(
+        EAccountProvider.GOOGLE,
+        googleProfile.id,
+      );
+
+      if (existingAccount) {
+        user = existingAccount;
+      } else {
+        const existingEmailUser = await this.userService.findByEmailAndDomain(
+          googleProfile.email,
+          DomainType.CLIENT,
+        );
+
+        if (existingEmailUser) {
+          await this.userService.linkAccount({
+            userId: existingEmailUser.id,
+            provider: EAccountProvider.GOOGLE,
+            providerAccountId: googleProfile.id,
+            type: 'oauth',
+            tokens: {
+              accessToken: googleProfile.accessToken,
+              refreshToken: googleProfile.refreshToken,
+            },
+          });
+          user = existingEmailUser;
+        } else {
+          const defaultRoles = await this.userService.findRolesByCodes([
+            'CLIENT_USER',
+          ]);
+          user = await this.userService.createOAuthUser({
+            email: googleProfile.email,
+            firstName: googleProfile.firstName,
+            lastName: googleProfile.lastName,
+            avatarUrl: googleProfile.picture,
+            domain: DomainType.CLIENT,
+            provider: EAccountProvider.GOOGLE,
+            providerAccountId: googleProfile.id,
+            isEmailVerified: true,
+            roles: defaultRoles,
+            tokens: {
+              accessToken: googleProfile.accessToken,
+              refreshToken: googleProfile.refreshToken,
+            },
+          });
+        }
+      }
+
+      const loginRes = await this.authService.login(
+        { email: user.email },
+        DomainType.CLIENT,
         {
           ipAddress: req.ip,
           userAgent: req.headers?.['user-agent'],
         },
       );
 
-      return res.redirect(redirectUrl);
+      const exchangeToken = await this.socialAuthService.createExchangeToken(
+        loginRes as any,
+      );
+
+      return res.redirect(
+        this.socialAuthService.buildClientRedirectUrl('/auth/social/callback', {
+          token: exchangeToken,
+        }),
+      );
     } catch {
       return res.redirect(this.getSocialRedirectUrl('failed'));
     }
@@ -249,8 +368,17 @@ export class UserAuthenticationController {
   @Post('social/exchange')
   async exchangeSocialLogin(
     @Body() dto: SocialExchangeReqDto,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<LoginResDto> {
-    return this.userAuthService.exchangeSocialLogin(dto);
+    const result = await this.socialAuthService.consumeExchangeToken(dto.token);
+    setAuthCookies({
+      res,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      tokenExpires: result.tokenExpires,
+      domain: DomainType.CLIENT,
+    });
+    return result;
   }
 
   @ApiAuth({
@@ -260,9 +388,19 @@ export class UserAuthenticationController {
   @SkipThrottle()
   @Post('me/social/google/link')
   async createGoogleLinkUrl(
-    @CurrentUser() userToken: JwtPayloadType,
+    @CurrentUser('id') userId: AutoIncrementID,
   ): Promise<SocialLinkUrlResDto> {
-    return this.userAuthService.createGoogleLinkUrl(userToken);
+    const state = await this.socialAuthService.createOAuthState(userId);
+    const callbackUrl = this.configService.getOrThrow(
+      'auth.googleOAuthCallbackUrl',
+    );
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${this.configService.get(
+      'google.clientId',
+    )}&redirect_uri=${encodeURIComponent(
+      callbackUrl,
+    )}&response_type=code&scope=email%20profile&state=${state}`;
+
+    return plainToInstance(SocialLinkUrlResDto, { url: googleAuthUrl });
   }
 
   @ApiAuth({
@@ -272,9 +410,21 @@ export class UserAuthenticationController {
   @SkipThrottle()
   @Get('me/social-accounts')
   async listSocialAccounts(
-    @CurrentUser() userToken: JwtPayloadType,
+    @CurrentUser('id') userId: AutoIncrementID,
   ): Promise<SocialAccountResDto[]> {
-    return this.userAuthService.listSocialAccounts(userToken);
+    const user = await this.userService.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+
+    const accounts = user.accounts ?? [];
+    return plainToInstance(
+      SocialAccountResDto,
+      accounts.map((acc) => ({
+        id: acc.id,
+        provider: acc.provider,
+        providerAccountId: acc.providerAccountId,
+        createdAt: acc.createdAt,
+      })),
+    );
   }
 
   @ApiAuth({
@@ -288,7 +438,10 @@ export class UserAuthenticationController {
     @CurrentUser('id') userId: AutoIncrementID,
     @Body() reqDto: UserChangePasswordReqDto,
   ): Promise<UserChangePasswordResDto> {
-    return this.userAuthService.changePassword(userId, reqDto);
+    await this.authService.changePassword(userId, reqDto);
+    return plainToInstance(UserChangePasswordResDto, {
+      message: 'Password changed successfully',
+    });
   }
 
   @ApiAuth({
@@ -302,7 +455,16 @@ export class UserAuthenticationController {
     @CurrentUser('id') userId: AutoIncrementID,
     @Body() reqDto: SetupInitialPasswordReqDto,
   ): Promise<UserChangePasswordResDto> {
-    return this.userAuthService.setupInitialPassword(userId, reqDto);
+    const user = await this.userService.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+    if (user.password) {
+      throw new ConflictException('Password already exists for this account');
+    }
+    user.password = await hashPassword(reqDto.password);
+    await this.userService.save(user);
+    return plainToInstance(UserChangePasswordResDto, {
+      message: 'Password setup successfully',
+    });
   }
 
   @ApiAuth({
@@ -312,9 +474,9 @@ export class UserAuthenticationController {
   @SkipThrottle()
   @Get('me')
   async getCurrentUser(
-    @CurrentUser() userToken: JwtPayloadType,
+    @CurrentUser('id') userId: AutoIncrementID,
   ): Promise<UserResDto> {
-    return await this.userAuthService.me(userToken);
+    return await this.userService.findOne(userId);
   }
 
   @Put('me')
@@ -327,7 +489,8 @@ export class UserAuthenticationController {
     @CurrentUser('id') userId: AutoIncrementID,
     @Body() reqDto: UpdateAuthUserMeReqDto,
   ): Promise<{ message: string }> {
-    return await this.userAuthService.updateMe(userId, reqDto);
+    await this.userService.update(userId, reqDto as any);
+    return { message: 'Profile updated successfully' };
   }
 
   private getVerificationRedirectUrl(status: 'success' | 'failed') {

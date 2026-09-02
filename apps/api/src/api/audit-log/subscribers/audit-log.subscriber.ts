@@ -1,6 +1,6 @@
-import { SessionEntity } from '@/api/auth/entities/session.entity';
 import { EmailLogEntity } from '@/api/email/entities/email-log.entity';
 import { NotificationEntity } from '@/api/notification/entities/notification.entity';
+import { SessionEntity } from '@/api/session/entities/session.entity';
 import { Logger } from '@nestjs/common';
 import { ClsServiceManager } from 'nestjs-cls';
 import {

@@ -40,8 +40,15 @@ export function usePermissionLoader() {
     if (authUserQuery.data) {
       const permissions = getAdminPermissions(authUserQuery.data)
       setAbilityFromPermissions(permissions)
+    } else if (authUserQuery.isError) {
+      useAuthStore.getState().logout()
     }
-  }, [authUserQuery.data, authUserQuery.isFetched, setAbilityFromPermissions])
+  }, [
+    authUserQuery.data,
+    authUserQuery.isFetched,
+    authUserQuery.isError,
+    setAbilityFromPermissions,
+  ])
 
   return {
     permissionStatus,

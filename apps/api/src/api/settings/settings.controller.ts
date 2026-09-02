@@ -1,6 +1,5 @@
 import { ApiAuth } from '@/decorators/http.decorators';
 import { FilesystemService } from '@/filesystem/filesystem.service';
-import { AdminAuthGuard } from '@/guards/admin-auth.guard';
 import { SettingKeyValidationPipe } from '@/pipes/setting-key-validation.pipe';
 import { getPackageVersion } from '@/utils/app-version.util';
 import {
@@ -12,7 +11,6 @@ import {
   Param,
   Post,
   UploadedFiles,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -147,7 +145,6 @@ export class SettingsController {
       websiteUploadOptions,
     ),
   )
-  @UseGuards(AdminAuthGuard)
   async updateWebsiteSetting(
     @Param('key', SettingKeyValidationPipe) key: string,
     @Body() dto: UpdateWebsiteSettingReqDto,

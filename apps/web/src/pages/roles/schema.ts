@@ -13,9 +13,9 @@ export const ColumnKey = {
 }
 
 export const roleSchema = z.object({
-  id: z.string(),
+  id: z.union([z.string(), z.number()]).transform(String),
   name: z.string(),
-  description: z.string().nullable(),
+  description: z.string().nullish(),
   isSystem: z.boolean().optional().default(false),
   permissionIds: z.string().array().optional().default([]),
   permissions: z.string().array().optional().default([]),
@@ -31,8 +31,8 @@ export const roleSchema = z.object({
     )
     .optional()
     .default([]),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: z.string().nullish(),
+  updatedAt: z.string().nullish(),
 })
 
 export const roleFormSchema = z.object({

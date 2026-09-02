@@ -28,6 +28,10 @@ import { LoggerModule } from 'nestjs-pino';
 import { ApiModule } from '@/api/api.module';
 import { BackgroundModule } from '@/background/background.module';
 import { FilesystemModule } from '@/filesystem/filesystem.module';
+import { DomainGuard } from '@/guards/domain.guard';
+import { JwtAuthGuard } from '@/guards/jwt-auth.guard';
+import { PoliciesGuard } from '@/guards/policies.guard';
+import { SessionGuard } from '@/guards/session.guard';
 import { LibsModule } from '@/libs/libs.module';
 import { MailModule } from '@/mail/mail.module';
 import { SharedModule } from '@/shared/shared.module';
@@ -40,7 +44,7 @@ import { Environment } from '@/constants/app.constant';
 import path from 'path';
 import { DataSource, DataSourceOptions } from 'typeorm';
 
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { RequestContextInterceptor } from './interceptors/request-context.interceptor';
 import { RequestIdMiddleware } from './middlewares/request-id.middleware';
@@ -186,6 +190,22 @@ import loggerFactory from './utils/logger-factory';
     {
       provide: APP_INTERCEPTOR,
       useClass: RequestContextInterceptor,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: SessionGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: DomainGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PoliciesGuard,
     },
   ],
   exports: [],

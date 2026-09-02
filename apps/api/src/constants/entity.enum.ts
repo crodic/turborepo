@@ -1,3 +1,14 @@
+export enum DomainType {
+  CLIENT = 'client',
+  ADMIN = 'admin',
+}
+
+export enum UserStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  BLOCKED = 'blocked',
+}
+
 export enum ESessionUserType {
   ADMIN = 'AdminUserEntity',
   USER = 'UserEntity',

@@ -1,5 +1,4 @@
-import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { SessionEntity } from '@/api/auth/entities/session.entity';
+import { SessionEntity } from '@/api/session/entities/session.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
@@ -10,7 +9,7 @@ import { PresenceService } from './presence.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AdminUserEntity, UserEntity, SessionEntity]),
+    TypeOrmModule.forFeature([UserEntity, SessionEntity]),
     JwtModule.register({}),
   ],
   providers: [PresenceGateway, PresenceService, PresenceAuthService],

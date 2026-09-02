@@ -7,24 +7,26 @@ import { EmailModule } from './email/email.module';
 import { FileModule } from './file/file.module';
 import { HealthModule } from './health/health.module';
 import { HomeModule } from './home/home.module';
-
 import { NotificationModule } from './notification/notification.module';
 import { PermissionModule } from './permission/permission.module';
 import { PresenceModule } from './presence/presence.module';
 import { RoleModule } from './role/role.module';
 import { SentryMonitoringModule } from './sentry-monitoring/sentry-monitoring.module';
+import { SessionModule } from './session/session.module';
 import { SettingsModule } from './settings/settings.module';
+import { TwoFactorModule } from './two-factor/two-factor.module';
 import { UserModule } from './user/user.module';
 import { WhiteLabelModule } from './white-label/white-label.module';
 
 @Module({
   imports: [
+    SessionModule,
+    TwoFactorModule,
     UserModule,
     HealthModule,
     AuthModule,
     HomeModule,
     AuditLogModule,
-
     PresenceModule,
     PermissionModule,
     RoleModule,

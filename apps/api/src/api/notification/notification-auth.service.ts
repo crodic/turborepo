@@ -1,10 +1,10 @@
-import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { SessionEntity } from '@/api/auth/entities/session.entity';
 import { JwtPayloadType } from '@/api/auth/types/jwt-payload.type';
+import { SessionEntity } from '@/api/session/entities/session.entity';
+import { UserEntity } from '@/api/user/entities/user.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
-import { ESessionUserType } from '@/constants/entity.enum';
+import { DomainType } from '@/constants/entity.enum';
 import { createCacheKey } from '@/utils/cache.util';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
@@ -25,8 +25,8 @@ export class NotificationAuthService {
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
     private readonly jwtService: JwtService,
-    @InjectRepository(AdminUserEntity)
-    private readonly adminUserRepository: Repository<AdminUserEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(SessionEntity)
     private readonly sessionRepository: Repository<SessionEntity>,
     @Inject(CACHE_MANAGER)
@@ -43,8 +43,9 @@ export class NotificationAuthService {
     const payload = this.verifyToken(token);
     await this.validateSession(payload);
 
-    const admin = await this.adminUserRepository.findOneBy({
+    const admin = await this.userRepository.findOneBy({
       id: payload.id as AutoIncrementID,
+      domain: DomainType.ADMIN,
     });
 
     if (!admin) {
@@ -94,14 +95,14 @@ export class NotificationAuthService {
     const session = await this.sessionRepository.findOneBy({
       id: payload.sessionId as AutoIncrementID,
       userId: payload.id as AutoIncrementID,
-      userType: ESessionUserType.ADMIN,
+      domain: DomainType.ADMIN,
     });
 
     if (
       !session ||
       !payload.hash ||
-      session.hash !== payload.hash ||
-      session.revokedAt ||
+      (session.refreshTokenHash && session.refreshTokenHash !== payload.hash) ||
+      session.isRevoked ||
       (session.expiresAt && session.expiresAt <= new Date())
     ) {
       throw new UnauthorizedException('Notification auth session is inactive');

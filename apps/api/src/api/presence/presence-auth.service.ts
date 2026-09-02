@@ -1,11 +1,10 @@
-import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { SessionEntity } from '@/api/auth/entities/session.entity';
 import { JwtPayloadType } from '@/api/auth/types/jwt-payload.type';
+import { SessionEntity } from '@/api/session/entities/session.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
-import { ESessionUserType } from '@/constants/entity.enum';
+import { DomainType } from '@/constants/entity.enum';
 import { createCacheKey } from '@/utils/cache.util';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
@@ -21,8 +20,6 @@ export class PresenceAuthService {
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
     private readonly jwtService: JwtService,
-    @InjectRepository(AdminUserEntity)
-    private readonly adminUserRepository: Repository<AdminUserEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(SessionEntity)
@@ -45,21 +42,24 @@ export class PresenceAuthService {
   }
 
   async ensureSessionActive(principal: PresencePrincipal): Promise<void> {
-    const userType =
+    const domain =
       principal.type === PresenceUserType.ADMIN
-        ? ESessionUserType.ADMIN
-        : ESessionUserType.USER;
+        ? DomainType.ADMIN
+        : DomainType.CLIENT;
 
-    await this.validateSessionByFields(principal, userType);
+    await this.validateSessionByFields(principal, domain);
   }
 
   private async authenticateAdmin(token: string): Promise<PresencePrincipal> {
     const payload = this.verifyToken(token, 'auth.secret');
-    const session = await this.validateSession(payload, ESessionUserType.ADMIN);
+    const session = await this.validateSession(payload, DomainType.ADMIN);
 
-    const admin = await this.adminUserRepository.findOne({
-      where: { id: payload.id as AutoIncrementID },
-      select: ['id', 'email', 'firstName', 'lastName', 'fullName', 'avatar'],
+    const admin = await this.userRepository.findOne({
+      where: {
+        id: payload.id as AutoIncrementID,
+        domain: DomainType.ADMIN,
+      },
+      relations: ['adminProfile'],
     });
 
     if (!admin) {
@@ -72,18 +72,20 @@ export class PresenceAuthService {
       sessionId: session.id,
       tokenHash: payload.hash,
       email: admin.email,
-      fullName: admin.fullName,
-      avatar: admin.avatar,
+      fullName: admin.fullName ?? admin.email,
+      avatar: admin.avatarUrl ?? undefined,
     };
   }
 
   private async authenticateUser(token: string): Promise<PresencePrincipal> {
-    const payload = this.verifyToken(token, 'auth.userSecret');
-    const session = await this.validateSession(payload, ESessionUserType.USER);
+    const payload = this.verifyToken(token, 'auth.secret');
+    const session = await this.validateSession(payload, DomainType.CLIENT);
 
     const user = await this.userRepository.findOne({
-      where: { id: payload.id as AutoIncrementID },
-      select: ['id', 'email', 'firstName', 'lastName', 'fullName', 'avatar'],
+      where: {
+        id: payload.id as AutoIncrementID,
+        domain: DomainType.CLIENT,
+      },
     });
 
     if (!user) {
@@ -96,14 +98,14 @@ export class PresenceAuthService {
       sessionId: session.id,
       tokenHash: payload.hash,
       email: user.email,
-      fullName: user.fullName,
-      avatar: user.avatar,
+      fullName: user.fullName ?? user.email,
+      avatar: user.avatarUrl ?? undefined,
     };
   }
 
   private verifyToken(
     token: string,
-    secretKey: 'auth.secret' | 'auth.userSecret',
+    secretKey: 'auth.secret' = 'auth.secret',
   ): JwtPayloadType {
     try {
       return this.jwtService.verify(token, {
@@ -116,9 +118,9 @@ export class PresenceAuthService {
 
   private async validateSession(
     payload: JwtPayloadType,
-    userType: ESessionUserType,
+    domain: DomainType,
   ): Promise<SessionEntity> {
-    return this.validateSessionByFields(payload, userType);
+    return this.validateSessionByFields(payload, domain);
   }
 
   private async validateSessionByFields(
@@ -127,7 +129,7 @@ export class PresenceAuthService {
       hash?: string;
       tokenHash?: string;
     },
-    userType: ESessionUserType,
+    domain: DomainType,
   ): Promise<SessionEntity> {
     if (!payload.sessionId) {
       throw new UnauthorizedException('Missing socket auth session');
@@ -144,15 +146,15 @@ export class PresenceAuthService {
     const session = await this.sessionRepository.findOneBy({
       id: payload.sessionId as AutoIncrementID,
       userId: payload.id as AutoIncrementID,
-      userType,
+      domain,
     });
     const tokenHash = payload.hash ?? payload.tokenHash;
 
     if (
       !session ||
       !tokenHash ||
-      session.hash !== tokenHash ||
-      session.revokedAt ||
+      (session.refreshTokenHash && session.refreshTokenHash !== tokenHash) ||
+      session.isRevoked ||
       (session.expiresAt && session.expiresAt <= new Date())
     ) {
       throw new UnauthorizedException('Socket auth session is inactive');

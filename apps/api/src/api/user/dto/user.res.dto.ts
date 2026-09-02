@@ -32,6 +32,7 @@ export class UserResDto {
 
   @StringFieldOptional()
   @Expose()
+  @Transform(({ obj }) => obj.avatarUrl ?? obj.avatar)
   avatar?: string;
 
   @BooleanField()
@@ -39,11 +40,12 @@ export class UserResDto {
   hasPassword: boolean;
 
   @JsonField()
+  @Transform(({ obj }) => obj.userProfile?.notifications ?? true)
   @Expose()
-  notifications: Record<string, boolean>;
+  notifications: any;
 
   @BooleanField()
-  @Transform(({ value }) => !!value)
+  @Transform(({ obj }) => !!obj.isEmailVerified || !!obj.verifiedAt)
   @Expose()
   verifiedAt?: boolean;
 

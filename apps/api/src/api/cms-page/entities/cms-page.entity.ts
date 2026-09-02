@@ -1,4 +1,4 @@
-import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
+import { UserEntity } from '@/api/user/entities/user.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
 import {
@@ -56,22 +56,22 @@ export class CmsPageEntity extends AbstractEntity {
   @Column({ name: 'created_by', type: 'bigint', nullable: true })
   createdBy?: AutoIncrementID;
 
-  @ManyToOne(() => AdminUserEntity, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => UserEntity, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({
     name: 'created_by',
     foreignKeyConstraintName: 'FK_cms_pages_created_by',
   })
-  createdByAdmin?: Relation<AdminUserEntity>;
+  createdByAdmin?: Relation<UserEntity>;
 
   @Column({ name: 'updated_by', type: 'bigint', nullable: true })
   updatedBy?: AutoIncrementID;
 
-  @ManyToOne(() => AdminUserEntity, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => UserEntity, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({
     name: 'updated_by',
     foreignKeyConstraintName: 'FK_cms_pages_updated_by',
   })
-  updatedByAdmin?: Relation<AdminUserEntity>;
+  updatedByAdmin?: Relation<UserEntity>;
 
   @DeleteDateColumn({
     name: 'deleted_at',

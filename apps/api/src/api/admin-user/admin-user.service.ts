@@ -1,7 +1,16 @@
+import { RoleEntity } from '@/api/role/entities/role.entity';
+import { SettingsService } from '@/api/settings/settings.service';
+import { AccountEntity } from '@/api/user/entities/account.entity';
+import { AdminProfileEntity } from '@/api/user/entities/admin-profile.entity';
+import { UserEntity } from '@/api/user/entities/user.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
-import { EAccountProvider } from '@/constants/entity.enum';
+import {
+  DomainType,
+  EAccountProvider,
+  UserStatus,
+} from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { JobName, QueueName } from '@/constants/job.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
@@ -25,23 +34,21 @@ import {
   PaginateQuery,
 } from 'nestjs-paginate';
 import { EntityManager, In, LessThan, Repository } from 'typeorm';
-import { AdminAccountEntity } from '../auth/entities/admin-account.entity';
-import { RoleEntity } from '../role/entities/role.entity';
-import { SettingsService } from '../settings/settings.service';
 import { AdminUserResDto } from './dto/admin-user.res.dto';
 import { CreateAdminUserReqDto } from './dto/create-admin-user.req.dto';
 import { UpdateAdminUserReqDto } from './dto/update-admin-user.req.dto';
-import { AdminUserEntity } from './entities/admin-user.entity';
 
 @Injectable()
 export class AdminUserService {
   private readonly logger = new Logger(AdminUserService.name);
 
   constructor(
-    @InjectRepository(AdminUserEntity)
-    private readonly adminUserRepository: Repository<AdminUserEntity>,
-    @InjectRepository(AdminAccountEntity)
-    private readonly adminAccountRepository: Repository<AdminAccountEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(AdminProfileEntity)
+    private readonly adminProfileRepository: Repository<AdminProfileEntity>,
+    @InjectRepository(AccountEntity)
+    private readonly accountRepository: Repository<AccountEntity>,
     @InjectRepository(RoleEntity)
     private readonly roleRepository: Repository<RoleEntity>,
     private cls: ClsService,
@@ -60,7 +67,9 @@ export class AdminUserService {
     if (cached !== undefined) {
       return cached;
     }
-    const count = await this.adminUserRepository.count();
+    const count = await this.userRepository.count({
+      where: { domain: DomainType.ADMIN },
+    });
     const hasAdmin = count > 0;
 
     await this.cacheManager.set(cacheKey, hasAdmin, 60_000);
@@ -72,28 +81,47 @@ export class AdminUserService {
     manager: EntityManager,
     data: CreateAdminUserReqDto & { verifiedAt?: Date },
   ) {
-    const repo = manager.getRepository(AdminUserEntity);
-    const accountRepo = manager.getRepository(AdminAccountEntity);
+    const userRepo = manager.getRepository(UserEntity);
+    const profileRepo = manager.getRepository(AdminProfileEntity);
+    const accountRepo = manager.getRepository(AccountEntity);
     const roleRepo = manager.getRepository(RoleEntity);
-    const roles = await roleRepo.findBy({ id: In(data.roleIds) });
-    if (roles.length !== data.roleIds.length) {
+
+    const roles = data.roleIds?.length
+      ? await roleRepo.findBy({ id: In(data.roleIds) })
+      : [];
+
+    if (data.roleIds?.length && roles.length !== data.roleIds.length) {
       throw new ValidationException(ErrorCode.E002);
     }
-    const adminUser = await repo.save(
-      repo.create({
-        ...data,
+
+    const adminUser = await userRepo.save(
+      userRepo.create({
+        email: data.email.toLowerCase().trim(),
+        password: data.password,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        domain: DomainType.ADMIN,
+        status: UserStatus.ACTIVE,
         roles,
+        isEmailVerified: true,
         verifiedAt: data.verifiedAt ?? new Date(),
+      }),
+    );
+
+    await profileRepo.save(
+      profileRepo.create({
+        userId: adminUser.id,
+        bio: data.bio,
       }),
     );
 
     if (data.password) {
       await accountRepo.save(
-        new AdminAccountEntity({
-          adminUserId: adminUser.id,
+        accountRepo.create({
+          userId: adminUser.id,
           provider: EAccountProvider.LOCAL,
           providerAccountId: adminUser.email,
-          password: data.password,
         }),
       );
     }
@@ -104,20 +132,12 @@ export class AdminUserService {
   }
 
   async create(dto: CreateAdminUserReqDto): Promise<AdminUserResDto> {
-    const {
-      email,
-      password,
-      bio,
-      firstName,
-      lastName,
-      roleIds,
-      birthday,
-      phone,
-    } = dto;
+    const { email, password, bio, firstName, lastName, roleIds, phone } = dto;
 
-    const user = await this.adminUserRepository.findOne({
+    const user = await this.userRepository.findOne({
       where: {
-        email,
+        email: email.toLowerCase().trim(),
+        domain: DomainType.ADMIN,
       },
     });
 
@@ -133,35 +153,44 @@ export class AdminUserService {
       throw new ValidationException(ErrorCode.E002);
     }
 
-    const newUser = new AdminUserEntity({
+    const newUser = this.userRepository.create({
+      email: email.toLowerCase().trim(),
+      password,
       firstName,
       lastName,
-      email,
-      bio,
-      roles,
-      birthday: birthday ? new Date(birthday) : null,
       phone,
+      domain: DomainType.ADMIN,
+      status: UserStatus.ACTIVE,
+      roles,
     });
 
-    const savedUser = await this.adminUserRepository.save(newUser);
+    const savedUser = await this.userRepository.save(newUser);
+
+    const profile = this.adminProfileRepository.create({
+      userId: savedUser.id,
+      bio,
+    });
+    await this.adminProfileRepository.save(profile);
 
     if (password) {
-      await this.adminAccountRepository.save(
-        new AdminAccountEntity({
-          adminUserId: savedUser.id,
+      await this.accountRepository.save(
+        this.accountRepository.create({
+          userId: savedUser.id,
           provider: EAccountProvider.LOCAL,
           providerAccountId: savedUser.email,
-          password,
         }),
       );
     }
 
     await this.sendVerificationEmail(savedUser);
 
-    return plainToInstance(AdminUserResDto, savedUser);
+    savedUser.adminProfile = profile;
+    return plainToInstance(AdminUserResDto, savedUser, {
+      excludeExtraneousValues: true,
+    });
   }
 
-  private async sendVerificationEmail(user: AdminUserEntity): Promise<void> {
+  private async sendVerificationEmail(user: UserEntity): Promise<void> {
     const token = await this.jwtService.signAsync(
       {
         id: user.id,
@@ -198,11 +227,14 @@ export class AdminUserService {
   }
 
   async findAllUser(query: PaginateQuery): Promise<Paginated<AdminUserResDto>> {
-    const queryBuilder = this.adminUserRepository.createQueryBuilder('admin');
+    const queryBuilder = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.adminProfile', 'adminProfile')
+      .where('user.domain = :domain', { domain: DomainType.ADMIN });
 
     const result = await paginate(query, queryBuilder, {
       sortableColumns: ['id', 'email', 'createdAt', 'updatedAt'],
-      searchableColumns: ['email'],
+      searchableColumns: ['email', 'fullName', 'firstName', 'lastName'],
       defaultSortBy: [['id', 'DESC']],
       filterableColumns: {
         'roles.id': [FilterOperator.IN],
@@ -210,7 +242,7 @@ export class AdminUserService {
         fullName: [FilterOperator.ILIKE],
         createdAt: [FilterOperator.GTE, FilterOperator.LTE, FilterOperator.BTW],
       },
-      relations: ['roles', 'roles.permissionEntities'],
+      relations: ['roles', 'roles.permissionEntities', 'adminProfile'],
     });
 
     return {
@@ -223,24 +255,21 @@ export class AdminUserService {
 
   async findOne(id: AutoIncrementID): Promise<AdminUserResDto> {
     assert(id, 'id is required');
-    const user = await this.adminUserRepository.findOneOrFail({
-      where: { id },
-      relations: ['roles', 'roles.permissionEntities'],
+    const user = await this.userRepository.findOneOrFail({
+      where: { id, domain: DomainType.ADMIN },
+      relations: ['adminProfile', 'roles', 'roles.permissionEntities'],
     });
 
-    return user.toDto(AdminUserResDto);
+    return plainToInstance(AdminUserResDto, user, {
+      excludeExtraneousValues: true,
+    });
   }
 
   async update(id: AutoIncrementID, updateUserDto: UpdateAdminUserReqDto) {
-    const user = await this.adminUserRepository.findOneOrFail({
-      where: { id },
-      relations: ['roles'],
+    const user = await this.userRepository.findOneOrFail({
+      where: { id, domain: DomainType.ADMIN },
+      relations: ['adminProfile', 'roles'],
     });
-
-    Object.assign(user, updateUserDto);
-
-    delete user.password;
-    delete (user as AdminUserEntity & { roleIds?: AutoIncrementID[] }).roleIds;
 
     if (updateUserDto.roleIds) {
       const roles = await this.roleRepository.findBy({
@@ -254,12 +283,29 @@ export class AdminUserService {
       user.roles = roles;
     }
 
-    await this.adminUserRepository.save(user);
+    if (updateUserDto.firstName !== undefined)
+      user.firstName = updateUserDto.firstName;
+    if (updateUserDto.lastName !== undefined)
+      user.lastName = updateUserDto.lastName;
+    if (updateUserDto.phone !== undefined) user.phone = updateUserDto.phone;
+
+    await this.userRepository.save(user);
+
+    if (updateUserDto.bio !== undefined) {
+      let profile = user.adminProfile;
+      if (!profile) {
+        profile = this.adminProfileRepository.create({ userId: user.id });
+      }
+      profile.bio = updateUserDto.bio;
+      await this.adminProfileRepository.save(profile);
+    }
   }
 
   async remove(id: AutoIncrementID) {
-    const admin = await this.adminUserRepository.findOneByOrFail({ id });
-    await this.adminUserRepository.softRemove(admin);
+    const admin = await this.userRepository.findOneOrFail({
+      where: { id, domain: DomainType.ADMIN },
+    });
+    await this.userRepository.softRemove(admin);
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
@@ -267,10 +313,12 @@ export class AdminUserService {
     const msIn30Days = 30 * 24 * 60 * 60 * 1000;
     const thresholdDate = new Date(Date.now() - msIn30Days);
 
-    const usersToDelete = await this.adminUserRepository.find({
+    const usersToDelete = await this.userRepository.find({
       where: {
+        domain: DomainType.ADMIN,
         deletedAt: LessThan(thresholdDate),
       },
+      relations: ['adminProfile'],
       withDeleted: true,
     });
 
@@ -280,7 +328,7 @@ export class AdminUserService {
 
     // Hard delete
     const idsToDelete = usersToDelete.map((u) => u.id);
-    await this.adminUserRepository.delete({
+    await this.userRepository.delete({
       id: In(idsToDelete),
     });
 
@@ -288,15 +336,18 @@ export class AdminUserService {
     for (const user of usersToDelete) {
       await this.emailQueue.add(JobName.ADMIN_ACCOUNT_HARD_DELETED as any, {
         email: user.email,
-        adminName: user.fullName || user.firstName,
-        deletedAt: user.deletedAt.toISOString(),
+        adminName: user.fullName || user.email,
+        deletedAt: user.deletedAt?.toISOString(),
       });
     }
 
     // Send summary report to system admins
-    const allAdmins = await this.adminUserRepository.find();
+    const allAdmins = await this.userRepository.find({
+      where: { domain: DomainType.ADMIN },
+      relations: ['adminProfile'],
+    });
     const adminsToNotify = allAdmins.filter(
-      (admin) => admin.notifications?.email !== false,
+      (admin) => admin.adminProfile?.notifications?.email !== false,
     );
 
     for (const admin of adminsToNotify) {
@@ -304,7 +355,7 @@ export class AdminUserService {
         JobName.ADMIN_ACCOUNT_HARD_DELETED_REPORT as any,
         {
           email: admin.email,
-          adminName: admin.fullName || admin.firstName,
+          adminName: admin.fullName || admin.email,
           deletedCount: usersToDelete.length,
         },
       );

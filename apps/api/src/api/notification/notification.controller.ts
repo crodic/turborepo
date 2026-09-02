@@ -1,8 +1,9 @@
 import { AutoIncrementID } from '@/common/types/common.type';
+import { DomainType } from '@/constants/entity.enum';
 import { CurrentUser } from '@/decorators/current-user.decorator';
+import { Domain } from '@/decorators/domain.decorator';
 import { ApiAuth } from '@/decorators/http.decorators';
 import { CheckPolicies } from '@/decorators/policies.decorator';
-import { AdminAuthGuard } from '@/guards/admin-auth.guard';
 import { AppAbility } from '@/libs/casl/ability.factory';
 import { AppActions, AppSubjects } from '@/utils/permissions.constant';
 import {
@@ -14,7 +15,6 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { NotificationResDto } from './dto/notification.res.dto';
@@ -24,7 +24,7 @@ import { NotificationService } from './notification.service';
 
 @ApiTags('Notifications')
 @Controller({ path: 'notifications', version: '1' })
-@UseGuards(AdminAuthGuard)
+@Domain(DomainType.ADMIN)
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 

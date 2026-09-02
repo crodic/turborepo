@@ -18,16 +18,16 @@ export const ColumnKey = {
 
 export const adminSchema = z
   .object({
-    id: z.string(),
-    firstName: z.string(),
-    lastName: z.string(),
-    fullName: z.string(),
-    phone: z.string().nullable(),
-    birthday: z.string().nullable(),
+    id: z.union([z.string(), z.number()]).transform(String),
+    firstName: z.string().default(''),
+    lastName: z.string().default(''),
+    fullName: z.string().nullish(),
+    phone: z.string().nullish(),
+    birthday: z.string().nullish(),
     email: z.string(),
     bio: z.string().nullish(),
     avatar: z.string().nullish(),
-    verifiedAt: z.boolean(),
+    verifiedAt: z.union([z.boolean(), z.string(), z.date()]).nullish(),
     twoFactorEnabled: z.boolean().default(false),
     notifications: z
       .object({
@@ -47,8 +47,8 @@ export const adminSchema = z
     role_ids: z.array(z.union([z.string(), z.number()])).nullish(),
     roleId: z.union([z.string(), z.number()]).nullish(),
     role_id: z.union([z.string(), z.number()]).nullish(),
-    createdAt: z.string(),
-    updatedAt: z.string(),
+    createdAt: z.string().nullish(),
+    updatedAt: z.string().nullish(),
   })
   .transform((admin) => {
     const roles = admin.roles?.length
@@ -59,6 +59,7 @@ export const adminSchema = z
 
     return {
       ...admin,
+      fullName: admin.fullName || `${admin.firstName} ${admin.lastName}`.trim(),
       roles,
       role: admin.role ?? roles[0],
       roleIds: getAdminRoleIds({ ...admin, roles }),

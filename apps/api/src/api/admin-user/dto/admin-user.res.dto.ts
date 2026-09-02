@@ -30,11 +30,7 @@ export class AdminUserResDto {
 
   @StringFieldOptional()
   @Expose()
-  phone: string;
-
-  @StringFieldOptional()
-  @Expose()
-  birthday?: string;
+  phone?: string;
 
   @StringField()
   @Expose()
@@ -42,10 +38,12 @@ export class AdminUserResDto {
 
   @StringFieldOptional()
   @Expose()
+  @Transform(({ obj }) => obj.adminProfile?.bio ?? obj.bio)
   bio?: string;
 
   @StringFieldOptional()
   @Expose()
+  @Transform(({ obj }) => obj.avatarUrl ?? obj.avatar)
   avatar?: string;
 
   @ArrayField(RoleResDto)
@@ -53,17 +51,19 @@ export class AdminUserResDto {
   roles?: WrapperType<RoleResDto>[];
 
   @BooleanField()
-  @Transform(({ value }) => !!value)
+  @Transform(({ obj }) => !!obj.isEmailVerified || !!obj.verifiedAt)
   @Expose()
   verifiedAt?: boolean;
 
   @BooleanField()
+  @Transform(({ obj }) => obj.adminProfile?.twoFactorEnabled ?? false)
   @Expose()
   twoFactorEnabled: boolean;
 
   @JsonField()
+  @Transform(({ obj }) => obj.adminProfile?.notifications ?? true)
   @Expose()
-  notifications: Record<string, boolean>;
+  notifications: any;
 
   @ClassField(() => Date)
   @Expose()

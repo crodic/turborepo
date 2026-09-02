@@ -1,9 +1,9 @@
 import { AutoIncrementID } from '@/common/types/common.type';
+import { DomainType } from '@/constants/entity.enum';
 import { CurrentUser } from '@/decorators/current-user.decorator';
+import { Domain } from '@/decorators/domain.decorator';
 import { ApiAuth, ApiPublic } from '@/decorators/http.decorators';
 import { CheckPolicies } from '@/decorators/policies.decorator';
-import { AdminAuthGuard } from '@/guards/admin-auth.guard';
-import { PoliciesGuard } from '@/guards/policies.guard';
 import { AppAbility } from '@/libs/casl/ability.factory';
 import { AppActions, AppSubjects } from '@/utils/permissions.constant';
 import {
@@ -15,7 +15,6 @@ import {
   Post,
   Put,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiParam, ApiTags } from '@nestjs/swagger';
 import {
@@ -31,7 +30,7 @@ import { UpdateCmsPageReqDto } from './dto/update-cms-page.req.dto';
 
 @ApiTags('CMS Pages')
 @Controller({ path: 'cms-pages', version: '1' })
-@UseGuards(AdminAuthGuard, PoliciesGuard)
+@Domain(DomainType.ADMIN)
 export class CmsPageAdminController {
   constructor(private readonly cmsPageService: CmsPageService) {}
 

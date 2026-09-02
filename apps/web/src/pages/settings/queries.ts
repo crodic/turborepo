@@ -30,7 +30,7 @@ export type EnableTwoFactorResponse = {
 }
 
 export async function apiGetTwoFactorStatus(): Promise<TwoFactorStatus> {
-  const response = await http.get('/auth/me/2fa')
+  const response = await http.get('/auth/two-factor/status')
 
   return response.data
 }
@@ -38,7 +38,7 @@ export async function apiGetTwoFactorStatus(): Promise<TwoFactorStatus> {
 export async function apiEnableTwoFactor(
   data: TwoFactorPasswordSchema
 ): Promise<EnableTwoFactorResponse> {
-  const response = await http.post('/auth/me/2fa/enable', data)
+  const response = await http.post('/auth/two-factor/enable', data)
 
   return response.data
 }
@@ -46,7 +46,7 @@ export async function apiEnableTwoFactor(
 export async function apiVerifyTwoFactorSetup(
   data: TwoFactorVerifySchema
 ): Promise<TwoFactorStatus> {
-  const response = await http.post('/auth/me/2fa/verify', data)
+  const response = await http.post('/auth/two-factor/verify-setup', data)
 
   return response.data
 }
@@ -54,7 +54,7 @@ export async function apiVerifyTwoFactorSetup(
 export async function apiDisableTwoFactor(
   data: TwoFactorPasswordSchema
 ): Promise<TwoFactorStatus> {
-  const response = await http.post('/auth/me/2fa/disable', data)
+  const response = await http.post('/auth/two-factor/disable', data)
 
   return response.data
 }
@@ -62,7 +62,7 @@ export async function apiDisableTwoFactor(
 export async function apiGenerateTwoFactorBackupCodes(
   data: TwoFactorPasswordSchema
 ): Promise<{ backupCodes: string[] }> {
-  const response = await http.post('/auth/me/2fa/backup-codes', data)
+  const response = await http.post('/auth/two-factor/backup-codes', data)
 
   return response.data
 }

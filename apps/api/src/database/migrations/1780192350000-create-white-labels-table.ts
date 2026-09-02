@@ -4,9 +4,9 @@ export class CreateWhiteLabelsTable1780192350000 implements MigrationInterface {
   name = 'CreateWhiteLabelsTable1780192350000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`
-      CREATE TYPE "public"."white_label_target_enum" AS ENUM('admin', 'client')
-    `);
+    await queryRunner.query(
+      `CREATE TYPE "public"."white_label_target_enum" AS ENUM('admin', 'client')`,
+    );
 
     await queryRunner.query(`
       CREATE TABLE "white_labels" (
@@ -34,10 +34,11 @@ export class CreateWhiteLabelsTable1780192350000 implements MigrationInterface {
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "deleted_at" TIMESTAMP WITH TIME ZONE,
-        CONSTRAINT "PK_white_label_id" PRIMARY KEY ("id")
+        CONSTRAINT "PK_white_label_id" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_white_labels_created_by_admin" FOREIGN KEY ("created_by_admin_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE,
+        CONSTRAINT "FK_white_labels_updated_by_admin" FOREIGN KEY ("updated_by_admin_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE
       )
     `);
-
     await queryRunner.query(
       `CREATE UNIQUE INDEX "UQ_white_labels_slug" ON "white_labels" ("slug") WHERE "deleted_at" IS NULL`,
     );
@@ -56,39 +57,9 @@ export class CreateWhiteLabelsTable1780192350000 implements MigrationInterface {
     await queryRunner.query(
       `CREATE INDEX "IDX_white_labels_updated_by_admin_id" ON "white_labels" ("updated_by_admin_id")`,
     );
-    await queryRunner.query(`
-      ALTER TABLE "white_labels"
-      ADD CONSTRAINT "FK_white_labels_created_by_admin"
-      FOREIGN KEY ("created_by_admin_id") REFERENCES "admin_users"("id")
-      ON DELETE SET NULL ON UPDATE CASCADE
-    `);
-    await queryRunner.query(`
-      ALTER TABLE "white_labels"
-      ADD CONSTRAINT "FK_white_labels_updated_by_admin"
-      FOREIGN KEY ("updated_by_admin_id") REFERENCES "admin_users"("id")
-      ON DELETE SET NULL ON UPDATE CASCADE
-    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "white_labels" DROP CONSTRAINT "FK_white_labels_updated_by_admin"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "white_labels" DROP CONSTRAINT "FK_white_labels_created_by_admin"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_white_labels_updated_by_admin_id"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_white_labels_created_by_admin_id"`,
-    );
-    await queryRunner.query(`DROP INDEX "public"."IDX_white_labels_is_active"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_white_labels_target"`);
-    await queryRunner.query(
-      `DROP INDEX "public"."UQ_white_labels_target_active"`,
-    );
-    await queryRunner.query(`DROP INDEX "public"."UQ_white_labels_slug"`);
     await queryRunner.query(`DROP TABLE "white_labels"`);
     await queryRunner.query(`DROP TYPE "public"."white_label_target_enum"`);
   }

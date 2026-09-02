@@ -335,14 +335,14 @@ describe('RoleService', () => {
           id: '1' as any,
           name: 'Manager',
           isSystem: false,
-          admins: [{ id: '10' as any }] as any,
+          users: [{ id: '10' as any }] as any,
         }),
       );
 
       await expect(service.remove('1' as any)).rejects.toMatchObject({
         response: {
           errorCode: ErrorCode.V000,
-          message: 'Role cannot be deleted while assigned to admins',
+          message: 'Role cannot be deleted while assigned to users',
         },
       });
       expect(roleRepository.softRemove).not.toHaveBeenCalled();
@@ -353,7 +353,7 @@ describe('RoleService', () => {
         id: '1' as any,
         name: 'Manager',
         isSystem: false,
-        admins: [],
+        users: [],
       });
       roleRepository.findOneOrFail.mockResolvedValue(role);
 
@@ -361,7 +361,7 @@ describe('RoleService', () => {
 
       expect(roleRepository.findOneOrFail).toHaveBeenCalledWith({
         where: { id: '1' },
-        relations: ['admins'],
+        relations: ['users'],
       });
       expect(roleRepository.softRemove).toHaveBeenCalledWith(role);
     });

@@ -1,16 +1,13 @@
-import { CacheKey } from '@/constants/cache.constant';
+import { RoleService } from '@/api/role/role.service';
+import { DomainType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
-import { JobName, QueueName } from '@/constants/job.constant';
-import { createCacheKey } from '@/utils/cache.util';
-import { getQueueToken } from '@nestjs/bullmq';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
+import { FilesystemService } from '@/filesystem/filesystem.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { ClsService } from 'nestjs-cls';
 import { Repository } from 'typeorm';
-import { UserAccountEntity } from '../auth/entities/user-account.entity';
+import { AccountEntity } from './entities/account.entity';
+import { AdminProfileEntity } from './entities/admin-profile.entity';
+import { UserProfileEntity } from './entities/user-profile.entity';
 import { UserEntity } from './entities/user.entity';
 import { UserService } from './user.service';
 
@@ -19,32 +16,48 @@ describe('UserService', () => {
   let userRepositoryValue: Partial<
     Record<keyof Repository<UserEntity>, jest.Mock>
   >;
-  let userAccountRepositoryValue: Partial<
-    Record<keyof Repository<UserAccountEntity>, jest.Mock>
+  let adminProfileRepoValue: Partial<
+    Record<keyof Repository<AdminProfileEntity>, jest.Mock>
   >;
-  let jwtServiceMock: { signAsync: jest.Mock };
-  let cacheManagerMock: { set: jest.Mock };
-  let emailQueueMock: { add: jest.Mock };
+  let userProfileRepoValue: Partial<
+    Record<keyof Repository<UserProfileEntity>, jest.Mock>
+  >;
+  let accountRepoValue: Partial<
+    Record<keyof Repository<AccountEntity>, jest.Mock>
+  >;
+  let roleServiceMock: Partial<Record<keyof RoleService, jest.Mock>>;
+  let filesystemServiceMock: Partial<
+    Record<keyof FilesystemService, jest.Mock>
+  >;
 
   beforeAll(async () => {
     userRepositoryValue = {
+      create: jest.fn((data) => Object.assign(new UserEntity(), data)),
+      exists: jest.fn(),
       findOne: jest.fn(),
-      findOneByOrFail: jest.fn(),
+      findOneOrFail: jest.fn(),
       save: jest.fn(),
       softRemove: jest.fn(),
+      createQueryBuilder: jest.fn(),
     };
-    userAccountRepositoryValue = {
+    adminProfileRepoValue = {
+      create: jest.fn((data) => Object.assign(new AdminProfileEntity(), data)),
+      save: jest.fn(),
+    };
+    userProfileRepoValue = {
+      create: jest.fn((data) => Object.assign(new UserProfileEntity(), data)),
+      save: jest.fn(),
+    };
+    accountRepoValue = {
+      create: jest.fn((data) => Object.assign(new AccountEntity(), data)),
       findOne: jest.fn(),
       save: jest.fn(),
     };
-    jwtServiceMock = {
-      signAsync: jest.fn(),
+    roleServiceMock = {
+      findByNames: jest.fn(),
     };
-    cacheManagerMock = {
-      set: jest.fn(),
-    };
-    emailQueueMock = {
-      add: jest.fn(),
+    filesystemServiceMock = {
+      disk: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -55,40 +68,24 @@ describe('UserService', () => {
           useValue: userRepositoryValue,
         },
         {
-          provide: getRepositoryToken(UserAccountEntity),
-          useValue: userAccountRepositoryValue,
+          provide: getRepositoryToken(AdminProfileEntity),
+          useValue: adminProfileRepoValue,
         },
         {
-          provide: ClsService,
-          useValue: {
-            get: jest.fn(),
-            set: jest.fn(),
-          },
+          provide: getRepositoryToken(UserProfileEntity),
+          useValue: userProfileRepoValue,
         },
         {
-          provide: ConfigService,
-          useValue: {
-            getOrThrow: jest.fn((key: string) => {
-              const values = {
-                'auth.userConfirmEmailSecret': 'user-confirm-secret',
-                'auth.userConfirmEmailExpires': '1d',
-              };
-
-              return values[key];
-            }),
-          },
+          provide: getRepositoryToken(AccountEntity),
+          useValue: accountRepoValue,
         },
         {
-          provide: JwtService,
-          useValue: jwtServiceMock,
+          provide: RoleService,
+          useValue: roleServiceMock,
         },
         {
-          provide: CACHE_MANAGER,
-          useValue: cacheManagerMock,
-        },
-        {
-          provide: getQueueToken(QueueName.EMAIL),
-          useValue: emailQueueMock,
+          provide: FilesystemService,
+          useValue: filesystemServiceMock,
         },
       ],
     }).compile();
@@ -98,7 +95,6 @@ describe('UserService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jwtServiceMock.signAsync.mockResolvedValue('verify-token');
   });
 
   it('should be defined', () => {
@@ -115,18 +111,19 @@ describe('UserService', () => {
     };
 
     it('creates a user when email is unique and passwords match', async () => {
-      const savedUser = new UserEntity({
+      const savedUser = Object.assign(new UserEntity(), {
         id: '1' as any,
         ...dto,
+        domain: DomainType.CLIENT,
       });
 
-      userRepositoryValue.findOne.mockResolvedValue(null);
-      userRepositoryValue.save.mockResolvedValue(savedUser);
+      userRepositoryValue.exists!.mockResolvedValue(false);
+      userRepositoryValue.save!.mockResolvedValue(savedUser);
 
       const result = await service.create(dto);
 
-      expect(userRepositoryValue.findOne).toHaveBeenCalledWith({
-        where: { email: dto.email },
+      expect(userRepositoryValue.exists).toHaveBeenCalledWith({
+        where: { email: dto.email, domain: DomainType.CLIENT },
       });
       expect(userRepositoryValue.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -136,40 +133,20 @@ describe('UserService', () => {
           password: dto.password,
         }),
       );
-      expect(jwtServiceMock.signAsync).toHaveBeenCalledWith(
-        { id: savedUser.id },
-        {
-          secret: 'user-confirm-secret',
-          expiresIn: '1d',
-        },
-      );
-      expect(cacheManagerMock.set).toHaveBeenCalledWith(
-        createCacheKey(CacheKey.EMAIL_VERIFICATION, savedUser.id),
-        'verify-token',
-        expect.any(Number),
-      );
-      expect(emailQueueMock.add).toHaveBeenCalledWith(
-        JobName.USER_EMAIL_VERIFICATION,
-        {
-          email: savedUser.email,
-          token: 'verify-token',
-        },
-        { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
-      );
       expect(result).toEqual(expect.objectContaining({ email: dto.email }));
     });
 
     it('throws when the email is already used', async () => {
-      userRepositoryValue.findOne.mockResolvedValue(new UserEntity());
+      userRepositoryValue.exists!.mockResolvedValue(true);
 
       await expect(service.create(dto)).rejects.toMatchObject({
-        response: { errorCode: ErrorCode.E001 },
+        response: { errorCode: ErrorCode.E003 },
       });
       expect(userRepositoryValue.save).not.toHaveBeenCalled();
     });
 
     it('throws when password confirmation does not match', async () => {
-      userRepositoryValue.findOne.mockResolvedValue(null);
+      userRepositoryValue.exists!.mockResolvedValue(false);
 
       await expect(
         service.create({ ...dto, confirmPassword: 'different1' }),
@@ -182,19 +159,21 @@ describe('UserService', () => {
 
   describe('findOne', () => {
     it('returns the user dto', async () => {
-      const user = new UserEntity({
+      const user = Object.assign(new UserEntity(), {
         id: '1' as any,
         firstName: 'Jane',
         lastName: 'Doe',
         email: 'jane@example.com',
+        domain: DomainType.CLIENT,
       });
 
-      userRepositoryValue.findOneByOrFail.mockResolvedValue(user);
+      userRepositoryValue.findOneOrFail!.mockResolvedValue(user);
 
       const result = await service.findOne('1' as any);
 
-      expect(userRepositoryValue.findOneByOrFail).toHaveBeenCalledWith({
-        id: '1',
+      expect(userRepositoryValue.findOneOrFail).toHaveBeenCalledWith({
+        where: { id: '1', domain: DomainType.CLIENT },
+        relations: ['userProfile'],
       });
       expect(result).toEqual(expect.objectContaining({ email: user.email }));
     });
@@ -202,19 +181,19 @@ describe('UserService', () => {
 
   describe('update', () => {
     it('updates mutable profile fields only', async () => {
-      const user = new UserEntity({
+      const user = Object.assign(new UserEntity(), {
         id: '1' as any,
         firstName: 'Old',
         lastName: 'Name',
         email: 'jane@example.com',
+        domain: DomainType.CLIENT,
       });
 
-      userRepositoryValue.findOneByOrFail.mockResolvedValue(user);
+      userRepositoryValue.findOneOrFail!.mockResolvedValue(user);
 
       await service.update('1' as any, {
         firstName: 'New',
         lastName: 'Person',
-        confirmPassword: 'secret1',
       });
 
       expect(user.firstName).toBe('New');
@@ -225,9 +204,12 @@ describe('UserService', () => {
 
   describe('remove', () => {
     it('soft removes the selected user', async () => {
-      const user = new UserEntity({ id: '1' as any });
+      const user = Object.assign(new UserEntity(), {
+        id: '1' as any,
+        domain: DomainType.CLIENT,
+      });
 
-      userRepositoryValue.findOneByOrFail.mockResolvedValue(user);
+      userRepositoryValue.findOneOrFail!.mockResolvedValue(user);
 
       await service.remove('1' as any);
 

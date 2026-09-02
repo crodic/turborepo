@@ -1,4 +1,4 @@
-import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
+import { UserEntity } from '@/api/user/entities/user.entity';
 import {
   IS_AUTH_OPTIONAL,
   IS_PUBLIC,
@@ -68,7 +68,7 @@ export class PoliciesGuard implements CanActivate {
 
     const request = context
       .switchToHttp()
-      .getRequest<Request & { user: AdminUserEntity }>();
+      .getRequest<Request & { user: UserEntity }>();
 
     const ability = this.caslFactory.createForUser(request.user);
 

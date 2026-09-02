@@ -166,6 +166,14 @@ export class RoleService {
     return this.toRoleDto(savedRole);
   }
 
+  async findByNames(names: string[]): Promise<RoleEntity[]> {
+    if (!names || names.length === 0) return [];
+    return await this.roleRepository.find({
+      where: { name: In(names) },
+      relations: ['permissionEntities'],
+    });
+  }
+
   async formOptions(): Promise<RoleResDto[]> {
     const query = await this.roleRepository.find({
       relations: ['permissionEntities'],
@@ -229,13 +237,13 @@ export class RoleService {
   async remove(id: AutoIncrementID) {
     const role = await this.roleRepository.findOneOrFail({
       where: { id },
-      relations: ['admins'],
+      relations: ['users'],
     });
     this.assertMutableRole(role);
-    if (role.admins?.length > 0) {
+    if (role.users?.length > 0) {
       throw new ValidationException(
         ErrorCode.V000,
-        'Role cannot be deleted while assigned to admins',
+        'Role cannot be deleted while assigned to users',
       );
     }
 

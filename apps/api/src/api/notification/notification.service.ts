@@ -1,6 +1,7 @@
-import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
+import { UserEntity } from '@/api/user/entities/user.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
+import { DomainType } from '@/constants/entity.enum';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -61,8 +62,8 @@ export class NotificationService {
   constructor(
     @InjectRepository(NotificationEntity)
     private readonly notificationRepository: Repository<NotificationEntity>,
-    @InjectRepository(AdminUserEntity)
-    private readonly adminUserRepository: Repository<AdminUserEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
     private readonly realtimeService: NotificationRealtimeService,
     private readonly configService: ConfigService<AllConfigType>,
   ) {}
@@ -81,7 +82,7 @@ export class NotificationService {
 
     const notification = await this.notificationRepository.save(
       this.notificationRepository.create({
-        adminId: params.adminId as AutoIncrementID,
+        userId: params.adminId as AutoIncrementID,
         type: params.type,
         title: params.title,
         message: params.message,
@@ -111,7 +112,8 @@ export class NotificationService {
 
     // If no specific targets provided, send to all admins (except sender)
     if (!targetIds || targetIds.length === 0) {
-      const allAdmins = await this.adminUserRepository.find({
+      const allAdmins = await this.userRepository.find({
+        where: { domain: DomainType.ADMIN },
         select: ['id'],
       });
       targetIds = allAdmins.map((admin) => Number(admin.id));
@@ -140,7 +142,7 @@ export class NotificationService {
     limit = 20,
   ): Promise<NotificationResDto[]> {
     const notifications = await this.notificationRepository.find({
-      where: { adminId },
+      where: { userId: adminId },
       order: { createdAt: 'DESC' },
       take: Math.min(Math.max(limit, 1), 50),
     });
@@ -164,7 +166,7 @@ export class NotificationService {
   ): Promise<NotificationResDto> {
     const notification = await this.notificationRepository.findOneBy({
       id: notificationId,
-      adminId,
+      userId: adminId,
     });
 
     if (!notification) {
@@ -186,14 +188,17 @@ export class NotificationService {
   ): Promise<NotificationUnreadCountResDto> {
     const notification = await this.notificationRepository.findOneBy({
       id: notificationId,
-      adminId,
+      userId: adminId,
     });
 
     if (!notification) {
       throw new NotFoundException('Notification not found');
     }
 
-    await this.notificationRepository.delete({ id: notification.id, adminId });
+    await this.notificationRepository.delete({
+      id: notification.id,
+      userId: adminId,
+    });
     await this.emitUnreadCount(adminId);
 
     return this.getUnreadCount(adminId);
@@ -203,7 +208,7 @@ export class NotificationService {
     adminId: AutoIncrementID,
   ): Promise<NotificationUnreadCountResDto> {
     await this.notificationRepository.update(
-      { adminId, readAt: IsNull() },
+      { userId: adminId, readAt: IsNull() },
       { readAt: new Date() },
     );
     await this.emitUnreadCount(adminId);
@@ -247,17 +252,17 @@ export class NotificationService {
 
   private async countUnread(adminId: AutoIncrementID) {
     return this.notificationRepository.count({
-      where: { adminId, readAt: IsNull() },
+      where: { userId: adminId, readAt: IsNull() },
     });
   }
 
   private async shouldCreateForAdmin(
     adminId: AutoIncrementID,
-    type: AdminNotificationType | string,
+    _type: AdminNotificationType | string,
   ) {
-    const admin = await this.adminUserRepository.findOne({
-      where: { id: adminId },
-      select: { id: true, notifications: true },
+    const admin = await this.userRepository.findOne({
+      where: { id: adminId, domain: DomainType.ADMIN },
+      relations: ['adminProfile'],
     });
 
     if (!admin) {
@@ -266,10 +271,10 @@ export class NotificationService {
 
     const preferences = {
       ...DEFAULT_NOTIFICATION_PREFERENCES,
-      ...(admin.notifications ?? {}),
+      ...((admin.adminProfile?.notifications as Record<string, boolean>) ?? {}),
     };
     const category =
-      NOTIFICATION_TYPE_CATEGORY[type as AdminNotificationType] ?? 'system';
+      NOTIFICATION_TYPE_CATEGORY[_type as AdminNotificationType] ?? 'system';
 
     return preferences[category] !== false;
   }

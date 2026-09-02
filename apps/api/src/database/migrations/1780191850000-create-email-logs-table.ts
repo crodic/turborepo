@@ -66,7 +66,7 @@ export class CreateEmailLogsTable1780191850000 implements MigrationInterface {
     await queryRunner.query(`
       ALTER TABLE "email_logs"
       ADD CONSTRAINT "FK_email_logs_created_by_admin"
-      FOREIGN KEY ("created_by_admin_id") REFERENCES "admin_users"("id")
+      FOREIGN KEY ("created_by_admin_id") REFERENCES "users"("id")
       ON DELETE SET NULL ON UPDATE CASCADE
     `);
   }

@@ -1,12 +1,15 @@
-import { BackgroundModule } from '@/background/background.module';
+import { RoleEntity } from '@/api/role/entities/role.entity';
+import { UserEntity } from '@/api/user/entities/user.entity';
+import { EmailQueueService } from '@/background/queues/email-queue/email-queue.service';
 import { AllConfigType } from '@/config/config.type';
+import { SUPER_ADMIN_ACCOUNT } from '@/constants/app.constant';
+import { AdminSeedService } from '@/database/seeds/admin/admin-seed.service';
+import { SeedModule } from '@/database/seeds/seed.module';
 import { GlobalExceptionFilter } from '@/filters/global-exception.filter';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   ClassSerializerInterceptor,
   HttpStatus,
   INestApplication,
-  Module,
   RequestMethod,
   UnprocessableEntityException,
   ValidationError,
@@ -18,29 +21,15 @@ import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { AppModule } from './../src/app.module';
-
-@Module({})
-class TestBackgroundModule {}
+import { AppModule } from '../src/app.module';
 
 describe('App (e2e)', () => {
   let app: INestApplication;
   let dataSource: DataSource;
-  const cacheStore = new Map<string, unknown>();
-  const testCacheManager = {
-    get: async <T>(key: string): Promise<T> => cacheStore.get(key) as T,
-    set: async (key: string, value: unknown): Promise<void> => {
-      cacheStore.set(key, value);
-    },
-    del: async (key: string): Promise<void> => {
-      cacheStore.delete(key);
-    },
-    clear: async (): Promise<void> => {
-      cacheStore.clear();
-    },
-  };
+  let adminSeedService: AdminSeedService;
+  let superAdminToken: string;
+  let superAdminRole: RoleEntity;
 
-  const _api = (path: string) => `/api${path}`;
   const apiV1 = (path: string) => `/api/v1${path}`;
 
   const cleanDatabase = async () => {
@@ -49,39 +38,36 @@ describe('App (e2e)', () => {
     }
 
     await dataSource.query(`
-      TRUNCATE TABLE
-        "sessions",
-        "users",
-        "user_accounts",
-        "admin_user_role",
-        "role_permission",
-        "admin_accounts",
-        "admin_users",
-        "roles",
-        "permissions",
-        "audit_logs",
-        "settings",
-        "files"
-      RESTART IDENTITY CASCADE
+      DELETE FROM "sessions";
+      DELETE FROM "two_factors";
+      DELETE FROM "accounts";
+      DELETE FROM "admin_profiles";
+      DELETE FROM "user_profiles";
+      DELETE FROM "user_roles";
+      DELETE FROM "users";
+      DELETE FROM "audit_logs";
+      DELETE FROM "settings";
+      DELETE FROM "files";
     `);
-    await testCacheManager.clear();
   };
 
   const configureApp = (nestApp: INestApplication) => {
-    const configService =
-      nestApp.get<ConfigService<AllConfigType>>(ConfigService);
+    const config = nestApp.get<ConfigService<AllConfigType>>(ConfigService);
     const reflector = nestApp.get(Reflector);
 
     nestApp.setGlobalPrefix(
-      configService.getOrThrow('app.apiPrefix', { infer: true }),
+      config.getOrThrow('app.apiPrefix', { infer: true }),
       {
-        exclude: [{ method: RequestMethod.GET, path: '/' }],
+        exclude: [
+          { method: RequestMethod.GET, path: '/' },
+          { method: RequestMethod.GET, path: '/health' },
+        ],
       },
     );
     nestApp.enableVersioning({
       type: VersioningType.URI,
     });
-    nestApp.useGlobalFilters(new GlobalExceptionFilter(configService));
+    nestApp.useGlobalFilters(new GlobalExceptionFilter(config));
     nestApp.useGlobalPipes(
       new ValidationPipe({
         transform: true,
@@ -96,234 +82,267 @@ describe('App (e2e)', () => {
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideModule(BackgroundModule)
-      .useModule(TestBackgroundModule)
-      .overrideProvider(CACHE_MANAGER)
-      .useValue(testCacheManager)
-      .compile();
+      imports: [AppModule, SeedModule],
+    }).compile();
 
     app = moduleFixture.createNestApplication();
     configureApp(app);
     await app.init();
 
+    const emailQueueService = app.get(EmailQueueService);
+    jest
+      .spyOn(emailQueueService, 'sendAdminEmailVerification')
+      .mockResolvedValue(undefined);
+    jest
+      .spyOn(emailQueueService, 'sendUserEmailVerification')
+      .mockResolvedValue(undefined);
+
     dataSource = app.get(DataSource);
+    adminSeedService = app.get(AdminSeedService);
+
     await dataSource.runMigrations({ transaction: 'all' });
     await cleanDatabase();
-  });
+    await adminSeedService.run();
 
-  beforeEach(() => {
-    jest.clearAllMocks();
+    const roleRepo = dataSource.getRepository(RoleEntity);
+    superAdminRole = (await roleRepo.findOne({ where: { isSystem: true } }))!;
+
+    const loginRes = await request(app.getHttpServer())
+      .post(apiV1('/auth/login'))
+      .send({
+        email: SUPER_ADMIN_ACCOUNT.email,
+        password: SUPER_ADMIN_ACCOUNT.password,
+      })
+      .expect(HttpStatus.OK);
+
+    superAdminToken = loginRes.body.accessToken;
   });
 
   afterAll(async () => {
     await cleanDatabase();
-    await app?.close();
+    if (app) {
+      await app.close();
+    }
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Welcome to the API');
-  });
+  describe('1. Health and Root Endpoints', () => {
+    it('GET / - returns welcome message', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/')
+        .expect(HttpStatus.OK);
 
-  describe('system setup and admin auth', () => {
-    const adminEmail = 'admin.e2e@example.com';
-    const adminPassword = 'Admin123!';
-
-    it('reports uninitialized state before setup', async () => {
-      const { body } = await request(app.getHttpServer())
-        .get(apiV1('/setup/status'))
-        .expect(200);
-
-      expect(body).toEqual({
-        initialized: false,
-        message: 'System has not been initialized',
-      });
+      expect(response.text).toBe('Welcome to the API');
     });
 
-    it('validates setup payloads', async () => {
-      const { body } = await request(app.getHttpServer())
-        .post(apiV1('/setup'))
-        .send({ email: 'not-an-email', password: 'Admin123!' })
-        .expect(422);
+    it('GET /health - returns healthy status and db connection', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/health')
+        .expect(HttpStatus.OK);
 
-      expect(body).toEqual(
-        expect.objectContaining({
-          statusCode: 422,
-          message: 'Validation failed',
-        }),
-      );
-      expect(body.details).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ property: 'email' }),
-        ]),
-      );
-    });
-
-    it('sets up the system once, logs in, and protects admin profile APIs', async () => {
-      await request(app.getHttpServer())
-        .post(apiV1('/setup'))
-        .send({ email: adminEmail, password: adminPassword })
-        .expect(200)
-        .expect(({ body }) => {
-          expect(body).toEqual({
-            success: true,
-            message: 'System initialized successfully',
-          });
-        });
-
-      await request(app.getHttpServer())
-        .post(apiV1('/setup'))
-        .send({ email: 'second-admin@example.com', password: adminPassword })
-        .expect(403);
-
-      await request(app.getHttpServer()).get(apiV1('/auth/me')).expect(401);
-
-      const loginResponse = await request(app.getHttpServer())
-        .post(apiV1('/auth/login'))
-        .send({ email: adminEmail, password: adminPassword })
-        .expect(200);
-
-      expect(loginResponse.body).toEqual(
-        expect.objectContaining({
-          userId: expect.any(String),
-          accessToken: expect.any(String),
-          refreshToken: expect.any(String),
-          tokenExpires: expect.any(Number),
-        }),
-      );
-
-      await request(app.getHttpServer())
-        .get(apiV1('/auth/me'))
-        .set('Authorization', `Bearer ${loginResponse.body.accessToken}`)
-        .expect(200)
-        .expect(({ body }) => {
-          expect(body).toEqual(
-            expect.objectContaining({
-              id: loginResponse.body.userId,
-              email: adminEmail,
-            }),
-          );
-        });
+      expect(response.body.status).toBe('ok');
+      expect(response.body.info.database.status).toBe('up');
     });
   });
 
-  describe('admin protected user CRUD', () => {
+  describe('2. Admin Authentication Flow', () => {
+    const adminEmail = `new_admin_${Date.now()}@example.com`;
+    const adminPassword = 'AdminPassword123!';
     let adminAccessToken: string;
+    let adminRefreshToken: string;
+    let adminId: string;
 
-    beforeAll(async () => {
-      await cleanDatabase();
-
-      await request(app.getHttpServer())
-        .post(apiV1('/setup'))
+    it('2.1 Should register a new admin account with roles', async () => {
+      const response = await request(app.getHttpServer())
+        .post(apiV1('/auth/register'))
         .send({
-          email: 'crud-admin.e2e@example.com',
-          password: 'Admin123!',
+          email: adminEmail,
+          password: adminPassword,
+          first_name: 'Super',
+          last_name: 'Admin',
+          roleIds: [String(superAdminRole.id)],
         })
-        .expect(200);
+        .expect(HttpStatus.OK);
 
-      const loginResponse = await request(app.getHttpServer())
+      expect(response.body.accessToken).toBeDefined();
+      expect(response.body.refreshToken).toBeDefined();
+      expect(response.body.userId).toBeDefined();
+      adminId = String(response.body.userId);
+
+      const userRepo = dataSource.getRepository(UserEntity);
+      await userRepo.update(
+        { id: adminId as any },
+        { isEmailVerified: true, verifiedAt: new Date() },
+      );
+    });
+
+    it('2.2 Should login with valid admin credentials', async () => {
+      const response = await request(app.getHttpServer())
         .post(apiV1('/auth/login'))
         .send({
-          email: 'crud-admin.e2e@example.com',
-          password: 'Admin123!',
+          email: adminEmail,
+          password: adminPassword,
         })
-        .expect(200);
+        .expect(HttpStatus.OK);
 
-      adminAccessToken = loginResponse.body.accessToken;
+      expect(response.body.accessToken).toBeDefined();
+      expect(response.body.refreshToken).toBeDefined();
+      expect(response.body.userId).toBe(adminId);
+
+      adminAccessToken = response.body.accessToken;
+      adminRefreshToken = response.body.refreshToken;
     });
 
-    it('rejects unauthenticated access to protected user APIs', async () => {
-      await request(app.getHttpServer()).get(apiV1('/users')).expect(401);
-    });
-
-    it('rejects invalid create-user payloads before service logic runs', async () => {
-      const { body } = await request(app.getHttpServer())
-        .post(apiV1('/users'))
+    it('2.3 Should get admin profile (/auth/me)', async () => {
+      const response = await request(app.getHttpServer())
+        .get(apiV1('/auth/me'))
         .set('Authorization', `Bearer ${adminAccessToken}`)
+        .expect(HttpStatus.OK);
+
+      expect(response.body.id).toBe(adminId);
+      expect(response.body.email).toBe(adminEmail);
+    });
+
+    it('2.4 Should refresh admin token', async () => {
+      const response = await request(app.getHttpServer())
+        .post(apiV1('/auth/refresh'))
+        .send({ refreshToken: adminRefreshToken })
+        .expect(HttpStatus.OK);
+
+      expect(response.body.accessToken).toBeDefined();
+      expect(response.body.refreshToken).toBeDefined();
+    });
+
+    it('2.5 Should check 2FA status for admin', async () => {
+      const response = await request(app.getHttpServer())
+        .get(apiV1('/auth/two-factor/status'))
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .expect(HttpStatus.OK);
+
+      expect(response.body).toEqual({ enabled: false });
+    });
+  });
+
+  describe('3. Client User Authentication Flow', () => {
+    const userEmail = `client_${Date.now()}@example.com`;
+    const userPassword = 'ClientPassword123!';
+    let userAccessToken: string;
+
+    it('3.1 Should register a client user', async () => {
+      const response = await request(app.getHttpServer())
+        .post(apiV1('/user/auth/register'))
         .send({
-          firstName: 'Test',
+          email: userEmail,
+          password: userPassword,
+          firstName: 'Client',
           lastName: 'User',
-          email: 'bad-email',
-          password: 'secret1',
-          confirmPassword: 'secret1',
         })
-        .expect(422);
+        .expect(HttpStatus.OK);
 
-      expect(body.details).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ property: 'email' }),
-        ]),
+      expect(response.body.accessToken).toBeDefined();
+      expect(response.body.refreshToken).toBeDefined();
+      expect(response.body.userId).toBeDefined();
+
+      const userRepo = dataSource.getRepository(UserEntity);
+      await userRepo.update(
+        { id: response.body.userId as any },
+        { isEmailVerified: true, verifiedAt: new Date() },
       );
     });
 
-    it('creates, reads, updates, deletes, and then returns not found for a user', async () => {
-      const createResponse = await request(app.getHttpServer())
+    it('3.2 Should login as client user', async () => {
+      const response = await request(app.getHttpServer())
+        .post(apiV1('/user/auth/login'))
+        .send({
+          email: userEmail,
+          password: userPassword,
+        })
+        .expect(HttpStatus.OK);
+
+      expect(response.body.accessToken).toBeDefined();
+      userAccessToken = response.body.accessToken;
+    });
+
+    it('3.3 Should get client profile (/user/auth/me)', async () => {
+      const response = await request(app.getHttpServer())
+        .get(apiV1('/user/auth/me'))
+        .set('Authorization', `Bearer ${userAccessToken}`)
+        .expect(HttpStatus.OK);
+
+      expect(response.body.email).toBe(userEmail);
+    });
+  });
+
+  describe('4. Admin User Management CRUD', () => {
+    let createdUserId: string;
+    const testTargetEmail = `managed_${Date.now()}@example.com`;
+
+    it('4.1 Rejects unauthenticated access to /users', async () => {
+      await request(app.getHttpServer())
+        .get(apiV1('/users'))
+        .expect(HttpStatus.UNAUTHORIZED);
+    });
+
+    it('4.2 Rejects invalid create-user payload with 422', async () => {
+      await request(app.getHttpServer())
         .post(apiV1('/users'))
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Authorization', `Bearer ${superAdminToken}`)
         .send({
-          firstName: 'Customer',
-          lastName: 'One',
-          email: 'customer.one@example.com',
-          password: 'User123!',
-          confirmPassword: 'User123!',
+          email: 'not-an-email',
+          password: '123',
         })
-        .expect(201);
+        .expect(HttpStatus.UNPROCESSABLE_ENTITY);
+    });
 
-      expect(createResponse.body).toEqual(
-        expect.objectContaining({
-          id: expect.any(String),
-          firstName: 'Customer',
-          lastName: 'One',
-          email: 'customer.one@example.com',
-        }),
-      );
-
-      const userId = createResponse.body.id;
-
-      await request(app.getHttpServer())
-        .get(apiV1(`/users/${userId}`))
-        .set('Authorization', `Bearer ${adminAccessToken}`)
-        .expect(200)
-        .expect(({ body }) => {
-          expect(body).toEqual(
-            expect.objectContaining({
-              id: userId,
-              email: 'customer.one@example.com',
-            }),
-          );
-        });
-
-      await request(app.getHttpServer())
-        .put(apiV1(`/users/${userId}`))
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+    it('4.3 Creates a user via admin endpoint', async () => {
+      const response = await request(app.getHttpServer())
+        .post(apiV1('/users'))
+        .set('Authorization', `Bearer ${superAdminToken}`)
         .send({
-          firstName: 'Customer',
-          lastName: 'Updated',
-          confirmPassword: 'Ignored123!',
+          email: testTargetEmail,
+          password: 'Password123!',
+          confirmPassword: 'Password123!',
+          firstName: 'John',
+          lastName: 'Doe',
         })
-        .expect(200);
+        .expect(HttpStatus.CREATED);
+
+      expect(response.body.id).toBeDefined();
+      expect(response.body.email).toBe(testTargetEmail);
+      createdUserId = String(response.body.id);
+    });
+
+    it('4.4 Reads user by ID', async () => {
+      const response = await request(app.getHttpServer())
+        .get(apiV1(`/users/${createdUserId}`))
+        .set('Authorization', `Bearer ${superAdminToken}`)
+        .expect(HttpStatus.OK);
+
+      expect(response.body.id).toBe(createdUserId);
+      expect(response.body.email).toBe(testTargetEmail);
+    });
+
+    it('4.5 Updates user by ID', async () => {
+      const response = await request(app.getHttpServer())
+        .put(apiV1(`/users/${createdUserId}`))
+        .set('Authorization', `Bearer ${superAdminToken}`)
+        .send({
+          firstName: 'Johnny',
+        })
+        .expect(HttpStatus.OK);
+
+      expect(response.body.firstName).toBe('Johnny');
+    });
+
+    it('4.6 Deletes user by ID', async () => {
+      await request(app.getHttpServer())
+        .delete(apiV1(`/users/${createdUserId}`))
+        .set('Authorization', `Bearer ${superAdminToken}`)
+        .expect(HttpStatus.OK);
 
       await request(app.getHttpServer())
-        .get(apiV1(`/users/${userId}`))
-        .set('Authorization', `Bearer ${adminAccessToken}`)
-        .expect(200)
-        .expect(({ body }) => {
-          expect(body.lastName).toBe('Updated');
-        });
-
-      await request(app.getHttpServer())
-        .delete(apiV1(`/users/${userId}`))
-        .set('Authorization', `Bearer ${adminAccessToken}`)
-        .expect(200);
-
-      await request(app.getHttpServer())
-        .get(apiV1(`/users/${userId}`))
-        .set('Authorization', `Bearer ${adminAccessToken}`)
-        .expect(404);
+        .get(apiV1(`/users/${createdUserId}`))
+        .set('Authorization', `Bearer ${superAdminToken}`)
+        .expect(HttpStatus.NOT_FOUND);
     });
   });
 });

@@ -1,4 +1,4 @@
-import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
+import { UserEntity } from '@/api/user/entities/user.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import {
   Column,
@@ -19,19 +19,19 @@ export class NotificationEntity {
   })
   id: AutoIncrementID;
 
-  @Index('IDX_notifications_admin_id')
-  @Column({ name: 'admin_id', type: 'bigint' })
-  adminId: AutoIncrementID;
+  @Index('IDX_notifications_user_id')
+  @Column({ name: 'user_id', type: 'bigint' })
+  userId: AutoIncrementID;
 
-  @ManyToOne(() => AdminUserEntity, {
+  @ManyToOne(() => UserEntity, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({
-    name: 'admin_id',
-    foreignKeyConstraintName: 'FK_notifications_admin',
+    name: 'user_id',
+    foreignKeyConstraintName: 'FK_notifications_user',
   })
-  admin?: Relation<AdminUserEntity>;
+  user?: Relation<UserEntity>;
 
   @Index('IDX_notifications_type')
   @Column({ type: 'varchar', length: 120 })

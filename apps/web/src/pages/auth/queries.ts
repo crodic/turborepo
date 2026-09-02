@@ -48,13 +48,13 @@ export async function apiLogin(values: LoginSchema): Promise<ApiLoginResponse> {
 export async function apiVerifyTwoFactorLogin(
   values: TwoFactorLoginSchema & { twoFactorToken: string }
 ): Promise<ApiLoginResponse> {
-  const res = await http.post('/auth/2fa/verify-login', values)
+  const res = await http.post('/auth/two-factor/verify-login', values)
 
   return res.data
 }
 
 export async function apiResendVerifyEmail(values: { email: string }) {
-  const res = await http.post('/auth/verify/resend', values)
+  const res = await http.post('/auth/verify/email/resend', values)
 
   return res.data
 }

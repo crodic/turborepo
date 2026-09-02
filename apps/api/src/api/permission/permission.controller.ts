@@ -1,11 +1,11 @@
 import { AutoIncrementID } from '@/common/types/common.type';
+import { DomainType } from '@/constants/entity.enum';
+import { Domain } from '@/decorators/domain.decorator';
 import { ApiAuth } from '@/decorators/http.decorators';
 import { CheckAnyPolicies } from '@/decorators/policies.decorator';
-import { AdminAuthGuard } from '@/guards/admin-auth.guard';
-import { PoliciesGuard } from '@/guards/policies.guard';
 import { AppAbility } from '@/libs/casl/ability.factory';
 import { AppActions, AppSubjects } from '@/utils/permissions.constant';
-import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put } from '@nestjs/common';
 import { ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   FilterOperator,
@@ -19,7 +19,7 @@ import { PermissionService } from './permission.service';
 
 @ApiTags('Permissions')
 @Controller({ path: 'permissions', version: '1' })
-@UseGuards(AdminAuthGuard, PoliciesGuard)
+@Domain(DomainType.ADMIN)
 export class PermissionController {
   constructor(private readonly permissionService: PermissionService) {}
 

@@ -1,28 +1,24 @@
-import { QueueName, QueuePrefix } from '@/constants/job.constant';
-import { BullModule } from '@nestjs/bullmq';
+import { FilesystemModule } from '@/filesystem/filesystem.module';
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserAccountEntity } from '../auth/entities/user-account.entity';
-import { AuthModule } from './../auth/auth.module';
+import { RoleModule } from '../role/role.module';
+import { AccountEntity } from './entities/account.entity';
+import { AdminProfileEntity } from './entities/admin-profile.entity';
+import { UserProfileEntity } from './entities/user-profile.entity';
 import { UserEntity } from './entities/user.entity';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
 
 @Module({
   imports: [
-    AuthModule,
-    TypeOrmModule.forFeature([UserEntity, UserAccountEntity]),
-    JwtModule.register({}),
-    BullModule.registerQueue({
-      name: QueueName.EMAIL,
-      prefix: QueuePrefix.AUTH,
-      streams: {
-        events: {
-          maxLen: 1000,
-        },
-      },
-    }),
+    TypeOrmModule.forFeature([
+      UserEntity,
+      AdminProfileEntity,
+      UserProfileEntity,
+      AccountEntity,
+    ]),
+    RoleModule,
+    FilesystemModule,
   ],
   controllers: [UserController],
   providers: [UserService],

@@ -1,7 +1,11 @@
+import { LoginActivityResDto } from '@/api/auth/dto/admin-users/login-activity.res.dto';
+import { SessionResDto } from '@/api/auth/dto/session.res.dto';
+import { JwtPayloadType } from '@/api/auth/types/jwt-payload.type';
+import { SessionRequestInfo } from '@/api/auth/types/session-request-info.type';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
-import { ESessionUserType } from '@/constants/entity.enum';
+import { DomainType } from '@/constants/entity.enum';
 import { createCacheKey } from '@/utils/cache.util';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
@@ -14,16 +18,11 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import ms, { StringValue } from 'ms';
-import { IsNull, Not, Repository } from 'typeorm';
-import { LoginActivityResDto } from '../dto/admin-users/login-activity.res.dto';
-import { SessionResDto } from '../dto/session.res.dto';
-import { SessionEntity } from '../entities/session.entity';
-import { JwtPayloadType } from '../types/jwt-payload.type';
-
-import { SessionRequestInfo } from '../types/session-request-info.type';
+import { Not, Repository } from 'typeorm';
+import { SessionEntity } from './entities/session.entity';
 
 @Injectable()
-export class AuthSessionService {
+export class SessionService {
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
     @InjectRepository(SessionEntity)
@@ -34,33 +33,61 @@ export class AuthSessionService {
 
   async createLoginSession(params: {
     userId: AutoIncrementID | string;
-    userType: ESessionUserType;
+    userType: DomainType | string;
     hash: string;
     requestInfo?: SessionRequestInfo;
   }): Promise<SessionEntity> {
+    const domain =
+      params.userType === DomainType.ADMIN || params.userType === 'admin'
+        ? DomainType.ADMIN
+        : DomainType.CLIENT;
+
     const session = this.sessionRepository.create({
       userId: params.userId as AutoIncrementID,
-      userType: params.userType,
-      hash: params.hash,
+      domain,
+      refreshTokenHash: params.hash,
       ipAddress: params.requestInfo?.ipAddress,
       userAgent: normalizeUserAgent(params.requestInfo?.userAgent),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
     const savedSession = await this.sessionRepository.save(session);
     await this.clearSessionBlacklist(savedSession.id);
     return savedSession;
   }
 
+  async getSessionById(
+    sessionId: AutoIncrementID | string,
+  ): Promise<SessionEntity | null> {
+    return await this.sessionRepository.findOneBy({
+      id: sessionId as AutoIncrementID,
+    });
+  }
+
+  async rotateSessionHash(
+    sessionId: AutoIncrementID | string,
+    newHash: string,
+  ): Promise<void> {
+    await this.sessionRepository.update(
+      { id: sessionId as AutoIncrementID },
+      { refreshTokenHash: newHash },
+    );
+  }
+
+  async revokeAllUserSessions(userId: AutoIncrementID | string): Promise<void> {
+    await this.sessionRepository.update(
+      { userId: userId as AutoIncrementID, isRevoked: false },
+      { isRevoked: true },
+    );
+  }
+
   async blacklistSession(
     sessionId: AutoIncrementID | string,
-    userType: ESessionUserType = ESessionUserType.USER,
+    _userType: DomainType | string = DomainType.CLIENT,
   ) {
-    const refreshExpiresKey =
-      userType === ESessionUserType.ADMIN
-        ? 'auth.refreshExpires'
-        : 'auth.userRefreshExpires';
-    const refreshExpires = this.configService.getOrThrow(refreshExpiresKey, {
-      infer: true,
-    });
+    const refreshExpires = this.configService.getOrThrow(
+      'auth.refreshExpires',
+      { infer: true },
+    );
 
     await this.cacheManager.set<boolean>(
       createCacheKey(CacheKey.SESSION_BLACKLIST, sessionId),
@@ -78,22 +105,26 @@ export class AuthSessionService {
   async revokeSession(params: {
     sessionId: AutoIncrementID | string;
     userId: AutoIncrementID | string;
-    userType: ESessionUserType;
+    userType: DomainType | string;
     revokedAt?: Date;
   }) {
-    const revokedAt = params.revokedAt ?? new Date();
+    const domain =
+      params.userType === DomainType.ADMIN || params.userType === 'admin'
+        ? DomainType.ADMIN
+        : DomainType.CLIENT;
+
     const result = await this.sessionRepository.update(
       {
         id: params.sessionId as AutoIncrementID,
         userId: params.userId as AutoIncrementID,
-        userType: params.userType,
-        revokedAt: IsNull(),
+        domain,
+        isRevoked: false,
       },
-      { revokedAt },
+      { isRevoked: true },
     );
 
     if (result.affected) {
-      await this.blacklistSession(params.sessionId, params.userType);
+      await this.blacklistSession(params.sessionId, domain);
     }
 
     return result;
@@ -101,7 +132,7 @@ export class AuthSessionService {
 
   async logout(
     userToken: JwtPayloadType,
-    userType: ESessionUserType,
+    userType: DomainType | string,
   ): Promise<void> {
     await this.revokeSession({
       sessionId: userToken.sessionId as AutoIncrementID,
@@ -112,13 +143,15 @@ export class AuthSessionService {
 
   async listSessions(
     userToken: JwtPayloadType,
-    userType: ESessionUserType,
+    userType: DomainType | string,
   ): Promise<SessionResDto[]> {
+    const domain = paramsDomain(userType);
+
     const sessions = await this.sessionRepository.find({
       where: {
         userId: userToken.id as AutoIncrementID,
-        userType,
-        revokedAt: IsNull(),
+        domain,
+        isRevoked: false,
       },
       order: { createdAt: 'DESC' },
     });
@@ -135,7 +168,7 @@ export class AuthSessionService {
 
   async revokeSessionById(
     userToken: JwtPayloadType,
-    userType: ESessionUserType,
+    userType: DomainType | string,
     sessionId: AutoIncrementID,
   ): Promise<{ message: string }> {
     const result = await this.revokeSession({
@@ -151,14 +184,16 @@ export class AuthSessionService {
 
   async revokeAllSessions(
     userToken: JwtPayloadType,
-    userType: ESessionUserType,
+    userType: DomainType | string,
   ): Promise<{ message: string }> {
+    const domain = paramsDomain(userType);
+
     const sessions = await this.sessionRepository.find({
       where: {
         userId: userToken.id as AutoIncrementID,
         id: Not(userToken.sessionId as AutoIncrementID),
-        userType,
-        revokedAt: IsNull(),
+        domain,
+        isRevoked: false,
       },
     });
 
@@ -167,7 +202,7 @@ export class AuthSessionService {
         this.revokeSession({
           sessionId: session.id,
           userId: userToken.id as AutoIncrementID,
-          userType,
+          userType: domain,
         }),
       ),
     );
@@ -177,9 +212,11 @@ export class AuthSessionService {
 
   async getLoginActivity(
     userToken: JwtPayloadType,
-    userType: ESessionUserType,
+    userType: DomainType | string,
   ): Promise<LoginActivityResDto> {
     try {
+      const domain = paramsDomain(userType);
+
       const days = 180;
       const endDate = new Date();
       const startDate = new Date();
@@ -201,7 +238,7 @@ export class AuthSessionService {
         )
         .addSelect('COUNT(session.id)', 'count')
         .where('session.userId = :userId', { userId: userToken.id })
-        .andWhere('session.userType = :userType', { userType })
+        .andWhere('session.domain = :domain', { domain })
         .andWhere('session.createdAt >= :startDate', { startDate })
         .groupBy("TO_CHAR(session.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')")
         .getRawMany();
@@ -237,6 +274,14 @@ export class AuthSessionService {
       throw new BadRequestException(e.message);
     }
   }
+}
+
+export { SessionService as AuthSessionService };
+
+function paramsDomain(userType: DomainType | string): DomainType {
+  return userType === DomainType.ADMIN || userType === 'admin'
+    ? DomainType.ADMIN
+    : DomainType.CLIENT;
 }
 
 function normalizeUserAgent(userAgent?: string | string[]): string | undefined {

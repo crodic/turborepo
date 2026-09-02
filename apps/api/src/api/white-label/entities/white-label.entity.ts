@@ -1,4 +1,4 @@
-import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
+import { UserEntity } from '@/api/user/entities/user.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { EWhiteLabelTarget } from '@/constants/entity.enum';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
@@ -106,7 +106,7 @@ export class WhiteLabelEntity extends AbstractEntity {
   @Column({ name: 'created_by_admin_id', type: 'bigint', nullable: true })
   createdByAdminId?: AutoIncrementID | null;
 
-  @ManyToOne(() => AdminUserEntity, {
+  @ManyToOne(() => UserEntity, {
     nullable: true,
     onDelete: 'SET NULL',
     onUpdate: 'CASCADE',
@@ -115,13 +115,13 @@ export class WhiteLabelEntity extends AbstractEntity {
     name: 'created_by_admin_id',
     foreignKeyConstraintName: 'FK_white_labels_created_by_admin',
   })
-  createdByAdmin?: Relation<AdminUserEntity>;
+  createdByAdmin?: Relation<UserEntity>;
 
   @Index('IDX_white_labels_updated_by_admin_id')
   @Column({ name: 'updated_by_admin_id', type: 'bigint', nullable: true })
   updatedByAdminId?: AutoIncrementID | null;
 
-  @ManyToOne(() => AdminUserEntity, {
+  @ManyToOne(() => UserEntity, {
     nullable: true,
     onDelete: 'SET NULL',
     onUpdate: 'CASCADE',
@@ -130,7 +130,7 @@ export class WhiteLabelEntity extends AbstractEntity {
     name: 'updated_by_admin_id',
     foreignKeyConstraintName: 'FK_white_labels_updated_by_admin',
   })
-  updatedByAdmin?: Relation<AdminUserEntity>;
+  updatedByAdmin?: Relation<UserEntity>;
 
   @DeleteDateColumn({
     name: 'deleted_at',

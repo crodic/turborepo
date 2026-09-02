@@ -1,7 +1,7 @@
+import { DomainType } from '@/constants/entity.enum';
+import { Domain } from '@/decorators/domain.decorator';
 import { ApiAuth, ApiPublic } from '@/decorators/http.decorators';
 import { CheckPolicies } from '@/decorators/policies.decorator';
-import { AdminAuthGuard } from '@/guards/admin-auth.guard';
-import { PoliciesGuard } from '@/guards/policies.guard';
 import { AppAbility } from '@/libs/casl/ability.factory';
 import { AppActions, AppSubjects } from '@/utils/permissions.constant';
 import {
@@ -16,7 +16,6 @@ import {
   Query,
   UploadedFile,
   UploadedFiles,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
@@ -55,7 +54,7 @@ import { SortableImageCacheService } from './sortable-image-cache.service';
 
 @ApiTags('Files')
 @Controller({ path: 'files', version: '1' })
-@UseGuards(AdminAuthGuard, PoliciesGuard)
+@Domain(DomainType.ADMIN)
 export class FileController {
   constructor(
     private readonly fileService: FileService,

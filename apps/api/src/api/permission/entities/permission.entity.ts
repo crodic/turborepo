@@ -1,5 +1,6 @@
 import { RoleEntity } from '@/api/role/entities/role.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
+import { DomainType } from '@/constants/entity.enum';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
 import {
   Column,
@@ -26,7 +27,7 @@ export class PermissionEntity extends AbstractEntity {
   @Column()
   name: string;
 
-  @Column()
+  @Column({ default: 'general' })
   group: string;
 
   @Column({ nullable: true })
@@ -35,6 +36,19 @@ export class PermissionEntity extends AbstractEntity {
   @Index('UQ_permissions_key', { unique: true })
   @Column()
   key: string;
+
+  @Column({ nullable: true })
+  action?: string;
+
+  @Column({ nullable: true })
+  subject?: string;
+
+  @Column({
+    type: 'enum',
+    enum: DomainType,
+    nullable: true,
+  })
+  domain?: DomainType;
 
   @ManyToMany(() => RoleEntity, (role) => role.permissionEntities)
   roles: Relation<RoleEntity>[];

@@ -1,5 +1,5 @@
-import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { SessionEntity } from '@/api/auth/entities/session.entity';
+import { SessionEntity } from '@/api/session/entities/session.entity';
+import { UserEntity } from '@/api/user/entities/user.entity';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -12,11 +12,7 @@ import { NotificationService } from './notification.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      NotificationEntity,
-      AdminUserEntity,
-      SessionEntity,
-    ]),
+    TypeOrmModule.forFeature([NotificationEntity, UserEntity, SessionEntity]),
     JwtModule.register({}),
   ],
   controllers: [NotificationController],

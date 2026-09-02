@@ -1,4 +1,4 @@
-import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
+import { UserEntity } from '@/api/user/entities/user.entity';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -16,9 +16,7 @@ describe('NotificationService', () => {
   let notificationRepoMock: Partial<
     Record<keyof Repository<NotificationEntity>, jest.Mock>
   >;
-  let adminRepoMock: Partial<
-    Record<keyof Repository<AdminUserEntity>, jest.Mock>
-  >;
+  let userRepoMock: Partial<Record<keyof Repository<UserEntity>, jest.Mock>>;
   let realtimeServiceMock: {
     emitNewNotification: jest.Mock;
     emitUnreadCount: jest.Mock;
@@ -36,7 +34,7 @@ describe('NotificationService', () => {
       save: jest.fn(),
       count: jest.fn(),
     };
-    adminRepoMock = {
+    userRepoMock = {
       findOne: jest.fn(),
     };
     realtimeServiceMock = {
@@ -52,8 +50,8 @@ describe('NotificationService', () => {
           useValue: notificationRepoMock,
         },
         {
-          provide: getRepositoryToken(AdminUserEntity),
-          useValue: adminRepoMock,
+          provide: getRepositoryToken(UserEntity),
+          useValue: userRepoMock,
         },
         {
           provide: NotificationRealtimeService,
@@ -61,7 +59,9 @@ describe('NotificationService', () => {
         },
         {
           provide: ConfigService,
-          useValue: { get: jest.fn() },
+          useValue: {
+            get: jest.fn().mockReturnValue(30),
+          },
         },
       ],
     }).compile();
@@ -71,91 +71,98 @@ describe('NotificationService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    notificationRepoMock.count?.mockResolvedValue(3);
   });
 
-  it('creates and emits a notification when the mapped category is enabled', async () => {
-    const savedNotification = {
-      id: '10',
-      adminId: '1',
-      type: AdminNotificationType.PasswordChanged,
-      title: baseParams.title,
-      message: baseParams.message,
-      data: { source: 'test' },
-      readAt: null,
-      createdAt: new Date('2026-06-29T00:00:00.000Z'),
-    };
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
 
-    adminRepoMock.findOne?.mockResolvedValue({
-      id: '1',
-      notifications: { security: true },
-    });
-    notificationRepoMock.save?.mockResolvedValue(savedNotification);
-
-    const result = await service.createForAdmin({
-      ...baseParams,
-      type: AdminNotificationType.PasswordChanged,
-      data: { source: 'test' },
-    });
-
-    expect(adminRepoMock.findOne).toHaveBeenCalledWith({
-      where: { id: '1' },
-      select: { id: true, notifications: true },
-    });
-    expect(notificationRepoMock.create).toHaveBeenCalledWith({
-      adminId: '1',
-      type: AdminNotificationType.PasswordChanged,
-      title: baseParams.title,
-      message: baseParams.message,
-      data: { source: 'test' },
-    });
-    expect(notificationRepoMock.save).toHaveBeenCalled();
-    expect(realtimeServiceMock.emitNewNotification).toHaveBeenCalledWith(
-      '1',
-      expect.objectContaining({
+  describe('createForAdmin preference checks', () => {
+    it('creates and emits notification when admin has default settings', async () => {
+      userRepoMock.findOne!.mockResolvedValue({
+        id: '1',
+        adminProfile: { notifications: { security: true } },
+      });
+      notificationRepoMock.save!.mockResolvedValue({
         id: '10',
+        userId: '1',
+        type: AdminNotificationType.NewSession,
+        title: baseParams.title,
+        message: baseParams.message,
+        data: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      notificationRepoMock.count!.mockResolvedValue(1);
+
+      const result = await service.createForAdmin({
+        ...baseParams,
+        type: AdminNotificationType.NewSession,
+      });
+
+      expect(result).toBeDefined();
+      expect(notificationRepoMock.save).toHaveBeenCalled();
+      expect(realtimeServiceMock.emitNewNotification).toHaveBeenCalledWith(
+        '1',
+        expect.objectContaining({ id: '10' }),
+      );
+      expect(realtimeServiceMock.emitUnreadCount).toHaveBeenCalledWith('1', 1);
+    });
+
+    it('skips notification when preference is explicitly false', async () => {
+      userRepoMock.findOne!.mockResolvedValue({
+        id: '1',
+        adminProfile: { notifications: { security: false } },
+      });
+
+      const result = await service.createForAdmin({
+        ...baseParams,
+        type: AdminNotificationType.TwoFactorEnabled,
+      });
+
+      expect(result).toBeNull();
+      expect(notificationRepoMock.save).not.toHaveBeenCalled();
+      expect(realtimeServiceMock.emitNewNotification).not.toHaveBeenCalled();
+    });
+
+    it('creates notification when other preferences are disabled', async () => {
+      userRepoMock.findOne!.mockResolvedValue({
+        id: '1',
+        adminProfile: {
+          notifications: { email: false, system: false, security: true },
+        },
+      });
+      notificationRepoMock.save!.mockResolvedValue({
+        id: '11',
+        userId: '1',
         type: AdminNotificationType.PasswordChanged,
-      }),
-    );
-    expect(realtimeServiceMock.emitUnreadCount).toHaveBeenCalledWith('1', 3);
-    expect(result).toEqual(
-      expect.objectContaining({
-        id: '10',
+        title: baseParams.title,
+        message: baseParams.message,
+        data: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      notificationRepoMock.count!.mockResolvedValue(3);
+
+      const result = await service.createForAdmin({
+        ...baseParams,
         type: AdminNotificationType.PasswordChanged,
-      }),
-    );
-  });
+      });
 
-  it('does not create a notification when the mapped category is disabled', async () => {
-    adminRepoMock.findOne?.mockResolvedValue({
-      id: '1',
-      notifications: { security: false },
+      expect(result).toBeDefined();
+      expect(notificationRepoMock.save).toHaveBeenCalled();
     });
 
-    const result = await service.createForAdmin({
-      ...baseParams,
-      type: AdminNotificationType.PasswordChanged,
+    it('returns null if admin does not exist', async () => {
+      userRepoMock.findOne!.mockResolvedValue(null);
+
+      const result = await service.createForAdmin({
+        ...baseParams,
+        type: AdminNotificationType.NewSession,
+      });
+
+      expect(result).toBeNull();
+      expect(notificationRepoMock.save).not.toHaveBeenCalled();
     });
-
-    expect(result).toBeNull();
-    expect(notificationRepoMock.create).not.toHaveBeenCalled();
-    expect(notificationRepoMock.save).not.toHaveBeenCalled();
-    expect(realtimeServiceMock.emitNewNotification).not.toHaveBeenCalled();
-    expect(realtimeServiceMock.emitUnreadCount).not.toHaveBeenCalled();
-  });
-
-  it('uses the system preference for unknown notification types', async () => {
-    adminRepoMock.findOne?.mockResolvedValue({
-      id: '1',
-      notifications: { system: false, email: true, security: true },
-    });
-
-    const result = await service.createForAdmin({
-      ...baseParams,
-      type: 'admin.future.event',
-    });
-
-    expect(result).toBeNull();
-    expect(notificationRepoMock.save).not.toHaveBeenCalled();
   });
 });

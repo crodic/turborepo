@@ -1,4 +1,8 @@
+import { AccountEntity } from '@/api/user/entities/account.entity';
+import { AdminProfileEntity } from '@/api/user/entities/admin-profile.entity';
+import { UserEntity } from '@/api/user/entities/user.entity';
 import { CacheKey } from '@/constants/cache.constant';
+import { DomainType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { JobName, QueueName } from '@/constants/job.constant';
 import { createCacheKey } from '@/utils/cache.util';
@@ -10,20 +14,19 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ClsService } from 'nestjs-cls';
 import { Repository } from 'typeorm';
-import { AdminAccountEntity } from '../auth/entities/admin-account.entity';
 import { RoleEntity } from '../role/entities/role.entity';
 import { SettingsService } from '../settings/settings.service';
 import { AdminUserService } from './admin-user.service';
-import { AdminUserEntity } from './entities/admin-user.entity';
 
 describe('AdminUserService', () => {
   let service: AdminUserService;
 
-  let adminRepoMock: Partial<
-    Record<keyof Repository<AdminUserEntity>, jest.Mock>
+  let userRepoMock: Partial<Record<keyof Repository<UserEntity>, jest.Mock>>;
+  let adminProfileRepoMock: Partial<
+    Record<keyof Repository<AdminProfileEntity>, jest.Mock>
   >;
-  let adminAccountRepoMock: Partial<
-    Record<keyof Repository<AdminAccountEntity>, jest.Mock>
+  let accountRepoMock: Partial<
+    Record<keyof Repository<AccountEntity>, jest.Mock>
   >;
   let roleRepoMock: Partial<Record<keyof Repository<RoleEntity>, jest.Mock>>;
   let cacheMock: { get: jest.Mock; set: jest.Mock; del: jest.Mock };
@@ -32,11 +35,11 @@ describe('AdminUserService', () => {
   let emailQueueMock: { add: jest.Mock };
 
   beforeAll(async () => {
-    adminRepoMock = {
+    userRepoMock = {
       findOne: jest.fn(),
       count: jest.fn(),
       save: jest.fn(),
-      create: jest.fn(),
+      create: jest.fn((data) => Object.assign(new UserEntity(), data)),
       findOneOrFail: jest.fn(),
       findOneByOrFail: jest.fn(),
       findOneBy: jest.fn(),
@@ -44,9 +47,16 @@ describe('AdminUserService', () => {
       createQueryBuilder: jest.fn(),
     };
 
-    adminAccountRepoMock = {
+    adminProfileRepoMock = {
       findOne: jest.fn(),
       save: jest.fn(),
+      create: jest.fn((data) => Object.assign(new AdminProfileEntity(), data)),
+    };
+
+    accountRepoMock = {
+      findOne: jest.fn(),
+      save: jest.fn(),
+      create: jest.fn((data) => Object.assign(new AccountEntity(), data)),
     };
 
     roleRepoMock = {
@@ -74,12 +84,16 @@ describe('AdminUserService', () => {
       providers: [
         AdminUserService,
         {
-          provide: getRepositoryToken(AdminUserEntity),
-          useValue: adminRepoMock,
+          provide: getRepositoryToken(UserEntity),
+          useValue: userRepoMock,
         },
         {
-          provide: getRepositoryToken(AdminAccountEntity),
-          useValue: adminAccountRepoMock,
+          provide: getRepositoryToken(AdminProfileEntity),
+          useValue: adminProfileRepoMock,
+        },
+        {
+          provide: getRepositoryToken(AccountEntity),
+          useValue: accountRepoMock,
         },
         {
           provide: getRepositoryToken(RoleEntity),
@@ -142,12 +156,12 @@ describe('AdminUserService', () => {
 
       await expect(service.hasAdmin()).resolves.toBe(true);
 
-      expect(adminRepoMock.count).not.toHaveBeenCalled();
+      expect(userRepoMock.count).not.toHaveBeenCalled();
     });
 
     it('counts admins and caches the result on cache miss', async () => {
       cacheMock.get.mockResolvedValue(undefined);
-      adminRepoMock.count.mockResolvedValue(0);
+      userRepoMock.count!.mockResolvedValue(0);
 
       await expect(service.hasAdmin()).resolves.toBe(false);
 
@@ -169,23 +183,27 @@ describe('AdminUserService', () => {
     };
 
     it('creates an admin user with resolved roles', async () => {
-      const role = new RoleEntity({ id: '1' as any, name: 'Admin' });
-      const savedAdmin = new AdminUserEntity({
+      const role = Object.assign(new RoleEntity(), {
+        id: '1' as any,
+        name: 'Admin',
+      });
+      const savedAdmin = Object.assign(new UserEntity(), {
         id: '2' as any,
         ...dto,
+        domain: DomainType.ADMIN,
         roles: [role],
       });
 
-      adminRepoMock.findOne.mockResolvedValue(null);
-      roleRepoMock.findBy.mockResolvedValue([role]);
-      adminRepoMock.save.mockResolvedValue(savedAdmin);
+      userRepoMock.findOne!.mockResolvedValue(null);
+      roleRepoMock.findBy!.mockResolvedValue([role]);
+      userRepoMock.save!.mockResolvedValue(savedAdmin);
 
       const result = await service.create(dto);
 
-      expect(adminRepoMock.findOne).toHaveBeenCalledWith({
-        where: { email: dto.email },
+      expect(userRepoMock.findOne).toHaveBeenCalledWith({
+        where: { email: dto.email, domain: DomainType.ADMIN },
       });
-      expect(adminRepoMock.save).toHaveBeenCalledWith(
+      expect(userRepoMock.save).toHaveBeenCalledWith(
         expect.objectContaining({ email: dto.email, roles: [role] }),
       );
       expect(jwtServiceMock.signAsync).toHaveBeenCalledWith(
@@ -212,37 +230,39 @@ describe('AdminUserService', () => {
     });
 
     it('throws when the email already exists', async () => {
-      adminRepoMock.findOne.mockResolvedValue(new AdminUserEntity());
+      userRepoMock.findOne!.mockResolvedValue(new UserEntity());
 
       await expect(service.create(dto)).rejects.toMatchObject({
         response: { errorCode: ErrorCode.E001 },
       });
-      expect(adminRepoMock.save).not.toHaveBeenCalled();
+      expect(userRepoMock.save).not.toHaveBeenCalled();
     });
 
     it('throws when any role id does not exist', async () => {
-      adminRepoMock.findOne.mockResolvedValue(null);
-      roleRepoMock.findBy.mockResolvedValue([]);
+      userRepoMock.findOne!.mockResolvedValue(null);
+      roleRepoMock.findBy!.mockResolvedValue([]);
 
       await expect(service.create(dto)).rejects.toMatchObject({
         response: { errorCode: ErrorCode.E002 },
       });
-      expect(adminRepoMock.save).not.toHaveBeenCalled();
+      expect(userRepoMock.save).not.toHaveBeenCalled();
     });
   });
 
   describe('update', () => {
     it('replaces roles when role ids are provided', async () => {
-      const existing = new AdminUserEntity({
+      const existing = Object.assign(new UserEntity(), {
         id: '1' as any,
         email: 'admin@example.com',
-        password: 'secret1',
         roles: [],
       });
-      const role = new RoleEntity({ id: '2' as any, name: 'Manager' });
+      const role = Object.assign(new RoleEntity(), {
+        id: '2' as any,
+        name: 'Manager',
+      });
 
-      adminRepoMock.findOneOrFail.mockResolvedValue(existing);
-      roleRepoMock.findBy.mockResolvedValue([role]);
+      userRepoMock.findOneOrFail!.mockResolvedValue(existing);
+      roleRepoMock.findBy!.mockResolvedValue([role]);
 
       await service.update('1' as any, {
         firstName: 'Updated',
@@ -252,17 +272,14 @@ describe('AdminUserService', () => {
       });
 
       expect(existing.roles).toEqual([role]);
-      expect(
-        (existing as AdminUserEntity & { password?: string }).password,
-      ).toBe(undefined);
-      expect(adminRepoMock.save).toHaveBeenCalledWith(existing);
+      expect(userRepoMock.save).toHaveBeenCalledWith(existing);
     });
 
     it('throws when updated role ids cannot all be resolved', async () => {
-      adminRepoMock.findOneOrFail.mockResolvedValue(
-        new AdminUserEntity({ id: '1' as any, roles: [] }),
+      userRepoMock.findOneOrFail!.mockResolvedValue(
+        Object.assign(new UserEntity(), { id: '1' as any, roles: [] }),
       );
-      roleRepoMock.findBy.mockResolvedValue([]);
+      roleRepoMock.findBy!.mockResolvedValue([]);
 
       await expect(
         service.update('1' as any, {
@@ -274,18 +291,18 @@ describe('AdminUserService', () => {
       ).rejects.toMatchObject({
         response: { errorCode: ErrorCode.E002 },
       });
-      expect(adminRepoMock.save).not.toHaveBeenCalled();
+      expect(userRepoMock.save).not.toHaveBeenCalled();
     });
   });
 
   describe('remove', () => {
     it('soft removes the selected admin user', async () => {
-      const admin = new AdminUserEntity({ id: '1' as any });
-      adminRepoMock.findOneByOrFail.mockResolvedValue(admin);
+      const admin = Object.assign(new UserEntity(), { id: '1' as any });
+      userRepoMock.findOneOrFail!.mockResolvedValue(admin);
 
       await service.remove('1' as any);
 
-      expect(adminRepoMock.softRemove).toHaveBeenCalledWith(admin);
+      expect(userRepoMock.softRemove).toHaveBeenCalledWith(admin);
     });
   });
 });

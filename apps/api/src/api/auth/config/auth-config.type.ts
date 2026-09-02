@@ -10,14 +10,6 @@ export type AuthConfig = {
   portalUrl: string;
   portalResetPasswordUrl: string;
 
-  userSecret: string;
-  userExpires: string;
-  userRefreshSecret: string;
-  userRefreshExpires: string;
-  userForgotSecret: string;
-  userForgotExpires: string;
-  userConfirmEmailSecret: string;
-  userConfirmEmailExpires: string;
   clientUrl: string;
   clientResetPasswordUrl: string;
   googleOAuthCallbackUrl: string;
