@@ -1,6 +1,7 @@
 export const IS_PUBLIC = 'isPublic';
 export const IS_AUTH_OPTIONAL = 'isAuthOptional';
 export const SKIP_POLICIES = 'skipPolicies';
+export const REQUIRE_VERIFIED_EMAIL = 'requireVerifiedEmail';
 
 export enum Environment {
   LOCAL = 'local',
