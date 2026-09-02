@@ -7,7 +7,6 @@ import { UserResDto } from '@/api/user/dto/user.res.dto';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { IEmailJob } from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';
-import { Branded } from '@/common/types/types';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
 import { EAccountProvider, ESessionUserType } from '@/constants/entity.enum';
@@ -27,15 +26,12 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
 import { assert } from 'console';
-import crypto from 'crypto';
-import ms, { StringValue } from 'ms';
 import { IsNull, Repository } from 'typeorm';
 import { RefreshReqDto } from '../dto/refresh.req.dto';
 import { RefreshResDto } from '../dto/refresh.res.dto';
@@ -50,30 +46,11 @@ import { SocialLinkUrlResDto } from '../dto/users/social-link-url.res.dto';
 import { UpdateAuthUserMeReqDto } from '../dto/users/update-me.req.dto';
 import { OAuthProviderProfile } from '../social/oauth-provider-profile.type';
 import { JwtPayloadType } from '../types/jwt-payload.type';
-import { JwtRefreshPayloadType } from '../types/jwt-refresh-payload.type';
+import { SessionRequestInfo } from '../types/session-request-info.type';
 import { AuthSessionService } from './auth-session.service';
+import { AuthTokenService, TokenSigningConfig } from './auth-token.service';
+import { SocialAuthService } from './social-auth.service';
 import { UserAccountRecoveryService } from './user-account-recovery.service';
-
-type Token = Branded<
-  {
-    accessToken: string;
-    refreshToken: string;
-    tokenExpires: number;
-  },
-  'token'
->;
-
-type SessionRequestInfo = {
-  ipAddress?: string;
-  userAgent?: string | string[];
-  method?: string;
-  endpoint?: string;
-};
-
-type OAuthStateValue = {
-  mode: 'link';
-  userId: AutoIncrementID;
-};
 
 @Injectable()
 export class UserAuthService {
@@ -82,6 +59,10 @@ export class UserAuthService {
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
     private readonly jwtService: JwtService,
+    private readonly authTokenService: AuthTokenService,
+    private readonly socialAuthService: SocialAuthService,
+    private readonly authSessionService: AuthSessionService,
+    private readonly userAccountRecoveryService: UserAccountRecoveryService,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(AdminUserEntity)
@@ -94,9 +75,23 @@ export class UserAuthService {
     private readonly emailQueue: Queue<IEmailJob, any, string>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
-    private readonly authSessionService: AuthSessionService,
-    private readonly userAccountRecoveryService: UserAccountRecoveryService,
   ) {}
+
+  private getTokenConfig(): TokenSigningConfig {
+    return {
+      secret: this.configService.getOrThrow('auth.userSecret', { infer: true }),
+      expiresIn: this.configService.getOrThrow('auth.userExpires', {
+        infer: true,
+      }),
+      refreshSecret: this.configService.getOrThrow('auth.userRefreshSecret', {
+        infer: true,
+      }),
+      refreshExpiresIn: this.configService.getOrThrow(
+        'auth.userRefreshExpires',
+        { infer: true },
+      ),
+    };
+  }
 
   async signIn(
     dto: LoginReqDto,
@@ -169,7 +164,10 @@ export class UserAuthService {
   }
 
   async refreshToken(dto: RefreshReqDto): Promise<RefreshResDto> {
-    const { sessionId, hash } = this.verifyRefreshToken(dto.refreshToken);
+    const { sessionId, hash } = this.authTokenService.verifyRefreshToken(
+      dto.refreshToken,
+      this.configService.getOrThrow('auth.userRefreshSecret', { infer: true }),
+    );
     const session = await this.sessionRepository.findOneBy({
       id: sessionId,
       userType: ESessionUserType.USER,
@@ -192,10 +190,7 @@ export class UserAuthService {
       select: ['id'],
     });
 
-    const newHash = crypto
-      .createHash('sha256')
-      .update(randomStringGenerator())
-      .digest('hex');
+    const newHash = this.authTokenService.generateSessionHash();
 
     await this.sessionRepository.update(
       {
@@ -207,38 +202,26 @@ export class UserAuthService {
       { hash: newHash },
     );
 
-    return await this.createToken({
-      id: user.id,
-      sessionId: session.id,
-      hash: newHash,
-    });
+    return await this.authTokenService.createTokenPair(
+      {
+        id: user.id,
+        sessionId: session.id,
+        hash: newHash,
+      },
+      this.getTokenConfig(),
+    );
   }
 
   async exchangeSocialLogin(dto: SocialExchangeReqDto): Promise<LoginResDto> {
-    const cacheKey = createCacheKey(CacheKey.SOCIAL_OAUTH_EXCHANGE, dto.token);
-    const cached = await this.cacheManager.get<LoginResDto>(cacheKey);
-
-    if (!cached) {
-      throw new UnauthorizedException();
-    }
-
-    await this.cacheManager.del(cacheKey);
-
+    const cached = await this.socialAuthService.consumeExchangeToken(dto.token);
     return plainToInstance(LoginResDto, cached);
   }
 
   async createGoogleLinkUrl(
     userToken: JwtPayloadType,
   ): Promise<SocialLinkUrlResDto> {
-    const state = crypto.randomUUID();
-
-    await this.cacheManager.set<OAuthStateValue>(
-      createCacheKey(CacheKey.SOCIAL_OAUTH_STATE, state),
-      {
-        mode: 'link',
-        userId: userToken.id as AutoIncrementID,
-      },
-      ms('10m'),
+    const state = await this.socialAuthService.createOAuthState(
+      userToken.id as AutoIncrementID,
     );
 
     const url = new URL(
@@ -259,11 +242,13 @@ export class UserAuthService {
       throw new BadRequestException('Social account profile is incomplete');
     }
 
-    const oauthState = state ? await this.consumeOAuthState(state) : undefined;
+    const oauthState = state
+      ? await this.socialAuthService.consumeOAuthState(state)
+      : undefined;
 
     if (oauthState?.mode === 'link') {
       await this.linkSocialAccount(oauthState.userId, profile);
-      return this.buildClientRedirectUrl('/client-profile', {
+      return this.socialAuthService.buildClientRedirectUrl('/client-profile', {
         social: 'linked',
       });
     }
@@ -272,11 +257,15 @@ export class UserAuthService {
       profile,
       requestInfo,
     );
-    const exchangeToken = await this.createOAuthExchangeToken(loginResponse);
+    const exchangeToken =
+      await this.socialAuthService.createExchangeToken(loginResponse);
 
-    return this.buildClientRedirectUrl('/auth/oauth/callback', {
-      token: exchangeToken,
-    });
+    return this.socialAuthService.buildClientRedirectUrl(
+      '/auth/oauth/callback',
+      {
+        token: exchangeToken,
+      },
+    );
   }
 
   async listSocialAccounts(
@@ -302,30 +291,34 @@ export class UserAuthService {
 
     const user = await this.userRepository.findOneByOrFail({ id: userId });
 
-    let localAccount = await this.userAccountRepository.findOne({
+    const localAccount = await this.userAccountRepository.findOne({
       where: {
-        userId: user.id,
+        userId,
         provider: EAccountProvider.LOCAL,
       },
     });
 
     if (localAccount?.password) {
-      throw new BadRequestException('Password has already been configured');
+      throw new BadRequestException(
+        'Account already has a password configured. Use change password instead.',
+      );
     }
 
-    if (!localAccount) {
-      localAccount = new UserAccountEntity({
-        userId: user.id,
-        provider: EAccountProvider.LOCAL,
-        providerAccountId: user.email,
-        password: dto.password,
-        email: user.email,
-      });
-    } else {
+    if (localAccount) {
       localAccount.password = dto.password;
+      await this.userAccountRepository.save(localAccount);
+    } else {
+      await this.userAccountRepository.save(
+        new UserAccountEntity({
+          userId,
+          provider: EAccountProvider.LOCAL,
+          providerAccountId: user.email,
+          password: dto.password,
+          email: user.email,
+          displayName: `${user.firstName} ${user.lastName}`.trim(),
+        }),
+      );
     }
-
-    await this.userAccountRepository.save(localAccount);
 
     return plainToInstance(UserChangePasswordResDto, {
       message: 'Password configured successfully',
@@ -338,16 +331,12 @@ export class UserAuthService {
   }
 
   async verifyAccessToken(token: string): Promise<JwtPayloadType> {
-    let payload: JwtPayloadType;
-    try {
-      payload = this.jwtService.verify(token, {
-        secret: this.configService.getOrThrow('auth.userSecret', {
-          infer: true,
-        }),
-      });
-    } catch {
-      throw new UnauthorizedException();
-    }
+    const payload = this.authTokenService.verifyAccessToken(
+      token,
+      this.configService.getOrThrow('auth.userSecret', {
+        infer: true,
+      }),
+    );
 
     // Force logout if the session is in the blacklist
     const isSessionBlacklisted = await this.cacheManager.get<boolean>(
@@ -375,64 +364,6 @@ export class UserAuthService {
     }
 
     return payload;
-  }
-
-  private verifyRefreshToken(token: string): JwtRefreshPayloadType {
-    try {
-      return this.jwtService.verify(token, {
-        secret: this.configService.getOrThrow('auth.userRefreshSecret', {
-          infer: true,
-        }),
-      });
-    } catch {
-      throw new UnauthorizedException();
-    }
-  }
-
-  private async createToken(data: {
-    id: string;
-    sessionId: string;
-    hash: string;
-  }): Promise<Token> {
-    const tokenExpiresIn = this.configService.getOrThrow('auth.userExpires', {
-      infer: true,
-    });
-    const tokenExpires = Date.now() + ms(tokenExpiresIn as StringValue);
-
-    const [accessToken, refreshToken] = await Promise.all([
-      await this.jwtService.signAsync(
-        {
-          id: data.id,
-          sessionId: data.sessionId,
-          hash: data.hash,
-        },
-        {
-          secret: this.configService.getOrThrow('auth.userSecret', {
-            infer: true,
-          }),
-          expiresIn: tokenExpiresIn as StringValue,
-        },
-      ),
-      await this.jwtService.signAsync(
-        {
-          sessionId: data.sessionId,
-          hash: data.hash,
-        },
-        {
-          secret: this.configService.getOrThrow('auth.userRefreshSecret', {
-            infer: true,
-          }),
-          expiresIn: this.configService.getOrThrow('auth.userRefreshExpires', {
-            infer: true,
-          }),
-        },
-      ),
-    ]);
-    return {
-      accessToken,
-      refreshToken,
-      tokenExpires,
-    } as Token;
   }
 
   async me(userToken: JwtPayloadType): Promise<UserResDto> {
@@ -521,55 +452,26 @@ export class UserAuthService {
     user: UserEntity,
     requestInfo?: SessionRequestInfo,
   ): Promise<LoginResDto> {
-    const hash = crypto
-      .createHash('sha256')
-      .update(randomStringGenerator())
-      .digest('hex');
-
-    const session = new SessionEntity({
-      hash,
+    const session = await this.authSessionService.createLoginSession({
       userId: user.id,
       userType: ESessionUserType.USER,
-      ipAddress: requestInfo?.ipAddress,
-      userAgent: normalizeUserAgent(requestInfo?.userAgent),
+      hash: this.authTokenService.generateSessionHash(),
+      requestInfo,
     });
-    await this.sessionRepository.save(session);
-    await this.authSessionService.clearSessionBlacklist(session.id);
 
-    const token = await this.createToken({
-      id: user.id,
-      sessionId: session.id,
-      hash,
-    });
+    const token = await this.authTokenService.createTokenPair(
+      {
+        id: user.id,
+        sessionId: session.id,
+        hash: session.hash,
+      },
+      this.getTokenConfig(),
+    );
 
     return plainToInstance(LoginResDto, {
       userId: user.id,
       ...token,
     });
-  }
-
-  private async consumeOAuthState(state: string) {
-    const cacheKey = createCacheKey(CacheKey.SOCIAL_OAUTH_STATE, state);
-    const value = await this.cacheManager.get<OAuthStateValue>(cacheKey);
-
-    if (!value) {
-      throw new BadRequestException('Invalid or expired OAuth state');
-    }
-
-    await this.cacheManager.del(cacheKey);
-
-    return value;
-  }
-
-  private async createOAuthExchangeToken(loginResponse: LoginResDto) {
-    const exchangeToken = crypto.randomUUID();
-    await this.cacheManager.set<LoginResDto>(
-      createCacheKey(CacheKey.SOCIAL_OAUTH_EXCHANGE, exchangeToken),
-      loginResponse,
-      ms('5m'),
-    );
-
-    return exchangeToken;
   }
 
   private async signInOrRegisterSocialUser(
@@ -620,14 +522,16 @@ export class UserAuthService {
   }
 
   private async linkSocialAccount(
-    userId: AutoIncrementID,
+    userId: AutoIncrementID | string,
     profile: OAuthProviderProfile,
   ): Promise<void> {
     if (!profile.emailVerified) {
       throw new BadRequestException('Google email must be verified');
     }
 
-    const user = await this.userRepository.findOneByOrFail({ id: userId });
+    const user = await this.userRepository.findOneByOrFail({
+      id: userId as AutoIncrementID,
+    });
 
     if (normalizeEmail(user.email) !== normalizeEmail(profile.email)) {
       throw new BadRequestException(
@@ -672,12 +576,12 @@ export class UserAuthService {
   }
 
   private async createSocialAccount(
-    userId: AutoIncrementID,
+    userId: AutoIncrementID | string,
     profile: OAuthProviderProfile,
   ) {
     return this.userAccountRepository.save(
       new UserAccountEntity({
-        userId,
+        userId: userId as AutoIncrementID,
         provider:
           (profile.provider as unknown as EAccountProvider) ||
           EAccountProvider.GOOGLE,
@@ -689,26 +593,6 @@ export class UserAuthService {
       }),
     );
   }
-
-  private buildClientRedirectUrl(
-    pathname: string,
-    query: Record<string, string>,
-  ) {
-    const url = new URL(
-      pathname,
-      this.configService.getOrThrow('auth.clientUrl', { infer: true }),
-    );
-
-    Object.entries(query).forEach(([key, value]) => {
-      url.searchParams.set(key, value);
-    });
-
-    return url.toString();
-  }
-}
-
-function normalizeUserAgent(userAgent?: string | string[]) {
-  return Array.isArray(userAgent) ? userAgent.join(', ') : userAgent;
 }
 
 function normalizeEmail(email: string) {

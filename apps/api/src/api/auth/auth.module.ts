@@ -9,6 +9,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminUserEntity } from '../admin-user/entities/admin-user.entity';
 import { AdminAccountRecoveryService } from './services/admin-account-recovery.service';
 import { AdminTwoFactorService } from './services/admin-two-factor.service';
+import { AuthRecoveryService } from './services/auth-recovery.service';
+import { AuthTokenService } from './services/auth-token.service';
+import { SocialAuthService } from './services/social-auth.service';
 import { UserAccountRecoveryService } from './services/user-account-recovery.service';
 
 import { NotificationModule } from '../notification/notification.module';
@@ -61,6 +64,9 @@ import { UserJwtStrategy } from './strategy/user.strategy';
   ],
   controllers: [AdminAuthenticationController, UserAuthenticationController],
   providers: [
+    AuthTokenService,
+    AuthRecoveryService,
+    SocialAuthService,
     AdminAuthService,
     AdminTwoFactorService,
     AdminAccountRecoveryService,
@@ -73,6 +79,9 @@ import { UserJwtStrategy } from './strategy/user.strategy';
     GoogleOAuthAdapter,
   ],
   exports: [
+    AuthTokenService,
+    AuthRecoveryService,
+    SocialAuthService,
     AdminAuthService,
     UserAuthService,
     AuthSessionService,

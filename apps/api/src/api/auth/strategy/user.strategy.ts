@@ -80,7 +80,10 @@ export class UserJwtStrategy extends PassportStrategy(Strategy, 'user-jwt') {
     }
 
     return {
-      ...payload,
+      ...user,
+      sessionId: payload.sessionId,
+      iat: payload.iat,
+      exp: payload.exp,
     };
   }
 }

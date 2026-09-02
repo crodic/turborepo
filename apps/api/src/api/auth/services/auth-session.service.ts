@@ -20,6 +20,8 @@ import { SessionResDto } from '../dto/session.res.dto';
 import { SessionEntity } from '../entities/session.entity';
 import { JwtPayloadType } from '../types/jwt-payload.type';
 
+import { SessionRequestInfo } from '../types/session-request-info.type';
+
 @Injectable()
 export class AuthSessionService {
   constructor(
@@ -29,6 +31,24 @@ export class AuthSessionService {
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
   ) {}
+
+  async createLoginSession(params: {
+    userId: AutoIncrementID | string;
+    userType: ESessionUserType;
+    hash: string;
+    requestInfo?: SessionRequestInfo;
+  }): Promise<SessionEntity> {
+    const session = this.sessionRepository.create({
+      userId: params.userId as AutoIncrementID,
+      userType: params.userType,
+      hash: params.hash,
+      ipAddress: params.requestInfo?.ipAddress,
+      userAgent: normalizeUserAgent(params.requestInfo?.userAgent),
+    });
+    const savedSession = await this.sessionRepository.save(session);
+    await this.clearSessionBlacklist(savedSession.id);
+    return savedSession;
+  }
 
   async blacklistSession(
     sessionId: AutoIncrementID | string,
@@ -217,4 +237,8 @@ export class AuthSessionService {
       throw new BadRequestException(e.message);
     }
   }
+}
+
+function normalizeUserAgent(userAgent?: string | string[]): string | undefined {
+  return Array.isArray(userAgent) ? userAgent.join(', ') : userAgent;
 }

@@ -10,6 +10,7 @@ import { AdminAccountRecoveryService } from './admin-account-recovery.service';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminTwoFactorService } from './admin-two-factor.service';
 import { AuthSessionService } from './auth-session.service';
+import { AuthTokenService } from './auth-token.service';
 
 jest.mock('@/utils/password.util', () => ({
   verifyPassword: jest.fn(),
@@ -30,10 +31,7 @@ describe('AdminAuthService login', () => {
   let emailQueue: { add: jest.Mock };
   let notificationService: { createForAdmin: jest.Mock };
   let cacheManager: { del: jest.Mock; get: jest.Mock; set: jest.Mock };
-  let authSessionService: {
-    blacklistSession: jest.Mock;
-    clearSessionBlacklist: jest.Mock;
-  };
+  let authSessionService: Partial<Record<keyof AuthSessionService, jest.Mock>>;
   let twoFactorService: Partial<Record<keyof AdminTwoFactorService, jest.Mock>>;
   let accountRecoveryService: Partial<
     Record<keyof AdminAccountRecoveryService, jest.Mock>
@@ -88,7 +86,15 @@ describe('AdminAuthService login', () => {
     authSessionService = {
       blacklistSession: jest.fn(),
       clearSessionBlacklist: jest.fn(),
+      createLoginSession: jest.fn(async (params) => ({
+        id: String(sessionIdSequence++),
+        userId: params.userId,
+        userType: params.userType,
+        hash: params.hash,
+        createdAt: new Date('2026-06-30T08:00:00.000Z'),
+      })),
     };
+    const authTokenService = new AuthTokenService(jwtService as any);
     twoFactorService = {
       consumeBackupCode: jest.fn(),
       createTwoFactorLoginToken: jest.fn(),
@@ -119,6 +125,7 @@ describe('AdminAuthService login', () => {
           put: jest.fn(),
         })),
       } as any,
+      authTokenService,
       adminUserRepository as any,
       adminAccountRepository as any,
       sessionRepository as any,
@@ -144,7 +151,7 @@ describe('AdminAuthService login', () => {
     expect(result.userId).toBe('1');
     expect(result.accessToken).toBe('access-token');
     expect(result.refreshToken).toBe('refresh-token');
-    expect(sessionRepository.save).toHaveBeenCalled();
+    expect(authSessionService.createLoginSession).toHaveBeenCalled();
   });
 
   it('requires 2fa when two-factor is enabled on admin', async () => {
