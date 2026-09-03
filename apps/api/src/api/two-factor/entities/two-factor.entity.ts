@@ -6,7 +6,6 @@ import { Exclude } from 'class-transformer';
 import {
   Column,
   Entity,
-  Index,
   JoinColumn,
   OneToOne,
   PrimaryGeneratedColumn,
@@ -14,7 +13,6 @@ import {
 } from 'typeorm';
 
 @Entity('two_factors')
-@Index('idx_two_factors_user_id', ['userId'], { unique: true })
 export class TwoFactorEntity extends AbstractEntity {
   @Order(1)
   @PrimaryGeneratedColumn('increment', {

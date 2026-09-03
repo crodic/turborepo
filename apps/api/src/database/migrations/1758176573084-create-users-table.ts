@@ -56,13 +56,10 @@ export class CreateUsersTable1758176573084 implements MigrationInterface {
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         CONSTRAINT "PK_admin_profiles_id" PRIMARY KEY ("id"),
-        CONSTRAINT "UQ_a3d9676173d45095f26252902b1" UNIQUE ("user_id"),
+        CONSTRAINT "UQ_admin_profiles_user_id" UNIQUE ("user_id"),
         CONSTRAINT "FK_admin_profiles_user_id" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE
       )
     `);
-    await queryRunner.query(
-      `CREATE UNIQUE INDEX "idx_admin_profiles_user_id" ON "admin_profiles" ("user_id")`,
-    );
 
     // User Profiles Table
     await queryRunner.query(`
@@ -76,13 +73,10 @@ export class CreateUsersTable1758176573084 implements MigrationInterface {
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         CONSTRAINT "PK_user_profiles_id" PRIMARY KEY ("id"),
-        CONSTRAINT "UQ_6ca9503d77ae39b4b5a6cc3ba88" UNIQUE ("user_id"),
+        CONSTRAINT "UQ_user_profiles_user_id" UNIQUE ("user_id"),
         CONSTRAINT "FK_user_profiles_user_id" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE
       )
     `);
-    await queryRunner.query(
-      `CREATE UNIQUE INDEX "idx_user_profiles_user_id" ON "user_profiles" ("user_id")`,
-    );
 
     // Two Factors Table
     await queryRunner.query(`
@@ -95,13 +89,10 @@ export class CreateUsersTable1758176573084 implements MigrationInterface {
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         CONSTRAINT "PK_two_factors_id" PRIMARY KEY ("id"),
-        CONSTRAINT "UQ_2da130a1f2b816d0c2d0318a3b6" UNIQUE ("user_id"),
+        CONSTRAINT "UQ_two_factors_user_id" UNIQUE ("user_id"),
         CONSTRAINT "FK_two_factors_user_id" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE
       )
     `);
-    await queryRunner.query(
-      `CREATE UNIQUE INDEX "idx_two_factors_user_id" ON "two_factors" ("user_id")`,
-    );
 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "typeorm_metadata" (

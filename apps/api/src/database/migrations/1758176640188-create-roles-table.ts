@@ -67,10 +67,10 @@ export class CreateRolesTable1758176640188 implements MigrationInterface {
       )
     `);
     await queryRunner.query(
-      `CREATE INDEX "IDX_178199805b901ccd220ab7740e" ON "role_permissions" ("role_id")`,
+      `CREATE INDEX "IDX_role_permissions_role_id" ON "role_permissions" ("role_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_17022daf3f885f7d35423e9971" ON "role_permissions" ("permission_id")`,
+      `CREATE INDEX "IDX_role_permissions_permission_id" ON "role_permissions" ("permission_id")`,
     );
   }
 

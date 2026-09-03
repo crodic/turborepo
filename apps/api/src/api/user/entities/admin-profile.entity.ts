@@ -4,7 +4,6 @@ import { AbstractEntity } from '@/database/entities/abstract.entity';
 import {
   Column,
   Entity,
-  Index,
   JoinColumn,
   OneToOne,
   PrimaryGeneratedColumn,
@@ -13,7 +12,6 @@ import {
 import { UserEntity } from './user.entity';
 
 @Entity('admin_profiles')
-@Index('idx_admin_profiles_user_id', ['userId'], { unique: true })
 export class AdminProfileEntity extends AbstractEntity {
   @Order(1)
   @PrimaryGeneratedColumn('increment', {

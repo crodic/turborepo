@@ -14,10 +14,10 @@ export class CreateUserRolesTable1780191459369 implements MigrationInterface {
       )
     `);
     await queryRunner.query(
-      `CREATE INDEX "IDX_87b8888186ca9769c960e92687" ON "user_roles" ("user_id")`,
+      `CREATE INDEX "IDX_user_roles_user_id" ON "user_roles" ("user_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_b23c65e50a758245a33ee35fda" ON "user_roles" ("role_id")`,
+      `CREATE INDEX "IDX_user_roles_role_id" ON "user_roles" ("role_id")`,
     );
   }
 
