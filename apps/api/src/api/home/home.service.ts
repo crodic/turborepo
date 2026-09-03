@@ -6,22 +6,22 @@ import { SYSTEM_ROLE_NAME } from '@/constants/app.constant';
 import { ADMIN_FULL_ACCESS } from '@/utils/permissions.constant';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { AdminUserService } from '../admin-user/admin-user.service';
 import { RoleService } from '../role/role.service';
+import { UserService } from '../user/user.service';
 import { CreateSystemSetupReqDto } from './dto/create-system-setup.req.dto';
 
 @Injectable()
 export class HomeService {
   constructor(
     private readonly dataSource: DataSource,
-    private readonly adminUserService: AdminUserService,
+    private readonly userService: UserService,
     private readonly roleService: RoleService,
     private readonly settingsService: SettingsService,
   ) {}
 
   async initialStatus() {
     const [hasAdmin, hasRole] = await Promise.all([
-      this.adminUserService.hasAdmin(),
+      this.userService.hasAdmin(),
       this.roleService.hasRole(),
     ]);
 
@@ -37,7 +37,7 @@ export class HomeService {
 
   async systemSetup(dto: CreateSystemSetupReqDto) {
     const [hasAdmin, hasRole] = await Promise.all([
-      this.adminUserService.hasAdmin(),
+      this.userService.hasAdmin(),
       this.roleService.hasRole(),
     ]);
 
@@ -76,7 +76,7 @@ export class HomeService {
         isSystem: true,
       });
 
-      await this.adminUserService.createWithManager(manager, {
+      await this.userService.createWithManager(manager, {
         firstName: firstName ?? 'System',
         lastName: lastName ?? 'Administrator',
         email,

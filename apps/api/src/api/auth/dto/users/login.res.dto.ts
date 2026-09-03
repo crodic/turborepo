@@ -1,4 +1,11 @@
-import { NumberField, StringField } from '@/decorators/field.decorators';
+import {
+  ArrayField,
+  BooleanFieldOptional,
+  NumberFieldOptional,
+  StringField,
+  StringFieldOptional,
+  TokenFieldOptional,
+} from '@/decorators/field.decorators';
 import { Exclude, Expose } from 'class-transformer';
 
 @Exclude()
@@ -8,14 +15,34 @@ export class LoginResDto {
   userId!: string;
 
   @Expose()
-  @StringField()
-  accessToken!: string;
+  @StringFieldOptional()
+  accessToken?: string;
 
   @Expose()
-  @StringField()
-  refreshToken!: string;
+  @StringFieldOptional()
+  refreshToken?: string;
 
   @Expose()
-  @NumberField()
-  tokenExpires!: number;
+  @NumberFieldOptional()
+  tokenExpires?: number;
+
+  @Expose()
+  @BooleanFieldOptional()
+  twoFactorRequired?: boolean;
+
+  @Expose()
+  @TokenFieldOptional()
+  twoFactorToken?: string;
+
+  @Expose()
+  @ArrayField(String, { required: false })
+  twoFactorMethods?: string[];
+
+  @Expose()
+  @BooleanFieldOptional()
+  restoreAccountRequired?: boolean;
+
+  @Expose()
+  @TokenFieldOptional()
+  restoreToken?: string;
 }

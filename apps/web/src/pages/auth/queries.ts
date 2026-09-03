@@ -15,7 +15,7 @@ import {
 export const sessionSchema = z.object({
   id: z.string(),
   userId: z.string(),
-  userType: z.string(),
+  domain: z.string(),
 
   ipAddress: z.string().nullish(),
   userAgent: z.string().nullish(),

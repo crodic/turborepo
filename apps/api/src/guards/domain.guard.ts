@@ -38,7 +38,7 @@ export class DomainGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    this.validateDomain(user, requiredDomain, request.path);
+    this.validateDomain(user, requiredDomain);
     return true;
   }
 
@@ -60,26 +60,10 @@ export class DomainGuard implements CanActivate {
     );
   }
 
-  private validateDomain(
-    user: UserEntity,
-    requiredDomain?: DomainType,
-    path?: string,
-  ): void {
+  private validateDomain(user: UserEntity, requiredDomain?: DomainType): void {
     if (requiredDomain && user.domain !== requiredDomain) {
       throw new ForbiddenException(
         `Access denied. This endpoint requires domain '${requiredDomain}', but your account domain is '${user.domain}'`,
-      );
-    }
-
-    if (path?.includes('/admin/') && user.domain !== DomainType.ADMIN) {
-      throw new ForbiddenException(
-        `Access denied. This endpoint requires domain '${DomainType.ADMIN}', but your account domain is '${user.domain}'`,
-      );
-    }
-
-    if (path?.includes('/client/') && user.domain !== DomainType.CLIENT) {
-      throw new ForbiddenException(
-        `Access denied. This endpoint requires domain '${DomainType.CLIENT}', but your account domain is '${user.domain}'`,
       );
     }
   }

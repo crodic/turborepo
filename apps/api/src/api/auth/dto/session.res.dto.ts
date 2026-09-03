@@ -1,4 +1,4 @@
-import { ESessionUserType } from '@/constants/entity.enum';
+import { DomainType } from '@/constants/entity.enum';
 import {
   BooleanField,
   ClassField,
@@ -18,9 +18,9 @@ export class SessionResDto {
   @Expose()
   userId: string;
 
-  @EnumField(() => ESessionUserType)
+  @EnumField(() => DomainType)
   @Expose()
-  userType: ESessionUserType;
+  domain: DomainType;
 
   @StringFieldOptional()
   @Expose()

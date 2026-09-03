@@ -9,11 +9,6 @@ export enum UserStatus {
   BLOCKED = 'blocked',
 }
 
-export enum ESessionUserType {
-  ADMIN = 'AdminUserEntity',
-  USER = 'UserEntity',
-}
-
 export enum EEmailLogSource {
   SYSTEM = 'system',
   ADMIN = 'admin',

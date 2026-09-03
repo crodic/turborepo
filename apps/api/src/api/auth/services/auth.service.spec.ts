@@ -1,11 +1,14 @@
 import { SessionService } from '@/api/session/session.service';
 import { TwoFactorService } from '@/api/two-factor/two-factor.service';
-import { AccountEntity } from '@/api/user/entities/account.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { UserService } from '@/api/user/user.service';
 import { EmailQueueService } from '@/background/queues/email-queue/email-queue.service';
 import { DomainType } from '@/constants/entity.enum';
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
@@ -20,7 +23,6 @@ describe('AuthService', () => {
   let mockJwtService: Partial<JwtService>;
   let mockConfigService: Partial<ConfigService>;
   let mockUserRepository: Partial<Repository<UserEntity>>;
-  let mockAccountRepository: Partial<Repository<AccountEntity>>;
 
   beforeEach(() => {
     mockConfigService = {
@@ -88,10 +90,6 @@ describe('AuthService', () => {
       save: jest.fn().mockImplementation((u) => Promise.resolve(u)),
     };
 
-    mockAccountRepository = {
-      findOne: jest.fn(),
-    };
-
     service = new AuthService(
       mockUserService as UserService,
       mockAuthSessionService as SessionService,
@@ -100,7 +98,6 @@ describe('AuthService', () => {
       mockJwtService as JwtService,
       mockConfigService as ConfigService<any>,
       mockUserRepository as Repository<UserEntity>,
-      mockAccountRepository as Repository<AccountEntity>,
     );
   });
 
@@ -201,6 +198,138 @@ describe('AuthService', () => {
         mockEmailQueueService.sendUserEmailForgotPassword,
       ).toHaveBeenCalled();
       expect(result.message).toContain('instructions have been sent');
+    });
+  });
+
+  describe('login', () => {
+    it('should throw BadRequestException if user does not exist', async () => {
+      (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.login(
+          { email: 'nonexistent@example.com', password: 'Password123!' },
+          DomainType.CLIENT,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException if password does not match', async () => {
+      (mockUserRepository.findOne as jest.Mock).mockResolvedValue({
+        id: '1',
+        email: 'test@example.com',
+        password: '$argon2id$v=19$m=65536,t=3,p=4$dummyhash$dummyhash',
+        domain: DomainType.CLIENT,
+      });
+
+      await expect(
+        service.login(
+          { email: 'test@example.com', password: 'WrongPassword!' },
+          DomainType.CLIENT,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw ForbiddenException if email is unverified', async () => {
+      const hashedPassword = await import('@/utils/password.util').then((m) =>
+        m.hashPassword('Password123!'),
+      );
+      (mockUserRepository.findOne as jest.Mock).mockResolvedValue({
+        id: '1',
+        email: 'test@example.com',
+        password: hashedPassword,
+        domain: DomainType.CLIENT,
+        isEmailVerified: false,
+        verifiedAt: null,
+      });
+
+      await expect(
+        service.login(
+          { email: 'test@example.com', password: 'Password123!' },
+          DomainType.CLIENT,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should return twoFactor token if twoFactor is enabled', async () => {
+      const hashedPassword = await import('@/utils/password.util').then((m) =>
+        m.hashPassword('Password123!'),
+      );
+      (mockUserRepository.findOne as jest.Mock).mockResolvedValue({
+        id: '1',
+        email: 'test@example.com',
+        password: hashedPassword,
+        domain: DomainType.ADMIN,
+        isEmailVerified: true,
+        verifiedAt: new Date(),
+        twoFactor: { isEnabled: true },
+      });
+
+      const result = await service.login(
+        { email: 'test@example.com', password: 'Password123!' },
+        DomainType.ADMIN,
+      );
+
+      expect(result.twoFactorRequired).toBe(true);
+      expect(result.twoFactorToken).toBe('2fa-token');
+    });
+
+    it('should return authResponse on valid credentials', async () => {
+      const hashedPassword = await import('@/utils/password.util').then((m) =>
+        m.hashPassword('Password123!'),
+      );
+      (mockUserRepository.findOne as jest.Mock).mockResolvedValue({
+        id: '1',
+        email: 'test@example.com',
+        password: hashedPassword,
+        domain: DomainType.CLIENT,
+        isEmailVerified: true,
+        verifiedAt: new Date(),
+        roles: [],
+      });
+
+      const result = await service.login(
+        { email: 'test@example.com', password: 'Password123!' },
+        DomainType.CLIENT,
+      );
+
+      expect(result.accessToken).toBe('mocked-async-token');
+      expect(result.refreshToken).toBe('mocked-async-token');
+      expect(mockUserService.updateLastLogin).toHaveBeenCalledWith('1');
+    });
+  });
+
+  describe('changePassword', () => {
+    it('should throw BadRequestException if new password is missing', async () => {
+      (mockUserService.findById as jest.Mock).mockResolvedValue({
+        id: '1',
+        password: 'hash',
+      });
+
+      await expect(
+        service.changePassword('1' as any, {
+          password: 'old',
+          newPassword: '',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should update password successfully', async () => {
+      const hashedPassword = await import('@/utils/password.util').then((m) =>
+        m.hashPassword('OldPassword123!'),
+      );
+      const user = {
+        id: '1',
+        password: hashedPassword,
+      };
+      (mockUserService.findById as jest.Mock).mockResolvedValue(user);
+
+      const result = await service.changePassword('1' as any, {
+        password: 'OldPassword123!',
+        newPassword: 'NewPassword123!',
+      });
+
+      expect(result.message).toBe('Password changed successfully');
+      expect(mockUserService.save).toHaveBeenCalled();
     });
   });
 });

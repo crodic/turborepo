@@ -1,3 +1,4 @@
+import { UserService } from '@/api/user/user.service';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { DomainType } from '@/constants/entity.enum';
 import { Domain } from '@/decorators/domain.decorator';
@@ -22,7 +23,6 @@ import {
   Paginated,
   PaginateQuery,
 } from 'nestjs-paginate';
-import { AdminUserService } from './admin-user.service';
 import { AdminUserResDto } from './dto/admin-user.res.dto';
 import { CreateAdminUserReqDto } from './dto/create-admin-user.req.dto';
 import { UpdateAdminUserReqDto } from './dto/update-admin-user.req.dto';
@@ -34,7 +34,7 @@ import { UpdateAdminUserReqDto } from './dto/update-admin-user.req.dto';
 })
 @Domain(DomainType.ADMIN)
 export class AdminUserController {
-  constructor(private readonly adminUserService: AdminUserService) {}
+  constructor(private readonly userService: UserService) {}
 
   @Get()
   @ApiAuth({
@@ -60,7 +60,7 @@ export class AdminUserController {
   findAll(
     @Paginate() query: PaginateQuery,
   ): Promise<Paginated<AdminUserResDto>> {
-    return this.adminUserService.findAllUser(query);
+    return this.userService.findAllAdmin(query);
   }
 
   // --------------------------------------------------
@@ -77,7 +77,7 @@ export class AdminUserController {
   async createUser(
     @Body() createAdminUserDto: CreateAdminUserReqDto,
   ): Promise<AdminUserResDto> {
-    return await this.adminUserService.create(createAdminUserDto);
+    return await this.userService.createAdminUser(createAdminUserDto);
   }
 
   // --------------------------------------------------
@@ -89,7 +89,7 @@ export class AdminUserController {
     ability.can(AppActions.Read, AppSubjects.Admin),
   )
   async findUser(@Param('id') id: AutoIncrementID): Promise<AdminUserResDto> {
-    return await this.adminUserService.findOne(id);
+    return await this.userService.findOneAdmin(id);
   }
 
   // --------------------------------------------------
@@ -104,7 +104,7 @@ export class AdminUserController {
     @Param('id') id: AutoIncrementID,
     @Body() reqDto: UpdateAdminUserReqDto,
   ) {
-    return this.adminUserService.update(id, reqDto);
+    return this.userService.updateAdmin(id, reqDto);
   }
 
   // --------------------------------------------------
@@ -119,6 +119,6 @@ export class AdminUserController {
     ability.can(AppActions.Delete, AppSubjects.Admin),
   )
   removeUser(@Param('id') id: AutoIncrementID) {
-    return this.adminUserService.remove(id);
+    return this.userService.remove(id, DomainType.ADMIN);
   }
 }

@@ -1,6 +1,7 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import { SYSTEM_ROLE_NAME } from '@/constants/app.constant';
 import { CacheKey } from '@/constants/cache.constant';
+import { DomainType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
 import { ADMIN_FULL_ACCESS } from '@/utils/permissions.constant';
@@ -80,7 +81,8 @@ export class RoleService {
   async findAll(query: PaginateQuery): Promise<Paginated<RoleResDto>> {
     const queryBuilder = this.roleRepository
       .createQueryBuilder('role')
-      .leftJoinAndSelect('role.permissionEntities', 'permission');
+      .leftJoinAndSelect('role.permissionEntities', 'permission')
+      .where('role.domain = :domain', { domain: DomainType.ADMIN });
 
     const result = await paginate(query, queryBuilder, {
       sortableColumns: ['id', 'name', 'description', 'createdAt', 'updatedAt'],
@@ -128,11 +130,14 @@ export class RoleService {
     if (permissionEntities.length !== data.permissionIds.length) {
       throw new ValidationException(ErrorCode.E002);
     }
+    const code = data.name.toLowerCase().trim().replace(/\s+/g, '_');
     const role = await repo.save(
       repo.create({
         name: data.name,
+        code,
         description: data.description,
         isSystem: data.isSystem ?? false,
+        domain: DomainType.ADMIN,
         permissionEntities,
       }),
     );
@@ -152,10 +157,13 @@ export class RoleService {
     }
     this.assertAssignablePermissions(permissionEntities);
 
+    const code = dto.name.toLowerCase().trim().replace(/\s+/g, '_');
     const newRole = new RoleEntity({
       name: dto.name,
+      code,
       description: dto.description,
       isSystem: dto.isSystem ?? false,
+      domain: DomainType.ADMIN,
       permissionEntities,
     });
 
@@ -176,6 +184,7 @@ export class RoleService {
 
   async formOptions(): Promise<RoleResDto[]> {
     const query = await this.roleRepository.find({
+      where: { domain: DomainType.ADMIN },
       relations: ['permissionEntities'],
     });
 

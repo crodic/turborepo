@@ -1,3 +1,4 @@
+import { DomainType } from '@/constants/entity.enum';
 import {
   ADMIN_FULL_ACCESS,
   ALL_PERMISSIONS,
@@ -13,6 +14,7 @@ export const permissionCatalogRows = () =>
     group: permission.group,
     name: permission.name,
     description: permission.description,
+    domain: DomainType.ADMIN,
   }));
 
 export async function syncPermissions(
@@ -34,10 +36,13 @@ export async function syncPermissions(
       continue;
     }
 
-    if (existingPermission.name !== permission.name) {
+    if (
+      existingPermission.name !== permission.name ||
+      existingPermission.domain !== permission.domain
+    ) {
       await permissionRepository.update(
         { key: permission.key },
-        { name: permission.name },
+        { name: permission.name, domain: permission.domain },
       );
     }
   }

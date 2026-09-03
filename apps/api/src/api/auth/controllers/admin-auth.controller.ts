@@ -41,26 +41,26 @@ import { plainToInstance } from 'class-transformer';
 import type { Response } from 'express';
 import { AdminUserLoginReqDto } from '../dto/admin-users/admin-user-login.req.dto';
 import { AdminUserLoginResDto } from '../dto/admin-users/admin-user-login.res.dto';
-import { AdminUserRegisterReqDto } from '../dto/admin-users/admin-user-register.req.dto';
-import { DisableTwoFactorReqDto } from '../dto/admin-users/two-factor/disable-two-factor.req.dto';
-import { DisableTwoFactorResDto } from '../dto/admin-users/two-factor/disable-two-factor.res.dto';
-import { EnableTwoFactorReqDto } from '../dto/admin-users/two-factor/enable-two-factor.req.dto';
-import { EnableTwoFactorResDto } from '../dto/admin-users/two-factor/enable-two-factor.res.dto';
-import { GenerateBackupCodesResDto } from '../dto/admin-users/two-factor/generate-backup-codes.res.dto';
-import { TwoFactorStatusResDto } from '../dto/admin-users/two-factor/two-factor-status.res.dto';
-import { VerifyTwoFactorLoginReqDto } from '../dto/admin-users/two-factor/verify-two-factor-login.req.dto';
-import { VerifyTwoFactorSetupReqDto } from '../dto/admin-users/two-factor/verify-two-factor-setup.req.dto';
-import { VerifyTwoFactorSetupResDto } from '../dto/admin-users/two-factor/verify-two-factor-setup.res.dto';
 import { ForgotPasswordReqDto } from '../dto/forgot-password.req.dto';
 import { ForgotPasswordResDto } from '../dto/forgot-password.res.dto';
 import { RefreshReqDto } from '../dto/refresh.req.dto';
 import { RefreshResDto } from '../dto/refresh.res.dto';
-import { RegisterResDto } from '../dto/register.res.dto';
 import { ResendEmailVerifyReqDto } from '../dto/resend-email-verify.req.dto';
 import { ResendEmailVerifyResDto } from '../dto/resend-email-verify.res.dto';
 import { ResetPasswordReqDto } from '../dto/reset-password.req.dto';
 import { ResetPasswordResDto } from '../dto/reset-password.res.dto';
 import { SessionResDto } from '../dto/session.res.dto';
+import {
+  DisableTwoFactorReqDto,
+  DisableTwoFactorResDto,
+  EnableTwoFactorReqDto,
+  EnableTwoFactorResDto,
+  GenerateBackupCodesResDto,
+  TwoFactorStatusResDto,
+  VerifyTwoFactorLoginReqDto,
+  VerifyTwoFactorSetupReqDto,
+  VerifyTwoFactorSetupResDto,
+} from '../dto/two-factor';
 import { ProdOnlyThrottleGuard } from '../guards/ProdOnlyThrottle.guard';
 import { AuthService } from '../services/auth.service';
 import { clearAuthCookies, setAuthCookies } from '../utils/auth-cookie.util';
@@ -107,35 +107,7 @@ export class AdminAuthenticationController {
       tokenExpires: result.tokenExpires,
       domain: DomainType.ADMIN,
     });
-    return result;
-  }
-
-  @ApiPublic({
-    type: RegisterResDto,
-    summary: 'Admin Register API',
-  })
-  @Post('register')
-  async register(
-    @Body() adminUserRegister: AdminUserRegisterReqDto,
-    @Req() req: any,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<RegisterResDto> {
-    const result = await this.authService.register(
-      adminUserRegister,
-      DomainType.ADMIN,
-      {
-        ipAddress: req.ip,
-        userAgent: req.headers?.['user-agent'],
-      },
-    );
-    setAuthCookies({
-      res,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-      tokenExpires: result.tokenExpires,
-      domain: DomainType.ADMIN,
-    });
-    return result;
+    return plainToInstance(AdminUserLoginResDto, result);
   }
 
   @ApiAuth({
@@ -355,10 +327,14 @@ export class AdminAuthenticationController {
     @Req() req: any,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AdminUserLoginResDto> {
-    const result = await this.adminTwoFactorService.verifyTwoFactorLogin(dto, {
-      ipAddress: req.ip,
-      userAgent: req.headers?.['user-agent'],
-    });
+    const result = await this.adminTwoFactorService.verifyTwoFactorLogin(
+      dto,
+      DomainType.ADMIN,
+      {
+        ipAddress: req.ip,
+        userAgent: req.headers?.['user-agent'],
+      },
+    );
     setAuthCookies({
       res,
       accessToken: result.accessToken,

@@ -1,6 +1,6 @@
 export enum CacheKey {
   SESSION_BLACKLIST = 'auth:session-blacklist:%s', // %s: sessionId
-  ADMIN_TWO_FACTOR_SETUP = 'auth:admin:%s:two-factor-setup', // %s: adminId
+  TWO_FACTOR_SETUP = 'auth:two-factor-setup:%s', // %s: userId
   EMAIL_VERIFICATION = 'auth:token:%s:email-verification', // %s: userId
   PASSWORD_RESET = 'auth:token:%s:password', // %s: userId
   SOCIAL_OAUTH_STATE = 'auth:social:state:%s', // %s: state

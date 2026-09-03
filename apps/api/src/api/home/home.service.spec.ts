@@ -1,8 +1,8 @@
 import { SettingsService } from '@/api/settings/settings.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
-import { AdminUserService } from '../admin-user/admin-user.service';
 import { RoleService } from '../role/role.service';
+import { UserService } from '../user/user.service';
 import { HomeService } from './home.service';
 
 describe('HomeService', () => {
@@ -21,9 +21,9 @@ describe('HomeService', () => {
           },
         },
 
-        // Mock AdminUserService
+        // Mock UserService
         {
-          provide: AdminUserService,
+          provide: UserService,
           useValue: {
             hasAdmin: jest.fn(),
             createWithManager: jest.fn(),

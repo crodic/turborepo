@@ -1,13 +1,14 @@
-import { AdminUserLoginResDto } from '@/api/auth/dto/admin-users/admin-user-login.res.dto';
-import { DisableTwoFactorReqDto } from '@/api/auth/dto/admin-users/two-factor/disable-two-factor.req.dto';
-import { DisableTwoFactorResDto } from '@/api/auth/dto/admin-users/two-factor/disable-two-factor.res.dto';
-import { EnableTwoFactorReqDto } from '@/api/auth/dto/admin-users/two-factor/enable-two-factor.req.dto';
-import { EnableTwoFactorResDto } from '@/api/auth/dto/admin-users/two-factor/enable-two-factor.res.dto';
-import { GenerateBackupCodesResDto } from '@/api/auth/dto/admin-users/two-factor/generate-backup-codes.res.dto';
-import { TwoFactorStatusResDto } from '@/api/auth/dto/admin-users/two-factor/two-factor-status.res.dto';
-import { VerifyTwoFactorLoginReqDto } from '@/api/auth/dto/admin-users/two-factor/verify-two-factor-login.req.dto';
-import { VerifyTwoFactorSetupReqDto } from '@/api/auth/dto/admin-users/two-factor/verify-two-factor-setup.req.dto';
-import { VerifyTwoFactorSetupResDto } from '@/api/auth/dto/admin-users/two-factor/verify-two-factor-setup.res.dto';
+import {
+  DisableTwoFactorReqDto,
+  DisableTwoFactorResDto,
+  EnableTwoFactorReqDto,
+  EnableTwoFactorResDto,
+  GenerateBackupCodesResDto,
+  TwoFactorStatusResDto,
+  VerifyTwoFactorLoginReqDto,
+  VerifyTwoFactorSetupReqDto,
+  VerifyTwoFactorSetupResDto,
+} from '@/api/auth/dto/two-factor';
 import { JwtPayloadType } from '@/api/auth/types/jwt-payload.type';
 import { SessionRequestInfo } from '@/api/auth/types/session-request-info.type';
 import {
@@ -16,12 +17,11 @@ import {
 } from '@/api/notification/notification.service';
 import { SessionEntity } from '@/api/session/entities/session.entity';
 import { SessionService } from '@/api/session/session.service';
-import { AccountEntity } from '@/api/user/entities/account.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
 import { CacheKey } from '@/constants/cache.constant';
-import { DomainType, EAccountProvider } from '@/constants/entity.enum';
+import { DomainType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
 import { createCacheKey } from '@/utils/cache.util';
@@ -51,10 +51,10 @@ export type TwoFactorSetupPayload = {
 
 export type TwoFactorLoginPayload = {
   id: string;
-  purpose: 'admin-2fa-login';
+  purpose: 'admin-2fa-login' | '2fa-login';
+  domain?: DomainType;
 };
 
-export const TWO_FACTOR_ISSUER = 'Crodic Portal';
 export const TWO_FACTOR_SETUP_TTL = '10m' as StringValue;
 export const TWO_FACTOR_LOGIN_TTL = '5m' as StringValue;
 
@@ -71,8 +71,6 @@ export class TwoFactorService {
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(TwoFactorEntity)
     private readonly twoFactorRepository: Repository<TwoFactorEntity>,
-    @InjectRepository(AccountEntity)
-    private readonly accountRepository: Repository<AccountEntity>,
     @InjectRepository(SessionEntity)
     private readonly sessionRepository: Repository<SessionEntity>,
     @Inject(CACHE_MANAGER)
@@ -82,6 +80,17 @@ export class TwoFactorService {
     private readonly notificationService: NotificationService,
     private readonly sessionService: SessionService,
   ) {}
+
+  private getSetupCacheKey(userId: AutoIncrementID): string {
+    return createCacheKey(CacheKey.TWO_FACTOR_SETUP, userId);
+  }
+
+  private getIssuer(domain: DomainType): string {
+    const appName =
+      this.configService.get<string>('app.name', { infer: true }) || 'app';
+
+    return domain === DomainType.CLIENT ? appName : `${appName} Portal`;
+  }
 
   async twoFactorStatus(
     userToken: JwtPayloadType,
@@ -98,9 +107,10 @@ export class TwoFactorService {
   async enableTwoFactor(
     userToken: JwtPayloadType,
     dto: EnableTwoFactorReqDto,
+    domain: DomainType = DomainType.ADMIN,
   ): Promise<EnableTwoFactorResDto> {
     const user = await this.userRepository.findOneOrFail({
-      where: { id: userToken.id as AutoIncrementID, domain: DomainType.ADMIN },
+      where: { id: userToken.id as AutoIncrementID, domain },
     });
     await this.assertPassword(user, dto.password);
 
@@ -111,14 +121,14 @@ export class TwoFactorService {
     );
 
     await this.cacheManager.set<TwoFactorSetupPayload>(
-      createCacheKey(CacheKey.ADMIN_TWO_FACTOR_SETUP, user.id),
+      this.getSetupCacheKey(user.id),
       { secret, backupCodeHashes },
       ms(TWO_FACTOR_SETUP_TTL),
     );
 
     return plainToInstance(EnableTwoFactorResDto, {
       totpUri: generateURI({
-        issuer: TWO_FACTOR_ISSUER,
+        issuer: this.getIssuer(domain),
         label: user.email,
         secret,
       }),
@@ -129,11 +139,12 @@ export class TwoFactorService {
   async verifyTwoFactorSetup(
     userToken: JwtPayloadType,
     dto: VerifyTwoFactorSetupReqDto,
+    domain: DomainType = DomainType.ADMIN,
   ): Promise<VerifyTwoFactorSetupResDto> {
     const user = await this.userRepository.findOneOrFail({
-      where: { id: userToken.id as AutoIncrementID, domain: DomainType.ADMIN },
+      where: { id: userToken.id as AutoIncrementID, domain },
     });
-    const cacheKey = createCacheKey(CacheKey.ADMIN_TWO_FACTOR_SETUP, user.id);
+    const cacheKey = this.getSetupCacheKey(user.id);
     const setup = await this.cacheManager.get<TwoFactorSetupPayload>(cacheKey);
 
     if (!setup) {
@@ -158,12 +169,14 @@ export class TwoFactorService {
     await this.twoFactorRepository.save(twoFactor);
 
     await this.cacheManager.del(cacheKey);
-    await this.notifyAdmin(
-      user.id,
-      AdminNotificationType.TwoFactorEnabled,
-      'Two-factor authentication enabled',
-      'Two-factor authentication was enabled for your admin account.',
-    );
+    if (domain === DomainType.ADMIN) {
+      await this.notifyAdmin(
+        user.id,
+        AdminNotificationType.TwoFactorEnabled,
+        'Two-factor authentication enabled',
+        'Two-factor authentication was enabled for your admin account.',
+      );
+    }
 
     return plainToInstance(VerifyTwoFactorSetupResDto, {
       enabled: true,
@@ -174,9 +187,10 @@ export class TwoFactorService {
   async disableTwoFactor(
     userToken: JwtPayloadType,
     dto: DisableTwoFactorReqDto,
+    domain: DomainType = DomainType.ADMIN,
   ): Promise<DisableTwoFactorResDto> {
     const user = await this.userRepository.findOneOrFail({
-      where: { id: userToken.id as AutoIncrementID, domain: DomainType.ADMIN },
+      where: { id: userToken.id as AutoIncrementID, domain },
     });
     await this.assertPassword(user, dto.password);
 
@@ -190,15 +204,15 @@ export class TwoFactorService {
       await this.twoFactorRepository.save(twoFactor);
     }
 
-    await this.cacheManager.del(
-      createCacheKey(CacheKey.ADMIN_TWO_FACTOR_SETUP, user.id),
-    );
-    await this.notifyAdmin(
-      user.id,
-      AdminNotificationType.TwoFactorDisabled,
-      'Two-factor authentication disabled',
-      'Two-factor authentication was disabled for your admin account.',
-    );
+    await this.cacheManager.del(this.getSetupCacheKey(user.id));
+    if (domain === DomainType.ADMIN) {
+      await this.notifyAdmin(
+        user.id,
+        AdminNotificationType.TwoFactorDisabled,
+        'Two-factor authentication disabled',
+        'Two-factor authentication was disabled for your admin account.',
+      );
+    }
 
     return plainToInstance(DisableTwoFactorResDto, {
       enabled: false,
@@ -209,9 +223,10 @@ export class TwoFactorService {
   async generateTwoFactorBackupCodes(
     userToken: JwtPayloadType,
     dto: EnableTwoFactorReqDto,
+    domain: DomainType = DomainType.ADMIN,
   ): Promise<GenerateBackupCodesResDto> {
     const user = await this.userRepository.findOneOrFail({
-      where: { id: userToken.id as AutoIncrementID, domain: DomainType.ADMIN },
+      where: { id: userToken.id as AutoIncrementID, domain },
     });
     await this.assertPassword(user, dto.password);
 
@@ -235,11 +250,12 @@ export class TwoFactorService {
 
   async verifyTwoFactorLogin(
     dto: VerifyTwoFactorLoginReqDto,
+    domain: DomainType = DomainType.ADMIN,
     requestInfo?: SessionRequestInfo,
-  ): Promise<AdminUserLoginResDto> {
+  ) {
     const payload = this.verifyTwoFactorLoginToken(dto.twoFactorToken);
     const user = await this.userRepository.findOne({
-      where: { id: payload.id as AutoIncrementID, domain: DomainType.ADMIN },
+      where: { id: payload.id as AutoIncrementID, domain },
     });
 
     const twoFactor = user
@@ -260,17 +276,17 @@ export class TwoFactorService {
       throw new BadRequestException('Invalid two-factor code');
     }
 
-    const session = await this.createAdminLoginSession(user, requestInfo);
+    const session = await this.createLoginSession(user, domain, requestInfo);
     const token = await this.createToken({
       id: user.id,
       sessionId: session.id,
       hash: session.refreshTokenHash,
     });
 
-    return plainToInstance(AdminUserLoginResDto, {
+    return {
       userId: user.id,
       ...token,
-    });
+    };
   }
 
   async createTwoFactorLoginToken(
@@ -377,17 +393,8 @@ export class TwoFactorService {
     user: UserEntity,
     password: string,
   ): Promise<void> {
-    const localAccount = await this.accountRepository.findOne({
-      where: {
-        userId: user.id,
-        provider: EAccountProvider.LOCAL,
-      },
-    });
-
     const isPasswordValid =
-      (user.password && (await verifyPassword(password, user.password))) ||
-      (localAccount &&
-        (await verifyPassword(password, localAccount.accessToken ?? '')));
+      user.password && (await verifyPassword(password, user.password));
 
     if (!isPasswordValid) {
       throw new ValidationException(ErrorCode.V003);
@@ -400,7 +407,10 @@ export class TwoFactorService {
         secret: this.getTwoFactorSigningSecret(),
       });
 
-      if (payload.purpose !== 'admin-2fa-login') {
+      if (
+        payload.purpose !== 'admin-2fa-login' &&
+        payload.purpose !== '2fa-login'
+      ) {
         throw new UnauthorizedException();
       }
 
@@ -423,12 +433,13 @@ export class TwoFactorService {
       .digest('hex');
   }
 
-  private async createAdminLoginSession(
+  private async createLoginSession(
     user: UserEntity,
+    domain: DomainType = DomainType.ADMIN,
     requestInfo?: SessionRequestInfo,
   ): Promise<SessionEntity> {
     const session = this.sessionRepository.create({
-      domain: DomainType.ADMIN,
+      domain,
       userId: user.id,
       ipAddress: requestInfo?.ipAddress,
       userAgent: normalizeUserAgent(requestInfo?.userAgent),

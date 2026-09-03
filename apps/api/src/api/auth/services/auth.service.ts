@@ -1,16 +1,11 @@
 import { SessionService } from '@/api/session/session.service';
 import { TwoFactorService } from '@/api/two-factor/two-factor.service';
-import { AccountEntity } from '@/api/user/entities/account.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { UserService } from '@/api/user/user.service';
 import { EmailQueueService } from '@/background/queues/email-queue/email-queue.service';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
-import {
-  DomainType,
-  EAccountProvider,
-  UserStatus,
-} from '@/constants/entity.enum';
+import { DomainType, UserStatus } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
 import { hashPassword, verifyPassword } from '@/utils/password.util';
@@ -29,7 +24,6 @@ import { plainToInstance } from 'class-transformer';
 import * as crypto from 'crypto';
 import ms, { StringValue } from 'ms';
 import { Repository } from 'typeorm';
-import { AdminUserLoginResDto } from '../dto/admin-users/admin-user-login.res.dto';
 import { ForgotPasswordReqDto } from '../dto/forgot-password.req.dto';
 import { RefreshResDto } from '../dto/refresh.res.dto';
 import { RegisterResDto } from '../dto/register.res.dto';
@@ -43,10 +37,7 @@ export interface IRegisterAuthParams {
   password: string;
   firstName?: string;
   lastName?: string;
-  first_name?: string;
-  last_name?: string;
   phone?: string;
-  roleIds?: AutoIncrementID[];
 }
 
 export interface ILoginAuthParams {
@@ -55,10 +46,32 @@ export interface ILoginAuthParams {
 }
 
 export interface IChangePasswordParams {
+  password?: string;
   oldPassword?: string;
   currentPassword?: string;
-  password?: string;
-  newPassword?: string;
+  newPassword: string;
+}
+
+export interface IAuthLoginResult {
+  userId: string | AutoIncrementID;
+  accessToken?: string;
+  refreshToken?: string;
+  tokenExpires?: number;
+  roles?: string[];
+  user?: {
+    id: AutoIncrementID;
+    email: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    fullName?: string;
+    domain: DomainType;
+    roles: string[];
+  };
+  twoFactorRequired?: boolean;
+  twoFactorToken?: string;
+  twoFactorMethods?: string[];
+  restoreAccountRequired?: boolean;
+  restoreToken?: string;
 }
 
 interface CustomTokenPayload {
@@ -79,8 +92,6 @@ export class AuthService {
     private readonly configService: ConfigService<AllConfigType>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
-    @InjectRepository(AccountEntity)
-    private readonly accountRepository: Repository<AccountEntity>,
   ) {}
 
   async register(
@@ -94,18 +105,11 @@ export class AuthService {
     );
 
     if (existing) {
-      throw new ConflictException(
-        `An account with this email already exists in the ${domain} portal`,
-      );
+      throw new ConflictException(`An account with this email already exists`);
     }
 
-    const firstName = dto.firstName ?? dto.first_name ?? '';
-    const lastName = dto.lastName ?? dto.last_name ?? '';
-
-    const defaultRoleNames =
-      domain === DomainType.ADMIN ? ['SUPER_ADMIN'] : ['CLIENT_USER'];
-    const defaultRoles =
-      await this.userService.findRolesByCodes(defaultRoleNames);
+    const firstName = dto.firstName ?? '';
+    const lastName = dto.lastName ?? '';
 
     const hashedPassword = await hashPassword(dto.password);
 
@@ -118,7 +122,7 @@ export class AuthService {
       domain,
       status: UserStatus.ACTIVE,
       isEmailVerified: false,
-      roles: defaultRoles,
+      roles: [],
     });
 
     const fullUser = await this.userService.findById(user.id);
@@ -141,7 +145,7 @@ export class AuthService {
     dto: ILoginAuthParams,
     domain: DomainType,
     requestInfo?: SessionRequestInfo,
-  ): Promise<AdminUserLoginResDto> {
+  ): Promise<IAuthLoginResult> {
     const { email, password } = dto;
     const user = await this.userRepository.findOne({
       where: { email: email.toLowerCase().trim(), domain },
@@ -155,29 +159,12 @@ export class AuthService {
       withDeleted: true,
     });
 
-    const localAccount = user
-      ? await this.accountRepository.findOne({
-          where: {
-            userId: user.id,
-            provider: EAccountProvider.LOCAL,
-          },
-        })
-      : null;
+    if (!user || !user.password || !password) {
+      throw new BadRequestException({ message: 'Invalid credentials' });
+    }
 
-    const isPasswordValid =
-      (user &&
-        user.password &&
-        password &&
-        (await verifyPassword(password, user.password))) ||
-      (localAccount &&
-        localAccount.accessToken &&
-        password &&
-        (await verifyPassword(password, localAccount.accessToken))) ||
-      (localAccount &&
-        password &&
-        (await verifyPassword(password, localAccount.refreshToken ?? '')));
-
-    if (!isPasswordValid || !user) {
+    const isPasswordValid = await verifyPassword(password, user.password);
+    if (!isPasswordValid) {
       throw new BadRequestException({ message: 'Invalid credentials' });
     }
 
@@ -200,11 +187,11 @@ export class AuthService {
         expiresIn: '5m',
       });
 
-      return plainToInstance(AdminUserLoginResDto, {
-        userId: user.id,
+      return {
+        userId: String(user.id),
         restoreAccountRequired: true,
         restoreToken,
-      });
+      };
     }
 
     if (user.twoFactor?.isEnabled) {
@@ -214,11 +201,11 @@ export class AuthService {
           purpose: 'admin-2fa-login',
         });
 
-      return plainToInstance(AdminUserLoginResDto, {
-        userId: user.id,
+      return {
+        userId: String(user.id),
         twoFactorRequired: true,
         twoFactorToken,
-      });
+      };
     }
 
     await this.userService.updateLastLogin(user.id);
@@ -228,7 +215,7 @@ export class AuthService {
       requestInfo,
     );
 
-    return plainToInstance(AdminUserLoginResDto, authResponse);
+    return authResponse;
   }
 
   async refreshToken(
@@ -488,21 +475,25 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    const oldPass = dto.oldPassword ?? dto.currentPassword;
-    const newPass = dto.password ?? dto.newPassword;
+    const currentPassword =
+      dto.password ?? dto.oldPassword ?? dto.currentPassword;
+    const newPassword = dto.newPassword;
 
-    if (!newPass) {
+    if (!newPassword) {
       throw new BadRequestException('New password is required');
     }
 
-    if (user.password && oldPass) {
-      const isMatch = await verifyPassword(oldPass, user.password);
+    if (user.password) {
+      if (!currentPassword) {
+        throw new BadRequestException('Current password is required');
+      }
+      const isMatch = await verifyPassword(currentPassword, user.password);
       if (!isMatch) {
         throw new ValidationException(ErrorCode.V003);
       }
     }
 
-    user.password = await hashPassword(newPass);
+    user.password = await hashPassword(newPassword);
     await this.userService.save(user);
 
     return { message: 'Password changed successfully' };

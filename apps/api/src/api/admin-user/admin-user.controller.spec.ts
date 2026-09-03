@@ -1,29 +1,29 @@
+import { UserService } from '@/api/user/user.service';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { CaslAbilityFactory } from '@/libs/casl/ability.factory';
 import { Test, TestingModule } from '@nestjs/testing';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { AdminUserController } from './admin-user.controller';
-import { AdminUserService } from './admin-user.service';
 import { AdminUserResDto } from './dto/admin-user.res.dto';
 import { CreateAdminUserReqDto } from './dto/create-admin-user.req.dto';
 
 describe('AdminUserController', () => {
   let controller: AdminUserController;
-  let service: AdminUserService;
-  let userServiceValue: Partial<Record<keyof AdminUserService, jest.Mock>>;
+  let service: UserService;
+  let userServiceValue: Partial<Record<keyof UserService, jest.Mock>>;
 
   beforeAll(async () => {
     userServiceValue = {
-      findOne: jest.fn(),
-      create: jest.fn(),
+      findOneAdmin: jest.fn(),
+      createAdminUser: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminUserController],
       providers: [
         {
-          provide: AdminUserService,
+          provide: UserService,
           useValue: userServiceValue,
         },
         CaslAbilityFactory,
@@ -31,7 +31,7 @@ describe('AdminUserController', () => {
     }).compile();
 
     controller = module.get<AdminUserController>(AdminUserController);
-    service = module.get<AdminUserService>(AdminUserService);
+    service = module.get<UserService>(UserService);
   });
 
   beforeEach(() => {
@@ -66,23 +66,23 @@ describe('AdminUserController', () => {
       userResDto.createdAt = new Date();
       userResDto.updatedAt = new Date();
 
-      userServiceValue.create.mockReturnValue(userResDto);
+      userServiceValue.createAdminUser.mockReturnValue(userResDto);
       const user = await controller.createUser(createAdminUserReqDto);
 
       expect(user).toBe(userResDto);
-      expect(userServiceValue.create).toHaveBeenCalledWith(
+      expect(userServiceValue.createAdminUser).toHaveBeenCalledWith(
         createAdminUserReqDto,
       );
-      expect(userServiceValue.create).toHaveBeenCalledTimes(1);
+      expect(userServiceValue.createAdminUser).toHaveBeenCalledTimes(1);
     });
 
     it('should return null', async () => {
-      userServiceValue.create.mockReturnValue(null);
+      userServiceValue.createAdminUser.mockReturnValue(null);
       const user = await controller.createUser({} as CreateAdminUserReqDto);
 
       expect(user).toBeNull();
-      expect(userServiceValue.create).toHaveBeenCalledWith({});
-      expect(userServiceValue.create).toHaveBeenCalledTimes(1);
+      expect(userServiceValue.createAdminUser).toHaveBeenCalledWith({});
+      expect(userServiceValue.createAdminUser).toHaveBeenCalledTimes(1);
     });
 
     describe('createAdminUserReqDto', () => {
@@ -154,21 +154,21 @@ describe('AdminUserController', () => {
       adminUserResDto.createdAt = new Date();
       adminUserResDto.updatedAt = new Date();
 
-      userServiceValue.findOne.mockReturnValue(adminUserResDto);
+      userServiceValue.findOneAdmin.mockReturnValue(adminUserResDto);
       const user = await controller.findUser('1' as AutoIncrementID);
 
       expect(user).toBe(adminUserResDto);
-      expect(userServiceValue.findOne).toHaveBeenCalledWith('1');
-      expect(userServiceValue.findOne).toHaveBeenCalledTimes(1);
+      expect(userServiceValue.findOneAdmin).toHaveBeenCalledWith('1');
+      expect(userServiceValue.findOneAdmin).toHaveBeenCalledTimes(1);
     });
 
     it('should return null', async () => {
-      userServiceValue.findOne.mockReturnValue(null);
+      userServiceValue.findOneAdmin.mockReturnValue(null);
       const user = await controller.findUser('1' as AutoIncrementID);
 
       expect(user).toBeNull();
-      expect(userServiceValue.findOne).toHaveBeenCalledWith('1');
-      expect(userServiceValue.findOne).toHaveBeenCalledTimes(1);
+      expect(userServiceValue.findOneAdmin).toHaveBeenCalledWith('1');
+      expect(userServiceValue.findOneAdmin).toHaveBeenCalledTimes(1);
     });
   });
 

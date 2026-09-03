@@ -1,7 +1,12 @@
+import { RoleEntity } from '@/api/role/entities/role.entity';
 import { RoleService } from '@/api/role/role.service';
+import { EmailQueueService } from '@/background/queues/email-queue/email-queue.service';
 import { DomainType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { FilesystemService } from '@/filesystem/filesystem.service';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -54,7 +59,7 @@ describe('UserService', () => {
       save: jest.fn(),
     };
     roleServiceMock = {
-      findByNames: jest.fn(),
+      findByNames: jest.fn().mockResolvedValue([]),
     };
     filesystemServiceMock = {
       disk: jest.fn(),
@@ -80,12 +85,46 @@ describe('UserService', () => {
           useValue: accountRepoValue,
         },
         {
+          provide: getRepositoryToken(RoleEntity),
+          useValue: {
+            findBy: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
           provide: RoleService,
           useValue: roleServiceMock,
         },
         {
           provide: FilesystemService,
           useValue: filesystemServiceMock,
+        },
+        {
+          provide: EmailQueueService,
+          useValue: {
+            sendAdminEmailVerification: jest.fn(),
+            sendAdminAccountHardDeleted: jest.fn(),
+            sendAdminAccountHardDeletedReport: jest.fn(),
+          },
+        },
+        {
+          provide: JwtService,
+          useValue: {
+            signAsync: jest.fn().mockResolvedValue('test-jwt-token'),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            getOrThrow: jest.fn().mockReturnValue('15m'),
+          },
+        },
+        {
+          provide: CACHE_MANAGER,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            del: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -130,7 +169,7 @@ describe('UserService', () => {
           firstName: dto.firstName,
           lastName: dto.lastName,
           email: dto.email,
-          password: dto.password,
+          password: expect.any(String),
         }),
       );
       expect(result).toEqual(expect.objectContaining({ email: dto.email }));

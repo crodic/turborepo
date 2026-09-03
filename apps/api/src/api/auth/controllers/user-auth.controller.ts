@@ -1,4 +1,5 @@
 import { SessionService } from '@/api/session/session.service';
+import { TwoFactorService } from '@/api/two-factor/two-factor.service';
 import { UserChangePasswordReqDto } from '@/api/user/dto/user-change-password.req.dto';
 import { UserChangePasswordResDto } from '@/api/user/dto/user-change-password.res.dto';
 import { UserResDto } from '@/api/user/dto/user.res.dto';
@@ -41,6 +42,17 @@ import { ResendEmailVerifyResDto } from '../dto/resend-email-verify.res.dto';
 import { ResetPasswordReqDto } from '../dto/reset-password.req.dto';
 import { ResetPasswordResDto } from '../dto/reset-password.res.dto';
 import { SessionResDto } from '../dto/session.res.dto';
+import {
+  DisableTwoFactorReqDto,
+  DisableTwoFactorResDto,
+  EnableTwoFactorReqDto,
+  EnableTwoFactorResDto,
+  GenerateBackupCodesResDto,
+  TwoFactorStatusResDto,
+  VerifyTwoFactorLoginReqDto,
+  VerifyTwoFactorSetupReqDto,
+  VerifyTwoFactorSetupResDto,
+} from '../dto/two-factor';
 import { LoginReqDto } from '../dto/users/login.req.dto';
 import { LoginResDto } from '../dto/users/login.res.dto';
 import { RegisterReqDto } from '../dto/users/register.req.dto';
@@ -68,6 +80,7 @@ export class UserAuthenticationController {
     private readonly authSessionService: SessionService,
     private readonly socialAuthService: SocialAuthService,
     private readonly configService: ConfigService,
+    private readonly twoFactorService: TwoFactorService,
   ) {}
 
   @ApiPublic({
@@ -89,13 +102,15 @@ export class UserAuthenticationController {
         userAgent: req.headers?.['user-agent'],
       },
     );
-    setAuthCookies({
-      res,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-      tokenExpires: result.tokenExpires,
-      domain: DomainType.CLIENT,
-    });
+    if (!result.twoFactorRequired) {
+      setAuthCookies({
+        res,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        tokenExpires: result.tokenExpires,
+        domain: DomainType.CLIENT,
+      });
+    }
     return plainToInstance(LoginResDto, result);
   }
 
@@ -121,7 +136,7 @@ export class UserAuthenticationController {
       tokenExpires: result.tokenExpires,
       domain: DomainType.CLIENT,
     });
-    return result;
+    return plainToInstance(RegisterResDto, result);
   }
 
   @ApiPublic({
@@ -320,9 +335,6 @@ export class UserAuthenticationController {
           });
           user = existingEmailUser;
         } else {
-          const defaultRoles = await this.userService.findRolesByCodes([
-            'CLIENT_USER',
-          ]);
           user = await this.userService.createOAuthUser({
             email: googleProfile.email,
             firstName: googleProfile.firstName,
@@ -332,7 +344,7 @@ export class UserAuthenticationController {
             provider: EAccountProvider.GOOGLE,
             providerAccountId: googleProfile.id,
             isEmailVerified: true,
-            roles: defaultRoles,
+            roles: [],
             tokens: {
               accessToken: googleProfile.accessToken,
               refreshToken: googleProfile.refreshToken,
@@ -491,6 +503,116 @@ export class UserAuthenticationController {
   ): Promise<{ message: string }> {
     await this.userService.update(userId, reqDto as any);
     return { message: 'Profile updated successfully' };
+  }
+
+  // --- Two-Factor Authentication ---
+
+  @ApiAuth({
+    type: TwoFactorStatusResDto,
+    summary: 'Get 2FA status for Client User',
+  })
+  @SkipPolicies()
+  @Get('two-factor/status')
+  async twoFactorStatus(
+    @CurrentUser() user: any,
+  ): Promise<TwoFactorStatusResDto> {
+    return await this.twoFactorService.twoFactorStatus(user);
+  }
+
+  @ApiAuth({
+    type: EnableTwoFactorResDto,
+    summary: 'Enable 2FA for Client User',
+  })
+  @SkipPolicies()
+  @Post('two-factor/enable')
+  async enableTwoFactor(
+    @CurrentUser() user: any,
+    @Body() dto: EnableTwoFactorReqDto,
+  ): Promise<EnableTwoFactorResDto> {
+    return await this.twoFactorService.enableTwoFactor(
+      user,
+      dto,
+      DomainType.CLIENT,
+    );
+  }
+
+  @ApiAuth({
+    type: VerifyTwoFactorSetupResDto,
+    summary: 'Verify 2FA setup for Client User',
+  })
+  @SkipPolicies()
+  @Post('two-factor/verify-setup')
+  async verifyTwoFactorSetup(
+    @CurrentUser() user: any,
+    @Body() dto: VerifyTwoFactorSetupReqDto,
+  ): Promise<VerifyTwoFactorSetupResDto> {
+    return await this.twoFactorService.verifyTwoFactorSetup(
+      user,
+      dto,
+      DomainType.CLIENT,
+    );
+  }
+
+  @ApiAuth({
+    type: DisableTwoFactorResDto,
+    summary: 'Disable 2FA for Client User',
+  })
+  @SkipPolicies()
+  @Post('two-factor/disable')
+  async disableTwoFactor(
+    @CurrentUser() user: any,
+    @Body() dto: DisableTwoFactorReqDto,
+  ): Promise<DisableTwoFactorResDto> {
+    return await this.twoFactorService.disableTwoFactor(
+      user,
+      dto,
+      DomainType.CLIENT,
+    );
+  }
+
+  @ApiAuth({
+    type: GenerateBackupCodesResDto,
+    summary: 'Generate 2FA backup codes for Client User',
+  })
+  @SkipPolicies()
+  @Post('two-factor/generate-backup-codes')
+  async generateBackupCodes(
+    @CurrentUser() user: any,
+    @Body() dto: EnableTwoFactorReqDto,
+  ): Promise<GenerateBackupCodesResDto> {
+    return await this.twoFactorService.generateTwoFactorBackupCodes(
+      user,
+      dto,
+      DomainType.CLIENT,
+    );
+  }
+
+  @ApiPublic({
+    type: LoginResDto,
+    summary: 'Verify 2FA Login for Client User',
+  })
+  @Post('two-factor/verify-login')
+  async verifyTwoFactorLogin(
+    @Body() dto: VerifyTwoFactorLoginReqDto,
+    @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<LoginResDto> {
+    const result = await this.twoFactorService.verifyTwoFactorLogin(
+      dto,
+      DomainType.CLIENT,
+      {
+        ipAddress: req.ip,
+        userAgent: req.headers?.['user-agent'],
+      },
+    );
+    setAuthCookies({
+      res,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      tokenExpires: result.tokenExpires,
+      domain: DomainType.CLIENT,
+    });
+    return plainToInstance(LoginResDto, result);
   }
 
   private getVerificationRedirectUrl(status: 'success' | 'failed') {
