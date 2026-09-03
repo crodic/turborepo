@@ -24,6 +24,8 @@ export enum EEmailLogStatus {
 export enum EAccountProvider {
   LOCAL = 'local',
   GOOGLE = 'google',
+  FACEBOOK = 'facebook',
+  GITHUB = 'github',
 }
 
 export enum EOAuthProvider {

@@ -12,6 +12,7 @@ import {
 } from 'typeorm';
 
 @Entity('permissions')
+@Index('idx_permissions_domain', ['domain'])
 export class PermissionEntity extends AbstractEntity {
   constructor(data?: Partial<PermissionEntity>) {
     super();
@@ -30,17 +31,17 @@ export class PermissionEntity extends AbstractEntity {
   @Column({ default: 'general' })
   group: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'text', nullable: true })
   description?: string;
 
   @Index('UQ_permissions_key', { unique: true })
   @Column()
   key: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   action?: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   subject?: string;
 
   @Column({

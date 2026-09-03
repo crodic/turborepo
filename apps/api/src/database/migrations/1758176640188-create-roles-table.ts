@@ -62,15 +62,15 @@ export class CreateRolesTable1758176640188 implements MigrationInterface {
         "role_id" bigint NOT NULL,
         "permission_id" bigint NOT NULL,
         CONSTRAINT "PK_role_permissions" PRIMARY KEY ("role_id", "permission_id"),
-        CONSTRAINT "FK_role_permissions_role" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE CASCADE,
-        CONSTRAINT "FK_role_permissions_permission" FOREIGN KEY ("permission_id") REFERENCES "permissions"("id") ON DELETE CASCADE
+        CONSTRAINT "FK_role_permissions_role" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "FK_role_permissions_permission" FOREIGN KEY ("permission_id") REFERENCES "permissions"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
       )
     `);
     await queryRunner.query(
-      `CREATE INDEX "idx_role_permissions_role_id" ON "role_permissions" ("role_id")`,
+      `CREATE INDEX "IDX_178199805b901ccd220ab7740e" ON "role_permissions" ("role_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "idx_role_permissions_permission_id" ON "role_permissions" ("permission_id")`,
+      `CREATE INDEX "IDX_17022daf3f885f7d35423e9971" ON "role_permissions" ("permission_id")`,
     );
   }
 

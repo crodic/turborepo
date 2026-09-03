@@ -19,6 +19,8 @@ import {
   unique: true,
   where: '"deleted_at" IS NULL',
 })
+@Index('idx_roles_code', ['code'])
+@Index('idx_roles_domain', ['domain'])
 export class RoleEntity extends AbstractEntity {
   constructor(data?: Partial<RoleEntity>) {
     super();
@@ -44,7 +46,7 @@ export class RoleEntity extends AbstractEntity {
   })
   domain: DomainType;
 
-  @Column({ nullable: true })
+  @Column({ type: 'text', nullable: true })
   description?: string;
 
   @Column({ name: 'is_system', type: 'boolean', default: false })
