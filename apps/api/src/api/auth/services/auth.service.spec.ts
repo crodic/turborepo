@@ -55,6 +55,7 @@ describe('AuthService', () => {
       findByEmailAndDomain: jest.fn(),
       findById: jest.fn(),
       findRolesByCodes: jest.fn().mockResolvedValue([]),
+      findDefaultRole: jest.fn().mockResolvedValue([]),
       create: jest.fn(),
       save: jest.fn().mockImplementation((u: UserEntity) => Promise.resolve(u)),
       updateLastLogin: jest.fn().mockResolvedValue(undefined),

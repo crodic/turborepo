@@ -60,6 +60,7 @@ describe('UserService', () => {
     };
     roleServiceMock = {
       findByNames: jest.fn().mockResolvedValue([]),
+      findClientDefaultRole: jest.fn().mockResolvedValue(null),
     };
     filesystemServiceMock = {
       disk: jest.fn(),

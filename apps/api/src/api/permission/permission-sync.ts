@@ -1,4 +1,3 @@
-import { DomainType } from '@/constants/entity.enum';
 import {
   ADMIN_FULL_ACCESS,
   ALL_PERMISSIONS,
@@ -14,7 +13,7 @@ export const permissionCatalogRows = () =>
     group: permission.group,
     name: permission.name,
     description: permission.description,
-    domain: DomainType.ADMIN,
+    domain: permission.domain,
   }));
 
 export async function syncPermissions(

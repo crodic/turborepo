@@ -344,7 +344,7 @@ export class UserAuthenticationController {
             provider: EAccountProvider.GOOGLE,
             providerAccountId: googleProfile.id,
             isEmailVerified: true,
-            roles: [],
+            roles: await this.userService.findDefaultRole(DomainType.CLIENT),
             tokens: {
               accessToken: googleProfile.accessToken,
               refreshToken: googleProfile.refreshToken,

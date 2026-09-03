@@ -1,3 +1,6 @@
+import { PermissionEntity } from '@/api/permission/entities/permission.entity';
+import { syncPermissions } from '@/api/permission/permission-sync';
+import { RoleEntity } from '@/api/role/entities/role.entity';
 import { AccountEntity } from '@/api/user/entities/account.entity';
 import { UserProfileEntity } from '@/api/user/entities/user-profile.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
@@ -6,9 +9,14 @@ import {
   EAccountProvider,
   UserStatus,
 } from '@/constants/entity.enum';
+import {
+  CUSTOMER_DEFAULT_PERMISSION_KEY,
+  CUSTOMER_ROLE_CODE,
+  CUSTOMER_ROLE_NAME,
+} from '@/utils/permissions.constant';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 interface SeedUserData {
   firstName: string;
@@ -65,16 +73,47 @@ export class UserSeedService {
     private readonly userProfileRepository: Repository<UserProfileEntity>,
     @InjectRepository(AccountEntity)
     private readonly accountRepository: Repository<AccountEntity>,
+    @InjectRepository(PermissionEntity)
+    private readonly permissionRepository: Repository<PermissionEntity>,
+    @InjectRepository(RoleEntity)
+    private readonly roleRepository: Repository<RoleEntity>,
   ) {}
 
   async run(): Promise<void> {
+    await syncPermissions(this.permissionRepository);
+
+    const customerPermissions = await this.permissionRepository.findBy({
+      key: In([CUSTOMER_DEFAULT_PERMISSION_KEY]),
+    });
+
+    let customerRole = await this.roleRepository.findOne({
+      where: { code: CUSTOMER_ROLE_CODE, domain: DomainType.CLIENT },
+      relations: ['permissionEntities'],
+    });
+
+    if (!customerRole) {
+      customerRole = this.roleRepository.create({
+        name: CUSTOMER_ROLE_NAME,
+        code: CUSTOMER_ROLE_CODE,
+        description: 'Default customer role',
+        isSystem: true,
+        domain: DomainType.CLIENT,
+        permissionEntities: customerPermissions,
+      });
+      customerRole = await this.roleRepository.save(customerRole);
+    } else {
+      customerRole.isSystem = true;
+      customerRole.permissionEntities = customerPermissions;
+      customerRole = await this.roleRepository.save(customerRole);
+    }
+
     for (const user of users) {
       let existingUser = await this.userRepository.findOne({
         where: {
           email: user.email.toLowerCase().trim(),
           domain: DomainType.CLIENT,
         },
-        relations: ['userProfile'],
+        relations: ['userProfile', 'roles'],
         withDeleted: true,
       });
 
@@ -90,6 +129,7 @@ export class UserSeedService {
             status: UserStatus.ACTIVE,
             isEmailVerified: true,
             verifiedAt: new Date(),
+            roles: [customerRole],
           }),
         );
 
@@ -98,6 +138,9 @@ export class UserSeedService {
             userId: existingUser.id,
           }),
         );
+      } else if (!existingUser.roles || existingUser.roles.length === 0) {
+        existingUser.roles = [customerRole];
+        await this.userRepository.save(existingUser);
       }
 
       const existingAccount = await this.accountRepository.findOne({

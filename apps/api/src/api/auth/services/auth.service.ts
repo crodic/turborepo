@@ -113,6 +113,8 @@ export class AuthService {
 
     const hashedPassword = await hashPassword(dto.password);
 
+    const roles = await this.userService.findDefaultRole(domain);
+
     const user = await this.userService.create({
       email: dto.email,
       password: hashedPassword,
@@ -122,7 +124,7 @@ export class AuthService {
       domain,
       status: UserStatus.ACTIVE,
       isEmailVerified: false,
-      roles: [],
+      roles,
     });
 
     const fullUser = await this.userService.findById(user.id);

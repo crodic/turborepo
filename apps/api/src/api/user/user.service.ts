@@ -203,6 +203,14 @@ export class UserService {
     return await this.roleService.findByNames(codes);
   }
 
+  async findDefaultRole(domain: DomainType): Promise<RoleEntity[]> {
+    if (domain === DomainType.CLIENT) {
+      const role = await this.roleService.findClientDefaultRole();
+      return role ? [role] : [];
+    }
+    return [];
+  }
+
   async findAllUser(query: PaginateQuery): Promise<Paginated<UserResDto>> {
     const queryBuilder = this.userRepository
       .createQueryBuilder('user')
@@ -287,7 +295,12 @@ export class UserService {
       throw new ValidationException(ErrorCode.E003);
     }
 
-    const roles = data.roles ?? [];
+    const roles =
+      data.roles !== undefined
+        ? data.roles
+        : domain === DomainType.CLIENT
+          ? await this.findDefaultRole(domain)
+          : [];
 
     const hashedPassword = data.password
       ? await hashPassword(data.password)

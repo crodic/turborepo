@@ -1,3 +1,5 @@
+import { DomainType } from '@/constants/entity.enum';
+
 export enum AppSubjects {
   User = 'USER',
   Role = 'ROLE',
@@ -7,6 +9,7 @@ export enum AppSubjects {
   WhiteLabel = 'WHITE_LABEL',
   File = 'FILE',
   Page = 'PAGE',
+  App = 'APP',
 
   All = 'all',
 }
@@ -28,11 +31,13 @@ const permissionMeta = (
   group: string,
   name: string,
   description: string,
+  domain: DomainType = DomainType.ADMIN,
 ) => ({
   key: `${action}:${subject}`,
   group,
   name,
   description,
+  domain,
 });
 
 export const ALL_PERMISSIONS = [
@@ -241,6 +246,16 @@ export const ALL_PERMISSIONS = [
     'Delete CMS pages.',
   ),
 
+  // App (Client)
+  permissionMeta(
+    AppActions.Read,
+    AppSubjects.App,
+    'App',
+    'View app',
+    'View client application.',
+    DomainType.CLIENT,
+  ),
+
   // SUPER
   permissionMeta(
     AppActions.Manage,
@@ -255,3 +270,7 @@ export const ADMIN_FULL_ACCESS = {
   action: AppActions.Manage,
   subject: AppSubjects.All,
 };
+
+export const CUSTOMER_ROLE_NAME = 'Customer';
+export const CUSTOMER_ROLE_CODE = 'customer';
+export const CUSTOMER_DEFAULT_PERMISSION_KEY = `${AppActions.Read}:${AppSubjects.App}`;

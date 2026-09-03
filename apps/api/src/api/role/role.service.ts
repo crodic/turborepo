@@ -4,7 +4,10 @@ import { CacheKey } from '@/constants/cache.constant';
 import { DomainType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
-import { ADMIN_FULL_ACCESS } from '@/utils/permissions.constant';
+import {
+  ADMIN_FULL_ACCESS,
+  CUSTOMER_ROLE_CODE,
+} from '@/utils/permissions.constant';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -178,6 +181,13 @@ export class RoleService {
     if (!names || names.length === 0) return [];
     return await this.roleRepository.find({
       where: { name: In(names) },
+      relations: ['permissionEntities'],
+    });
+  }
+
+  async findClientDefaultRole(): Promise<RoleEntity | null> {
+    return await this.roleRepository.findOne({
+      where: { code: CUSTOMER_ROLE_CODE, domain: DomainType.CLIENT },
       relations: ['permissionEntities'],
     });
   }
