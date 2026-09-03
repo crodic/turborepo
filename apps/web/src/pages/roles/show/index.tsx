@@ -220,7 +220,9 @@ export default function PageRoleShow() {
                 <div>
                   <p className='text-muted-foreground text-sm'>Created</p>
                   <p className='text-sm font-medium'>
-                    {format(data.createdAt, 'yyyy-MM-dd HH:mm')}
+                    {data.createdAt
+                      ? format(data.createdAt, 'yyyy-MM-dd HH:mm')
+                      : '-'}
                   </p>
                 </div>
               </CardContent>
