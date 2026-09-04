@@ -6,8 +6,8 @@ import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
 import { Repository } from 'typeorm';
 
+import { AdminAccountEntity } from '@/api/admin-user/entities/admin-account.entity';
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { AdminAccountEntity } from '@/api/auth/entities/admin-account.entity';
 import {
   AdminNotificationType,
   NotificationService,

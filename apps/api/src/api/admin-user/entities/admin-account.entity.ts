@@ -1,4 +1,3 @@
-import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { EAccountProvider } from '@/constants/entity.enum';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
@@ -15,6 +14,7 @@ import {
   PrimaryGeneratedColumn,
   Relation,
 } from 'typeorm';
+import { AdminUserEntity } from './admin-user.entity';
 
 @Entity('admin_accounts')
 @Index('UQ_admin_account_provider_account', ['provider', 'providerAccountId'], {
@@ -62,15 +62,6 @@ export class AdminAccountEntity extends AbstractEntity {
 
   @Column({ nullable: true })
   password?: string;
-
-  @Column({ name: 'two_factor_enabled', default: false })
-  twoFactorEnabled!: boolean;
-
-  @Column({ name: 'two_factor_secret', type: 'varchar', nullable: true })
-  twoFactorSecret?: string | null;
-
-  @Column({ name: 'two_factor_backup_codes', type: 'jsonb', nullable: true })
-  twoFactorBackupCodes?: string[] | null;
 
   @BeforeInsert()
   @BeforeUpdate()

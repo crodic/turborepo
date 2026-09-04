@@ -1,3 +1,4 @@
+import { AdminTwoFactorEntity } from '@/api/admin-user/entities/admin-two-factor.entity';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
 import { EmailLogEntity } from '@/api/email/entities/email-log.entity';
 import { NotificationEntity } from '@/api/notification/entities/notification.entity';
@@ -20,6 +21,7 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
   private readonly logger = new Logger(AuditLogSubscriber.name);
   private readonly ignoreEntities = [
     AuditLogEntity.name,
+    AdminTwoFactorEntity.name,
     SessionEntity.name,
     EmailLogEntity.name,
     NotificationEntity.name,
@@ -69,6 +71,8 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
       'previousPassword',
       'twoFactorSecret',
       'twoFactorBackupCodes',
+      'secret',
+      'backupCodes',
     ];
     const cls = ClsServiceManager.getClsService();
 

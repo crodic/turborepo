@@ -25,10 +25,10 @@ import {
   PaginateQuery,
 } from 'nestjs-paginate';
 import { Repository } from 'typeorm';
-import { UserAccountEntity } from '../auth/entities/user-account.entity';
 import { CreateUserReqDto } from './dto/create-user.req.dto';
 import { UpdateUserReqDto } from './dto/update-user.req.dto';
 import { UserResDto } from './dto/user.res.dto';
+import { UserAccountEntity } from './entities/user-account.entity';
 import { UserEntity } from './entities/user.entity';
 
 @Injectable()

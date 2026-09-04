@@ -25,12 +25,12 @@ import {
   PaginateQuery,
 } from 'nestjs-paginate';
 import { EntityManager, In, LessThan, Repository } from 'typeorm';
-import { AdminAccountEntity } from '../auth/entities/admin-account.entity';
 import { RoleEntity } from '../role/entities/role.entity';
 import { SettingsService } from '../settings/settings.service';
 import { AdminUserResDto } from './dto/admin-user.res.dto';
 import { CreateAdminUserReqDto } from './dto/create-admin-user.req.dto';
 import { UpdateAdminUserReqDto } from './dto/update-admin-user.req.dto';
+import { AdminAccountEntity } from './entities/admin-account.entity';
 import { AdminUserEntity } from './entities/admin-user.entity';
 
 @Injectable()
@@ -210,7 +210,7 @@ export class AdminUserService {
         fullName: [FilterOperator.ILIKE],
         createdAt: [FilterOperator.GTE, FilterOperator.LTE, FilterOperator.BTW],
       },
-      relations: ['roles', 'roles.permissionEntities'],
+      relations: ['roles', 'roles.permissionEntities', 'twoFactor'],
     });
 
     return {
@@ -225,7 +225,7 @@ export class AdminUserService {
     assert(id, 'id is required');
     const user = await this.adminUserRepository.findOneOrFail({
       where: { id },
-      relations: ['roles', 'roles.permissionEntities'],
+      relations: ['roles', 'roles.permissionEntities', 'twoFactor'],
     });
 
     return user.toDto(AdminUserResDto);

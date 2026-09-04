@@ -1,9 +1,9 @@
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
-import { UserAccountEntity } from '@/api/auth/entities/user-account.entity';
 import { UserChangePasswordReqDto } from '@/api/user/dto/user-change-password.req.dto';
 import { UserChangePasswordResDto } from '@/api/user/dto/user-change-password.res.dto';
 import { UserResDto } from '@/api/user/dto/user.res.dto';
+import { UserAccountEntity } from '@/api/user/entities/user-account.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { IEmailJob } from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';

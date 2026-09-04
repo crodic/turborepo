@@ -1,4 +1,3 @@
-import { UserAccountEntity } from '@/api/auth/entities/user-account.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
 import { hashPassword as hashPass } from '@/utils/password.util';
@@ -14,6 +13,7 @@ import {
   PrimaryGeneratedColumn,
   Relation,
 } from 'typeorm';
+import { UserAccountEntity } from './user-account.entity';
 
 @Entity('users')
 export class UserEntity extends AbstractEntity {

@@ -1,4 +1,3 @@
-import { UserEntity } from '@/api/user/entities/user.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { EAccountProvider } from '@/constants/entity.enum';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
@@ -15,6 +14,7 @@ import {
   PrimaryGeneratedColumn,
   Relation,
 } from 'typeorm';
+import { UserEntity } from './user.entity';
 
 @Entity('user_accounts')
 @Index('UQ_user_account_provider_account', ['provider', 'providerAccountId'], {

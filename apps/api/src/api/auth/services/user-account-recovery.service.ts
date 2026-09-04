@@ -6,7 +6,7 @@ import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
 import { Repository } from 'typeorm';
 
-import { UserAccountEntity } from '@/api/auth/entities/user-account.entity';
+import { UserAccountEntity } from '@/api/user/entities/user-account.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import {
   IEmailJob,

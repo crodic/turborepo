@@ -1,4 +1,5 @@
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
+import { UserAccountEntity } from '@/api/user/entities/user-account.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { ESessionUserType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
@@ -13,7 +14,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SessionEntity } from '../entities/session.entity';
-import { UserAccountEntity } from '../entities/user-account.entity';
 import { AuthSessionService } from './auth-session.service';
 import { AuthTokenService } from './auth-token.service';
 import { SocialAuthService } from './social-auth.service';

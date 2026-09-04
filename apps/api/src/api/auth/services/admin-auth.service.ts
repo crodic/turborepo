@@ -2,8 +2,8 @@ import { AdminUserResDto } from '@/api/admin-user/dto/admin-user.res.dto';
 import { ChangePasswordReqDto } from '@/api/admin-user/dto/change-password.req.dto';
 import { ChangePasswordResDto } from '@/api/admin-user/dto/change-password.res.dto';
 import { UpdateMeReqDto } from '@/api/admin-user/dto/update-me.req.dto';
+import { AdminAccountEntity } from '@/api/admin-user/entities/admin-account.entity';
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { AdminAccountEntity } from '@/api/auth/entities/admin-account.entity';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
 import {
   AdminNotificationType,
@@ -114,6 +114,9 @@ export class AdminAuthService {
     const { email, password } = dto;
     const user = await this.adminUserRepository.findOne({
       where: { email },
+      relations: {
+        twoFactor: true,
+      },
       withDeleted: true,
     });
 
@@ -161,7 +164,7 @@ export class AdminAuthService {
       });
     }
 
-    if (user.twoFactorEnabled) {
+    if (user.twoFactor?.isEnabled) {
       const twoFactorToken =
         await this.adminTwoFactorService.createTwoFactorLoginToken({
           id: user.id,
@@ -285,7 +288,7 @@ export class AdminAuthService {
     assert(id, 'id is required');
     const user = await this.adminUserRepository.findOne({
       where: { id },
-      relations: ['roles', 'roles.permissionEntities'],
+      relations: ['roles', 'roles.permissionEntities', 'twoFactor'],
     });
 
     if (!user) {

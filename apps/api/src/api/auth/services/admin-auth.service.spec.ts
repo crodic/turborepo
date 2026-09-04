@@ -1,5 +1,5 @@
+import { AdminAccountEntity } from '@/api/admin-user/entities/admin-account.entity';
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { AdminAccountEntity } from '@/api/auth/entities/admin-account.entity';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
 import { NotificationService } from '@/api/notification/notification.service';
 import { UserEntity } from '@/api/user/entities/user.entity';
@@ -42,9 +42,9 @@ describe('AdminAuthService login', () => {
     id: '1',
     email: 'admin@example.com',
     password: 'hashed-password',
-    twoFactorEnabled: false,
+    twoFactor: null,
     verifiedAt: new Date(),
-  } as AdminUserEntity;
+  } as unknown as AdminUserEntity;
 
   const adminAccount = {
     id: '1',
@@ -157,9 +157,8 @@ describe('AdminAuthService login', () => {
   it('requires 2fa when two-factor is enabled on admin', async () => {
     const twoFactorAdmin = {
       ...admin,
-      twoFactorEnabled: true,
-      twoFactorSecret: 'encrypted-secret',
-    } as AdminUserEntity;
+      twoFactor: { isEnabled: true },
+    } as unknown as AdminUserEntity;
     adminUserRepository.findOne?.mockResolvedValue(twoFactorAdmin);
     twoFactorService.createTwoFactorLoginToken?.mockResolvedValue(
       'two-factor-token',

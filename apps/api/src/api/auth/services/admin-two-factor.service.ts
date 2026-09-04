@@ -15,7 +15,8 @@ import ms, { StringValue } from 'ms';
 import { generateSecret, generateURI, verify as verifyTotp } from 'otplib';
 import { Repository } from 'typeorm';
 
-import { AdminAccountEntity } from '@/api/auth/entities/admin-account.entity';
+import { AdminAccountEntity } from '@/api/admin-user/entities/admin-account.entity';
+import { AdminTwoFactorEntity } from '@/api/admin-user/entities/admin-two-factor.entity';
 import {
   AdminNotificationType,
   NotificationService,
@@ -71,6 +72,8 @@ export class AdminTwoFactorService {
     private readonly adminUserRepository: Repository<AdminUserEntity>,
     @InjectRepository(AdminAccountEntity)
     private readonly adminAccountRepository: Repository<AdminAccountEntity>,
+    @InjectRepository(AdminTwoFactorEntity)
+    private readonly adminTwoFactorRepository: Repository<AdminTwoFactorEntity>,
     @InjectRepository(SessionEntity)
     private readonly sessionRepository: Repository<SessionEntity>,
     @Inject(CACHE_MANAGER)
@@ -84,12 +87,12 @@ export class AdminTwoFactorService {
   async twoFactorStatus(
     userToken: JwtPayloadType,
   ): Promise<TwoFactorStatusResDto> {
-    const user = await this.adminUserRepository.findOneByOrFail({
-      id: userToken.id as AutoIncrementID,
+    const twoFactor = await this.adminTwoFactorRepository.findOneBy({
+      adminUserId: userToken.id as AutoIncrementID,
     });
 
     return plainToInstance(TwoFactorStatusResDto, {
-      enabled: user.twoFactorEnabled,
+      enabled: twoFactor?.isEnabled ?? false,
     });
   }
 
@@ -144,11 +147,20 @@ export class AdminTwoFactorService {
       throw new BadRequestException('Invalid two-factor code');
     }
 
-    await this.adminUserRepository.update(user.id, {
-      twoFactorEnabled: true,
-      twoFactorSecret: this.encryptTwoFactorSecret(setup.secret),
-      twoFactorBackupCodes: setup.backupCodeHashes,
+    let twoFactor = await this.adminTwoFactorRepository.findOneBy({
+      adminUserId: user.id,
     });
+
+    if (!twoFactor) {
+      twoFactor = new AdminTwoFactorEntity({
+        adminUserId: user.id,
+      });
+    }
+
+    twoFactor.isEnabled = true;
+    twoFactor.secret = this.encryptTwoFactorSecret(setup.secret);
+    twoFactor.backupCodes = setup.backupCodeHashes;
+    await this.adminTwoFactorRepository.save(twoFactor);
     await this.cacheManager.del(cacheKey);
     await this.notifyAdmin(
       user.id,
@@ -172,10 +184,8 @@ export class AdminTwoFactorService {
     });
     await this.assertPassword(user, dto.password);
 
-    await this.adminUserRepository.update(user.id, {
-      twoFactorEnabled: false,
-      twoFactorSecret: null,
-      twoFactorBackupCodes: null,
+    await this.adminTwoFactorRepository.delete({
+      adminUserId: user.id,
     });
     await this.cacheManager.del(
       createCacheKey(CacheKey.ADMIN_TWO_FACTOR_SETUP, user.id),
@@ -202,16 +212,20 @@ export class AdminTwoFactorService {
     });
     await this.assertPassword(user, dto.password);
 
-    if (!user.twoFactorEnabled) {
+    const twoFactor = await this.adminTwoFactorRepository.findOneBy({
+      adminUserId: user.id,
+      isEnabled: true,
+    });
+
+    if (!twoFactor) {
       throw new BadRequestException('Two-factor authentication is not enabled');
     }
 
     const backupCodes = this.generateBackupCodes();
-    await this.adminUserRepository.update(user.id, {
-      twoFactorBackupCodes: backupCodes.map((code) =>
-        this.hashBackupCode(code),
-      ),
-    });
+    twoFactor.backupCodes = backupCodes.map((code) =>
+      this.hashBackupCode(code),
+    );
+    await this.adminTwoFactorRepository.save(twoFactor);
 
     return plainToInstance(GenerateBackupCodesResDto, {
       backupCodes,
@@ -227,15 +241,24 @@ export class AdminTwoFactorService {
       id: payload.id as AutoIncrementID,
     });
 
-    if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    const twoFactor = await this.adminTwoFactorRepository.findOneBy({
+      adminUserId: user.id,
+      isEnabled: true,
+    });
+
+    if (!twoFactor || !twoFactor.secret) {
       throw new UnauthorizedException();
     }
 
     const isValid =
       (await this.verifyTotpCode(
         dto.code,
-        this.decryptTwoFactorSecret(user.twoFactorSecret),
-      )) || (await this.consumeBackupCode(user, dto.code));
+        this.decryptTwoFactorSecret(twoFactor.secret),
+      )) || (await this.consumeBackupCode(twoFactor, dto.code));
 
     if (!isValid) {
       throw new BadRequestException('Invalid two-factor code');
@@ -332,23 +355,30 @@ export class AdminTwoFactorService {
   }
 
   async consumeBackupCode(
-    user: AdminUserEntity,
+    twoFactor: AdminTwoFactorEntity,
     code: string,
   ): Promise<boolean> {
     const codeHash = this.hashBackupCode(code);
-    const backupCodeHashes = user.twoFactorBackupCodes ?? [];
+    const backupCodeHashes = twoFactor.backupCodes ?? [];
 
     if (!backupCodeHashes.includes(codeHash)) {
       return false;
     }
 
-    await this.adminUserRepository.update(user.id, {
-      twoFactorBackupCodes: backupCodeHashes.filter(
-        (hash) => hash !== codeHash,
-      ),
-    });
+    twoFactor.backupCodes = backupCodeHashes.filter(
+      (hash) => hash !== codeHash,
+    );
+    await this.adminTwoFactorRepository.save(twoFactor);
 
     return true;
+  }
+
+  async isTwoFactorEnabled(adminUserId: AutoIncrementID): Promise<boolean> {
+    const twoFactor = await this.adminTwoFactorRepository.findOneBy({
+      adminUserId,
+      isEnabled: true,
+    });
+    return !!twoFactor;
   }
 
   private async assertPassword(

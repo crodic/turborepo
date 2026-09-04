@@ -1,4 +1,3 @@
-import { AdminAccountEntity } from '@/api/auth/entities/admin-account.entity';
 import { RoleEntity } from '@/api/role/entities/role.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
@@ -14,9 +13,12 @@ import {
   JoinTable,
   ManyToMany,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   Relation,
 } from 'typeorm';
+import { AdminAccountEntity } from './admin-account.entity';
+import { AdminTwoFactorEntity } from './admin-two-factor.entity';
 
 @Entity('admin_users')
 export class AdminUserEntity extends AbstractEntity {
@@ -74,14 +76,8 @@ export class AdminUserEntity extends AbstractEntity {
   })
   notifications!: Record<string, boolean>;
 
-  @Column({ name: 'two_factor_enabled', default: false })
-  twoFactorEnabled!: boolean;
-
-  @Column({ name: 'two_factor_secret', type: 'varchar', nullable: true })
-  twoFactorSecret?: string | null;
-
-  @Column({ name: 'two_factor_backup_codes', type: 'jsonb', nullable: true })
-  twoFactorBackupCodes?: string[] | null;
+  @OneToOne(() => AdminTwoFactorEntity, (twoFactor) => twoFactor.adminUser)
+  twoFactor?: Relation<AdminTwoFactorEntity> | null;
 
   @DeleteDateColumn({
     name: 'deleted_at',

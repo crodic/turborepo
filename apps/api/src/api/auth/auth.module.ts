@@ -14,13 +14,14 @@ import { AuthTokenService } from './services/auth-token.service';
 import { SocialAuthService } from './services/social-auth.service';
 import { UserAccountRecoveryService } from './services/user-account-recovery.service';
 
+import { AdminAccountEntity } from '../admin-user/entities/admin-account.entity';
+import { AdminTwoFactorEntity } from '../admin-user/entities/admin-two-factor.entity';
 import { NotificationModule } from '../notification/notification.module';
+import { UserAccountEntity } from '../user/entities/user-account.entity';
 import { UserEntity } from '../user/entities/user.entity';
 import { AdminAuthenticationController } from './controllers/admin-auth.controller';
 import { UserAuthenticationController } from './controllers/user-auth.controller';
-import { AdminAccountEntity } from './entities/admin-account.entity';
 import { SessionEntity } from './entities/session.entity';
-import { UserAccountEntity } from './entities/user-account.entity';
 import { AdminAuthService } from './services/admin-auth.service';
 import { AuthSessionService } from './services/auth-session.service';
 import { UserAuthService } from './services/user-auth.service';
@@ -36,6 +37,7 @@ import { UserJwtStrategy } from './strategy/user.strategy';
       AdminUserEntity,
       SessionEntity,
       AdminAccountEntity,
+      AdminTwoFactorEntity,
       UserAccountEntity,
     ]),
     NotificationModule,

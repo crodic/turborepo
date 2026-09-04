@@ -58,6 +58,9 @@ export class AdminUserResDto {
   verifiedAt?: boolean;
 
   @BooleanField()
+  @Transform(({ obj }) =>
+    Boolean(obj.twoFactor?.isEnabled ?? obj.twoFactorEnabled ?? false),
+  )
   @Expose()
   twoFactorEnabled: boolean;
 
