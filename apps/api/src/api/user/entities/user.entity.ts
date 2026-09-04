@@ -46,6 +46,10 @@ export class UserEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 255, nullable: true })
   password?: string | null;
 
+  get hasPassword(): boolean {
+    return Boolean(this.password);
+  }
+
   @BeforeInsert()
   @BeforeUpdate()
   async handlePasswordHashing(): Promise<void> {

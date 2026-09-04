@@ -22,11 +22,13 @@ import { http } from "@/lib/http";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import React, { useEffect } from "react";
+import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 const updateFormSchema = z.object({
-  displayName: z.string().min(2),
+  firstName: z.string().trim().min(1, "First name is required"),
+  lastName: z.string().trim().min(1, "Last name is required"),
 });
 
 type UpdateFormValues = z.infer<typeof updateFormSchema>;
@@ -36,18 +38,22 @@ export default function UpdateForm() {
   const form = useForm<UpdateFormValues>({
     resolver: zodResolver(updateFormSchema),
     defaultValues: {
-      displayName: "",
+      firstName: "",
+      lastName: "",
     },
   });
   const router = useRouter();
 
   const onSubmit = async (values: UpdateFormValues) => {
-    console.log(values);
     try {
-      await http.put("/users/me", { displayName: values.displayName });
+      await http.put("/api/v1/user/auth/me", {
+        firstName: values.firstName,
+        lastName: values.lastName,
+      });
+      toast.success("Profile updated successfully");
       router.push("/server-profile");
-    } catch (error) {
-      console.log(error);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to update profile");
     }
   };
 
@@ -56,44 +62,62 @@ export default function UpdateForm() {
     const signal = controller.signal;
     const fetchProfile = async () => {
       try {
-        const response = await http.get<User>("/users/me", {
+        const response = await http.get<User>("/api/v1/user/auth/me", {
           signal,
         });
         setProfile(response.data);
+        form.reset({
+          firstName: response.data.firstName || "",
+          lastName: response.data.lastName || "",
+        });
       } catch (error) {
         console.error(">>> Error fetching profile:", error);
       }
     };
+
     fetchProfile();
 
     return () => controller.abort();
-  }, []);
+  }, [form]);
 
   return (
     <Card className="w-125">
       <CardHeader>
-        <CardTitle className="text-2xl">Change DisplayName</CardTitle>
+        <CardTitle className="text-2xl">Update Profile</CardTitle>
         <CardDescription>
-          Change DisplayName For Account - {profile?.fullName}
+          Update profile information for {profile?.fullName}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="displayName"
+              name="firstName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>DisplayName</FormLabel>
+                  <FormLabel>First Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter DisplayName" {...field} />
+                    <Input placeholder="Enter first name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button className="mt-2" type="submit">
+            <FormField
+              control={form.control}
+              name="lastName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Last Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter last name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button className="mt-2 w-full" type="submit">
               Client Update
             </Button>
           </form>
