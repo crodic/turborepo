@@ -96,22 +96,20 @@ export class EmailProcessor extends WorkerHost {
   }
 
   @OnWorkerEvent('failed')
-  async onFailed(job: Job | undefined, error: Error) {
+  async onFailed(job: Job) {
     this.logger.error(
-      `Job ${job?.id} has failed with reason: ${job?.failedReason || error?.message}`,
+      `Job ${job.id} has failed with reason: ${job.failedReason}`,
     );
-    if (job?.stacktrace) {
-      this.logger.error(job.stacktrace);
-    }
+    this.logger.error(job.stacktrace);
   }
 
   @OnWorkerEvent('stalled')
-  async onStalled(jobId: string) {
-    this.logger.error(`Job ${jobId} has been stalled`);
+  async onStalled(job: Job) {
+    this.logger.error(`Job ${job.id} has been stalled`);
   }
 
   @OnWorkerEvent('error')
-  async onError(error: Error) {
-    this.logger.error(`Worker error: ${error?.message || error}`);
+  async onError(job: Job, error: Error) {
+    this.logger.error(`Job ${job.id} has failed with error: ${error.message}`);
   }
 }
