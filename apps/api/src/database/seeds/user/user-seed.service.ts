@@ -9,6 +9,7 @@ import {
   EAccountProvider,
   UserStatus,
 } from '@/constants/entity.enum';
+import { hashPassword } from '@/utils/password.util';
 import {
   CUSTOMER_DEFAULT_PERMISSION_KEY,
   CUSTOMER_ROLE_CODE,
@@ -121,7 +122,9 @@ export class UserSeedService {
         existingUser = await this.userRepository.save(
           this.userRepository.create({
             email: user.email.toLowerCase().trim(),
-            password: user.password,
+            password: user.password
+              ? await hashPassword(user.password)
+              : undefined,
             firstName: user.firstName,
             lastName: user.lastName,
             avatarUrl: user.avatar,
@@ -138,9 +141,23 @@ export class UserSeedService {
             userId: existingUser.id,
           }),
         );
-      } else if (!existingUser.roles || existingUser.roles.length === 0) {
-        existingUser.roles = [customerRole];
-        await this.userRepository.save(existingUser);
+      } else {
+        let shouldSave = false;
+        if (!existingUser.roles || existingUser.roles.length === 0) {
+          existingUser.roles = [customerRole];
+          shouldSave = true;
+        }
+        if (
+          user.password &&
+          (!existingUser.password ||
+            !existingUser.password.startsWith('$argon2id$'))
+        ) {
+          existingUser.password = await hashPassword(user.password);
+          shouldSave = true;
+        }
+        if (shouldSave) {
+          await this.userRepository.save(existingUser);
+        }
       }
 
       const existingAccount = await this.accountRepository.findOne({

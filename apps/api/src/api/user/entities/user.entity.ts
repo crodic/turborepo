@@ -5,8 +5,11 @@ import { AutoIncrementID } from '@/common/types/common.type';
 import { DomainType, UserStatus } from '@/constants/entity.enum';
 import { Order } from '@/database/decorators/order.decorator';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
+import { hashPassword } from '@/utils/password.util';
 import { Exclude } from 'class-transformer';
 import {
+  BeforeInsert,
+  BeforeUpdate,
   Column,
   DeleteDateColumn,
   Entity,
@@ -42,6 +45,14 @@ export class UserEntity extends AbstractEntity {
   @Exclude({ toPlainOnly: true })
   @Column({ type: 'varchar', length: 255, nullable: true })
   password?: string | null;
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  async handlePasswordHashing(): Promise<void> {
+    if (this.password && !this.password.startsWith('$argon2id$')) {
+      this.password = await hashPassword(this.password);
+    }
+  }
 
   @Order(4)
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'first_name' })

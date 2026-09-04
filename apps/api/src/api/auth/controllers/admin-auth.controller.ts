@@ -41,6 +41,7 @@ import { plainToInstance } from 'class-transformer';
 import type { Response } from 'express';
 import { AdminUserLoginReqDto } from '../dto/admin-users/admin-user-login.req.dto';
 import { AdminUserLoginResDto } from '../dto/admin-users/admin-user-login.res.dto';
+import { LoginActivityResDto } from '../dto/admin-users/login-activity.res.dto';
 import { ForgotPasswordReqDto } from '../dto/forgot-password.req.dto';
 import { ForgotPasswordResDto } from '../dto/forgot-password.res.dto';
 import { RefreshReqDto } from '../dto/refresh.req.dto';
@@ -355,6 +356,21 @@ export class AdminAuthenticationController {
   @Get('sessions')
   async listSessions(@CurrentUser() user: any): Promise<SessionResDto[]> {
     return await this.authSessionService.listSessions(user, DomainType.ADMIN);
+  }
+
+  @ApiAuth({
+    type: LoginActivityResDto,
+    summary: 'Get login activity for Admin',
+  })
+  @SkipPolicies()
+  @Get('sessions/activity')
+  async getLoginActivity(
+    @CurrentUser() user: any,
+  ): Promise<LoginActivityResDto> {
+    return await this.authSessionService.getLoginActivity(
+      user,
+      DomainType.ADMIN,
+    );
   }
 
   @ApiAuth({

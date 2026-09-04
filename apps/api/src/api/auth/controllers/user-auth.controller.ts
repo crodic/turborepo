@@ -32,6 +32,7 @@ import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { plainToInstance } from 'class-transformer';
 import type { Response } from 'express';
+import { LoginActivityResDto } from '../dto/admin-users/login-activity.res.dto';
 import { ForgotPasswordReqDto } from '../dto/forgot-password.req.dto';
 import { ForgotPasswordResDto } from '../dto/forgot-password.res.dto';
 import { RefreshReqDto } from '../dto/refresh.req.dto';
@@ -188,6 +189,18 @@ export class UserAuthenticationController {
   @Get('sessions')
   async sessions(@CurrentUser() user: any): Promise<SessionResDto[]> {
     return this.authSessionService.listSessions(user, DomainType.CLIENT);
+  }
+
+  @ApiAuth({
+    type: LoginActivityResDto,
+    summary: 'Get login activity for current user',
+  })
+  @SkipThrottle()
+  @Get('sessions/activity')
+  async getLoginActivity(
+    @CurrentUser() user: any,
+  ): Promise<LoginActivityResDto> {
+    return this.authSessionService.getLoginActivity(user, DomainType.CLIENT);
   }
 
   @ApiAuth({ summary: 'Revoke all other current user sessions' })
