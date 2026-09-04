@@ -240,7 +240,7 @@ export class UserService {
   async findOne(id: AutoIncrementID): Promise<UserResDto> {
     const user = await this.userRepository.findOneOrFail({
       where: { id, domain: DomainType.CLIENT },
-      relations: ['userProfile'],
+      relations: ['userProfile', 'accounts'],
     });
 
     return plainToInstance(UserResDto, user, { excludeExtraneousValues: true });

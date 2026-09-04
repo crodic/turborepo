@@ -1,12 +1,30 @@
 import { AutoIncrementID } from '@/common/types/common.type';
+import { EAccountProvider } from '@/constants/entity.enum';
 import {
+  ArrayFieldOptional,
   BooleanField,
   ClassField,
+  EnumField,
   JsonField,
   StringField,
   StringFieldOptional,
 } from '@/decorators/field.decorators';
 import { Exclude, Expose, Transform } from 'class-transformer';
+
+@Exclude()
+export class UserAccountResDto {
+  @StringField()
+  @Expose()
+  id: string;
+
+  @EnumField(() => EAccountProvider)
+  @Expose()
+  provider: EAccountProvider;
+
+  @StringFieldOptional()
+  @Expose()
+  providerAccountId?: string;
+}
 
 @Exclude()
 export class UserResDto {
@@ -38,6 +56,10 @@ export class UserResDto {
   @BooleanField()
   @Expose()
   hasPassword: boolean;
+
+  @ArrayFieldOptional(UserAccountResDto)
+  @Expose()
+  accounts?: UserAccountResDto[];
 
   @JsonField()
   @Transform(({ obj }) => obj.userProfile?.notifications ?? true)

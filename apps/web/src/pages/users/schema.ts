@@ -11,6 +11,12 @@ export const ColumnKey = {
   all: 'all',
 }
 
+export const userAccountSchema = z.object({
+  id: z.string(),
+  provider: z.string(),
+  providerAccountId: z.string().optional(),
+})
+
 export const userSchema = z.object({
   id: z.string(),
   email: z.string(),
@@ -19,6 +25,8 @@ export const userSchema = z.object({
   lastName: z.string().nullable(),
   fullName: z.string(),
   verifiedAt: z.boolean(),
+  hasPassword: z.boolean().optional(),
+  accounts: z.array(userAccountSchema).default([]),
   notifications: z
     .object({
       system: z.boolean().default(true),

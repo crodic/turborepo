@@ -213,7 +213,7 @@ describe('UserService', () => {
 
       expect(userRepositoryValue.findOneOrFail).toHaveBeenCalledWith({
         where: { id: '1', domain: DomainType.CLIENT },
-        relations: ['userProfile'],
+        relations: ['userProfile', 'accounts'],
       });
       expect(result).toEqual(expect.objectContaining({ email: user.email }));
     });
