@@ -1,10 +1,6 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
-import { hashPassword as hashPass } from '@/utils/password.util';
 import {
-  AfterLoad,
-  BeforeInsert,
-  BeforeUpdate,
   Column,
   DeleteDateColumn,
   Entity,
@@ -19,7 +15,6 @@ import { UserAccountEntity } from './user-account.entity';
 export class UserEntity extends AbstractEntity {
   @OneToMany(() => UserAccountEntity, (account) => account.user)
   accounts?: Relation<UserAccountEntity>[];
-  private previousPassword?: string;
 
   constructor(data?: Partial<UserEntity>) {
     super();
@@ -51,9 +46,6 @@ export class UserEntity extends AbstractEntity {
   email!: string;
 
   @Column({ nullable: true })
-  password?: string;
-
-  @Column({ nullable: true })
   avatar?: string;
 
   @Column({
@@ -71,17 +63,4 @@ export class UserEntity extends AbstractEntity {
 
   @Column({ type: 'timestamptz', name: 'verified_at', nullable: true })
   verifiedAt?: Date;
-
-  @BeforeInsert()
-  @BeforeUpdate()
-  async hashPassword() {
-    if (this.password && this.password !== this.previousPassword) {
-      this.password = await hashPass(this.password);
-    }
-  }
-
-  @AfterLoad()
-  private loadPreviousPassword() {
-    this.previousPassword = this.password;
-  }
 }

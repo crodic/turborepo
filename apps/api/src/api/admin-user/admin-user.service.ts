@@ -79,21 +79,22 @@ export class AdminUserService {
     if (roles.length !== data.roleIds.length) {
       throw new ValidationException(ErrorCode.E002);
     }
+    const { password, roleIds: _roleIds, ...userData } = data;
     const adminUser = await repo.save(
       repo.create({
-        ...data,
+        ...userData,
         roles,
         verifiedAt: data.verifiedAt ?? new Date(),
       }),
     );
 
-    if (data.password) {
+    if (password) {
       await accountRepo.save(
         new AdminAccountEntity({
           adminUserId: adminUser.id,
           provider: EAccountProvider.LOCAL,
           providerAccountId: adminUser.email,
-          password: data.password,
+          password,
         }),
       );
     }
@@ -239,7 +240,6 @@ export class AdminUserService {
 
     Object.assign(user, updateUserDto);
 
-    delete user.password;
     delete (user as AdminUserEntity & { roleIds?: AutoIncrementID[] }).roleIds;
 
     if (updateUserDto.roleIds) {

@@ -33,7 +33,6 @@ export class CreateUsersTable1758176574084 implements MigrationInterface {
                 "last_name" character varying(100),
                 "full_name" character varying(201) GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED NOT NULL,
                 "email" character varying NOT NULL,
-                "password" character varying,
                 "avatar" character varying,
                 "notifications" jsonb NOT NULL DEFAULT '{"email": true, "system": true, "security": true}'::jsonb,
                 "deleted_at" TIMESTAMP WITH TIME ZONE,

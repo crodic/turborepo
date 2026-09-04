@@ -115,9 +115,14 @@ describe('UserService', () => {
     };
 
     it('creates a user when email is unique and passwords match', async () => {
+      const {
+        password: _password,
+        confirmPassword: _confirmPassword,
+        ...userData
+      } = dto;
       const savedUser = new UserEntity({
         id: '1' as any,
-        ...dto,
+        ...userData,
       });
 
       userRepositoryValue.findOne.mockResolvedValue(null);
@@ -133,7 +138,6 @@ describe('UserService', () => {
           firstName: dto.firstName,
           lastName: dto.lastName,
           email: dto.email,
-          password: dto.password,
         }),
       );
       expect(jwtServiceMock.signAsync).toHaveBeenCalledWith(

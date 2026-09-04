@@ -1,11 +1,7 @@
 import { RoleEntity } from '@/api/role/entities/role.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
-import { hashPassword as hashPass } from '@/utils/password.util';
 import {
-  AfterLoad,
-  BeforeInsert,
-  BeforeUpdate,
   Column,
   DeleteDateColumn,
   Entity,
@@ -24,7 +20,6 @@ import { AdminTwoFactorEntity } from './admin-two-factor.entity';
 export class AdminUserEntity extends AbstractEntity {
   @OneToMany(() => AdminAccountEntity, (account) => account.admin)
   accounts?: Relation<AdminAccountEntity>[];
-  private previousPassword?: string;
 
   constructor(data?: Partial<AdminUserEntity>) {
     super();
@@ -54,9 +49,6 @@ export class AdminUserEntity extends AbstractEntity {
   @Column()
   @Index('UQ_admin_user_email', { where: '"deleted_at" IS NULL', unique: true })
   email!: string;
-
-  @Column({ nullable: true })
-  password?: string;
 
   @Column({ nullable: true })
   bio?: string;
@@ -102,17 +94,4 @@ export class AdminUserEntity extends AbstractEntity {
 
   @Column({ type: 'timestamptz', name: 'verified_at', nullable: true })
   verifiedAt?: Date;
-
-  @BeforeInsert()
-  @BeforeUpdate()
-  async hashPassword() {
-    if (this.password && this.password !== this.previousPassword) {
-      this.password = await hashPass(this.password);
-    }
-  }
-
-  @AfterLoad()
-  private loadPreviousPassword() {
-    this.previousPassword = this.password;
-  }
 }

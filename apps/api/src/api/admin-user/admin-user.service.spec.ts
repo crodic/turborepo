@@ -170,9 +170,10 @@ describe('AdminUserService', () => {
 
     it('creates an admin user with resolved roles', async () => {
       const role = new RoleEntity({ id: '1' as any, name: 'Admin' });
+      const { password: _password, ...adminData } = dto;
       const savedAdmin = new AdminUserEntity({
         id: '2' as any,
-        ...dto,
+        ...adminData,
         roles: [role],
       });
 
@@ -236,7 +237,6 @@ describe('AdminUserService', () => {
       const existing = new AdminUserEntity({
         id: '1' as any,
         email: 'admin@example.com',
-        password: 'secret1',
         roles: [],
       });
       const role = new RoleEntity({ id: '2' as any, name: 'Manager' });
@@ -252,9 +252,6 @@ describe('AdminUserService', () => {
       });
 
       expect(existing.roles).toEqual([role]);
-      expect(
-        (existing as AdminUserEntity & { password?: string }).password,
-      ).toBe(undefined);
       expect(adminRepoMock.save).toHaveBeenCalledWith(existing);
     });
 

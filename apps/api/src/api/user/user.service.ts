@@ -74,7 +74,12 @@ export class UserService {
   }
 
   async create(dto: CreateUserReqDto): Promise<UserResDto> {
-    const { email, password } = dto;
+    const {
+      email,
+      password,
+      confirmPassword: _confirmPassword,
+      ...userData
+    } = dto;
 
     const user = await this.userRepository.findOne({
       where: {
@@ -91,7 +96,7 @@ export class UserService {
     }
 
     const newUser = new UserEntity({
-      ...dto,
+      ...userData,
       email,
     });
 
