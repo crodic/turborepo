@@ -13,7 +13,7 @@ import {
   Relation,
 } from 'typeorm';
 
-@Entity('roles')
+@Entity('admin_roles')
 export class RoleEntity extends AbstractEntity {
   constructor(data?: Partial<RoleEntity>) {
     super();
@@ -21,12 +21,12 @@ export class RoleEntity extends AbstractEntity {
   }
 
   @PrimaryGeneratedColumn('increment', {
-    primaryKeyConstraintName: 'PK_role_id',
+    primaryKeyConstraintName: 'PK_admin_role_id',
     type: 'bigint',
   })
   id!: AutoIncrementID;
 
-  @Index('UQ_roles_name', { unique: true, where: '"deleted_at" IS NULL' })
+  @Index('UQ_admin_roles_name', { unique: true, where: '"deleted_at" IS NULL' })
   @Column()
   name: string;
 
@@ -40,17 +40,17 @@ export class RoleEntity extends AbstractEntity {
     eager: true,
   })
   @JoinTable({
-    name: 'role_permission',
+    name: 'admin_role_permission',
     synchronize: false,
     joinColumn: {
-      name: 'role_id',
+      name: 'admin_role_id',
       referencedColumnName: 'id',
-      foreignKeyConstraintName: 'FK_role_permission_role',
+      foreignKeyConstraintName: 'FK_admin_role_permission_role',
     },
     inverseJoinColumn: {
-      name: 'permission_id',
+      name: 'admin_permission_id',
       referencedColumnName: 'id',
-      foreignKeyConstraintName: 'FK_role_permission_permission',
+      foreignKeyConstraintName: 'FK_admin_role_permission_permission',
     },
   })
   permissionEntities: Relation<PermissionEntity>[];

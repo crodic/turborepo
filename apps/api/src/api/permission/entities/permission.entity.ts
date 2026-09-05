@@ -10,7 +10,7 @@ import {
   Relation,
 } from 'typeorm';
 
-@Entity('permissions')
+@Entity('admin_permissions')
 export class PermissionEntity extends AbstractEntity {
   constructor(data?: Partial<PermissionEntity>) {
     super();
@@ -18,7 +18,7 @@ export class PermissionEntity extends AbstractEntity {
   }
 
   @PrimaryGeneratedColumn('increment', {
-    primaryKeyConstraintName: 'PK_permission_id',
+    primaryKeyConstraintName: 'PK_admin_permission_id',
     type: 'bigint',
   })
   id!: AutoIncrementID;
@@ -32,7 +32,7 @@ export class PermissionEntity extends AbstractEntity {
   @Column({ nullable: true })
   description?: string;
 
-  @Index('UQ_permissions_key', { unique: true })
+  @Index('UQ_admin_permissions_key', { unique: true })
   @Column()
   key: string;
 

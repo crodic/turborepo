@@ -93,13 +93,16 @@ export class AdminUserEntity extends AbstractEntity {
   @ManyToMany(() => RoleEntity, (role) => role.admins, { eager: true })
   @JoinTable({
     name: 'admin_user_role',
+    synchronize: false,
     joinColumn: {
       name: 'admin_user_id',
       referencedColumnName: 'id',
+      foreignKeyConstraintName: 'FK_admin_user_role_admin_user',
     },
     inverseJoinColumn: {
-      name: 'role_id',
+      name: 'admin_role_id',
       referencedColumnName: 'id',
+      foreignKeyConstraintName: 'FK_admin_user_role_admin_role',
     },
   })
   roles: Relation<RoleEntity>[];
