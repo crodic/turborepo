@@ -57,9 +57,15 @@ export class PresenceGateway
       void this.disconnectInactiveSockets(server);
     }, 30000);
     this.authSweepTimer.unref?.();
+
+    // Initial sweep to clear orphaned sockets from previous server restarts
+    const initSweepTimeout = setTimeout(() => {
+      void this.disconnectInactiveSockets(server);
+    }, 3000);
+    initSweepTimeout.unref?.();
   }
 
-  handleConnection(client: Socket) {
+  async handleConnection(client: Socket) {
     const principal = client.data.principal as PresencePrincipal;
 
     client.join(
@@ -68,7 +74,7 @@ export class PresenceGateway
         : PRESENCE_USER_ROOM,
     );
 
-    const snapshot = this.presenceService.add(client.id, principal);
+    const snapshot = await this.presenceService.add(client.id, principal);
 
     client.emit('presence:me', this.toPublicPrincipal(principal));
     client.emit('presence:counts', snapshot.counts);
@@ -77,29 +83,49 @@ export class PresenceGateway
       client.emit('presence:snapshot', snapshot);
     }
 
-    this.broadcastPresence();
+    await this.broadcastPresence();
   }
 
-  handleDisconnect(client: Socket) {
-    this.presenceService.remove(client.id);
-    this.broadcastPresence();
+  async handleDisconnect(client: Socket) {
+    await this.presenceService.remove(client.id);
+    await this.broadcastPresence();
+  }
+
+  @SubscribeMessage('presence:subscribe')
+  async handleSubscribe(@ConnectedSocket() client: Socket) {
+    const principal = client.data.principal as PresencePrincipal | undefined;
+    const snapshot = await this.presenceService.touch(client.id, principal);
+
+    client.emit('presence:counts', snapshot.counts);
+
+    if (principal?.type === PresenceUserType.ADMIN) {
+      client.emit('presence:snapshot', snapshot);
+    }
+  }
+
+  @SubscribeMessage('presence:unsubscribe')
+  async handleUnsubscribe(@ConnectedSocket() _client: Socket) {
+    // Client unsubscribed from presence updates for specific page
   }
 
   @SubscribeMessage('presence:get')
-  getPresence(@ConnectedSocket() client: Socket) {
-    const principal = client.data.principal as PresencePrincipal;
-    const snapshot = this.presenceService.touch(client.id);
+  async getPresence(@ConnectedSocket() client: Socket) {
+    const principal = client.data.principal as PresencePrincipal | undefined;
+    const snapshot = await this.presenceService.touch(client.id, principal);
 
-    if (principal.type !== PresenceUserType.ADMIN) {
-      return {
-        event: 'presence:counts',
-        data: snapshot.counts,
-      };
+    client.emit('presence:counts', snapshot.counts);
+
+    if (principal?.type === PresenceUserType.ADMIN) {
+      client.emit('presence:snapshot', snapshot);
     }
 
     return {
-      event: 'presence:snapshot',
-      data: snapshot,
+      event:
+        principal?.type === PresenceUserType.ADMIN
+          ? 'presence:snapshot'
+          : 'presence:counts',
+      data:
+        principal?.type === PresenceUserType.ADMIN ? snapshot : snapshot.counts,
     };
   }
 
@@ -114,7 +140,8 @@ export class PresenceGateway
       };
     }
 
-    const snapshot = this.presenceService.touch(client.id);
+    const principal = client.data.principal as PresencePrincipal | undefined;
+    const snapshot = await this.presenceService.touch(client.id, principal);
 
     client.emit('presence:counts', snapshot.counts);
 
@@ -124,8 +151,8 @@ export class PresenceGateway
     };
   }
 
-  private broadcastPresence() {
-    const snapshot = this.presenceService.getSnapshot();
+  private async broadcastPresence() {
+    const snapshot = await this.presenceService.getSnapshot();
 
     this.server.emit('presence:counts', snapshot.counts);
     this.server.emit('onlineCount', snapshot.counts.total);
@@ -137,6 +164,13 @@ export class PresenceGateway
 
     for (const client of sockets.values()) {
       await this.ensureSocketStillAuthorized(client);
+    }
+
+    const liveSocketIds = new Set(sockets.keys());
+    const hasPruned =
+      await this.presenceService.pruneDeadSockets(liveSocketIds);
+    if (hasPruned) {
+      await this.broadcastPresence();
     }
   }
 

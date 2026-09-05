@@ -39,10 +39,26 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       transports: ['websocket', 'polling'],
     })
 
+    const pingTimer = setInterval(() => {
+      if (newSocket.connected) {
+        newSocket.emit('presence:ping')
+      }
+    }, 25000)
+
     socketRef.current = newSocket
     queueMicrotask(() => setSocket(newSocket))
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && newSocket.connected) {
+        newSocket.emit('presence:ping')
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      clearInterval(pingTimer)
       newSocket.disconnect()
     }
   }, [accessToken, isAuthenticated])

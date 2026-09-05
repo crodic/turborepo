@@ -1,6 +1,5 @@
 "use client";
 
-import { User } from "@/types/apis";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,83 +18,147 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { http } from "@/lib/http";
+import { User } from "@/types/apis";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 
-const updateFormSchema = z.object({
-  displayName: z.string().min(2),
+const updateProfileSchema = z.object({
+  firstName: z
+    .string()
+    .trim()
+    .min(1, "First name is required")
+    .max(100, "First name must be less than 100 characters"),
+  lastName: z
+    .string()
+    .trim()
+    .min(1, "Last name is required")
+    .max(100, "Last name must be less than 100 characters"),
 });
 
-type UpdateFormValues = z.infer<typeof updateFormSchema>;
+type UpdateProfileValues = z.infer<typeof updateProfileSchema>;
 
 export default function UpdateForm() {
-  const [profile, setProfile] = React.useState<User | null>(null);
-  const form = useForm<UpdateFormValues>({
-    resolver: zodResolver(updateFormSchema),
-    defaultValues: {
-      displayName: "",
-    },
-  });
+  const [profile, setProfile] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  const onSubmit = async (values: UpdateFormValues) => {
-    console.log(values);
+  const form = useForm<UpdateProfileValues>({
+    resolver: zodResolver(updateProfileSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+    },
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchProfile = async () => {
+      try {
+        const response = await http.get<User>("/api/v1/user/auth/me");
+        if (!isMounted) return;
+
+        setProfile(response.data);
+        form.reset({
+          firstName: response.data.firstName || "",
+          lastName: response.data.lastName || "",
+        });
+      } catch {
+        if (!isMounted) return;
+        toast.error("Failed to load profile details.");
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void fetchProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [form]);
+
+  const onSubmit = async (values: UpdateProfileValues) => {
     try {
-      await http.put("/users/me", { displayName: values.displayName });
-      router.push("/server-profile");
-    } catch (error) {
-      console.log(error);
+      await http.put("/api/v1/user/auth/me", {
+        firstName: values.firstName,
+        lastName: values.lastName,
+      });
+
+      toast.success("Profile updated successfully.");
+      router.push("/client-profile");
+    } catch {
+      toast.error("Failed to update profile. Please try again.");
     }
   };
 
-  useEffect(() => {
-    const controller = new AbortController();
-    const signal = controller.signal;
-    const fetchProfile = async () => {
-      try {
-        const response = await http.get<User>("/users/me", {
-          signal,
-        });
-        setProfile(response.data);
-      } catch (error) {
-        console.error(">>> Error fetching profile:", error);
-      }
-    };
-    fetchProfile();
-
-    return () => controller.abort();
-  }, []);
-
   return (
-    <Card className="w-125">
+    <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle className="text-2xl">Change DisplayName</CardTitle>
+        <CardTitle className="text-2xl">Update Profile</CardTitle>
         <CardDescription>
-          Change DisplayName For Account - {profile?.fullName}
+          {profile?.email
+            ? `Manage your personal details for ${profile.email}`
+            : "Update your personal details"}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="displayName"
+              name="firstName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>DisplayName</FormLabel>
+                  <FormLabel>First name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter DisplayName" {...field} />
+                    <Input
+                      placeholder="Enter your first name"
+                      disabled={isLoading || form.formState.isSubmitting}
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button className="mt-2" type="submit">
-              Client Update
-            </Button>
+
+            <FormField
+              control={form.control}
+              name="lastName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Last name</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Enter your last name"
+                      disabled={isLoading || form.formState.isSubmitting}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex items-center gap-3 pt-2">
+              <Button
+                type="submit"
+                disabled={isLoading || form.formState.isSubmitting}
+              >
+                {form.formState.isSubmitting ? "Saving..." : "Save changes"}
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/client-profile">Cancel</Link>
+              </Button>
+            </div>
           </form>
         </Form>
       </CardContent>

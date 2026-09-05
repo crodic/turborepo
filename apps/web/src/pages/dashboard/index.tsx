@@ -188,14 +188,24 @@ export function Dashboard() {
       }))
     }
 
-    socket.emit('presence:subscribe')
+    const requestPresence = () => {
+      socket.emit('presence:subscribe')
+      socket.emit('presence:get')
+    }
+
     socket.on('presence:snapshot', handleSnapshot)
     socket.on('presence:counts', handleCounts)
+    socket.on('connect', requestPresence)
+
+    if (socket.connected) {
+      requestPresence()
+    }
 
     return () => {
       socket.emit('presence:unsubscribe')
       socket.off('presence:snapshot', handleSnapshot)
       socket.off('presence:counts', handleCounts)
+      socket.off('connect', requestPresence)
     }
   }, [socket])
 
