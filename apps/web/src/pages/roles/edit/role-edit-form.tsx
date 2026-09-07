@@ -23,11 +23,19 @@ import {
   Form,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Main } from '@/components/layout/main'
 import { useDataPermissionFormOptions } from '@/pages/permissions/queries'
 import { apiEditRole } from '@/pages/roles/queries'
 import { RolePermissionsField } from '../components/role-permissions-field'
 import {
+  DomainType,
   isProtectedRole,
   roleFormSchema,
   type RoleFormSchema,
@@ -38,10 +46,12 @@ export function RoleEditForm({ data }: { data: RoleSchema }) {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const isProtected = isProtectedRole(data)
 
   const form = useForm<RoleFormSchema>({
     defaultValues: {
       name: data.name,
+      domain: data.domain ?? DomainType.ADMIN,
       description: data.description,
       permissionIds:
         data.permissionIds?.length > 0
@@ -51,14 +61,15 @@ export function RoleEditForm({ data }: { data: RoleSchema }) {
     resolver: zodResolver(roleFormSchema),
   })
 
-  const permissionsQuery = useDataPermissionFormOptions()
+  const selectedDomain = form.watch('domain')
+  const permissionsQuery = useDataPermissionFormOptions(selectedDomain)
 
   const editRoleMutation = useMutation({
     mutationFn: apiEditRole,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['role'] })
       queryClient.invalidateQueries({ queryKey: ['roles'] })
-      toast.success('Role updated successfully')
+      toast.success(t('roles.message.updateRoleSuccess'))
       navigate(-1)
     },
     onError: (error) => {
@@ -69,8 +80,8 @@ export function RoleEditForm({ data }: { data: RoleSchema }) {
   })
 
   const onSubmit = (values: RoleFormSchema) => {
-    if (isProtectedRole(data)) {
-      toast.error('System roles cannot be updated')
+    if (isProtected) {
+      toast.error(t('roles.message.systemRoleCannotBeUpdated'))
       return
     }
 
@@ -84,9 +95,9 @@ export function RoleEditForm({ data }: { data: RoleSchema }) {
       )
     ) {
       form.setError('permissionIds', {
-        message: 'Invalid permission selected',
+        message: t('roles.message.invalidPermission'),
       })
-      toast.error('Invalid permission selected')
+      toast.error(t('roles.message.invalidPermission'))
       return
     }
 
@@ -94,8 +105,6 @@ export function RoleEditForm({ data }: { data: RoleSchema }) {
       editRoleMutation.mutate({ id: data.id, data: values })
     }
   }
-
-  const isProtected = isProtectedRole(data)
 
   return (
     <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
@@ -135,12 +144,18 @@ export function RoleEditForm({ data }: { data: RoleSchema }) {
               <CardDescription>{t('roles.edit.description')}</CardDescription>
             </CardHeader>
             <CardContent className='mt-4 flex flex-col gap-4 sm:gap-8 md:grid md:grid-cols-3'>
+              {isProtected && (
+                <div className='rounded-md border border-amber-500/30 bg-amber-500/10 p-4 text-sm font-medium text-amber-600 md:col-span-3 dark:text-amber-400'>
+                  {t('roles.systemRoleAlert')}
+                </div>
+              )}
+
               {/* Name */}
               <FormField
                 control={form.control}
                 name='name'
                 render={({ field }) => (
-                  <FormItem className='md:col-span-3'>
+                  <FormItem className='md:col-span-2'>
                     <FormLabel required>{t('roles.edit.name')}</FormLabel>
                     <FormControl>
                       <Input
@@ -149,6 +164,44 @@ export function RoleEditForm({ data }: { data: RoleSchema }) {
                         disabled={isProtected}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Domain */}
+              <FormField
+                control={form.control}
+                name='domain'
+                render={({ field }) => (
+                  <FormItem className='md:col-span-1'>
+                    <FormLabel required>{t('roles.edit.domain')}</FormLabel>
+                    <Select
+                      onValueChange={(val) => {
+                        field.onChange(val)
+                        form.setValue('permissionIds', [], {
+                          shouldValidate: true,
+                        })
+                      }}
+                      value={field.value}
+                      disabled={isProtected}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={t('roles.domain.placeholder')}
+                          />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={DomainType.ADMIN}>
+                          {t('roles.domain.admin')}
+                        </SelectItem>
+                        <SelectItem value={DomainType.CLIENT}>
+                          {t('roles.domain.client')}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

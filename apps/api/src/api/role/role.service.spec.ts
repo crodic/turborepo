@@ -1,4 +1,5 @@
 import { CacheKey } from '@/constants/cache.constant';
+import { DomainType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConflictException } from '@nestjs/common';
@@ -185,6 +186,68 @@ describe('RoleService', () => {
       expect(roleRepository.save).not.toHaveBeenCalled();
     });
 
+    it('creates a client role with client permissions', async () => {
+      const permissions = [
+        new PermissionEntity({
+          id: '1' as any,
+          key: 'read:APP',
+          domain: DomainType.CLIENT,
+        }),
+      ];
+      const savedRole = new RoleEntity({
+        id: '20' as any,
+        name: 'VIP Customer',
+        code: 'vip_customer',
+        domain: DomainType.CLIENT,
+        permissionEntities: permissions,
+      });
+
+      permissionRepository.findBy.mockResolvedValue(permissions);
+      roleRepository.findOne.mockResolvedValue(null);
+      roleRepository.save.mockResolvedValue(savedRole);
+
+      const result = await service.create({
+        name: 'VIP Customer',
+        domain: DomainType.CLIENT,
+        permissionIds: ['1'],
+      });
+
+      expect(roleRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'VIP Customer',
+          code: 'vip_customer',
+          domain: DomainType.CLIENT,
+        }),
+      );
+      expect(result.domain).toBe(DomainType.CLIENT);
+    });
+
+    it('rejects role creation if permissions belong to a different domain', async () => {
+      const permissions = [
+        new PermissionEntity({
+          id: '1' as any,
+          key: 'read:USER',
+          domain: DomainType.ADMIN,
+        }),
+      ];
+      permissionRepository.findBy.mockResolvedValue(permissions);
+
+      await expect(
+        service.create({
+          name: 'Partner',
+          domain: DomainType.CLIENT,
+          permissionIds: ['1'],
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          errorCode: ErrorCode.V000,
+          message: 'Permissions must belong to the client domain',
+        },
+      });
+
+      expect(roleRepository.save).not.toHaveBeenCalled();
+    });
+
     it('throws when creating a role with the reserved SUPER ADMIN name', async () => {
       await expect(
         service.create({ name: 'SUPER ADMIN', permissionIds: ['1'] }),
@@ -199,13 +262,26 @@ describe('RoleService', () => {
       expect(roleRepository.save).not.toHaveBeenCalled();
     });
 
+    it('throws when creating a role with the reserved Customer name', async () => {
+      await expect(
+        service.create({ name: 'Customer', permissionIds: ['1'] }),
+      ).rejects.toMatchObject({
+        response: {
+          errorCode: ErrorCode.V000,
+          message: 'Customer is a reserved role name',
+        },
+      });
+
+      expect(roleRepository.save).not.toHaveBeenCalled();
+    });
+
     it('throws when assigning manage:all', async () => {
       permissionRepository.findBy.mockResolvedValue([
         new PermissionEntity({ id: '1' as any, key: 'manage:all' }),
       ]);
 
       await expect(
-        service.create({ name: 'Super Admin', permissionIds: ['1'] }),
+        service.create({ name: 'Custom Role', permissionIds: ['1'] }),
       ).rejects.toMatchObject({
         response: {
           errorCode: ErrorCode.V000,
@@ -295,6 +371,30 @@ describe('RoleService', () => {
       expect(roleRepository.save).not.toHaveBeenCalled();
     });
 
+    it('does not update the Customer role by name or code', async () => {
+      roleRepository.findOneOrFail.mockResolvedValue(
+        new RoleEntity({
+          id: '11' as any,
+          name: 'Customer',
+          code: 'customer',
+          isSystem: false,
+        }),
+      );
+
+      await expect(
+        service.update('11' as any, {
+          description: 'Updated description',
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          errorCode: ErrorCode.V000,
+          message: 'System roles cannot be updated or deleted',
+        },
+      });
+
+      expect(roleRepository.save).not.toHaveBeenCalled();
+    });
+
     it('does not rename a role to SUPER ADMIN', async () => {
       roleRepository.findOneOrFail.mockResolvedValue(
         new RoleEntity({
@@ -312,6 +412,29 @@ describe('RoleService', () => {
         response: {
           errorCode: ErrorCode.V000,
           message: 'SUPER ADMIN is a reserved role name',
+        },
+      });
+
+      expect(roleRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('does not rename a role to Customer', async () => {
+      roleRepository.findOneOrFail.mockResolvedValue(
+        new RoleEntity({
+          id: '10' as any,
+          name: 'Manager',
+          isSystem: false,
+        }),
+      );
+
+      await expect(
+        service.update('10' as any, {
+          name: 'Customer',
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          errorCode: ErrorCode.V000,
+          message: 'Customer is a reserved role name',
         },
       });
 
@@ -366,6 +489,25 @@ describe('RoleService', () => {
       );
 
       await expect(service.remove('1' as any)).rejects.toMatchObject({
+        response: {
+          errorCode: ErrorCode.V000,
+          message: 'System roles cannot be updated or deleted',
+        },
+      });
+      expect(roleRepository.softRemove).not.toHaveBeenCalled();
+    });
+
+    it('does not remove the Customer role by name or code', async () => {
+      roleRepository.findOneOrFail.mockResolvedValue(
+        new RoleEntity({
+          id: '11' as any,
+          name: 'Customer',
+          code: 'customer',
+          isSystem: false,
+        }),
+      );
+
+      await expect(service.remove('11' as any)).rejects.toMatchObject({
         response: {
           errorCode: ErrorCode.V000,
           message: 'System roles cannot be updated or deleted',

@@ -13,8 +13,9 @@ import {
   Param,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
-import { ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   FilterOperator,
   Paginate,
@@ -41,10 +42,20 @@ export class RoleController {
     statusCode: 200,
     isPaginated: true,
     paginateOptions: {
-      sortableColumns: ['id', 'name', 'description', 'createdAt', 'updatedAt'],
+      sortableColumns: [
+        'id',
+        'name',
+        'code',
+        'domain',
+        'description',
+        'createdAt',
+        'updatedAt',
+      ],
       defaultSortBy: [['id', 'DESC']],
       filterableColumns: {
         name: [FilterOperator.ILIKE],
+        code: [FilterOperator.ILIKE, FilterOperator.EQ],
+        domain: [FilterOperator.EQ],
       },
     },
   })
@@ -66,12 +77,18 @@ export class RoleController {
     type: RoleResDto,
     summary: 'List all roles',
   })
+  @ApiQuery({
+    name: 'domain',
+    enum: DomainType,
+    required: false,
+    description: 'Filter roles by domain',
+  })
   @CheckPolicies(
     (ability: AppAbility) => ability.can(AppActions.Read, AppSubjects.Role),
     (ability: AppAbility) => ability.can(AppActions.Read, AppSubjects.Admin),
   )
-  roleFormOptions() {
-    return this.roleService.formOptions();
+  roleFormOptions(@Query('domain') domain?: DomainType) {
+    return this.roleService.formOptions(domain);
   }
 
   @Get(':id')

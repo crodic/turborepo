@@ -1,5 +1,7 @@
+import { DomainType } from '@/constants/entity.enum';
 import {
   ClassField,
+  EnumFieldOptional,
   StringField,
   StringFieldOptional,
 } from '@/decorators/field.decorators';
@@ -26,6 +28,10 @@ export class PermissionResDto {
   @StringField()
   @Expose()
   key: string;
+
+  @EnumFieldOptional(() => DomainType)
+  @Expose()
+  domain?: DomainType;
 
   @ClassField(() => Date)
   @Expose()

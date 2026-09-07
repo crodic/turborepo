@@ -1,7 +1,9 @@
+import { DomainType } from '@/constants/entity.enum';
 import {
   ArrayField,
   BooleanField,
   ClassField,
+  EnumField,
   StringField,
   StringFieldOptional,
 } from '@/decorators/field.decorators';
@@ -16,6 +18,14 @@ export class RoleResDto {
   @StringField()
   @Expose()
   name: string;
+
+  @StringField()
+  @Expose()
+  code: string;
+
+  @EnumField(() => DomainType)
+  @Expose()
+  domain: DomainType;
 
   @StringFieldOptional()
   @Expose()

@@ -33,7 +33,7 @@ import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { NotFoundError } from '@/pages/errors/not-found-error'
 import { apiDeleteRole, useDataRoleById } from '../queries'
-import { isProtectedRole } from '../schema'
+import { DomainType, isProtectedRole } from '../schema'
 
 type RolePermissionDetail = {
   id: string
@@ -153,12 +153,28 @@ export default function PageRoleShow() {
                 <h1 className='text-2xl font-bold tracking-tight'>
                   {data.name}
                 </h1>
-                {isSystemRole ? (
-                  <Badge variant='secondary'>System role</Badge>
-                ) : (
-                  <Badge variant='outline'>Custom role</Badge>
+                {data.code && (
+                  <Badge variant='outline' className='font-mono'>
+                    {data.code}
+                  </Badge>
                 )}
-                {isSuperAdmin && <Badge>Full access</Badge>}
+                <Badge
+                  variant={
+                    data.domain === DomainType.CLIENT ? 'outline' : 'secondary'
+                  }
+                >
+                  {data.domain === DomainType.CLIENT
+                    ? t('roles.domain.client')
+                    : t('roles.domain.admin')}
+                </Badge>
+                {isSystemRole ? (
+                  <Badge variant='secondary'>
+                    {t('roles.show.systemRole')}
+                  </Badge>
+                ) : (
+                  <Badge variant='outline'>{t('roles.show.customRole')}</Badge>
+                )}
+                {isSuperAdmin && <Badge>{t('roles.show.fullAccess')}</Badge>}
               </div>
               <p className='text-muted-foreground text-sm'>
                 {data.description || t('roles.show.description')}
@@ -174,6 +190,11 @@ export default function PageRoleShow() {
                 onClick={() => navigate(`/roles/${data.id}/edit`)}
                 variant='default'
                 disabled={isProtected}
+                title={
+                  isProtected
+                    ? t('roles.message.systemRoleCannotBeUpdated')
+                    : undefined
+                }
               >
                 <Edit2Icon size={16} />
                 <span>{t('buttons.edit')}</span>
@@ -182,12 +203,23 @@ export default function PageRoleShow() {
                 variant='destructive'
                 onClick={() => setIsShowDeleteDialog(true)}
                 disabled={isProtected}
+                title={
+                  isProtected
+                    ? t('roles.message.systemRoleCannotBeDeleted')
+                    : undefined
+                }
               >
                 <Trash2Icon size={16} />
                 <span>{t('buttons.delete')}</span>
               </Button>
             </div>
           </div>
+
+          {isProtected && (
+            <div className='rounded-md border border-amber-500/30 bg-amber-500/10 p-4 text-sm font-medium text-amber-600 dark:text-amber-400'>
+              {t('roles.systemRoleAlert')}
+            </div>
+          )}
 
           <div className='grid gap-4 md:grid-cols-4'>
             <Card>

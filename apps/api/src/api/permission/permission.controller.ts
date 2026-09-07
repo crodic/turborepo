@@ -5,8 +5,8 @@ import { ApiAuth } from '@/decorators/http.decorators';
 import { CheckAnyPolicies } from '@/decorators/policies.decorator';
 import { AppAbility } from '@/libs/casl/ability.factory';
 import { AppActions, AppSubjects } from '@/utils/permissions.constant';
-import { Body, Controller, Get, Param, Put } from '@nestjs/common';
-import { ApiParam, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Put, Query } from '@nestjs/common';
+import { ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   FilterOperator,
   Paginate,
@@ -53,13 +53,21 @@ export class PermissionController {
     type: PermissionResDto,
     summary: 'List all permissions',
   })
+  @ApiQuery({
+    name: 'domain',
+    enum: DomainType,
+    required: false,
+    description: 'Filter permissions by domain',
+  })
   @CheckAnyPolicies(
     (ability: AppAbility) => ability.can(AppActions.Read, AppSubjects.Role),
     (ability: AppAbility) => ability.can(AppActions.Create, AppSubjects.Role),
     (ability: AppAbility) => ability.can(AppActions.Update, AppSubjects.Role),
   )
-  formOptions(): Promise<PermissionResDto[]> {
-    return this.permissionService.formOptions();
+  formOptions(
+    @Query('domain') domain?: DomainType,
+  ): Promise<PermissionResDto[]> {
+    return this.permissionService.formOptions(domain);
   }
 
   @Get(':id')

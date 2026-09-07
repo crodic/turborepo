@@ -24,8 +24,10 @@ async function apiGetRoleListing(
     .parse(response.data)
 }
 
-async function apiRoleFormOptions(): Promise<RoleSchema[]> {
-  const response = await http.get('/roles/form-options')
+async function apiRoleFormOptions(domain?: string): Promise<RoleSchema[]> {
+  const response = await http.get('/roles/form-options', {
+    params: domain ? { domain } : {},
+  })
 
   return roleSchema.array().parse(response.data)
 }
@@ -71,8 +73,8 @@ export const useDataRoleEdit = (id: string) =>
     queryFn: () => apiGetRoleById(id),
   })
 
-export const useDataRoleFormOptions = () =>
+export const useDataRoleFormOptions = (domain?: string) =>
   useQuery({
-    queryKey: ['role_form_options'],
-    queryFn: () => apiRoleFormOptions(),
+    queryKey: ['role_form_options', domain],
+    queryFn: () => apiRoleFormOptions(domain),
   })

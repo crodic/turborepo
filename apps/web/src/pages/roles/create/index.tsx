@@ -17,6 +17,13 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -26,7 +33,7 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { useDataPermissionFormOptions } from '@/pages/permissions/queries'
 import { RolePermissionsField } from '../components/role-permissions-field'
 import { apiCreateRole } from '../queries'
-import { roleFormSchema, type RoleFormSchema } from '../schema'
+import { DomainType, roleFormSchema, type RoleFormSchema } from '../schema'
 
 export default function PageRoleCreate() {
   const { t } = useTranslation()
@@ -37,17 +44,19 @@ export default function PageRoleCreate() {
     resolver: zodResolver(roleFormSchema),
     defaultValues: {
       name: '',
+      domain: DomainType.ADMIN,
       permissionIds: [],
     },
   })
 
-  const permissionsQuery = useDataPermissionFormOptions()
+  const selectedDomain = form.watch('domain')
+  const permissionsQuery = useDataPermissionFormOptions(selectedDomain)
 
   const createRoleMutate = useMutation({
     mutationFn: apiCreateRole,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] })
-      toast.success('Role created successfully')
+      toast.success(t('roles.message.createRoleSuccess'))
       navigate('/roles')
     },
     onError: (error) => {
@@ -66,9 +75,9 @@ export default function PageRoleCreate() {
       )
     ) {
       form.setError('permissionIds', {
-        message: 'Invalid permission selected',
+        message: t('roles.message.invalidPermission'),
       })
-      toast.error('Invalid permission selected')
+      toast.error(t('roles.message.invalidPermission'))
       return
     }
 
@@ -119,7 +128,7 @@ export default function PageRoleCreate() {
                   control={form.control}
                   name='name'
                   render={({ field }) => (
-                    <FormItem className='md:col-span-3'>
+                    <FormItem className='md:col-span-2'>
                       <FormLabel required>{t('roles.create.name')}</FormLabel>
                       <FormControl>
                         <Input
@@ -127,6 +136,42 @@ export default function PageRoleCreate() {
                           placeholder={t('roles.create.name')}
                         />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='domain'
+                  render={({ field }) => (
+                    <FormItem className='md:col-span-1'>
+                      <FormLabel required>{t('roles.create.domain')}</FormLabel>
+                      <Select
+                        onValueChange={(val) => {
+                          field.onChange(val)
+                          form.setValue('permissionIds', [], {
+                            shouldValidate: true,
+                          })
+                        }}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={t('roles.domain.placeholder')}
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={DomainType.ADMIN}>
+                            {t('roles.domain.admin')}
+                          </SelectItem>
+                          <SelectItem value={DomainType.CLIENT}>
+                            {t('roles.domain.client')}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

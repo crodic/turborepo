@@ -1,4 +1,5 @@
 import { AutoIncrementID } from '@/common/types/common.type';
+import { DomainType } from '@/constants/entity.enum';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
@@ -21,12 +22,13 @@ export class PermissionService {
     private readonly permissionRepository: Repository<PermissionEntity>,
   ) {}
 
-  async formOptions(): Promise<PermissionResDto[]> {
+  async formOptions(domain?: DomainType): Promise<PermissionResDto[]> {
     await syncPermissions(this.permissionRepository);
 
     const permissions = await this.permissionRepository.find({
       where: {
         key: Not(FULL_ACCESS_PERMISSION_KEY),
+        ...(domain && { domain }),
       },
       order: {
         key: 'ASC',

@@ -23,6 +23,7 @@ import { ColumnKey, type RoleSchema } from './schema'
 
 const rolesFilterParsers = {
   name: parseAsString,
+  domain: parseAsString,
 } as const
 
 export function PageRoleOverview() {
@@ -35,7 +36,7 @@ export function PageRoleOverview() {
     sorting: sort,
     filter,
   } = useGetFilterParams<RoleSchema, typeof rolesFilterParsers>({
-    allowedSorts: [ColumnKey.name, ColumnKey.createdAt],
+    allowedSorts: [ColumnKey.name, ColumnKey.domain, ColumnKey.createdAt],
     filterParsers: rolesFilterParsers,
   })
 
@@ -43,6 +44,7 @@ export function PageRoleOverview() {
     .page(page)
     .limit(perPage)
     .ilike('name', filter.name)
+    .eq('domain', filter.domain)
     .applySorts(sortParser(sort))
 
   const { data, isFetching } = useDataRoleOverview(builder.build())

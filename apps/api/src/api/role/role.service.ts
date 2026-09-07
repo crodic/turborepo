@@ -7,6 +7,7 @@ import { ValidationException } from '@/exceptions/validation.exception';
 import {
   ADMIN_FULL_ACCESS,
   CUSTOMER_ROLE_CODE,
+  CUSTOMER_ROLE_NAME,
 } from '@/utils/permissions.constant';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
@@ -20,7 +21,7 @@ import {
   PaginateQuery,
 } from 'nestjs-paginate';
 import slugify from 'slugify';
-import { EntityManager, In, Repository } from 'typeorm';
+import { EntityManager, FindOptionsWhere, In, Repository } from 'typeorm';
 import { PermissionEntity } from '../permission/entities/permission.entity';
 import { CreateRoleReqDto } from './dto/create-role.req.dto';
 import { RoleResDto } from './dto/role.res.dto';
@@ -60,11 +61,38 @@ export class RoleService {
     }
   }
 
-  private isProtectedRole(role: Pick<RoleEntity, 'isSystem' | 'name'>) {
-    return role.isSystem || role.name === SYSTEM_ROLE_NAME;
+  private assertDomainPermissions(
+    domain: DomainType,
+    permissionEntities: PermissionEntity[],
+  ) {
+    const invalidPermissions = permissionEntities.filter(
+      (permission) => permission.domain && permission.domain !== domain,
+    );
+    if (invalidPermissions.length > 0) {
+      throw new ValidationException(
+        ErrorCode.V000,
+        `Permissions must belong to the ${domain} domain`,
+      );
+    }
   }
 
-  private assertMutableRole(role: Pick<RoleEntity, 'isSystem' | 'name'>) {
+  private isProtectedRole(
+    role: Pick<RoleEntity, 'isSystem' | 'name'> &
+      Partial<Pick<RoleEntity, 'code'>>,
+  ) {
+    return (
+      role.isSystem ||
+      role.name === SYSTEM_ROLE_NAME ||
+      role.name === CUSTOMER_ROLE_NAME ||
+      role.code === 'super_admin' ||
+      role.code === CUSTOMER_ROLE_CODE
+    );
+  }
+
+  private assertMutableRole(
+    role: Pick<RoleEntity, 'isSystem' | 'name'> &
+      Partial<Pick<RoleEntity, 'code'>>,
+  ) {
     if (this.isProtectedRole(role)) {
       throw new ValidationException(
         ErrorCode.V000,
@@ -74,10 +102,15 @@ export class RoleService {
   }
 
   private assertNotReservedRoleName(name?: string) {
-    if (name === SYSTEM_ROLE_NAME) {
+    if (!name) return;
+    const trimmed = name.trim();
+    if (
+      trimmed.toUpperCase() === SYSTEM_ROLE_NAME ||
+      trimmed.toLowerCase() === CUSTOMER_ROLE_NAME.toLowerCase()
+    ) {
       throw new ValidationException(
         ErrorCode.V000,
-        `${SYSTEM_ROLE_NAME} is a reserved role name`,
+        `${name} is a reserved role name`,
       );
     }
   }
@@ -85,15 +118,24 @@ export class RoleService {
   async findAll(query: PaginateQuery): Promise<Paginated<RoleResDto>> {
     const queryBuilder = this.roleRepository
       .createQueryBuilder('role')
-      .leftJoinAndSelect('role.permissionEntities', 'permission')
-      .where('role.domain = :domain', { domain: DomainType.ADMIN });
+      .leftJoinAndSelect('role.permissionEntities', 'permission');
 
     const result = await paginate(query, queryBuilder, {
-      sortableColumns: ['id', 'name', 'description', 'createdAt', 'updatedAt'],
-      searchableColumns: ['name', 'description'],
+      sortableColumns: [
+        'id',
+        'name',
+        'code',
+        'domain',
+        'description',
+        'createdAt',
+        'updatedAt',
+      ],
+      searchableColumns: ['name', 'code', 'description'],
       defaultSortBy: [['id', 'DESC']],
       filterableColumns: {
         name: [FilterOperator.ILIKE],
+        code: [FilterOperator.ILIKE, FilterOperator.EQ],
+        domain: [FilterOperator.EQ],
       },
     });
 
@@ -134,6 +176,8 @@ export class RoleService {
     if (permissionEntities.length !== data.permissionIds.length) {
       throw new ValidationException(ErrorCode.E002);
     }
+    const domain = data.domain ?? DomainType.ADMIN;
+    this.assertDomainPermissions(domain, permissionEntities);
     const code =
       slugify(data.name, {
         lower: true,
@@ -147,7 +191,7 @@ export class RoleService {
         code,
         description: data.description,
         isSystem: data.isSystem ?? false,
-        domain: DomainType.ADMIN,
+        domain,
         permissionEntities,
       }),
     );
@@ -159,6 +203,8 @@ export class RoleService {
   async create(dto: CreateRoleReqDto): Promise<RoleResDto> {
     this.assertNotReservedRoleName(dto.name);
 
+    const domain = dto.domain ?? DomainType.ADMIN;
+
     const permissionEntities = await this.permissionRepository.findBy({
       id: In(dto.permissionIds),
     });
@@ -166,6 +212,7 @@ export class RoleService {
       throw new ValidationException(ErrorCode.E002);
     }
     this.assertAssignablePermissions(permissionEntities);
+    this.assertDomainPermissions(domain, permissionEntities);
 
     const code =
       slugify(dto.name, {
@@ -176,7 +223,7 @@ export class RoleService {
       }) || 'role';
 
     const existingRole = await this.roleRepository.findOne({
-      where: { code, domain: DomainType.ADMIN },
+      where: { code, domain },
     });
     if (existingRole) {
       throw new ConflictException(`Role with code '${code}' already exists`);
@@ -187,13 +234,11 @@ export class RoleService {
       code,
       description: dto.description,
       isSystem: dto.isSystem ?? false,
-      domain: DomainType.ADMIN,
+      domain,
       permissionEntities,
     });
 
     const savedRole = await this.roleRepository.save(newRole);
-
-    // this.logger.debug(savedRole);
 
     return this.toRoleDto(savedRole);
   }
@@ -213,13 +258,18 @@ export class RoleService {
     });
   }
 
-  async formOptions(): Promise<RoleResDto[]> {
+  async formOptions(domain?: DomainType): Promise<RoleResDto[]> {
+    const where: FindOptionsWhere<RoleEntity> = {};
+    if (domain) {
+      where.domain = domain;
+    }
     const query = await this.roleRepository.find({
-      where: { domain: DomainType.ADMIN },
+      where,
       relations: ['permissionEntities'],
+      order: {
+        id: 'ASC',
+      },
     });
-
-    console.log(query);
 
     return plainToInstance(RoleResDto, query, {
       excludeExtraneousValues: true,
@@ -241,11 +291,23 @@ export class RoleService {
   ): Promise<RoleResDto> {
     const role = await this.roleRepository.findOneOrFail({
       where: { id },
-      relations: ['permissionEntities'],
+      relations: ['permissionEntities', 'users'],
     });
 
     this.assertMutableRole(role);
     this.assertNotReservedRoleName(updateRoleDto.name);
+
+    const targetDomain = updateRoleDto.domain ?? role.domain;
+
+    if (updateRoleDto.domain && updateRoleDto.domain !== role.domain) {
+      if (role.users?.length > 0) {
+        throw new ValidationException(
+          ErrorCode.V000,
+          'Cannot change domain of role assigned to users',
+        );
+      }
+      role.domain = updateRoleDto.domain;
+    }
 
     Object.assign(role, {
       ...(updateRoleDto.name !== undefined && { name: updateRoleDto.name }),
@@ -267,6 +329,9 @@ export class RoleService {
         throw new ValidationException(ErrorCode.E002);
       }
       this.assertAssignablePermissions(role.permissionEntities);
+      this.assertDomainPermissions(targetDomain, role.permissionEntities);
+    } else if (updateRoleDto.domain && updateRoleDto.domain !== role.domain) {
+      this.assertDomainPermissions(targetDomain, role.permissionEntities);
     }
 
     const savedRole = await this.roleRepository.save(role);

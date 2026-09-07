@@ -26,8 +26,12 @@ async function apiGetPermissionListing(
     .parse(response.data)
 }
 
-async function apiPermissionFormOptions(): Promise<PermissionSchema[]> {
-  const response = await http.get('/permissions/form-options')
+async function apiPermissionFormOptions(
+  domain?: string
+): Promise<PermissionSchema[]> {
+  const response = await http.get('/permissions/form-options', {
+    params: domain ? { domain } : {},
+  })
 
   return permissionSchema
     .array()
@@ -69,8 +73,8 @@ export const useDataPermissionEdit = (id: string) =>
     queryFn: () => apiGetPermissionById(id),
   })
 
-export const useDataPermissionFormOptions = () =>
+export const useDataPermissionFormOptions = (domain?: string) =>
   useQuery({
-    queryKey: ['permission_form_options'],
-    queryFn: () => apiPermissionFormOptions(),
+    queryKey: ['permission_form_options', domain],
+    queryFn: () => apiPermissionFormOptions(domain),
   })

@@ -6,6 +6,7 @@ export const permissionSchema = z.object({
   group: z.string(),
   description: z.string().nullish(),
   key: z.string(),
+  domain: z.string().nullish(),
   createdAt: z.string(),
   updatedAt: z.string(),
 })

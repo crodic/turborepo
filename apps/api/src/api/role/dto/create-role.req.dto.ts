@@ -1,5 +1,7 @@
+import { DomainType } from '@/constants/entity.enum';
 import {
   BooleanFieldOptional,
+  EnumFieldOptional,
   StringField,
   StringFieldOptional,
 } from '@/decorators/field.decorators';
@@ -9,6 +11,12 @@ import { ArrayNotEmpty, IsArray, IsString } from 'class-validator';
 export class CreateRoleReqDto {
   @StringField({ example: 'STAFF' })
   name: string;
+
+  @EnumFieldOptional(() => DomainType, {
+    default: DomainType.ADMIN,
+    example: DomainType.ADMIN,
+  })
+  domain?: DomainType = DomainType.ADMIN;
 
   @StringFieldOptional({ minLength: 0 })
   description?: string;
