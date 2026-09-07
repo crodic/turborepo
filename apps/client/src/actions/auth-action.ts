@@ -60,7 +60,7 @@ const refreshTokenFormServerAction = async () => {
     const { data } = await xior.post(
       `${process.env.NEXT_PUBLIC_API_URL}/api/v1/user/auth/refresh`,
       {
-        token: refreshToken,
+        refreshToken: refreshToken,
       }
     );
     const { accessToken: newAccessToken, refreshToken: newRefreshToken } = data;

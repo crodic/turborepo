@@ -8,6 +8,9 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
+import { getAuthCookieNames } from '../utils/auth-cookie.util';
+import { extractCookieToken } from '../utils/token-extractor.util';
+
 export interface JwtPayload {
   id?: string | AutoIncrementID;
   sub?: string | AutoIncrementID;
@@ -15,6 +18,7 @@ export interface JwtPayload {
   domain?: DomainType;
   sessionId?: string | AutoIncrementID;
   sid?: string | AutoIncrementID;
+  hash?: string;
   iat?: number;
   exp?: number;
 }
@@ -28,7 +32,14 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         ExtractJwt.fromAuthHeaderAsBearerToken(),
-        (req) => req?.cookies?.token ?? null,
+        (req) => extractCookieToken(req, getAuthCookieNames('admin').access),
+        (req) => extractCookieToken(req, getAuthCookieNames('user').access),
+        (req) => extractCookieToken(req, 'token'),
+        (req) =>
+          req?.cookies?.[getAuthCookieNames('admin').access] ??
+          req?.cookies?.[getAuthCookieNames('user').access] ??
+          req?.cookies?.token ??
+          null,
       ]),
       ignoreExpiration: false,
       secretOrKey: configService.getOrThrow('auth.secret', { infer: true }),
@@ -43,6 +54,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     if (!user) {
       throw new UnauthorizedException('User account no longer exists');
+    }
+
+    if (payload.domain && user.domain !== payload.domain) {
+      throw new UnauthorizedException('Token domain mismatch');
     }
 
     if (user.status === UserStatus.BLOCKED) {

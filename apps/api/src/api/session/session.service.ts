@@ -52,15 +52,35 @@ export class SessionService {
     });
     const savedSession = await this.sessionRepository.save(session);
     await this.clearSessionBlacklist(savedSession.id);
+    await this.cacheManager.set(
+      createCacheKey(CacheKey.SESSION_DATA, savedSession.id),
+      savedSession,
+      ms('15m'),
+    );
     return savedSession;
   }
 
   async getSessionById(
     sessionId: AutoIncrementID | string,
   ): Promise<SessionEntity | null> {
-    return await this.sessionRepository.findOneBy({
+    const cacheKey = createCacheKey(CacheKey.SESSION_DATA, sessionId);
+    const cached = await this.cacheManager.get<SessionEntity>(cacheKey);
+    if (cached) {
+      if (cached.expiresAt && typeof cached.expiresAt === 'string') {
+        cached.expiresAt = new Date(cached.expiresAt);
+      }
+      return cached;
+    }
+
+    const session = await this.sessionRepository.findOneBy({
       id: sessionId as AutoIncrementID,
     });
+
+    if (session) {
+      await this.cacheManager.set(cacheKey, session, ms('15m'));
+    }
+
+    return session;
   }
 
   async rotateSessionHash(
@@ -71,13 +91,53 @@ export class SessionService {
       { id: sessionId as AutoIncrementID },
       { refreshTokenHash: newHash },
     );
+    await this.cacheManager.del(
+      createCacheKey(CacheKey.SESSION_DATA, sessionId),
+    );
   }
 
   async revokeAllUserSessions(userId: AutoIncrementID | string): Promise<void> {
+    const sessions = await this.sessionRepository.find({
+      where: { userId: userId as AutoIncrementID, isRevoked: false },
+      select: ['id'],
+    });
+
     await this.sessionRepository.update(
       { userId: userId as AutoIncrementID, isRevoked: false },
       { isRevoked: true },
     );
+
+    await Promise.all(
+      sessions.map((s) =>
+        this.cacheManager.del(createCacheKey(CacheKey.SESSION_DATA, s.id)),
+      ),
+    );
+  }
+
+  async setGracePeriodHash(
+    sessionId: AutoIncrementID | string,
+    hash: string,
+    ttlSeconds = 30,
+  ): Promise<void> {
+    const key = createCacheKey(
+      CacheKey.SESSION_GRACE_HASH,
+      String(sessionId),
+      hash,
+    );
+    await this.cacheManager.set<boolean>(key, true, ttlSeconds * 1000);
+  }
+
+  async isGracePeriodHash(
+    sessionId: AutoIncrementID | string,
+    hash: string,
+  ): Promise<boolean> {
+    const key = createCacheKey(
+      CacheKey.SESSION_GRACE_HASH,
+      String(sessionId),
+      hash,
+    );
+    const exists = await this.cacheManager.get<boolean>(key);
+    return Boolean(exists);
   }
 
   async blacklistSession(
@@ -121,6 +181,10 @@ export class SessionService {
         isRevoked: false,
       },
       { isRevoked: true },
+    );
+
+    await this.cacheManager.del(
+      createCacheKey(CacheKey.SESSION_DATA, params.sessionId),
     );
 
     if (result.affected) {

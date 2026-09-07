@@ -3,11 +3,12 @@ import { TwoFactorService } from '@/api/two-factor/two-factor.service';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { UserService } from '@/api/user/user.service';
 import { EmailQueueService } from '@/background/queues/email-queue/email-queue.service';
-import { DomainType } from '@/constants/entity.enum';
+import { DomainType, UserStatus } from '@/constants/entity.enum';
 import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -67,6 +68,8 @@ describe('AuthService', () => {
       rotateSessionHash: jest.fn().mockResolvedValue(undefined),
       revokeSession: jest.fn().mockResolvedValue({ affected: 1 } as any),
       revokeAllUserSessions: jest.fn().mockResolvedValue(undefined),
+      setGracePeriodHash: jest.fn().mockResolvedValue(undefined),
+      isGracePeriodHash: jest.fn().mockResolvedValue(false),
     };
 
     mockAdminTwoFactorService = {
@@ -331,6 +334,115 @@ describe('AuthService', () => {
 
       expect(result.message).toBe('Password changed successfully');
       expect(mockUserService.save).toHaveBeenCalled();
+    });
+  });
+
+  describe('refreshToken', () => {
+    it('should refresh token successfully when hash matches current session hash', async () => {
+      (mockJwtService.verify as jest.Mock).mockReturnValue({
+        sub: '1',
+        sessionId: '10',
+        hash: 'current-hash',
+        domain: DomainType.CLIENT,
+      });
+
+      (mockAuthSessionService.getSessionById as jest.Mock).mockResolvedValue({
+        id: '10',
+        userId: '1',
+        domain: DomainType.CLIENT,
+        isRevoked: false,
+        refreshTokenHash: 'current-hash',
+      });
+
+      (mockUserService.findById as jest.Mock).mockResolvedValue({
+        id: '1',
+        domain: DomainType.CLIENT,
+        status: UserStatus.ACTIVE,
+      });
+
+      const result = await service.refreshToken(
+        'valid-token',
+        DomainType.CLIENT,
+      );
+
+      expect(result.accessToken).toBe('mocked-async-token');
+      expect(result.refreshToken).toBe('mocked-async-token');
+      expect(mockAuthSessionService.setGracePeriodHash).toHaveBeenCalledWith(
+        '10',
+        'current-hash',
+        30,
+      );
+      expect(mockAuthSessionService.rotateSessionHash).toHaveBeenCalled();
+    });
+
+    it('should refresh token successfully when hash is within grace period', async () => {
+      (mockJwtService.verify as jest.Mock).mockReturnValue({
+        sub: '1',
+        sessionId: '10',
+        hash: 'old-grace-hash',
+        domain: DomainType.CLIENT,
+      });
+
+      (mockAuthSessionService.getSessionById as jest.Mock).mockResolvedValue({
+        id: '10',
+        userId: '1',
+        domain: DomainType.CLIENT,
+        isRevoked: false,
+        refreshTokenHash: 'new-current-hash',
+      });
+
+      (mockAuthSessionService.isGracePeriodHash as jest.Mock).mockResolvedValue(
+        true,
+      );
+
+      (mockUserService.findById as jest.Mock).mockResolvedValue({
+        id: '1',
+        domain: DomainType.CLIENT,
+        status: UserStatus.ACTIVE,
+      });
+
+      const result = await service.refreshToken(
+        'grace-token',
+        DomainType.CLIENT,
+      );
+
+      expect(result.accessToken).toBe('mocked-async-token');
+      expect(mockAuthSessionService.rotateSessionHash).toHaveBeenCalled();
+    });
+
+    it('should revoke session and throw UnauthorizedException on token reuse attack', async () => {
+      (mockJwtService.verify as jest.Mock).mockReturnValue({
+        sub: '1',
+        sessionId: '10',
+        hash: 'stolen-old-hash',
+        domain: DomainType.CLIENT,
+      });
+
+      (mockAuthSessionService.getSessionById as jest.Mock).mockResolvedValue({
+        id: '10',
+        userId: '1',
+        domain: DomainType.CLIENT,
+        isRevoked: false,
+        refreshTokenHash: 'current-hash',
+      });
+
+      (mockAuthSessionService.isGracePeriodHash as jest.Mock).mockResolvedValue(
+        false,
+      );
+
+      let thrownError: any;
+      try {
+        await service.refreshToken('stolen-token', DomainType.CLIENT);
+      } catch (err) {
+        thrownError = err;
+      }
+
+      expect(thrownError).toBeInstanceOf(UnauthorizedException);
+      expect(mockAuthSessionService.revokeSession).toHaveBeenCalledWith({
+        sessionId: '10',
+        userId: '1',
+        userType: DomainType.CLIENT,
+      });
     });
   });
 });

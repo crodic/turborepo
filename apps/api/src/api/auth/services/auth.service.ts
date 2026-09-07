@@ -238,6 +238,7 @@ export class AuthService {
 
     const userId = (payload.sub ?? payload.id) as AutoIncrementID;
     const sessionId = (payload.sid ?? payload.sessionId) as AutoIncrementID;
+    const tokenHash = payload.hash;
 
     const session = await this.authSessionService.getSessionById(sessionId);
 
@@ -249,12 +250,37 @@ export class AuthService {
       throw new UnauthorizedException('Session is invalid or expired');
     }
 
+    if (session.refreshTokenHash && tokenHash) {
+      const isCurrentHash = session.refreshTokenHash === tokenHash;
+      const isGraceHash = !isCurrentHash
+        ? await this.authSessionService.isGracePeriodHash(session.id, tokenHash)
+        : false;
+
+      if (!isCurrentHash && !isGraceHash) {
+        await this.authSessionService.revokeSession({
+          sessionId: session.id,
+          userId: session.userId,
+          userType: session.domain,
+        });
+        throw new UnauthorizedException(
+          'Security alert: Refresh token reuse detected or invalid token',
+        );
+      }
+    }
+
     const user = await this.userService.findById(userId);
     if (!user || user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException('User account is no longer active');
     }
 
     const targetDomain = domain ?? user.domain;
+    if (session.refreshTokenHash) {
+      await this.authSessionService.setGracePeriodHash(
+        session.id,
+        session.refreshTokenHash,
+        30,
+      );
+    }
     const newHash = crypto.randomBytes(32).toString('hex');
     await this.authSessionService.rotateSessionHash(session.id, newHash);
 

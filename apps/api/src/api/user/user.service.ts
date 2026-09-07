@@ -149,7 +149,13 @@ export class UserService {
   }
 
   async findById(id: AutoIncrementID): Promise<UserEntity | null> {
-    return await this.userRepository.findOne({
+    const cacheKey = createCacheKey(CacheKey.USER_DATA, String(id));
+    const cached = await this.cacheManager.get<UserEntity>(cacheKey);
+    if (cached) {
+      return plainToInstance(UserEntity, cached);
+    }
+
+    const user = await this.userRepository.findOne({
       where: { id },
       relations: {
         adminProfile: true,
@@ -160,6 +166,16 @@ export class UserService {
         accounts: true,
       },
     });
+
+    if (user) {
+      await this.cacheManager.set(cacheKey, user, 300_000);
+    }
+
+    return user;
+  }
+
+  async clearUserCache(id: AutoIncrementID | string): Promise<void> {
+    await this.cacheManager.del(createCacheKey(CacheKey.USER_DATA, String(id)));
   }
 
   async findByEmailAndDomain(
@@ -259,6 +275,7 @@ export class UserService {
     if (dto.lastName !== undefined) user.lastName = dto.lastName;
 
     await this.userRepository.save(user);
+    await this.clearUserCache(id);
 
     return plainToInstance(UserResDto, user, { excludeExtraneousValues: true });
   }
@@ -271,6 +288,7 @@ export class UserService {
       where: { id, domain },
     });
     await this.userRepository.softRemove(user);
+    await this.clearUserCache(id);
     if (domain === DomainType.ADMIN) {
       await this.cacheManager.del(CacheKey.SYSTEM_HAS_ADMIN);
     }
@@ -483,6 +501,7 @@ export class UserService {
       user.userProfile = profile;
     }
 
+    await this.clearUserCache(userId);
     return user;
   }
 
@@ -498,6 +517,7 @@ export class UserService {
     }
     user.avatarUrl = file.url;
     await this.userRepository.save(user);
+    await this.clearUserCache(userId);
 
     return user.avatarUrl;
   }
@@ -512,6 +532,7 @@ export class UserService {
       await this.removeOldAvatarFile(user.avatarUrl);
       user.avatarUrl = null;
       await this.userRepository.save(user);
+      await this.clearUserCache(userId);
     }
   }
 
@@ -536,7 +557,11 @@ export class UserService {
   }
 
   async save(user: UserEntity): Promise<UserEntity> {
-    return await this.userRepository.save(user);
+    const saved = await this.userRepository.save(user);
+    if (saved?.id) {
+      await this.clearUserCache(saved.id);
+    }
+    return saved;
   }
 
   async createWithManager(
