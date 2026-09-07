@@ -3,6 +3,10 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { RedisService } from './redis.service';
 
 jest.mock('ioredis', () => {
+  const mockPipeline = {
+    scard: jest.fn().mockReturnThis(),
+    exec: jest.fn().mockResolvedValue([[null, 1]]),
+  };
   const mockRedis = jest.fn().mockImplementation(() => ({
     get: jest.fn().mockResolvedValue('test_value'),
     set: jest.fn().mockResolvedValue('OK'),
@@ -10,6 +14,20 @@ jest.mock('ioredis', () => {
     exists: jest.fn().mockResolvedValue(1),
     expire: jest.fn().mockResolvedValue(1),
     ttl: jest.fn().mockResolvedValue(3600),
+    hget: jest.fn().mockResolvedValue('test_hvalue'),
+    hset: jest.fn().mockResolvedValue(1),
+    hdel: jest.fn().mockResolvedValue(1),
+    hgetall: jest.fn().mockResolvedValue({ f1: 'v1' }),
+    hexists: jest.fn().mockResolvedValue(1),
+    hlen: jest.fn().mockResolvedValue(1),
+    hkeys: jest.fn().mockResolvedValue(['f1']),
+    hvals: jest.fn().mockResolvedValue(['v1']),
+    sadd: jest.fn().mockResolvedValue(1),
+    srem: jest.fn().mockResolvedValue(1),
+    scard: jest.fn().mockResolvedValue(1),
+    smembers: jest.fn().mockResolvedValue(['m1']),
+    sismember: jest.fn().mockResolvedValue(1),
+    pipeline: jest.fn().mockReturnValue(mockPipeline),
     quit: jest.fn().mockResolvedValue('OK'),
   }));
   return { __esModule: true, default: mockRedis };
@@ -80,6 +98,32 @@ describe('RedisService', () => {
   it('should get ttl of a key', async () => {
     const result = await service.ttl('test_key');
     expect(result).toBe(3600);
+  });
+
+  it('should perform hash operations (hget, hset, hdel, hgetall, hexists, hlen, hkeys, hvals)', async () => {
+    expect(await service.hget('hk', 'field')).toBe('test_hvalue');
+    expect(await service.hset('hk', 'field', 'val')).toBe(1);
+    expect(await service.hset('hk', { field: 'val' })).toBe(1);
+    expect(await service.hdel('hk', 'field')).toBe(1);
+    expect(await service.hgetall('hk')).toEqual({ f1: 'v1' });
+    expect(await service.hexists('hk', 'field')).toBe(1);
+    expect(await service.hlen('hk')).toBe(1);
+    expect(await service.hkeys('hk')).toEqual(['f1']);
+    expect(await service.hvals('hk')).toEqual(['v1']);
+  });
+
+  it('should perform set operations (sadd, srem, scard, smembers, sismember)', async () => {
+    expect(await service.sadd('sk', 'm1')).toBe(1);
+    expect(await service.srem('sk', 'm1')).toBe(1);
+    expect(await service.scard('sk')).toBe(1);
+    expect(await service.smembers('sk')).toEqual(['m1']);
+    expect(await service.sismember('sk', 'm1')).toBe(1);
+  });
+
+  it('should return a pipeline', () => {
+    const pipeline = service.pipeline();
+    expect(pipeline).toBeDefined();
+    expect(pipeline.scard).toBeDefined();
   });
 
   it('should quit redis on module destroy', async () => {
