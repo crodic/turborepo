@@ -1,6 +1,7 @@
 import { CacheKey } from '@/constants/cache.constant';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { instanceToPlain } from 'class-transformer';
@@ -102,6 +103,7 @@ describe('RoleService', () => {
       });
 
       permissionRepository.findBy.mockResolvedValue(permissions);
+      roleRepository.findOne.mockResolvedValue(null);
       roleRepository.save.mockResolvedValue(savedRole);
 
       const result = await service.create({
@@ -113,6 +115,7 @@ describe('RoleService', () => {
       expect(roleRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           name: 'Manager',
+          code: 'manager',
           isSystem: false,
           permissionEntities: permissions,
         }),
@@ -124,6 +127,48 @@ describe('RoleService', () => {
           permissions: ['read:User', 'create:User'],
         }),
       );
+    });
+
+    it('generates slugified ASCII code for Vietnamese role name', async () => {
+      const permissions = [
+        new PermissionEntity({ id: '1' as any, key: 'read:User' }),
+      ];
+      const savedRole = new RoleEntity({
+        id: '11' as any,
+        name: 'Quản trị viên (Chi nhánh 1)',
+        code: 'quan_tri_vien_chi_nhanh_1',
+        permissionEntities: permissions,
+      });
+
+      permissionRepository.findBy.mockResolvedValue(permissions);
+      roleRepository.findOne.mockResolvedValue(null);
+      roleRepository.save.mockResolvedValue(savedRole);
+
+      await service.create({
+        name: 'Quản trị viên (Chi nhánh 1)',
+        permissionIds: ['1'],
+      });
+
+      expect(roleRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'quan_tri_vien_chi_nhanh_1',
+        }),
+      );
+    });
+
+    it('throws ConflictException when a role with the same generated code already exists', async () => {
+      permissionRepository.findBy.mockResolvedValue([
+        new PermissionEntity({ id: '1' as any, key: 'read:User' }),
+      ]);
+      roleRepository.findOne.mockResolvedValue(
+        new RoleEntity({ code: 'manager' }),
+      );
+
+      await expect(
+        service.create({ name: 'Manager', permissionIds: ['1'] }),
+      ).rejects.toThrow(ConflictException);
+
+      expect(roleRepository.save).not.toHaveBeenCalled();
     });
 
     it('throws when a permission id cannot be resolved', async () => {

@@ -9,7 +9,7 @@ import {
   CUSTOMER_ROLE_CODE,
 } from '@/utils/permissions.constant';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import { assert } from 'console';
@@ -19,6 +19,7 @@ import {
   Paginated,
   PaginateQuery,
 } from 'nestjs-paginate';
+import slugify from 'slugify';
 import { EntityManager, In, Repository } from 'typeorm';
 import { PermissionEntity } from '../permission/entities/permission.entity';
 import { CreateRoleReqDto } from './dto/create-role.req.dto';
@@ -133,7 +134,13 @@ export class RoleService {
     if (permissionEntities.length !== data.permissionIds.length) {
       throw new ValidationException(ErrorCode.E002);
     }
-    const code = data.name.toLowerCase().trim().replace(/\s+/g, '_');
+    const code =
+      slugify(data.name, {
+        lower: true,
+        strict: true,
+        trim: true,
+        replacement: '_',
+      }) || 'role';
     const role = await repo.save(
       repo.create({
         name: data.name,
@@ -160,7 +167,21 @@ export class RoleService {
     }
     this.assertAssignablePermissions(permissionEntities);
 
-    const code = dto.name.toLowerCase().trim().replace(/\s+/g, '_');
+    const code =
+      slugify(dto.name, {
+        lower: true,
+        strict: true,
+        trim: true,
+        replacement: '_',
+      }) || 'role';
+
+    const existingRole = await this.roleRepository.findOne({
+      where: { code, domain: DomainType.ADMIN },
+    });
+    if (existingRole) {
+      throw new ConflictException(`Role with code '${code}' already exists`);
+    }
+
     const newRole = new RoleEntity({
       name: dto.name,
       code,
