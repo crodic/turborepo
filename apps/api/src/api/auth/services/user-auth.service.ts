@@ -1,22 +1,18 @@
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
-import { UserAccountEntity } from '@/api/auth/entities/user-account.entity';
-import { UserChangePasswordReqDto } from '@/api/user/dto/user-change-password.req.dto';
 import { UserChangePasswordResDto } from '@/api/user/dto/user-change-password.res.dto';
 import { UserResDto } from '@/api/user/dto/user.res.dto';
+import { UserAccountEntity } from '@/api/user/entities/user-account.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { IEmailJob } from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
-import { CacheKey } from '@/constants/cache.constant';
 import { EAccountProvider, ESessionUserType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { QueueName } from '@/constants/job.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
-import { createCacheKey } from '@/utils/cache.util';
-import { verifyPassword } from '@/utils/password.util';
 import { InjectQueue } from '@nestjs/bullmq';
-import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
+import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import {
   BadRequestException,
   ForbiddenException,
@@ -24,7 +20,6 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -32,50 +27,101 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
 import { assert } from 'console';
-import { IsNull, Repository } from 'typeorm';
-import { RefreshReqDto } from '../dto/refresh.req.dto';
-import { RefreshResDto } from '../dto/refresh.res.dto';
+import { Repository } from 'typeorm';
+import { ChangePasswordReqDto } from '../dto/change-password.req.dto';
 import { RegisterResDto } from '../dto/register.res.dto';
-import { LoginReqDto } from '../dto/users/login.req.dto';
-import { LoginResDto } from '../dto/users/login.res.dto';
-import { RegisterReqDto } from '../dto/users/register.req.dto';
 import { SetupInitialPasswordReqDto } from '../dto/users/setup-initial-password.req.dto';
 import { SocialAccountResDto } from '../dto/users/social-account.res.dto';
 import { SocialExchangeReqDto } from '../dto/users/social-exchange.req.dto';
 import { SocialLinkUrlResDto } from '../dto/users/social-link-url.res.dto';
 import { UpdateAuthUserMeReqDto } from '../dto/users/update-me.req.dto';
+import { UserLoginReqDto } from '../dto/users/user-login.req.dto';
+import { UserLoginResDto } from '../dto/users/user-login.res.dto';
+import { UserRegisterReqDto } from '../dto/users/user-register.req.dto';
 import { OAuthProviderProfile } from '../social/oauth-provider-profile.type';
 import { JwtPayloadType } from '../types/jwt-payload.type';
 import { SessionRequestInfo } from '../types/session-request-info.type';
 import { AuthSessionService } from './auth-session.service';
 import { AuthTokenService, TokenSigningConfig } from './auth-token.service';
+import { AuthConfig, AuthService } from './auth.service';
 import { SocialAuthService } from './social-auth.service';
 import { UserAccountRecoveryService } from './user-account-recovery.service';
 
 @Injectable()
-export class UserAuthService {
+export class UserAuthService extends AuthService<
+  UserEntity,
+  UserAccountEntity
+> {
   private readonly logger = new Logger(UserAuthService.name);
 
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
     private readonly jwtService: JwtService,
-    private readonly authTokenService: AuthTokenService,
+    authTokenService: AuthTokenService,
     private readonly socialAuthService: SocialAuthService,
-    private readonly authSessionService: AuthSessionService,
+    authSessionService: AuthSessionService,
     private readonly userAccountRecoveryService: UserAccountRecoveryService,
     @InjectRepository(UserEntity)
-    private readonly userRepository: Repository<UserEntity>,
+    userRepository: Repository<UserEntity>,
     @InjectRepository(AdminUserEntity)
     private readonly adminUserRepository: Repository<AdminUserEntity>,
     @InjectRepository(SessionEntity)
-    private readonly sessionRepository: Repository<SessionEntity>,
+    sessionRepository: Repository<SessionEntity>,
     @InjectRepository(UserAccountEntity)
     private readonly userAccountRepository: Repository<UserAccountEntity>,
     @InjectQueue(QueueName.EMAIL)
     private readonly emailQueue: Queue<IEmailJob, any, string>,
     @Inject(CACHE_MANAGER)
-    private readonly cacheManager: Cache,
-  ) {}
+    cacheManager: Cache,
+  ) {
+    super(
+      userRepository,
+      sessionRepository,
+      authTokenService,
+      authSessionService,
+      cacheManager,
+    );
+  }
+
+  protected getAuthConfig(): AuthConfig {
+    return {
+      userType: ESessionUserType.USER,
+      tokenConfig: this.getTokenConfig(),
+    };
+  }
+
+  protected findLocalAccount(
+    userId: AutoIncrementID,
+  ): Promise<UserAccountEntity | null> {
+    return this.userAccountRepository.findOne({
+      where: {
+        userId,
+        provider: EAccountProvider.LOCAL,
+      },
+    });
+  }
+
+  protected async saveLocalAccountPassword(
+    user: UserEntity,
+    newPassword: string,
+  ): Promise<UserAccountEntity> {
+    let localAccount = await this.findLocalAccount(user.id);
+
+    if (!localAccount) {
+      localAccount = new UserAccountEntity({
+        userId: user.id,
+        provider: EAccountProvider.LOCAL,
+        providerAccountId: user.email,
+        password: newPassword,
+        email: user.email,
+        displayName: `${user.firstName} ${user.lastName || ''}`.trim(),
+      });
+    } else {
+      localAccount.password = newPassword;
+    }
+
+    return this.userAccountRepository.save(localAccount);
+  }
 
   private getTokenConfig(): TokenSigningConfig {
     return {
@@ -94,9 +140,9 @@ export class UserAuthService {
   }
 
   async signIn(
-    dto: LoginReqDto,
+    dto: UserLoginReqDto,
     requestInfo?: SessionRequestInfo,
-  ): Promise<LoginResDto> {
+  ): Promise<UserLoginResDto> {
     const { email, password } = dto;
 
     const user = await this.userRepository.findOne({
@@ -107,26 +153,16 @@ export class UserAuthService {
       throw new BadRequestException({ message: 'Invalid credentials' });
     }
 
-    const localAccount = await this.userAccountRepository.findOne({
-      where: {
-        userId: user.id,
-        provider: EAccountProvider.LOCAL,
-      },
-    });
+    const { isValid } = await this.verifyLocalPassword(user.id, password);
 
-    const isPasswordValid =
-      localAccount &&
-      localAccount.password &&
-      (await verifyPassword(password, localAccount.password));
-
-    if (!isPasswordValid) {
+    if (!isValid) {
       throw new BadRequestException({ message: 'Invalid credentials' });
     }
 
     return this.createLoginResponse(user, requestInfo);
   }
 
-  async signUp(dto: RegisterReqDto): Promise<RegisterResDto> {
+  async signUp(dto: UserRegisterReqDto): Promise<RegisterResDto> {
     const isExistUser = await UserEntity.exists({
       where: { email: dto.email },
     });
@@ -151,7 +187,7 @@ export class UserAuthService {
         providerAccountId: user.email,
         password: dto.password,
         email: user.email,
-        displayName: `${user.firstName} ${user.lastName}`.trim(),
+        displayName: `${user.firstName} ${user.lastName || ''}`.trim(),
       }),
     );
 
@@ -163,58 +199,11 @@ export class UserAuthService {
     });
   }
 
-  async refreshToken(dto: RefreshReqDto): Promise<RefreshResDto> {
-    const { sessionId, hash } = this.authTokenService.verifyRefreshToken(
-      dto.refreshToken,
-      this.configService.getOrThrow('auth.userRefreshSecret', { infer: true }),
-    );
-    const session = await this.sessionRepository.findOneBy({
-      id: sessionId,
-      userType: ESessionUserType.USER,
-      revokedAt: IsNull(),
-    });
-
-    if (!session || session.hash !== hash) {
-      throw new UnauthorizedException();
-    }
-
-    if (session.expiresAt && session.expiresAt <= new Date()) {
-      await this.sessionRepository.update(session.id, {
-        revokedAt: new Date(),
-      });
-      throw new UnauthorizedException();
-    }
-
-    const user = await this.userRepository.findOneOrFail({
-      where: { id: session.userId },
-      select: ['id'],
-    });
-
-    const newHash = this.authTokenService.generateSessionHash();
-
-    await this.sessionRepository.update(
-      {
-        id: session.id,
-        hash,
-        userType: ESessionUserType.USER,
-        revokedAt: IsNull(),
-      },
-      { hash: newHash },
-    );
-
-    return await this.authTokenService.createTokenPair(
-      {
-        id: user.id,
-        sessionId: session.id,
-        hash: newHash,
-      },
-      this.getTokenConfig(),
-    );
-  }
-
-  async exchangeSocialLogin(dto: SocialExchangeReqDto): Promise<LoginResDto> {
+  async exchangeSocialLogin(
+    dto: SocialExchangeReqDto,
+  ): Promise<UserLoginResDto> {
     const cached = await this.socialAuthService.consumeExchangeToken(dto.token);
-    return plainToInstance(LoginResDto, cached);
+    return plainToInstance(UserLoginResDto, cached);
   }
 
   async createGoogleLinkUrl(
@@ -272,8 +261,12 @@ export class UserAuthService {
     userToken: JwtPayloadType,
   ): Promise<SocialAccountResDto[]> {
     const accounts = await this.userAccountRepository.find({
-      where: { userId: userToken.id as AutoIncrementID },
-      order: { createdAt: 'DESC' },
+      where: {
+        userId: userToken.id as AutoIncrementID,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
     });
 
     return plainToInstance(SocialAccountResDto, accounts, {
@@ -291,12 +284,7 @@ export class UserAuthService {
 
     const user = await this.userRepository.findOneByOrFail({ id: userId });
 
-    const localAccount = await this.userAccountRepository.findOne({
-      where: {
-        userId,
-        provider: EAccountProvider.LOCAL,
-      },
-    });
+    let localAccount = await this.findLocalAccount(user.id);
 
     if (localAccount?.password) {
       throw new BadRequestException(
@@ -304,21 +292,20 @@ export class UserAuthService {
       );
     }
 
-    if (localAccount) {
-      localAccount.password = dto.password;
-      await this.userAccountRepository.save(localAccount);
+    if (!localAccount) {
+      localAccount = new UserAccountEntity({
+        userId: user.id,
+        provider: EAccountProvider.LOCAL,
+        providerAccountId: user.email,
+        password: dto.password,
+        email: user.email,
+        displayName: `${user.firstName} ${user.lastName || ''}`.trim(),
+      });
     } else {
-      await this.userAccountRepository.save(
-        new UserAccountEntity({
-          userId,
-          provider: EAccountProvider.LOCAL,
-          providerAccountId: user.email,
-          password: dto.password,
-          email: user.email,
-          displayName: `${user.firstName} ${user.lastName}`.trim(),
-        }),
-      );
+      localAccount.password = dto.password;
     }
+
+    await this.userAccountRepository.save(localAccount);
 
     return plainToInstance(UserChangePasswordResDto, {
       message: 'Password configured successfully',
@@ -328,42 +315,6 @@ export class UserAuthService {
         { excludeExtraneousValues: true },
       ),
     });
-  }
-
-  async verifyAccessToken(token: string): Promise<JwtPayloadType> {
-    const payload = this.authTokenService.verifyAccessToken(
-      token,
-      this.configService.getOrThrow('auth.userSecret', {
-        infer: true,
-      }),
-    );
-
-    // Force logout if the session is in the blacklist
-    const isSessionBlacklisted = await this.cacheManager.get<boolean>(
-      createCacheKey(CacheKey.SESSION_BLACKLIST, payload.sessionId),
-    );
-
-    if (isSessionBlacklisted) {
-      throw new UnauthorizedException();
-    }
-
-    const session = await this.sessionRepository.findOneBy({
-      id: payload.sessionId as AutoIncrementID,
-      userId: payload.id as AutoIncrementID,
-      userType: ESessionUserType.USER,
-    });
-
-    if (
-      !session ||
-      !payload.hash ||
-      session.hash !== payload.hash ||
-      session.revokedAt ||
-      (session.expiresAt && session.expiresAt <= new Date())
-    ) {
-      throw new UnauthorizedException();
-    }
-
-    return payload;
   }
 
   async me(userToken: JwtPayloadType): Promise<UserResDto> {
@@ -376,12 +327,7 @@ export class UserAuthService {
       throw new ForbiddenException('Forbidden');
     }
 
-    const localAccount = await this.userAccountRepository.findOne({
-      where: {
-        userId: user.id,
-        provider: EAccountProvider.LOCAL,
-      },
-    });
+    const localAccount = await this.findLocalAccount(user.id);
 
     return plainToInstance(
       UserResDto,
@@ -395,31 +341,19 @@ export class UserAuthService {
 
   async changePassword(
     id: AutoIncrementID,
-    dto: UserChangePasswordReqDto,
+    dto: ChangePasswordReqDto,
   ): Promise<UserChangePasswordResDto> {
     const user = await this.userRepository.findOneByOrFail({ id });
+    const { isValid } = await this.verifyLocalPassword(user.id, dto.password);
 
-    const localAccount = await this.userAccountRepository.findOne({
-      where: {
-        userId: user.id,
-        provider: EAccountProvider.LOCAL,
-      },
-    });
-
-    const isPasswordValid =
-      localAccount &&
-      localAccount.password &&
-      (await verifyPassword(dto.password, localAccount.password));
-
-    if (!isPasswordValid) {
+    if (!isValid) {
       throw new ValidationException(ErrorCode.E002);
     }
     if (dto.newPassword !== dto.confirmNewPassword) {
       throw new ValidationException(ErrorCode.E003);
     }
 
-    localAccount.password = dto.newPassword;
-    await this.userAccountRepository.save(localAccount);
+    await this.saveLocalAccountPassword(user, dto.newPassword);
 
     return plainToInstance(UserChangePasswordResDto, {
       message: 'Change password successfully',
@@ -451,33 +385,22 @@ export class UserAuthService {
   private async createLoginResponse(
     user: UserEntity,
     requestInfo?: SessionRequestInfo,
-  ): Promise<LoginResDto> {
-    const session = await this.authSessionService.createLoginSession({
-      userId: user.id,
-      userType: ESessionUserType.USER,
-      hash: this.authTokenService.generateSessionHash(),
+  ): Promise<UserLoginResDto> {
+    const { tokens } = await this.createLoginSessionAndTokens(
+      user.id,
       requestInfo,
-    });
-
-    const token = await this.authTokenService.createTokenPair(
-      {
-        id: user.id,
-        sessionId: session.id,
-        hash: session.hash,
-      },
-      this.getTokenConfig(),
     );
 
-    return plainToInstance(LoginResDto, {
+    return plainToInstance(UserLoginResDto, {
       userId: user.id,
-      ...token,
+      ...tokens,
     });
   }
 
   private async signInOrRegisterSocialUser(
     profile: OAuthProviderProfile,
     requestInfo?: SessionRequestInfo,
-  ): Promise<LoginResDto> {
+  ): Promise<UserLoginResDto> {
     const existingAccount = await this.userAccountRepository.findOne({
       where: {
         provider:

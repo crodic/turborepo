@@ -10,7 +10,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ClsService } from 'nestjs-cls';
 import { Repository } from 'typeorm';
-import { UserAccountEntity } from '../auth/entities/user-account.entity';
+import { UserAccountEntity } from './entities/user-account.entity';
 import { UserEntity } from './entities/user.entity';
 import { UserService } from './user.service';
 

@@ -15,7 +15,7 @@ import ms, { StringValue } from 'ms';
 import { generateSecret, generateURI, verify as verifyTotp } from 'otplib';
 import { Repository } from 'typeorm';
 
-import { AdminAccountEntity } from '@/api/auth/entities/admin-account.entity';
+import { AdminAccountEntity } from '@/api/admin-user/entities/admin-account.entity';
 import {
   AdminNotificationType,
   NotificationService,

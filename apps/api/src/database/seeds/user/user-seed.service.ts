@@ -1,4 +1,4 @@
-import { UserAccountEntity } from '@/api/auth/entities/user-account.entity';
+import { UserAccountEntity } from '@/api/user/entities/user-account.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { EAccountProvider } from '@/constants/entity.enum';
 import { Injectable } from '@nestjs/common';

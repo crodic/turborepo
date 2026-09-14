@@ -1,4 +1,3 @@
-import { UserChangePasswordReqDto } from '@/api/user/dto/user-change-password.req.dto';
 import { UserChangePasswordResDto } from '@/api/user/dto/user-change-password.res.dto';
 import { UserResDto } from '@/api/user/dto/user.res.dto';
 import { AutoIncrementID } from '@/common/types/common.type';
@@ -25,6 +24,7 @@ import { ConfigService } from '@nestjs/config';
 import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
+import { ChangePasswordReqDto } from '../dto/change-password.req.dto';
 import { ForgotPasswordReqDto } from '../dto/forgot-password.req.dto';
 import { ForgotPasswordResDto } from '../dto/forgot-password.res.dto';
 import { RefreshReqDto } from '../dto/refresh.req.dto';
@@ -35,14 +35,14 @@ import { ResendEmailVerifyResDto } from '../dto/resend-email-verify.res.dto';
 import { ResetPasswordReqDto } from '../dto/reset-password.req.dto';
 import { ResetPasswordResDto } from '../dto/reset-password.res.dto';
 import { SessionResDto } from '../dto/session.res.dto';
-import { LoginReqDto } from '../dto/users/login.req.dto';
-import { LoginResDto } from '../dto/users/login.res.dto';
-import { RegisterReqDto } from '../dto/users/register.req.dto';
 import { SetupInitialPasswordReqDto } from '../dto/users/setup-initial-password.req.dto';
 import { SocialAccountResDto } from '../dto/users/social-account.res.dto';
 import { SocialExchangeReqDto } from '../dto/users/social-exchange.req.dto';
 import { SocialLinkUrlResDto } from '../dto/users/social-link-url.res.dto';
 import { UpdateAuthUserMeReqDto } from '../dto/users/update-me.req.dto';
+import { UserLoginReqDto } from '../dto/users/user-login.req.dto';
+import { UserLoginResDto } from '../dto/users/user-login.res.dto';
+import { UserRegisterReqDto } from '../dto/users/user-register.req.dto';
 import { ProdOnlyThrottleGuard } from '../guards/ProdOnlyThrottle.guard';
 import { AuthSessionService } from '../services/auth-session.service';
 import { UserAccountRecoveryService } from '../services/user-account-recovery.service';
@@ -65,16 +65,16 @@ export class UserAuthenticationController {
   ) {}
 
   @ApiPublic({
-    type: LoginResDto,
+    type: UserLoginResDto,
     summary: 'Sign-in',
   })
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('login')
   async signIn(
-    @Body() userLoginDto: LoginReqDto,
+    @Body() userLoginDto: UserLoginReqDto,
     @Request() req,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<LoginResDto> {
+  ): Promise<UserLoginResDto> {
     const result = await this.userAuthService.signIn(userLoginDto, {
       ipAddress: req.ip,
       userAgent: req.headers?.['user-agent'],
@@ -94,7 +94,7 @@ export class UserAuthenticationController {
   })
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('register')
-  async signUp(@Body() dto: RegisterReqDto): Promise<RegisterResDto> {
+  async signUp(@Body() dto: UserRegisterReqDto): Promise<RegisterResDto> {
     return await this.userAuthService.signUp(dto);
   }
 
@@ -245,11 +245,11 @@ export class UserAuthenticationController {
     }
   }
 
-  @ApiPublic({ type: LoginResDto, summary: 'Exchange social login token' })
+  @ApiPublic({ type: UserLoginResDto, summary: 'Exchange social login token' })
   @Post('social/exchange')
   async exchangeSocialLogin(
     @Body() dto: SocialExchangeReqDto,
-  ): Promise<LoginResDto> {
+  ): Promise<UserLoginResDto> {
     return this.userAuthService.exchangeSocialLogin(dto);
   }
 
@@ -286,7 +286,7 @@ export class UserAuthenticationController {
   @Post('me/change-password')
   async changePassword(
     @CurrentUser('id') userId: AutoIncrementID,
-    @Body() reqDto: UserChangePasswordReqDto,
+    @Body() reqDto: ChangePasswordReqDto,
   ): Promise<UserChangePasswordResDto> {
     return this.userAuthService.changePassword(userId, reqDto);
   }

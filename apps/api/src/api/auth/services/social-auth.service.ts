@@ -12,7 +12,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import crypto from 'crypto';
 import ms from 'ms';
-import { LoginResDto } from '../dto/users/login.res.dto';
+import { UserLoginResDto } from '../dto/users/user-login.res.dto';
 
 export type OAuthStateValue = {
   mode: 'link';
@@ -54,9 +54,9 @@ export class SocialAuthService {
     return value;
   }
 
-  async createExchangeToken(loginResponse: LoginResDto): Promise<string> {
+  async createExchangeToken(loginResponse: UserLoginResDto): Promise<string> {
     const exchangeToken = crypto.randomUUID();
-    await this.cacheManager.set<LoginResDto>(
+    await this.cacheManager.set<UserLoginResDto>(
       createCacheKey(CacheKey.SOCIAL_OAUTH_EXCHANGE, exchangeToken),
       loginResponse,
       ms('5m'),
@@ -65,9 +65,9 @@ export class SocialAuthService {
     return exchangeToken;
   }
 
-  async consumeExchangeToken(token: string): Promise<LoginResDto> {
+  async consumeExchangeToken(token: string): Promise<UserLoginResDto> {
     const cacheKey = createCacheKey(CacheKey.SOCIAL_OAUTH_EXCHANGE, token);
-    const cached = await this.cacheManager.get<LoginResDto>(cacheKey);
+    const cached = await this.cacheManager.get<UserLoginResDto>(cacheKey);
 
     if (!cached) {
       throw new UnauthorizedException();

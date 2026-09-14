@@ -3,12 +3,12 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AdminAccountEntity } from '../auth/entities/admin-account.entity';
 import { PermissionEntity } from '../permission/entities/permission.entity';
 import { RoleEntity } from '../role/entities/role.entity';
 import { AuthModule } from './../auth/auth.module';
 import { AdminUserController } from './admin-user.controller';
 import { AdminUserService } from './admin-user.service';
+import { AdminAccountEntity } from './entities/admin-account.entity';
 import { AdminUserEntity } from './entities/admin-user.entity';
 
 @Module({

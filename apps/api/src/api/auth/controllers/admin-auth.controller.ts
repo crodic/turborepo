@@ -1,5 +1,4 @@
 import { AdminUserResDto } from '@/api/admin-user/dto/admin-user.res.dto';
-import { ChangePasswordReqDto } from '@/api/admin-user/dto/change-password.req.dto';
 import { ChangePasswordResDto } from '@/api/admin-user/dto/change-password.res.dto';
 import { UpdateMeReqDto } from '@/api/admin-user/dto/update-me.req.dto';
 import { AutoIncrementID } from '@/common/types/common.type';
@@ -49,6 +48,7 @@ import { TwoFactorStatusResDto } from '../dto/admin-users/two-factor/two-factor-
 import { VerifyTwoFactorLoginReqDto } from '../dto/admin-users/two-factor/verify-two-factor-login.req.dto';
 import { VerifyTwoFactorSetupReqDto } from '../dto/admin-users/two-factor/verify-two-factor-setup.req.dto';
 import { VerifyTwoFactorSetupResDto } from '../dto/admin-users/two-factor/verify-two-factor-setup.res.dto';
+import { ChangePasswordReqDto } from '../dto/change-password.req.dto';
 import { ForgotPasswordReqDto } from '../dto/forgot-password.req.dto';
 import { ForgotPasswordResDto } from '../dto/forgot-password.res.dto';
 import { RefreshReqDto } from '../dto/refresh.req.dto';

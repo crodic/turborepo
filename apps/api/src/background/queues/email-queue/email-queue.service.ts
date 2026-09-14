@@ -26,219 +26,181 @@ export class EmailQueueService {
     private readonly emailLogRepository: Repository<EmailLogEntity>,
   ) {}
 
-  async sendAdminEmailVerification(data: IVerifyEmailJob): Promise<void> {
-    this.logger.debug(`Sending admin email verification to ${data.email}`);
-    const renderedBody = this.mailService.renderAdminEmailVerification(
-      data.email,
-      data.token,
-    );
+  private async dispatchEmailJob(options: {
+    debugMessage: string;
+    to: string | string[];
+    subject: string;
+    jobName: JobName;
+    templateName: string;
+    render: () => string;
+    send: (renderedBody: string) => Promise<unknown>;
+  }): Promise<void> {
+    this.logger.debug(options.debugMessage);
+    const renderedBody = options.render();
     const log = await this.createSystemLog({
-      to: [data.email],
-      subject: 'Verify your admin account',
-      jobName: JobName.ADMIN_EMAIL_VERIFICATION,
-      templateName: 'admin-email-verification',
+      to: Array.isArray(options.to) ? options.to : [options.to],
+      subject: options.subject,
+      jobName: options.jobName,
+      templateName: options.templateName,
       body: renderedBody,
       renderedBody,
     });
 
     try {
-      await this.mailService.sendAdminEmailVerification(
-        data.email,
-        data.token,
-        renderedBody,
-      );
+      await options.send(renderedBody);
       await this.markSent(log, renderedBody);
     } catch (error) {
       await this.markFailed(log, error);
       throw error;
     }
+  }
+
+  async sendAdminEmailVerification(data: IVerifyEmailJob): Promise<void> {
+    return this.dispatchEmailJob({
+      debugMessage: `Sending admin email verification to ${data.email}`,
+      to: data.email,
+      subject: 'Verify your admin account',
+      jobName: JobName.ADMIN_EMAIL_VERIFICATION,
+      templateName: 'admin-email-verification',
+      render: () =>
+        this.mailService.renderAdminEmailVerification(data.email, data.token),
+      send: (renderedBody) =>
+        this.mailService.sendAdminEmailVerification(
+          data.email,
+          data.token,
+          renderedBody,
+        ),
+    });
   }
 
   async sendAdminEmailForgotPassword(
     data: IForgotPasswordEmailJob,
   ): Promise<void> {
-    this.logger.debug(`Sending admin forgot password to ${data.email}`);
-    const renderedBody = this.mailService.renderAdminEmailForgotPassword(
-      data.email,
-      data.token,
-    );
-    const log = await this.createSystemLog({
-      to: [data.email],
+    return this.dispatchEmailJob({
+      debugMessage: `Sending admin forgot password to ${data.email}`,
+      to: data.email,
       subject: 'Reset your admin password',
       jobName: JobName.ADMIN_EMAIL_FORGOT_PASSWORD,
       templateName: 'admin-email-reset-password',
-      body: renderedBody,
-      renderedBody,
+      render: () =>
+        this.mailService.renderAdminEmailForgotPassword(data.email, data.token),
+      send: (renderedBody) =>
+        this.mailService.sendAdminEmailForgotPassword(
+          data.email,
+          data.token,
+          renderedBody,
+        ),
     });
-
-    try {
-      await this.mailService.sendAdminEmailForgotPassword(
-        data.email,
-        data.token,
-        renderedBody,
-      );
-      await this.markSent(log, renderedBody);
-    } catch (error) {
-      await this.markFailed(log, error);
-      throw error;
-    }
   }
 
   async sendAdminAccountDeletionRequested(
     data: IAdminAccountDeletionRequestedEmailJob,
   ): Promise<void> {
-    this.logger.debug(
-      `Sending admin account deletion requested alert to ${data.email}`,
-    );
-    const renderedBody = this.mailService.renderAdminAccountDeletionRequested(
-      data.adminName,
-      data.deletionDate,
-    );
-    const log = await this.createSystemLog({
-      to: [data.email],
+    return this.dispatchEmailJob({
+      debugMessage: `Sending admin account deletion requested alert to ${data.email}`,
+      to: data.email,
       subject: 'Account Deletion Requested',
       jobName: JobName.ADMIN_ACCOUNT_DELETION_REQUESTED,
       templateName: 'admin-account-deletion-requested',
-      body: renderedBody,
-      renderedBody,
+      render: () =>
+        this.mailService.renderAdminAccountDeletionRequested(
+          data.adminName,
+          data.deletionDate,
+        ),
+      send: (renderedBody) =>
+        this.mailService.sendAdminAccountDeletionRequested(
+          data.email,
+          data.adminName,
+          data.deletionDate,
+          renderedBody,
+        ),
     });
-
-    try {
-      await this.mailService.sendAdminAccountDeletionRequested(
-        data.email,
-        data.adminName,
-        data.deletionDate,
-        renderedBody,
-      );
-      await this.markSent(log, renderedBody);
-    } catch (error) {
-      await this.markFailed(log, error);
-      throw error;
-    }
   }
 
   async sendAdminAccountHardDeleted(
     data: IAdminAccountHardDeletedEmailJob,
   ): Promise<void> {
-    this.logger.debug(
-      `Sending admin account hard deleted alert to ${data.email}`,
-    );
-    const renderedBody = this.mailService.renderAdminAccountHardDeleted(
-      data.adminName,
-      data.deletedAt,
-    );
-    const log = await this.createSystemLog({
-      to: [data.email],
+    return this.dispatchEmailJob({
+      debugMessage: `Sending admin account hard deleted alert to ${data.email}`,
+      to: data.email,
       subject: 'Your account has been deleted',
       jobName: JobName.ADMIN_ACCOUNT_HARD_DELETED,
       templateName: 'admin-account-hard-deleted',
-      body: renderedBody,
-      renderedBody,
+      render: () =>
+        this.mailService.renderAdminAccountHardDeleted(
+          data.adminName,
+          data.deletedAt,
+        ),
+      send: (renderedBody) =>
+        this.mailService.sendAdminAccountHardDeleted(
+          data.email,
+          data.adminName,
+          data.deletedAt,
+          renderedBody,
+        ),
     });
-
-    try {
-      await this.mailService.sendAdminAccountHardDeleted(
-        data.email,
-        data.adminName,
-        data.deletedAt,
-        renderedBody,
-      );
-      await this.markSent(log, renderedBody);
-    } catch (error) {
-      await this.markFailed(log, error);
-      throw error;
-    }
   }
 
   async sendAdminAccountHardDeletedReport(
     data: IAdminAccountHardDeletedReportEmailJob,
   ): Promise<void> {
-    this.logger.debug(
-      `Sending admin account hard deleted report to ${data.email}`,
-    );
-    const renderedBody = this.mailService.renderAdminAccountHardDeletedReport(
-      data.adminName,
-      data.deletedCount,
-    );
-    const log = await this.createSystemLog({
-      to: [data.email],
+    return this.dispatchEmailJob({
+      debugMessage: `Sending admin account hard deleted report to ${data.email}`,
+      to: data.email,
       subject: `Admin Account Deletion Report (${data.deletedCount} deleted)`,
       jobName: JobName.ADMIN_ACCOUNT_HARD_DELETED_REPORT,
       templateName: 'admin-account-hard-deleted-report',
-      body: renderedBody,
-      renderedBody,
+      render: () =>
+        this.mailService.renderAdminAccountHardDeletedReport(
+          data.adminName,
+          data.deletedCount,
+        ),
+      send: (renderedBody) =>
+        this.mailService.sendAdminAccountHardDeletedReport(
+          data.email,
+          data.adminName,
+          data.deletedCount,
+          renderedBody,
+        ),
     });
-
-    try {
-      await this.mailService.sendAdminAccountHardDeletedReport(
-        data.email,
-        data.adminName,
-        data.deletedCount,
-        renderedBody,
-      );
-      await this.markSent(log, renderedBody);
-    } catch (error) {
-      await this.markFailed(log, error);
-      throw error;
-    }
   }
 
   async sendUserEmailVerification(data: IVerifyEmailJob): Promise<void> {
-    this.logger.debug(`Sending user email verification to ${data.email}`);
-    const renderedBody = this.mailService.renderUserEmailVerification(
-      data.email,
-      data.token,
-    );
-    const log = await this.createSystemLog({
-      to: [data.email],
+    return this.dispatchEmailJob({
+      debugMessage: `Sending user email verification to ${data.email}`,
+      to: data.email,
       subject: 'Verify your account',
       jobName: JobName.USER_EMAIL_VERIFICATION,
       templateName: 'user-email-verification',
-      body: renderedBody,
-      renderedBody,
+      render: () =>
+        this.mailService.renderUserEmailVerification(data.email, data.token),
+      send: (renderedBody) =>
+        this.mailService.sendUserEmailVerification(
+          data.email,
+          data.token,
+          renderedBody,
+        ),
     });
-
-    try {
-      await this.mailService.sendUserEmailVerification(
-        data.email,
-        data.token,
-        renderedBody,
-      );
-      await this.markSent(log, renderedBody);
-    } catch (error) {
-      await this.markFailed(log, error);
-      throw error;
-    }
   }
 
   async sendUserEmailForgotPassword(
     data: IForgotPasswordEmailJob,
   ): Promise<void> {
-    this.logger.debug(`Sending user forgot password to ${data.email}`);
-    const renderedBody = this.mailService.renderUserEmailForgotPassword(
-      data.email,
-      data.token,
-    );
-    const log = await this.createSystemLog({
-      to: [data.email],
+    return this.dispatchEmailJob({
+      debugMessage: `Sending user forgot password to ${data.email}`,
+      to: data.email,
       subject: 'Reset your password',
       jobName: JobName.USER_EMAIL_FORGOT_PASSWORD,
       templateName: 'user-email-reset-password',
-      body: renderedBody,
-      renderedBody,
+      render: () =>
+        this.mailService.renderUserEmailForgotPassword(data.email, data.token),
+      send: (renderedBody) =>
+        this.mailService.sendUserEmailForgotPassword(
+          data.email,
+          data.token,
+          renderedBody,
+        ),
     });
-
-    try {
-      await this.mailService.sendUserEmailForgotPassword(
-        data.email,
-        data.token,
-        renderedBody,
-      );
-      await this.markSent(log, renderedBody);
-    } catch (error) {
-      await this.markFailed(log, error);
-      throw error;
-    }
   }
 
   private async createSystemLog(params: {

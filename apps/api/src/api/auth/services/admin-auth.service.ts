@@ -1,9 +1,8 @@
 import { AdminUserResDto } from '@/api/admin-user/dto/admin-user.res.dto';
-import { ChangePasswordReqDto } from '@/api/admin-user/dto/change-password.req.dto';
 import { ChangePasswordResDto } from '@/api/admin-user/dto/change-password.res.dto';
 import { UpdateMeReqDto } from '@/api/admin-user/dto/update-me.req.dto';
+import { AdminAccountEntity } from '@/api/admin-user/entities/admin-account.entity';
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { AdminAccountEntity } from '@/api/auth/entities/admin-account.entity';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
 import {
   AdminNotificationType,
@@ -14,16 +13,13 @@ import { UserEntity } from '@/api/user/entities/user.entity';
 import { IEmailJob } from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
-import { CacheKey } from '@/constants/cache.constant';
 import { EAccountProvider, ESessionUserType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { JobName, QueueName } from '@/constants/job.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
 import { FilesystemService } from '@/filesystem/filesystem.service';
-import { createCacheKey } from '@/utils/cache.util';
-import { verifyPassword } from '@/utils/password.util';
 import { InjectQueue } from '@nestjs/bullmq';
-import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
+import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import {
   BadRequestException,
   ForbiddenException,
@@ -39,13 +35,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
 import { assert } from 'console';
-import { In, IsNull, Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { AdminUserLoginReqDto } from '../dto/admin-users/admin-user-login.req.dto';
 import { AdminUserLoginResDto } from '../dto/admin-users/admin-user-login.res.dto';
 import { AdminUserRegisterReqDto } from '../dto/admin-users/admin-user-register.req.dto';
 import { RestoreAccountReqDto } from '../dto/admin-users/restore-account.req.dto';
-import { RefreshReqDto } from '../dto/refresh.req.dto';
-import { RefreshResDto } from '../dto/refresh.res.dto';
+import { ChangePasswordReqDto } from '../dto/change-password.req.dto';
 import { RegisterResDto } from '../dto/register.res.dto';
 import { JwtPayloadType } from '../types/jwt-payload.type';
 import { SessionRequestInfo } from '../types/session-request-info.type';
@@ -59,6 +54,7 @@ import {
 } from './admin-two-factor.service';
 import { AuthSessionService } from './auth-session.service';
 import { AuthTokenService, TokenSigningConfig } from './auth-token.service';
+import { AuthConfig, AuthService } from './auth.service';
 
 export { TWO_FACTOR_ISSUER, TWO_FACTOR_SETUP_TTL };
 export type {
@@ -68,31 +64,84 @@ export type {
 };
 
 @Injectable()
-export class AdminAuthService {
+export class AdminAuthService extends AuthService<
+  AdminUserEntity,
+  AdminAccountEntity
+> {
   private readonly logger = new Logger(AdminAuthService.name);
+
+  protected get adminUserRepository(): Repository<AdminUserEntity> {
+    return this.userRepository;
+  }
 
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
     private readonly jwtService: JwtService,
     private readonly filesystemService: FilesystemService,
-    private readonly authTokenService: AuthTokenService,
+    authTokenService: AuthTokenService,
     @InjectRepository(AdminUserEntity)
-    private readonly adminUserRepository: Repository<AdminUserEntity>,
+    adminUserRepository: Repository<AdminUserEntity>,
     @InjectRepository(AdminAccountEntity)
     private readonly adminAccountRepository: Repository<AdminAccountEntity>,
     @InjectRepository(SessionEntity)
-    private readonly sessionRepository: Repository<SessionEntity>,
+    sessionRepository: Repository<SessionEntity>,
     @InjectRepository(UserEntity)
-    private readonly userRepository: Repository<UserEntity>,
+    private readonly userRepo: Repository<UserEntity>,
     @InjectQueue(QueueName.EMAIL)
     private readonly emailQueue: Queue<IEmailJob, any, string>,
     @Inject(CACHE_MANAGER)
-    private readonly cacheManager: Cache,
+    cacheManager: Cache,
     private readonly notificationService: NotificationService,
-    private readonly authSessionService: AuthSessionService,
+    authSessionService: AuthSessionService,
     private readonly adminTwoFactorService: AdminTwoFactorService,
     private readonly adminAccountRecoveryService: AdminAccountRecoveryService,
-  ) {}
+  ) {
+    super(
+      adminUserRepository,
+      sessionRepository,
+      authTokenService,
+      authSessionService,
+      cacheManager,
+    );
+  }
+
+  protected getAuthConfig(): AuthConfig {
+    return {
+      userType: ESessionUserType.ADMIN,
+      tokenConfig: this.getTokenConfig(),
+    };
+  }
+
+  protected findLocalAccount(
+    userId: AutoIncrementID,
+  ): Promise<AdminAccountEntity | null> {
+    return this.adminAccountRepository.findOne({
+      where: {
+        adminUserId: userId,
+        provider: EAccountProvider.LOCAL,
+      },
+    });
+  }
+
+  protected async saveLocalAccountPassword(
+    user: AdminUserEntity,
+    newPassword: string,
+  ): Promise<AdminAccountEntity> {
+    let localAccount = await this.findLocalAccount(user.id);
+
+    if (!localAccount) {
+      localAccount = new AdminAccountEntity({
+        adminUserId: user.id,
+        provider: EAccountProvider.LOCAL,
+        providerAccountId: user.email,
+        password: newPassword,
+      });
+    } else {
+      localAccount.password = newPassword;
+    }
+
+    return this.adminAccountRepository.save(localAccount);
+  }
 
   private getTokenConfig(): TokenSigningConfig {
     return {
@@ -117,21 +166,13 @@ export class AdminAuthService {
       withDeleted: true,
     });
 
-    const localAccount = user
-      ? await this.adminAccountRepository.findOne({
-          where: {
-            adminUserId: user.id,
-            provider: EAccountProvider.LOCAL,
-          },
-        })
-      : null;
+    if (!user) {
+      throw new BadRequestException({ message: 'Invalid credentials' });
+    }
 
-    const isPasswordValid =
-      localAccount &&
-      localAccount.password &&
-      (await verifyPassword(password, localAccount.password));
+    const { isValid } = await this.verifyLocalPassword(user.id, password);
 
-    if (!isPasswordValid) {
+    if (!isValid) {
       throw new BadRequestException({ message: 'Invalid credentials' });
     }
 
@@ -176,24 +217,14 @@ export class AdminAuthService {
       });
     }
 
-    const session = await this.authSessionService.createLoginSession({
-      userId: user.id,
-      userType: ESessionUserType.ADMIN,
-      hash: this.authTokenService.generateSessionHash(),
+    const { tokens } = await this.createLoginSessionAndTokens(
+      user.id,
       requestInfo,
-    });
-    const token = await this.authTokenService.createTokenPair(
-      {
-        id: user.id,
-        sessionId: session.id,
-        hash: session.hash,
-      },
-      this.getTokenConfig(),
     );
 
     return plainToInstance(AdminUserLoginResDto, {
       userId: user.id,
-      ...token,
+      ...tokens,
     });
   }
 
@@ -237,48 +268,6 @@ export class AdminAuthService {
     return plainToInstance(RegisterResDto, {
       userId: user.id,
     });
-  }
-
-  async refreshToken(dto: RefreshReqDto): Promise<RefreshResDto> {
-    const { sessionId, hash } = this.authTokenService.verifyRefreshToken(
-      dto.refreshToken,
-      this.configService.getOrThrow('auth.refreshSecret', { infer: true }),
-    );
-    const session = await this.sessionRepository.findOneBy({
-      id: sessionId,
-      userType: ESessionUserType.ADMIN,
-      revokedAt: IsNull(),
-    });
-
-    if (!session || session.hash !== hash) {
-      throw new ForbiddenException();
-    }
-
-    const user = await this.adminUserRepository.findOneOrFail({
-      where: { id: session.userId },
-      select: ['id'],
-    });
-
-    const newHash = this.authTokenService.generateSessionHash();
-
-    await this.sessionRepository.update(
-      {
-        id: session.id,
-        hash,
-        userType: ESessionUserType.ADMIN,
-        revokedAt: IsNull(),
-      },
-      { hash: newHash },
-    );
-
-    return await this.authTokenService.createTokenPair(
-      {
-        id: user.id,
-        sessionId: session.id,
-        hash: newHash,
-      },
-      this.getTokenConfig(),
-    );
   }
 
   async me(id: AutoIncrementID): Promise<AdminUserResDto> {
@@ -337,19 +326,9 @@ export class AdminAuthService {
     dto: ChangePasswordReqDto,
   ): Promise<ChangePasswordResDto> {
     const user = await this.adminUserRepository.findOneByOrFail({ id });
-    const localAccount = await this.adminAccountRepository.findOne({
-      where: {
-        adminUserId: user.id,
-        provider: EAccountProvider.LOCAL,
-      },
-    });
+    const { isValid } = await this.verifyLocalPassword(user.id, dto.password);
 
-    const isPasswordValid =
-      localAccount &&
-      localAccount.password &&
-      (await verifyPassword(dto.password, localAccount.password));
-
-    if (!isPasswordValid) {
+    if (!isValid) {
       throw new ValidationException(ErrorCode.V003);
     }
 
@@ -357,18 +336,7 @@ export class AdminAuthService {
       throw new ValidationException(ErrorCode.V003);
     }
 
-    if (!localAccount) {
-      const newAccount = new AdminAccountEntity({
-        adminUserId: user.id,
-        provider: EAccountProvider.LOCAL,
-        providerAccountId: user.email,
-        password: dto.newPassword,
-      });
-      await this.adminAccountRepository.save(newAccount);
-    } else {
-      localAccount.password = dto.newPassword;
-      await this.adminAccountRepository.save(localAccount);
-    }
+    await this.saveLocalAccountPassword(user, dto.newPassword);
 
     await this.notifyAdmin(
       user.id,
@@ -381,40 +349,6 @@ export class AdminAuthService {
       message: 'Change password successfully',
       user: user.toDto(AdminUserResDto),
     });
-  }
-
-  async verifyAccessToken(token: string): Promise<JwtPayloadType> {
-    const payload = this.authTokenService.verifyAccessToken(
-      token,
-      this.configService.getOrThrow('auth.secret', { infer: true }),
-    );
-
-    // Force logout if the session is in the blacklist
-    const isSessionBlacklisted = await this.cacheManager.get<boolean>(
-      createCacheKey(CacheKey.SESSION_BLACKLIST, payload.sessionId),
-    );
-
-    if (isSessionBlacklisted) {
-      throw new UnauthorizedException();
-    }
-
-    const session = await this.sessionRepository.findOneBy({
-      id: payload.sessionId as AutoIncrementID,
-      userId: payload.id as AutoIncrementID,
-      userType: ESessionUserType.ADMIN,
-    });
-
-    if (
-      !session ||
-      !payload.hash ||
-      session.hash !== payload.hash ||
-      session.revokedAt ||
-      (session.expiresAt && session.expiresAt <= new Date())
-    ) {
-      throw new UnauthorizedException();
-    }
-
-    return payload;
   }
 
   async notifyAdmin(
@@ -438,19 +372,9 @@ export class AdminAuthService {
   }
 
   async assertPassword(user: AdminUserEntity, password: string): Promise<void> {
-    const localAccount = await this.adminAccountRepository.findOne({
-      where: {
-        adminUserId: user.id,
-        provider: EAccountProvider.LOCAL,
-      },
-    });
+    const { isValid } = await this.verifyLocalPassword(user.id, password);
 
-    const isPasswordValid =
-      localAccount &&
-      localAccount.password &&
-      (await verifyPassword(password, localAccount.password));
-
-    if (!isPasswordValid) {
+    if (!isValid) {
       throw new ValidationException(ErrorCode.V003);
     }
   }
@@ -500,24 +424,14 @@ export class AdminAuthService {
 
     await this.adminUserRepository.restore(user.id);
 
-    const session = await this.authSessionService.createLoginSession({
-      userId: user.id,
-      userType: ESessionUserType.ADMIN,
-      hash: this.authTokenService.generateSessionHash(),
+    const { tokens } = await this.createLoginSessionAndTokens(
+      user.id,
       requestInfo,
-    });
-    const token = await this.authTokenService.createTokenPair(
-      {
-        id: user.id,
-        sessionId: session.id,
-        hash: session.hash,
-      },
-      this.getTokenConfig(),
     );
 
     return plainToInstance(AdminUserLoginResDto, {
       userId: user.id,
-      ...token,
+      ...tokens,
     });
   }
 }

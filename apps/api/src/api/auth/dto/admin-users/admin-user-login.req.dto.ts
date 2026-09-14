@@ -1,9 +1,10 @@
 import { EmailField, PasswordField } from '@/decorators/field.decorators';
+import { LoginReqDto } from '../login.req.dto';
 
-export class AdminUserLoginReqDto {
+export class AdminUserLoginReqDto extends LoginReqDto {
   @EmailField({ toLowerCase: false, default: 'admin@email.com' })
-  email!: string;
+  declare email: string;
 
   @PasswordField({ default: 'admin@2025' })
-  password!: string;
+  declare password: string;
 }

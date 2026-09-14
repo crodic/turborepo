@@ -1,21 +1,18 @@
 import { NumberField, StringField } from '@/decorators/field.decorators';
 import { Exclude, Expose } from 'class-transformer';
+import { LoginResDto } from '../login.res.dto';
 
 @Exclude()
-export class LoginResDto {
+export class UserLoginResDto extends LoginResDto {
   @Expose()
   @StringField()
-  userId!: string;
+  declare accessToken: string;
 
   @Expose()
   @StringField()
-  accessToken!: string;
-
-  @Expose()
-  @StringField()
-  refreshToken!: string;
+  declare refreshToken: string;
 
   @Expose()
   @NumberField()
-  tokenExpires!: number;
+  declare tokenExpires: number;
 }

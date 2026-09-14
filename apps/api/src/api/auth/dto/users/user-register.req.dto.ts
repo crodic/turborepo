@@ -7,7 +7,7 @@ import {
   StringFieldOptional,
 } from '@/decorators/field.decorators';
 
-export class RegisterReqDto {
+export class UserRegisterReqDto {
   @StringField()
   firstName!: string;
 

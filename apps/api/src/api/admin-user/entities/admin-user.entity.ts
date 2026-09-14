@@ -1,4 +1,3 @@
-import { AdminAccountEntity } from '@/api/auth/entities/admin-account.entity';
 import { RoleEntity } from '@/api/role/entities/role.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
@@ -17,6 +16,7 @@ import {
   PrimaryGeneratedColumn,
   Relation,
 } from 'typeorm';
+import { AdminAccountEntity } from './admin-account.entity';
 
 @Entity('admin_users')
 export class AdminUserEntity extends AbstractEntity {

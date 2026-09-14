@@ -2,11 +2,11 @@ import { PasswordField } from '@/decorators/field.decorators';
 
 export class ChangePasswordReqDto {
   @PasswordField()
-  password: string;
+  password!: string;
 
   @PasswordField()
-  newPassword: string;
+  newPassword!: string;
 
   @PasswordField()
-  confirmNewPassword: string;
+  confirmNewPassword!: string;
 }

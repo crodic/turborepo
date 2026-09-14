@@ -1,5 +1,5 @@
+import { AdminAccountEntity } from '@/api/admin-user/entities/admin-account.entity';
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { AdminAccountEntity } from '@/api/auth/entities/admin-account.entity';
 import { SessionEntity } from '@/api/auth/entities/session.entity';
 import { NotificationService } from '@/api/notification/notification.service';
 import { UserEntity } from '@/api/user/entities/user.entity';

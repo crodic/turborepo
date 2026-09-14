@@ -1,31 +1,13 @@
 import {
   ArrayField,
   BooleanFieldOptional,
-  NumberFieldOptional,
-  StringField,
-  StringFieldOptional,
   TokenFieldOptional,
 } from '@/decorators/field.decorators';
 import { Exclude, Expose } from 'class-transformer';
+import { LoginResDto } from '../login.res.dto';
 
 @Exclude()
-export class AdminUserLoginResDto {
-  @Expose()
-  @StringField()
-  userId!: string;
-
-  @Expose()
-  @StringFieldOptional()
-  accessToken?: string;
-
-  @Expose()
-  @StringFieldOptional()
-  refreshToken?: string;
-
-  @Expose()
-  @NumberFieldOptional()
-  tokenExpires?: number;
-
+export class AdminUserLoginResDto extends LoginResDto {
   @Expose()
   @BooleanFieldOptional()
   twoFactorRequired?: boolean;

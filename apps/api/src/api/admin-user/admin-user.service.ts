@@ -25,12 +25,12 @@ import {
   PaginateQuery,
 } from 'nestjs-paginate';
 import { EntityManager, In, LessThan, Repository } from 'typeorm';
-import { AdminAccountEntity } from '../auth/entities/admin-account.entity';
 import { RoleEntity } from '../role/entities/role.entity';
 import { SettingsService } from '../settings/settings.service';
 import { AdminUserResDto } from './dto/admin-user.res.dto';
 import { CreateAdminUserReqDto } from './dto/create-admin-user.req.dto';
 import { UpdateAdminUserReqDto } from './dto/update-admin-user.req.dto';
+import { AdminAccountEntity } from './entities/admin-account.entity';
 import { AdminUserEntity } from './entities/admin-user.entity';
 
 @Injectable()

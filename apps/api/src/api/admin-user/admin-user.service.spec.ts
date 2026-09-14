@@ -10,10 +10,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ClsService } from 'nestjs-cls';
 import { Repository } from 'typeorm';
-import { AdminAccountEntity } from '../auth/entities/admin-account.entity';
 import { RoleEntity } from '../role/entities/role.entity';
 import { SettingsService } from '../settings/settings.service';
 import { AdminUserService } from './admin-user.service';
+import { AdminAccountEntity } from './entities/admin-account.entity';
 import { AdminUserEntity } from './entities/admin-user.entity';
 
 describe('AdminUserService', () => {
