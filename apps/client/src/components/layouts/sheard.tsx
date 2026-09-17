@@ -1,5 +1,7 @@
+import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
+import React from "react";
 
 export type LinkItemType = {
   label: string;
@@ -14,23 +16,31 @@ export function LinkItem({
   icon: Icon,
   className,
   href,
-  ...props
-}: React.ComponentProps<"a"> & LinkItemType) {
+  onClick,
+}: LinkItemType & {
+  className?: string;
+  onClick?: () => void;
+}) {
   return (
-    <a
-      className={cn("hover:bg-accent flex gap-x-2 rounded-md p-2", className)}
+    <Link
+      className={cn(
+        "hover:bg-accent hover:text-accent-foreground flex gap-x-3 rounded-lg p-2.5 transition-colors",
+        className
+      )}
       href={href}
-      {...props}
+      onClick={onClick}
     >
-      <div className="bg-card flex aspect-square size-12 items-center justify-center rounded-md border text-sm shadow-sm">
-        <Icon className="text-foreground size-5" />
+      <div className="bg-primary/10 text-primary border-primary/20 flex aspect-square size-10 shrink-0 items-center justify-center rounded-lg border shadow-2xs">
+        <Icon className="size-5" />
       </div>
-      <div className="flex flex-col items-start justify-center">
-        <span className="font-medium">{label}</span>
-        <span className="text-muted-foreground line-clamp-2 text-xs">
-          {description}
-        </span>
+      <div className="flex flex-col justify-center">
+        <span className="text-sm leading-tight font-semibold">{label}</span>
+        {description && (
+          <span className="text-muted-foreground line-clamp-1 text-xs">
+            {description}
+          </span>
+        )}
       </div>
-    </a>
+    </Link>
   );
 }

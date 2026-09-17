@@ -8,11 +8,70 @@
   },
   "Navigation": {
     "home": "Trang chủ",
+    "features": "Tính năng",
+    "techStack": "Công nghệ",
     "profile": "Hồ sơ",
     "accountSettings": "Cài đặt tài khoản",
     "signIn": "Đăng nhập",
-    "signUp": "Đăng ký",
-    "logout": "Đăng xuất"
+    "signUp": "Bắt đầu ngay",
+    "logout": "Đăng xuất",
+    "docs": "Tài liệu",
+    "github": "GitHub"
+  },
+  "Landing": {
+    "metaTitle": "Khởi đầu dự án Full-Stack Monorepo với Next.js 15 & Turborepo",
+    "metaDescription": "Bộ khung boilerplate full-stack chuẩn doanh nghiệp với Next.js 15 App Router, NestJS, TailwindCSS v4, TypeORM và TanStack Query.",
+    "hero": {
+      "badge": "Full-Stack Monorepo Boilerplate",
+      "title": "Kiến trúc Full-Stack hiện đại chuẩn Doanh nghiệp",
+      "subtitle": "Mẫu monorepo sẵn sàng cho sản phẩm thực tế với Next.js 15 App Router, NestJS API, PostgreSQL TypeORM, TailwindCSS v4, TanStack Query và bảo mật hoàn chỉnh.",
+      "getStarted": "Bắt đầu miễn phí",
+      "exploreProfile": "Khám phá Hồ sơ",
+      "viewGithub": "Mã nguồn GitHub"
+    },
+    "techStack": {
+      "badge": "Công nghệ hiện đại",
+      "title": "Hệ sinh thái công nghệ tiêu chuẩn",
+      "subtitle": "Mỗi thư viện và công cụ đều được chọn lọc kỹ lưỡng vì hiệu năng cao, tốc độ phát triển và khả năng bảo trì lâu dài."
+    },
+    "features": {
+      "badge": "Điểm nhấn kiến trúc",
+      "title": "Tất cả những gì bạn cần để ra mắt nhanh hơn",
+      "subtitle": "Áp dụng clean architecture, phân chia module rõ ràng và thiết kế có khả năng mở rộng được tích hợp sẵn từ lõi.",
+      "items": {
+        "monorepo": {
+          "title": "Turborepo & pnpm Workspace",
+          "description": "Điều phối monorepo hiệu năng cao với remote caching, duy nhất một file lockfile và chia sẻ cấu hình dùng chung."
+        },
+        "auth": {
+          "title": "Xác thực & OAuth toàn diện",
+          "description": "Cơ chế Access & Refresh tokens, phiên cookie HTTP-only bảo mật, liên kết Google OAuth và phân quyền CASL/Roles chi tiết."
+        },
+        "forms": {
+          "title": "Kiểm tra biểu mẫu chặt chẽ",
+          "description": "Form an toàn kiểu dữ liệu với React Hook Form kết hợp Zod schema và thông báo phản hồi Sonner toast."
+        },
+        "query": {
+          "title": "TanStack React Query",
+          "description": "Lưu trữ cache ở client, prefetch dữ liệu ngầm, cập nhật lạc quan (optimistic updates) và tự động làm mới cache."
+        },
+        "i18n": {
+          "title": "Đa ngôn ngữ hoàn chỉnh",
+          "description": "Định tuyến đa ngôn ngữ tích hợp sẵn qua next-intl (Tiếng Việt & Tiếng Anh), tối ưu SEO và không bị giật bố cục."
+        },
+        "design": {
+          "title": "TailwindCSS v4 & Radix UI",
+          "description": "Hệ thống UI component tiếp cận chuẩn quốc tế, bố cục responsive, chuyển đổi giao diện Sáng/Tối và hiệu ứng mượt mà."
+        }
+      }
+    },
+    "cta": {
+      "badge": "Bắt đầu phát triển",
+      "title": "Sẵn sàng xây dựng dự án tiếp theo của bạn?",
+      "subtitle": "Clone repository, tùy biến các domain models của bạn và tự tin triển khai lên môi trường thực tế chỉ trong vài phút.",
+      "button": "Bắt đầu ngay bây giờ",
+      "github": "Ghé thăm GitHub"
+    }
   },
   "Profile": {
     "pageTitle": "Hồ sơ tài khoản",
@@ -102,5 +161,22 @@
       "cancel": "Hủy",
       "confirm": "Đăng xuất ngay"
     }
+  },
+  "Footer": {
+    "about": "Bộ khởi tạo monorepo full-stack chuẩn doanh nghiệp được xây dựng với kiến trúc sạch, an toàn kiểu dữ liệu và trải nghiệm lập trình hiện đại.",
+    "product": "Sản phẩm",
+    "features": "Tính năng",
+    "techStack": "Công nghệ",
+    "profile": "Hồ sơ người dùng",
+    "auth": "Xác thực & Bảo mật",
+    "resources": "Tài nguyên",
+    "documentation": "Tài liệu",
+    "github": "GitHub",
+    "apiDocs": "Swagger API",
+    "changelog": "Lịch sử cập nhật",
+    "legal": "Pháp lý",
+    "privacy": "Chính sách bảo mật",
+    "terms": "Điều khoản sử dụng",
+    "allRightsReserved": "Đã đăng ký bản quyền."
   }
 }

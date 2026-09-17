@@ -11,11 +11,70 @@ declare const messages: {
   };
   Navigation: {
     home: "Home";
+    features: "Features";
+    techStack: "Tech Stack";
     profile: "Profile";
     accountSettings: "Account Settings";
     signIn: "Sign In";
-    signUp: "Sign Up";
+    signUp: "Get Started";
     logout: "Log out";
+    docs: "Documentation";
+    github: "GitHub";
+  };
+  Landing: {
+    metaTitle: "Next.js 15 & Turborepo Monorepo Boilerplate";
+    metaDescription: "Enterprise-ready fullstack monorepo boilerplate built with Next.js 15 App Router, NestJS, TailwindCSS v4, TypeORM, and TanStack Query.";
+    hero: {
+      badge: "Full-Stack Monorepo Boilerplate";
+      title: "Modern Enterprise Full-Stack Architecture";
+      subtitle: "Production-ready monorepo template featuring Next.js 15 App Router, NestJS API, TypeORM PostgreSQL, TailwindCSS v4, TanStack Query, and robust authentication.";
+      getStarted: "Get Started Free";
+      exploreProfile: "Explore User Profile";
+      viewGithub: "GitHub Repository";
+    };
+    techStack: {
+      badge: "Built with Modern Stack";
+      title: "Industry-Standard Technologies";
+      subtitle: "Every library and tool is carefully picked for performance, developer velocity, and maintainability.";
+    };
+    features: {
+      badge: "Architectural Highlights";
+      title: "Everything you need to ship faster";
+      subtitle: "Clean architecture patterns, modular boundaries, and scalable design built directly into the core.";
+      items: {
+        monorepo: {
+          title: "Turborepo & pnpm Workspace";
+          description: "High-performance monorepo orchestration with remote caching, unified lockfile, and shared configuration packages.";
+        };
+        auth: {
+          title: "Robust Authentication & OAuth";
+          description: "Access & refresh tokens, HTTP-only cookie sessions, Google OAuth linking, and granular role/CASL authorization.";
+        };
+        forms: {
+          title: "Strict Form Validation";
+          description: "Type-safe forms using React Hook Form coupled with Zod schemas and Sonner toast notifications.";
+        };
+        query: {
+          title: "TanStack React Query";
+          description: "Client-side query caching, background prefetching, optimistic mutations, and automated cache invalidation.";
+        };
+        i18n: {
+          title: "Full Internationalization";
+          description: "Built-in next-intl routing for multi-language support (English & Vietnamese) with zero layout shift.";
+        };
+        design: {
+          title: "TailwindCSS v4 & Radix UI";
+          description: "Composable, accessible UI primitives with responsive layouts, dark/light theme switching, and smooth animations.";
+        };
+      };
+    };
+    cta: {
+      badge: "Start Building";
+      title: "Ready to kickstart your next enterprise project?";
+      subtitle: "Clone the repository, customize your domain models, and deploy with confidence in minutes.";
+      button: "Get Started Now";
+      github: "Star on GitHub";
+    };
   };
   Profile: {
     pageTitle: "Account Profile";
@@ -105,6 +164,23 @@ declare const messages: {
       cancel: "Cancel";
       confirm: "Yes, log out";
     };
+  };
+  Footer: {
+    about: "Enterprise-ready full-stack monorepo boilerplate crafted with clean architecture, strict type safety, and modern developer experience.";
+    product: "Product";
+    features: "Features";
+    techStack: "Tech Stack";
+    profile: "User Profile";
+    auth: "Authentication";
+    resources: "Resources";
+    documentation: "Documentation";
+    github: "GitHub";
+    apiDocs: "Swagger API";
+    changelog: "Release Notes";
+    legal: "Legal";
+    privacy: "Privacy Policy";
+    terms: "Terms of Service";
+    allRightsReserved: "All rights reserved.";
   };
 };
 export default messages;

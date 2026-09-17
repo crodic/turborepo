@@ -1,29 +1,27 @@
-import { useMediaQuery } from "@/hooks/use-media-query";
+"use client";
+
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { MenuIcon, XIcon } from "lucide-react";
-import React from "react";
-import { createPortal } from "react-dom";
-import {
-  companyLinks,
-  companyLinks2,
-  productLinks,
-} from "@/components/layouts/nav-links";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { featureLinks, platformLinks } from "@/components/layouts/nav-links";
 import { LinkItem } from "@/components/layouts/sheard";
 import { Link } from "@/i18n/navigation";
+import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { MenuIcon, XIcon } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 export function MobileNav() {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
   const { isMobile } = useMediaQuery();
+  const t = useTranslations("Navigation");
 
-  // 🚫 Disable body scroll when open
-  React.useEffect(() => {
+  useEffect(() => {
     if (open && isMobile) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
     }
-    // Cleanup on unmount too
     return () => {
       document.body.style.overflow = "";
     };
@@ -57,11 +55,12 @@ export function MobileNav() {
           <MenuIcon aria-hidden="true" className="size-4.5" />
         </div>
       </Button>
+
       {open &&
         createPortal(
           <div
             className={cn(
-              "bg-background/95 supports-backdrop-filter:bg-background/50 backdrop-blur-sm",
+              "bg-background/95 supports-backdrop-filter:bg-background/80 backdrop-blur-md",
               "fixed top-14 right-0 bottom-0 left-0 z-40 flex flex-col overflow-hidden border-t md:hidden"
             )}
             id="mobile-menu"
@@ -69,38 +68,57 @@ export function MobileNav() {
             <div
               className={cn(
                 "data-[slot=open]:zoom-in-97 data-[slot=open]:animate-in ease-out",
-                "size-full overflow-x-hidden overflow-y-auto p-4"
+                "size-full overflow-x-hidden overflow-y-auto p-5"
               )}
               data-slot={open ? "open" : "closed"}
             >
-              <div className="flex w-full flex-col gap-y-2">
-                <span className="text-sm">Product</span>
-                {productLinks.map((link) => (
-                  <LinkItem key={`product-${link.label}`} {...link} />
-                ))}
-                <span className="text-sm">Company</span>
-                {companyLinks.map((link) => (
-                  <LinkItem key={`company-${link.label}`} {...link} />
-                ))}
-                {companyLinks2.map((link) => (
-                  <LinkItem key={`company-${link.label}`} {...link} />
-                ))}
+              <div className="flex w-full flex-col gap-y-4">
+                <div>
+                  <span className="text-muted-foreground px-2 text-xs font-semibold tracking-wider uppercase">
+                    {t("features")}
+                  </span>
+                  <div className="mt-2 flex flex-col gap-1">
+                    {featureLinks.map((link) => (
+                      <LinkItem
+                        key={`product-${link.label}`}
+                        {...link}
+                        onClick={() => setOpen(false)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-muted-foreground px-2 text-xs font-semibold tracking-wider uppercase">
+                    Platform
+                  </span>
+                  <div className="mt-2 flex flex-col gap-1">
+                    {platformLinks.map((link) => (
+                      <LinkItem
+                        key={`company-${link.label}`}
+                        {...link}
+                        onClick={() => setOpen(false)}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="mt-5 flex flex-col gap-2">
+
+              <div className="mt-6 flex flex-col gap-2 border-t pt-4">
                 <Button
                   className="w-full"
                   variant="outline"
                   asChild
                   onClick={() => setOpen(false)}
                 >
-                  <Link href="/auth/login">Sign In</Link>
+                  <Link href="/auth/login">{t("signIn")}</Link>
                 </Button>
                 <Button
                   className="w-full"
                   asChild
                   onClick={() => setOpen(false)}
                 >
-                  <Link href="/auth/sign-up">Get Started</Link>
+                  <Link href="/auth/sign-up">{t("signUp")}</Link>
                 </Button>
               </div>
             </div>

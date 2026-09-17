@@ -1,105 +1,65 @@
 import {
-  BarChart,
-  CodeIcon,
-  FileText,
-  GlobeIcon,
-  Handshake,
-  HelpCircle,
-  LayersIcon,
-  Leaf,
-  PlugIcon,
-  RotateCcw,
-  Shield,
-  Star,
-  UserPlusIcon,
-  Users,
+  Boxes,
+  Code2,
+  FileCode2,
+  Layers,
+  LockKeyhole,
+  ShieldCheck,
+  Sparkles,
+  User,
 } from "lucide-react";
 import type { LinkItemType } from "@/components/layouts/sheard";
 
-export const productLinks: LinkItemType[] = [
+export const featureLinks: LinkItemType[] = [
   {
-    label: "Website Builder",
-    href: "#",
-    description: "Create responsive websites with ease",
-    icon: GlobeIcon,
+    label: "Monorepo Architecture",
+    href: "/#features",
+    description: "Turborepo + pnpm workspace orchestration",
+    icon: Boxes,
   },
   {
-    label: "Cloud Platform",
-    href: "#",
-    description: "Deploy and scale apps in the cloud",
-    icon: LayersIcon,
+    label: "Authentication & OAuth",
+    href: "/#features",
+    description: "JWT, Refresh tokens & Google OAuth",
+    icon: LockKeyhole,
   },
   {
-    label: "Team Collaboration",
-    href: "#",
-    description: "Tools to help your teams work better together",
-    icon: UserPlusIcon,
+    label: "Type-Safe Forms",
+    href: "/#features",
+    description: "React Hook Form + Zod validation",
+    icon: ShieldCheck,
   },
   {
-    label: "Analytics",
-    href: "#",
-    description: "Track and analyze your website traffic",
-    icon: BarChart,
-  },
-  {
-    label: "Integrations",
-    href: "#",
-    description: "Connect your apps and services",
-    icon: PlugIcon,
-  },
-  {
-    label: "API",
-    href: "#",
-    description: "Build custom integrations with our API",
-    icon: CodeIcon,
+    label: "TanStack React Query",
+    href: "/#features",
+    description: "Client-side caching & mutations",
+    icon: Layers,
   },
 ];
 
-export const companyLinks: LinkItemType[] = [
+export const platformLinks: LinkItemType[] = [
   {
-    label: "About Us",
-    href: "#",
-    description: "Learn more about our story and team",
-    icon: Users,
+    label: "Account Profile",
+    href: "/profile",
+    description: "Personal details and account status",
+    icon: User,
   },
   {
-    label: "Customer Stories",
-    href: "#",
-    description: "See how we’ve helped our clients succeed",
-    icon: Star,
+    label: "Security & Credentials",
+    href: "/profile?tab=security",
+    description: "Password configuration & connected accounts",
+    icon: Code2,
   },
   {
-    label: "Partnerships",
-    href: "#",
-    icon: Handshake,
-    description: "Collaborate with us for mutual growth",
-  },
-];
-
-export const companyLinks2: LinkItemType[] = [
-  {
-    label: "Terms of Service",
-    href: "#",
-    icon: FileText,
+    label: "Design System",
+    href: "/#tech-stack",
+    description: "TailwindCSS v4 & Radix UI primitives",
+    icon: Sparkles,
   },
   {
-    label: "Privacy Policy",
-    href: "#",
-    icon: Shield,
-  },
-  {
-    label: "Refund Policy",
-    href: "#",
-    icon: RotateCcw,
-  },
-  {
-    label: "Blog",
-    href: "#",
-    icon: Leaf,
-  },
-  {
-    label: "Help Center",
-    href: "#",
-    icon: HelpCircle,
+    label: "NestJS Backend API",
+    href: `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/docs`,
+    description: "OpenAPI / Swagger interactive documentation",
+    icon: FileCode2,
   },
 ];

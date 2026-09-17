@@ -8,83 +8,64 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
-import {
-  companyLinks,
-  companyLinks2,
-  productLinks,
-} from "@/components/layouts/nav-links";
+import { featureLinks, platformLinks } from "@/components/layouts/nav-links";
 import { LinkItem } from "@/components/layouts/sheard";
+import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 
 export function DesktopNav() {
+  const t = useTranslations("Navigation");
+
   return (
     <NavigationMenu className="hidden md:flex">
       <NavigationMenuList>
         <NavigationMenuItem>
-          <NavigationMenuTrigger className="bg-transparent">
-            Product
+          <NavigationMenuTrigger className="bg-transparent text-sm">
+            {t("features")}
           </NavigationMenuTrigger>
-          <NavigationMenuContent className="bg-muted/50 dark:bg-background p-1 pr-1.5">
-            <div className="bg-popover grid w-lg grid-cols-2 gap-2 rounded-md border p-2 shadow">
-              {productLinks.map((item, i) => (
-                <NavigationMenuLink
-                  asChild
-                  className="w-full flex-row gap-x-2"
-                  key={`item-${item.label}-${i}`}
-                >
-                  <LinkItem {...item} />
-                </NavigationMenuLink>
+          <NavigationMenuContent className="bg-popover text-popover-foreground ring-border/50 p-3 shadow-lg ring-1">
+            <div className="grid w-[460px] grid-cols-2 gap-2">
+              {featureLinks.map((item) => (
+                <LinkItem key={item.label} {...item} />
               ))}
             </div>
-            <div className="p-2">
-              <p className="text-muted-foreground text-sm">
-                Interested?{" "}
-                <a
-                  className="text-foreground font-medium hover:underline"
-                  href="#"
-                >
-                  Schedule a demo
-                </a>
-              </p>
-            </div>
           </NavigationMenuContent>
         </NavigationMenuItem>
+
         <NavigationMenuItem>
-          <NavigationMenuTrigger className="bg-transparent">
-            Company
+          <NavigationMenuTrigger className="bg-transparent text-sm">
+            Platform
           </NavigationMenuTrigger>
-          <NavigationMenuContent className="bg-muted/50 dark:bg-background p-1 pr-1.5 pb-1.5">
-            <div className="grid w-lg grid-cols-2 gap-2">
-              <div className="bg-popover space-y-2 rounded-md border p-2 shadow">
-                {companyLinks.map((item, i) => (
-                  <NavigationMenuLink
-                    asChild
-                    className="w-full flex-row gap-x-2"
-                    key={`item-${item.label}-${i}`}
-                  >
-                    <LinkItem {...item} />
-                  </NavigationMenuLink>
-                ))}
-              </div>
-              <div className="space-y-2 p-3">
-                {companyLinks2.map((item, i) => (
-                  <NavigationMenuLink
-                    className="flex-row items-center gap-x-2"
-                    href={item.href}
-                    key={`item-${item.label}-${i}`}
-                  >
-                    <item.icon className="text-foreground size-4" />
-                    <span className="font-medium">{item.label}</span>
-                  </NavigationMenuLink>
-                ))}
-              </div>
+          <NavigationMenuContent className="bg-popover text-popover-foreground ring-border/50 p-3 shadow-lg ring-1">
+            <div className="grid w-[480px] grid-cols-2 gap-2">
+              {platformLinks.map((item) => (
+                <LinkItem key={item.label} {...item} />
+              ))}
             </div>
           </NavigationMenuContent>
         </NavigationMenuItem>
-        <NavigationMenuLink asChild className="px-4">
-          <a className="hover:bg-accent rounded-md p-2" href="#">
-            Pricing
-          </a>
-        </NavigationMenuLink>
+
+        <NavigationMenuItem>
+          <NavigationMenuLink asChild>
+            <Link
+              href="/#tech-stack"
+              className="text-muted-foreground hover:text-foreground hover:bg-accent hover:text-accent-foreground inline-flex h-9 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors"
+            >
+              {t("techStack")}
+            </Link>
+          </NavigationMenuLink>
+        </NavigationMenuItem>
+
+        <NavigationMenuItem>
+          <NavigationMenuLink asChild>
+            <Link
+              href="/profile"
+              className="text-muted-foreground hover:text-foreground hover:bg-accent hover:text-accent-foreground inline-flex h-9 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors"
+            >
+              {t("profile")}
+            </Link>
+          </NavigationMenuLink>
+        </NavigationMenuItem>
       </NavigationMenuList>
     </NavigationMenu>
   );

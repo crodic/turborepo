@@ -1,9 +1,5 @@
 import React from "react";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="container mx-auto min-h-svh place-content-end">
-      {children}
-    </main>
-  );
+  return <div className="flex min-h-screen flex-col">{children}</div>;
 }
