@@ -9,7 +9,7 @@ import {
   CHECK_POLICIES_KEY,
   PolicyHandler,
 } from '@/decorators/policies.decorator';
-import { CaslAbilityFactory } from '@/libs/casl/ability.factory';
+import { CaslAbilityFactory } from '@/shared/casl/ability.factory';
 import {
   CanActivate,
   ExecutionContext,

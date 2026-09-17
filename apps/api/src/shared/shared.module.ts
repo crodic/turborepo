@@ -1,9 +1,10 @@
 import { Global, Module } from '@nestjs/common';
+import { CaslModule } from './casl/casl.module';
 
 @Global()
 @Module({
-  imports: [],
+  imports: [CaslModule],
   providers: [],
-  exports: [],
+  exports: [CaslModule],
 })
 export class SharedModule {}

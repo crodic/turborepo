@@ -28,7 +28,6 @@ import { LoggerModule } from 'nestjs-pino';
 import { ApiModule } from '@/api/api.module';
 import { BackgroundModule } from '@/background/background.module';
 import { FilesystemModule } from '@/filesystem/filesystem.module';
-import { LibsModule } from '@/libs/libs.module';
 import { MailModule } from '@/mail/mail.module';
 import { SharedModule } from '@/shared/shared.module';
 
@@ -176,7 +175,6 @@ import loggerFactory from './utils/logger-factory';
     }),
     ScheduleModule.forRoot(),
     SentryModule.forRoot(),
-    LibsModule,
     BackgroundModule,
     MailModule,
     ApiModule,

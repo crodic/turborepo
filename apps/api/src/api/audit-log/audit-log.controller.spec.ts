@@ -1,4 +1,4 @@
-import { CaslAbilityFactory } from '@/libs/casl/ability.factory';
+import { CaslAbilityFactory } from '@/shared/casl/ability.factory';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuditLogController } from './audit-log.controller';
 import { AuditLogService } from './audit-log.service';

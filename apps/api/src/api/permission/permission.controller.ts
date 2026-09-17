@@ -3,7 +3,7 @@ import { ApiAuth } from '@/decorators/http.decorators';
 import { CheckAnyPolicies } from '@/decorators/policies.decorator';
 import { AdminAuthGuard } from '@/guards/admin-auth.guard';
 import { PoliciesGuard } from '@/guards/policies.guard';
-import { AppAbility } from '@/libs/casl/ability.factory';
+import { AppAbility } from '@/shared/casl/ability.factory';
 import { AppActions, AppSubjects } from '@/utils/permissions.constant';
 import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
 import { ApiParam, ApiTags } from '@nestjs/swagger';

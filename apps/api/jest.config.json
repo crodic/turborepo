@@ -37,7 +37,6 @@
     "^@/generated(.*)$": "<rootDir>/generated$1",
     "^@/guards(.*)$": "<rootDir>/guards$1",
     "^@/interceptors(.*)$": "<rootDir>/interceptors$1",
-    "^@/libs(.*)$": "<rootDir>/libs$1",
     "^@/mail(.*)$": "<rootDir>/mail$1",
     "^@/redis(.*)$": "<rootDir>/redis$1",
     "^@/shared(.*)$": "<rootDir>/shared$1",

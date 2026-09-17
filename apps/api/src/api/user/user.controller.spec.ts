@@ -1,5 +1,5 @@
 import { AutoIncrementID } from '@/common/types/common.type';
-import { CaslAbilityFactory } from '@/libs/casl/ability.factory';
+import { CaslAbilityFactory } from '@/shared/casl/ability.factory';
 import { Test, TestingModule } from '@nestjs/testing';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
