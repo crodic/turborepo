@@ -2,11 +2,13 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import xior from "xior";
 import { LoginResponseData } from "@/types/apis";
 
 export default function OAuthCallback() {
+  const t = useTranslations("Auth.oauth");
   const router = useRouter();
   const searchParams = useSearchParams();
   const handledRef = useRef(false);
@@ -21,7 +23,7 @@ export default function OAuthCallback() {
     const token = searchParams.get("token");
 
     if (!token) {
-      toast.error("Google sign-in failed. Please try again.");
+      toast.error(t("failedToast"));
       router.replace("/auth/login?social=failed");
       return;
     }
@@ -39,22 +41,20 @@ export default function OAuthCallback() {
         });
 
         window.dispatchEvent(new Event("auth:tokens-updated"));
-        toast.success("Signed in with Google.");
+        toast.success(t("successToast"));
         router.replace("/profile");
       } catch {
-        toast.error("Google sign-in failed. Please try again.");
+        toast.error(t("failedToast"));
         router.replace("/auth/login?social=failed");
       }
     };
 
     void exchangeToken();
-  }, [router, searchParams]);
+  }, [router, searchParams, t]);
 
   return (
     <div className="flex min-h-screen items-center justify-center px-6">
-      <p className="text-muted-foreground text-sm">
-        Finishing Google sign-in...
-      </p>
+      <p className="text-muted-foreground text-sm">{t("loading")}</p>
     </div>
   );
 }

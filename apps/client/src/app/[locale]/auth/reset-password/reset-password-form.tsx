@@ -1,7 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import xior, { XiorError } from "xior";
@@ -26,26 +28,26 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-const resetPasswordFormSchema = z
-  .object({
-    password: z
-      .string()
-      .min(8, { message: "Password must be at least 8 characters" }),
-    confirmPassword: z.string().min(8, {
-      message: "Confirm password must be at least 8 characters",
-    }),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
-
-type ResetPasswordFormValues = z.infer<typeof resetPasswordFormSchema>;
-
 export default function ResetPasswordForm() {
+  const t = useTranslations("Auth.resetPassword");
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+
+  const resetPasswordFormSchema = z
+    .object({
+      password: z.string().min(8, { message: t("validation.passwordMin") }),
+      confirmPassword: z
+        .string()
+        .min(8, { message: t("validation.passwordMin") }),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: t("validation.passwordsMismatch"),
+      path: ["confirmPassword"],
+    });
+
+  type ResetPasswordFormValues = z.infer<typeof resetPasswordFormSchema>;
+
   const form = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(resetPasswordFormSchema),
     defaultValues: {
@@ -56,7 +58,7 @@ export default function ResetPasswordForm() {
 
   async function onSubmit(values: ResetPasswordFormValues) {
     if (!token) {
-      toast.error("Reset link is missing or invalid.");
+      toast.error(t("tokenMissingToast"));
       return;
     }
 
@@ -70,22 +72,19 @@ export default function ResetPasswordForm() {
       router.push("/auth/login?reset=success");
     } catch (error) {
       if (error instanceof XiorError) {
-        toast.error(
-          error.response?.data?.message ||
-            "Could not reset your password. The link may be invalid or expired."
-        );
+        toast.error(error.response?.data?.message || t("errorToast"));
       }
     }
   }
+
+  const isSubmitting = form.formState.isSubmitting;
 
   return (
     <div className="flex flex-col justify-center px-6 py-12 lg:px-16 xl:px-24">
       <Card className="w-100">
         <CardHeader>
-          <CardTitle className="text-2xl">Reset password</CardTitle>
-          <CardDescription>
-            Choose a new password for your account.
-          </CardDescription>
+          <CardTitle className="text-2xl">{t("title")}</CardTitle>
+          <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -95,12 +94,12 @@ export default function ResetPasswordForm() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>New password</FormLabel>
+                    <FormLabel>{t("newPassword")}</FormLabel>
                     <FormControl>
                       <Input
                         type="password"
                         autoComplete="new-password"
-                        disabled={!token}
+                        disabled={!token || isSubmitting}
                         {...field}
                       />
                     </FormControl>
@@ -113,12 +112,12 @@ export default function ResetPasswordForm() {
                 name="confirmPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Confirm password</FormLabel>
+                    <FormLabel>{t("confirmPassword")}</FormLabel>
                     <FormControl>
                       <Input
                         type="password"
                         autoComplete="new-password"
-                        disabled={!token}
+                        disabled={!token || isSubmitting}
                         {...field}
                       />
                     </FormControl>
@@ -127,18 +126,21 @@ export default function ResetPasswordForm() {
                 )}
               />
               {!token ? (
-                <p className="text-destructive text-sm">
-                  This reset link is missing a token. Please request a new one.
-                </p>
+                <p className="text-destructive text-sm">{t("missingToken")}</p>
               ) : null}
               <Button
                 type="submit"
                 className="w-full"
-                disabled={!token || form.formState.isSubmitting}
+                disabled={!token || isSubmitting}
               >
-                {form.formState.isSubmitting
-                  ? "Resetting..."
-                  : "Reset password"}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    {t("submitting")}
+                  </>
+                ) : (
+                  t("submit")
+                )}
               </Button>
             </form>
           </Form>
@@ -148,7 +150,7 @@ export default function ResetPasswordForm() {
             href="/auth/login"
             className="text-primary text-sm hover:underline"
           >
-            Back to sign in
+            {t("backToSignIn")}
           </Link>
         </CardFooter>
       </Card>

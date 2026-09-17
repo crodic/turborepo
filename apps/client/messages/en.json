@@ -178,5 +178,96 @@
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
     "allRightsReserved": "All rights reserved."
+  },
+  "Auth": {
+    "layout": {
+      "welcome": "Welcome to Visel Art",
+      "tagline": "Convert your ideas into a successful business with our modern platform"
+    },
+    "login": {
+      "metaTitle": "Sign In",
+      "metaDescription": "Sign in to access your account",
+      "title": "Sign In",
+      "description": "Enter your credentials to access your account",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "password": "Password",
+      "passwordPlaceholder": "••••••••",
+      "forgotPassword": "Forgot password?",
+      "submit": "Sign In",
+      "submitting": "Signing in...",
+      "continueGoogle": "Continue with Google",
+      "noAccount": "Don't have an account?",
+      "signUp": "Sign up",
+      "toasts": {
+        "verificationSuccess": "Your account has been verified. You can sign in now.",
+        "verificationFailed": "We could not verify your account. The link may be invalid or expired.",
+        "resetSuccess": "Your password has been reset. Please sign in.",
+        "socialFailed": "Google sign-in failed. Please try again.",
+        "loginError": "Login failed. Please check your credentials."
+      }
+    },
+    "signUp": {
+      "metaTitle": "Create Account",
+      "metaDescription": "Create a new account to get started",
+      "title": "Create Account",
+      "description": "Create your account and verify your email before signing in.",
+      "firstName": "First name",
+      "firstNamePlaceholder": "Alex",
+      "lastName": "Last name",
+      "lastNamePlaceholder": "Nguyen",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "submit": "Create account",
+      "submitting": "Creating account...",
+      "alreadyHaveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "successToast": "Account created. Please check your email to verify it.",
+      "errorToast": "Could not create your account. Please try again.",
+      "validation": {
+        "firstNameRequired": "First name is required.",
+        "emailInvalid": "Please enter a valid email address.",
+        "passwordMin": "Password must be at least 8 characters.",
+        "passwordsMismatch": "Passwords do not match."
+      }
+    },
+    "forgotPassword": {
+      "metaTitle": "Forgot Password",
+      "metaDescription": "Request a password reset link",
+      "title": "Forgot password",
+      "description": "Enter your email address and we will send you a reset link.",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "submit": "Send reset link",
+      "submitting": "Sending...",
+      "backToSignIn": "Back to sign in",
+      "successToast": "Password reset email sent. Please check your inbox.",
+      "errorToast": "Could not send reset email. Please try again."
+    },
+    "resetPassword": {
+      "metaTitle": "Reset Password",
+      "metaDescription": "Set a new password for your account",
+      "title": "Reset password",
+      "description": "Choose a new password for your account.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "missingToken": "This reset link is missing a token. Please request a new one.",
+      "submit": "Reset password",
+      "submitting": "Resetting...",
+      "backToSignIn": "Back to sign in",
+      "tokenMissingToast": "Reset link is missing or invalid.",
+      "errorToast": "Could not reset your password. The link may be invalid or expired.",
+      "validation": {
+        "passwordMin": "Password must be at least 8 characters.",
+        "passwordsMismatch": "Passwords do not match."
+      }
+    },
+    "oauth": {
+      "loading": "Finishing Google sign-in...",
+      "successToast": "Signed in with Google successfully.",
+      "failedToast": "Google sign-in failed. Please try again."
+    }
   }
 }

@@ -1,14 +1,17 @@
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { WhiteLabelLogo } from "@/lib/white-label";
+import { getTranslations } from "next-intl/server";
 import Image from "next/image";
 import React from "react";
 
-export default function AuthLayout({
+export default async function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const t = await getTranslations("Auth.layout");
+
   return (
     <section className={cn("min-h-screen w-full")}>
       <div className="grid min-h-screen lg:grid-cols-2">
@@ -38,10 +41,10 @@ export default function AuthLayout({
           </Link>
           <div className="relative z-10 max-w-md">
             <p className="text-muted dark:text-muted-foreground mb-2 text-sm">
-              Welcome to Visel Art
+              {t("welcome")}
             </p>
             <h2 className="text-3xl leading-tight font-semibold tracking-tight md:text-4xl">
-              Convert your ideas into successful business
+              {t("tagline")}
             </h2>
           </div>
         </div>

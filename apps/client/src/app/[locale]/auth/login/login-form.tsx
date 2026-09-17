@@ -28,26 +28,27 @@ import { LoginResponseData } from "@/types/apis";
 import xior, { XiorError } from "xior";
 import { http } from "@/lib/http";
 import { Link } from "@/i18n/navigation";
-
-const loginFormSchema = z.object({
-  email: z.string(),
-  password: z
-    .string()
-    .min(8, { message: "Password must be at least 8 characters" }),
-});
-
-type LoginFormValues = z.infer<typeof loginFormSchema>;
+import { useTranslations } from "next-intl";
+import { Loader2 } from "lucide-react";
 
 export default function LoginForm() {
+  const t = useTranslations("Auth.login");
   const router = useRouter();
   const searchParams = useSearchParams();
   const handledMessageRef = useRef<string | null>(null);
 
+  const loginFormSchema = z.object({
+    email: z.string().min(1, t("email")),
+    password: z.string().min(1, t("password")),
+  });
+
+  type LoginFormValues = z.infer<typeof loginFormSchema>;
+
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
     defaultValues: {
-      email: "kris.bayer79@gmail.com",
-      password: "12345678",
+      email: "",
+      password: "",
     },
   });
 
@@ -64,21 +65,19 @@ export default function LoginForm() {
     handledMessageRef.current = messageKey;
 
     if (verification === "success") {
-      toast.success("Your account has been verified. You can sign in now.");
+      toast.success(t("toasts.verificationSuccess"));
     }
 
     if (verification === "failed") {
-      toast.error(
-        "We could not verify your account. The link may be invalid or expired."
-      );
+      toast.error(t("toasts.verificationFailed"));
     }
 
     if (reset === "success") {
-      toast.success("Your password has been reset. Please sign in.");
+      toast.success(t("toasts.resetSuccess"));
     }
 
     if (social === "failed") {
-      toast.error("Google sign-in failed. Please try again.");
+      toast.error(t("toasts.socialFailed"));
     }
 
     const nextSearchParams = new URLSearchParams(searchParams.toString());
@@ -88,7 +87,7 @@ export default function LoginForm() {
     const nextQuery = nextSearchParams.toString();
 
     router.replace(nextQuery ? `/auth/login?${nextQuery}` : "/auth/login");
-  }, [router, searchParams]);
+  }, [router, searchParams, t]);
 
   async function onSubmit(values: LoginFormValues) {
     try {
@@ -105,21 +104,21 @@ export default function LoginForm() {
       router.push("/profile");
     } catch (error) {
       if (error instanceof XiorError) {
-        toast.error(
-          error.response?.data?.message || "Login failed. Please try again."
-        );
+        toast.error(error.response?.data?.message || t("toasts.loginError"));
+      } else {
+        toast.error(t("toasts.loginError"));
       }
     }
   }
+
+  const isSubmitting = form.formState.isSubmitting;
 
   return (
     <div className="flex flex-col justify-center px-6 py-12 lg:px-16 xl:px-24">
       <Card className="w-100">
         <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>
-            Enter your credentials to access your account
-          </CardDescription>
+          <CardTitle className="text-2xl">{t("title")}</CardTitle>
+          <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -129,9 +128,15 @@ export default function LoginForm() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t("email")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="you@example.com" {...field} />
+                      <Input
+                        type="email"
+                        placeholder={t("emailPlaceholder")}
+                        autoComplete="email"
+                        disabled={isSubmitting}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -142,9 +147,15 @@ export default function LoginForm() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{t("password")}</FormLabel>
                     <FormControl>
-                      <Input type="password" {...field} />
+                      <Input
+                        type="password"
+                        placeholder={t("passwordPlaceholder")}
+                        autoComplete="current-password"
+                        disabled={isSubmitting}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -155,34 +166,41 @@ export default function LoginForm() {
                   href="/auth/forgot-password"
                   className="text-primary text-sm hover:underline"
                 >
-                  Forgot password?
+                  {t("forgotPassword")}
                 </Link>
               </div>
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={form.formState.isSubmitting}
-              >
-                {form.formState.isSubmitting ? "Loading..." : "Login"}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    {t("submitting")}
+                  </>
+                ) : (
+                  t("submit")
+                )}
               </Button>
               <Button
                 type="button"
                 className="w-full"
                 variant="outline"
+                disabled={isSubmitting}
                 onClick={() => {
                   window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/user/auth/social/google`;
                 }}
               >
-                Continue with Google
+                {t("continueGoogle")}
               </Button>
             </form>
           </Form>
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-muted-foreground text-sm">
-            Don&apos;t have an account?{" "}
-            <Link href="/auth/sign-up" className="text-primary hover:underline">
-              Sign up
+            {t("noAccount")}{" "}
+            <Link
+              href="/auth/sign-up"
+              className="text-primary font-medium hover:underline"
+            >
+              {t("signUp")}
             </Link>
           </p>
         </CardFooter>

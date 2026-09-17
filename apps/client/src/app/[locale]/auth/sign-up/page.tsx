@@ -1,9 +1,18 @@
-import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import SignUpForm from "./sign-up-form";
 
-export const metadata: Metadata = {
-  title: "Create account",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "Auth.signUp" });
+  return {
+    title: t("metaTitle"),
+    description: t("metaDescription"),
+  };
+}
 
 export default function Page() {
   return (

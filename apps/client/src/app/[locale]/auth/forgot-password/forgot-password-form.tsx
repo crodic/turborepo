@@ -1,6 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import xior, { XiorError } from "xior";
@@ -25,13 +27,15 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-const forgotPasswordFormSchema = z.object({
-  email: z.email("Please enter a valid email address"),
-});
-
-type ForgotPasswordFormValues = z.infer<typeof forgotPasswordFormSchema>;
-
 export default function ForgotPasswordForm() {
+  const t = useTranslations("Auth.forgotPassword");
+
+  const forgotPasswordFormSchema = z.object({
+    email: z.email(t("email")),
+  });
+
+  type ForgotPasswordFormValues = z.infer<typeof forgotPasswordFormSchema>;
+
   const form = useForm<ForgotPasswordFormValues>({
     resolver: zodResolver(forgotPasswordFormSchema),
     defaultValues: {
@@ -45,26 +49,23 @@ export default function ForgotPasswordForm() {
         `${process.env.NEXT_PUBLIC_API_URL}/api/v1/user/auth/forgot-password`,
         values
       );
-      toast.success("Password reset email sent. Please check your inbox.");
+      toast.success(t("successToast"));
       form.reset();
     } catch (error) {
       if (error instanceof XiorError) {
-        toast.error(
-          error.response?.data?.message ||
-            "Could not send reset email. Please try again."
-        );
+        toast.error(error.response?.data?.message || t("errorToast"));
       }
     }
   }
+
+  const isSubmitting = form.formState.isSubmitting;
 
   return (
     <div className="flex flex-col justify-center px-6 py-12 lg:px-16 xl:px-24">
       <Card className="w-100">
         <CardHeader>
-          <CardTitle className="text-2xl">Forgot password</CardTitle>
-          <CardDescription>
-            Enter your email and we will send you a reset link.
-          </CardDescription>
+          <CardTitle className="text-2xl">{t("title")}</CardTitle>
+          <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -74,12 +75,13 @@ export default function ForgotPasswordForm() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t("email")}</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
-                        placeholder="you@example.com"
+                        placeholder={t("emailPlaceholder")}
                         autoComplete="email"
+                        disabled={isSubmitting}
                         {...field}
                       />
                     </FormControl>
@@ -87,12 +89,15 @@ export default function ForgotPasswordForm() {
                   </FormItem>
                 )}
               />
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={form.formState.isSubmitting}
-              >
-                {form.formState.isSubmitting ? "Sending..." : "Send reset link"}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    {t("submitting")}
+                  </>
+                ) : (
+                  t("submit")
+                )}
               </Button>
             </form>
           </Form>
@@ -102,7 +107,7 @@ export default function ForgotPasswordForm() {
             href="/auth/login"
             className="text-primary text-sm hover:underline"
           >
-            Back to sign in
+            {t("backToSignIn")}
           </Link>
         </CardFooter>
       </Card>

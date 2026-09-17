@@ -1,9 +1,18 @@
-import { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import LoginForm from "./login-form";
 
-export const metadata: Metadata = {
-  title: "Xior Login Page",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "Auth.login" });
+  return {
+    title: t("metaTitle"),
+    description: t("metaDescription"),
+  };
+}
 
 export default function Page() {
   return (

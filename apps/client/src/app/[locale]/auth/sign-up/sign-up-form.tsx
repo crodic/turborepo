@@ -1,7 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import xior, { XiorError } from "xior";
@@ -26,26 +28,28 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-const signUpFormSchema = z
-  .object({
-    firstName: z.string().min(1, { message: "First name is required" }),
-    lastName: z.string().optional(),
-    email: z.email("Please enter a valid email address"),
-    password: z
-      .string()
-      .min(8, { message: "Password must be at least 8 characters" }),
-    confirmPassword: z.string().min(8, {
-      message: "Confirm password must be at least 8 characters",
-    }),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
-
-type SignUpFormValues = z.infer<typeof signUpFormSchema>;
-
 export default function SignUpForm() {
+  const t = useTranslations("Auth.signUp");
+
+  const signUpFormSchema = z
+    .object({
+      firstName: z
+        .string()
+        .min(1, { message: t("validation.firstNameRequired") }),
+      lastName: z.string().optional(),
+      email: z.email(t("validation.emailInvalid")),
+      password: z.string().min(8, { message: t("validation.passwordMin") }),
+      confirmPassword: z
+        .string()
+        .min(8, { message: t("validation.passwordMin") }),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: t("validation.passwordsMismatch"),
+      path: ["confirmPassword"],
+    });
+
+  type SignUpFormValues = z.infer<typeof signUpFormSchema>;
+
   const router = useRouter();
   const form = useForm<SignUpFormValues>({
     resolver: zodResolver(signUpFormSchema),
@@ -69,26 +73,23 @@ export default function SignUpForm() {
           password: values.password,
         }
       );
-      toast.success("Account created. Please check your email to verify it.");
+      toast.success(t("successToast"));
       router.push("/auth/login");
     } catch (error) {
       if (error instanceof XiorError) {
-        toast.error(
-          error.response?.data?.message ||
-            "Could not create your account. Please try again."
-        );
+        toast.error(error.response?.data?.message || t("errorToast"));
       }
     }
   }
+
+  const isSubmitting = form.formState.isSubmitting;
 
   return (
     <div className="flex flex-col justify-center px-6 py-12 lg:px-16 xl:px-24">
       <Card className="w-100">
         <CardHeader>
-          <CardTitle className="text-2xl">Create account</CardTitle>
-          <CardDescription>
-            Create your account and verify your email before signing in.
-          </CardDescription>
+          <CardTitle className="text-2xl">{t("title")}</CardTitle>
+          <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -99,11 +100,12 @@ export default function SignUpForm() {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First name</FormLabel>
+                      <FormLabel>{t("firstName")}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Alex"
+                          placeholder={t("firstNamePlaceholder")}
                           autoComplete="given-name"
+                          disabled={isSubmitting}
                           {...field}
                         />
                       </FormControl>
@@ -116,11 +118,12 @@ export default function SignUpForm() {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last name</FormLabel>
+                      <FormLabel>{t("lastName")}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Nguyen"
+                          placeholder={t("lastNamePlaceholder")}
                           autoComplete="family-name"
+                          disabled={isSubmitting}
                           {...field}
                         />
                       </FormControl>
@@ -134,12 +137,13 @@ export default function SignUpForm() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t("email")}</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
-                        placeholder="you@example.com"
+                        placeholder={t("emailPlaceholder")}
                         autoComplete="email"
+                        disabled={isSubmitting}
                         {...field}
                       />
                     </FormControl>
@@ -152,11 +156,12 @@ export default function SignUpForm() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{t("password")}</FormLabel>
                     <FormControl>
                       <Input
                         type="password"
                         autoComplete="new-password"
+                        disabled={isSubmitting}
                         {...field}
                       />
                     </FormControl>
@@ -169,11 +174,12 @@ export default function SignUpForm() {
                 name="confirmPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Confirm password</FormLabel>
+                    <FormLabel>{t("confirmPassword")}</FormLabel>
                     <FormControl>
                       <Input
                         type="password"
                         autoComplete="new-password"
+                        disabled={isSubmitting}
                         {...field}
                       />
                     </FormControl>
@@ -181,21 +187,27 @@ export default function SignUpForm() {
                   </FormItem>
                 )}
               />
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={form.formState.isSubmitting}
-              >
-                {form.formState.isSubmitting ? "Creating..." : "Create account"}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    {t("submitting")}
+                  </>
+                ) : (
+                  t("submit")
+                )}
               </Button>
             </form>
           </Form>
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-muted-foreground text-sm">
-            Already have an account?{" "}
-            <Link href="/auth/login" className="text-primary hover:underline">
-              Sign in
+            {t("alreadyHaveAccount")}{" "}
+            <Link
+              href="/auth/login"
+              className="text-primary font-medium hover:underline"
+            >
+              {t("signIn")}
             </Link>
           </p>
         </CardFooter>

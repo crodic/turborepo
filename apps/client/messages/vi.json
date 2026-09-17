@@ -178,5 +178,96 @@
     "privacy": "Chính sách bảo mật",
     "terms": "Điều khoản sử dụng",
     "allRightsReserved": "Đã đăng ký bản quyền."
+  },
+  "Auth": {
+    "layout": {
+      "welcome": "Chào mừng đến với Visel Art",
+      "tagline": "Biến ý tưởng của bạn thành hiện thực với nền tảng hiện đại"
+    },
+    "login": {
+      "metaTitle": "Đăng nhập",
+      "metaDescription": "Đăng nhập vào tài khoản của bạn",
+      "title": "Đăng nhập",
+      "description": "Nhập thông tin xác thực để truy cập tài khoản của bạn",
+      "email": "Email",
+      "emailPlaceholder": "name@example.com",
+      "password": "Mật khẩu",
+      "passwordPlaceholder": "••••••••",
+      "forgotPassword": "Quên mật khẩu?",
+      "submit": "Đăng nhập",
+      "submitting": "Đang đăng nhập...",
+      "continueGoogle": "Tiếp tục với Google",
+      "noAccount": "Chưa có tài khoản?",
+      "signUp": "Đăng ký",
+      "toasts": {
+        "verificationSuccess": "Tài khoản của bạn đã được xác thực thành công. Bạn có thể đăng nhập ngay bây giờ.",
+        "verificationFailed": "Không thể xác thực tài khoản. Liên kết có thể không hợp lệ hoặc đã hết hạn.",
+        "resetSuccess": "Mật khẩu đã được đặt lại thành công. Vui lòng đăng nhập.",
+        "socialFailed": "Đăng nhập bằng Google thất bại. Vui lòng thử lại.",
+        "loginError": "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin."
+      }
+    },
+    "signUp": {
+      "metaTitle": "Đăng ký tài khoản",
+      "metaDescription": "Tạo tài khoản mới để bắt đầu sử dụng",
+      "title": "Tạo tài khoản",
+      "description": "Đăng ký tài khoản và xác thực email trước khi đăng nhập.",
+      "firstName": "Tên",
+      "firstNamePlaceholder": "Văn",
+      "lastName": "Họ",
+      "lastNamePlaceholder": "Nguyễn",
+      "email": "Email",
+      "emailPlaceholder": "name@example.com",
+      "password": "Mật khẩu",
+      "confirmPassword": "Xác nhận mật khẩu",
+      "submit": "Đăng ký tài khoản",
+      "submitting": "Đang tạo tài khoản...",
+      "alreadyHaveAccount": "Đã có tài khoản?",
+      "signIn": "Đăng nhập",
+      "successToast": "Tạo tài khoản thành công. Vui lòng kiểm tra email để xác thực.",
+      "errorToast": "Không thể tạo tài khoản. Vui lòng thử lại.",
+      "validation": {
+        "firstNameRequired": "Vui lòng nhập tên.",
+        "emailInvalid": "Vui lòng nhập địa chỉ email hợp lệ.",
+        "passwordMin": "Mật khẩu phải có ít nhất 8 ký tự.",
+        "passwordsMismatch": "Mật khẩu xác nhận không khớp."
+      }
+    },
+    "forgotPassword": {
+      "metaTitle": "Quên mật khẩu",
+      "metaDescription": "Yêu cầu liên kết đặt lại mật khẩu",
+      "title": "Quên mật khẩu",
+      "description": "Nhập địa chỉ email của bạn để nhận liên kết đặt lại mật khẩu.",
+      "email": "Email",
+      "emailPlaceholder": "name@example.com",
+      "submit": "Gửi liên kết đặt lại",
+      "submitting": "Đang gửi...",
+      "backToSignIn": "Quay lại đăng nhập",
+      "successToast": "Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư.",
+      "errorToast": "Không thể gửi email đặt lại. Vui lòng thử lại."
+    },
+    "resetPassword": {
+      "metaTitle": "Đặt lại mật khẩu",
+      "metaDescription": "Thiết lập mật khẩu mới cho tài khoản",
+      "title": "Đặt lại mật khẩu",
+      "description": "Chọn mật khẩu mới cho tài khoản của bạn.",
+      "newPassword": "Mật khẩu mới",
+      "confirmPassword": "Xác nhận mật khẩu",
+      "missingToken": "Liên kết đặt lại thiếu token. Vui lòng yêu cầu liên kết mới.",
+      "submit": "Đặt lại mật khẩu",
+      "submitting": "Đang xử lý...",
+      "backToSignIn": "Quay lại đăng nhập",
+      "tokenMissingToast": "Liên kết đặt lại không hợp lệ hoặc thiếu thông tin.",
+      "errorToast": "Không thể đặt lại mật khẩu. Liên kết có thể không hợp lệ hoặc đã hết hạn.",
+      "validation": {
+        "passwordMin": "Mật khẩu phải có ít nhất 8 ký tự.",
+        "passwordsMismatch": "Mật khẩu xác nhận không khớp."
+      }
+    },
+    "oauth": {
+      "loading": "Đang hoàn tất đăng nhập bằng Google...",
+      "successToast": "Đăng nhập bằng Google thành công.",
+      "failedToast": "Đăng nhập Google thất bại. Vui lòng thử lại."
+    }
   }
 }
