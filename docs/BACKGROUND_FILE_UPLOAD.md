@@ -1,17 +1,17 @@
 # Background File Upload Architecture
 
-Tài liệu này mô tả kiến trúc xử lý file ngầm (Background File Upload) dùng để giải quyết các bài toán liên quan đến việc upload hàng loạt file cùng lúc (vd: Post Collections, Image Gallery, Batch Import...).
+This document describes the background file upload architecture designed to handle bulk file uploads (e.g., Post Collections, Image Galleries, Batch Imports, etc.).
 
-## 1. Vấn đề
+## 1. Problem Statement
 
-Khi client yêu cầu upload 10, 50 hay 100 file ảnh cùng một lúc:
+When a client needs to upload 10, 50, or 100 images simultaneously:
 
-- Nếu gọi hàm upload liên tiếp ở request cycle, Server sẽ bị **quá tải RAM** (vì giữ toàn bộ file trên Buffer), kéo dài thời gian phản hồi API gây ra lỗi **Timeout**.
-- Nếu dùng hàng đợi nhưng các Service (vd: Post, Gallery) gọi vòng tới FileModule, kiến trúc sẽ bị **coupled (dính chặt vào nhau)**, rất khó bảo trì.
+- Processing uploads synchronously in the HTTP request cycle overloads server RAM (retaining entire files in Buffer) and delays response times, leading to gateway timeouts.
+- Tightly coupling domain services (e.g., Post, Gallery) with storage modules makes the codebase brittle and hard to maintain.
 
-## 2. Kiến trúc giải quyết
+## 2. Solution Architecture
 
-Hệ thống kết hợp **BullMQ** (cho background jobs) và **EventEmitter** (cho mô hình Pub/Sub), giúp decouple hoàn toàn các Module.
+The system combines **BullMQ** (for queue-based background processing) and **EventEmitter** (for the Pub/Sub model), completely decoupling the business modules from file processing.
 
 ```mermaid
 sequenceDiagram
@@ -24,27 +24,27 @@ sequenceDiagram
     participant DB Listener (PostService)
 
     Client->>Controller (e.g. Post): POST /images (multipart)
-    Note over Controller (e.g. Post): Multer lưu file tạm xuống Disk (diskStorage)
+    Note over Controller (e.g. Post): Multer saves temp file to disk (diskStorage)
     Controller (e.g. Post)->>FileQueue (BullMQ): queueFileUpload(filePath, metadata, callbackEvent)
-    Controller (e.g. Post)-->>Client: 202 Accepted (Đang xử lý ngầm)
+    Controller (e.g. Post)-->>Client: 202 Accepted (Processing in background)
 
-    FileQueue (BullMQ)->>FileProcessor: Phân phối Job
-    FileProcessor->>Storage (S3/Disk): Upload từ đường dẫn tạm
-    Storage (S3/Disk)-->>FileProcessor: Trả về URL
-    Note over FileProcessor: Xóa file tạm ở ổ cứng
+    FileQueue (BullMQ)->>FileProcessor: Dispatch Job
+    FileProcessor->>Storage (S3/Disk): Upload from temporary path
+    Storage (S3/Disk)-->>FileProcessor: Return public URL
+    Note over FileProcessor: Delete temp file from disk
 
     FileProcessor->>Event Emitter: emit(callbackEvent, fileInfo, metadata)
-    Event Emitter->>DB Listener (PostService): Kích hoạt listener
-    DB Listener (PostService)->>DB Listener (PostService): UPDATE/INSERT vào Database
+    Event Emitter->>DB Listener (PostService): Trigger listener
+    DB Listener (PostService)->>DB Listener (PostService): UPDATE/INSERT into Database
 ```
 
-## 3. Hướng dẫn sử dụng (HDSD)
+## 3. Integration Guide
 
-Để tích hợp hệ thống upload ngầm vào tính năng mới, bạn thực hiện theo 2 bước sau:
+To integrate background file uploading into a new feature, follow these two steps:
 
-### Bước 1: Tiếp nhận Request và Đẩy vào Queue
+### Step 1: Accept the Request and Push to Queue
 
-Tại Controller, bắt buộc sử dụng **`diskStorage`** để multer lưu file xuống ổ đĩa tạm (không dùng memoryStorage), sau đó dùng `FileQueueService` để xếp hàng (queue).
+In your Controller, use **`diskStorage`** with Multer to stream incoming files to temporary disk storage (avoid using `memoryStorage`), then queue the job using `FileQueueService`.
 
 ```typescript
 import {
@@ -65,7 +65,6 @@ export class PostController {
   constructor(private readonly fileQueueService: FileQueueService) {}
 
   @Post(':id/gallery')
-  // Cấu hình lưu file tạm xuống thư mục tmp
   @UseInterceptors(
     FilesInterceptor('files', 50, {
       storage: diskStorage({
@@ -79,19 +78,18 @@ export class PostController {
     @Param('id') postId: number,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
-    // Duyệt qua file và ném vào Queue
     for (const file of files) {
       await this.fileQueueService.queueFileUpload({
         filePath: file.path,
         originalName: file.originalname,
         mimetype: file.mimetype,
         size: file.size,
-        destinationPath: `posts/${postId}/gallery`, // Thư mục lưu trữ đích trên Storage/S3
+        destinationPath: `posts/${postId}/gallery`, // Destination folder on Storage/S3
 
-        // ĐIỂM MẤU CHỐT: Khai báo event sẽ được gọi khi up thành công
+        // Key point: specify the event emitted on successful upload
         callbackEventName: 'post.gallery.uploaded',
 
-        // Thông tin bạn cần bảo lưu để cập nhật DB sau này
+        // Metadata needed to persist or associate in the database later
         metadata: { postId },
       });
     }
@@ -101,9 +99,9 @@ export class PostController {
 }
 ```
 
-### Bước 2: Bắt Event và Cập nhật Database
+### Step 2: Listen to the Event and Update Database
 
-Tại Service của bạn (ví dụ `PostService`), đăng ký listener thông qua decorator `@OnEvent()` bằng đúng tên bạn truyền ở `callbackEventName` phía trên.
+In your domain service (e.g., `PostService`), register an `@OnEvent()` listener matching the `callbackEventName` provided above.
 
 ```typescript
 import { Injectable, Logger } from '@nestjs/common';
@@ -121,11 +119,11 @@ export class PostService {
     metadata: any;
   }) {
     const { postId } = payload.metadata;
-    const fileUrl = payload.file.path; // Link sau khi upload xong
+    const fileUrl = payload.file.path; // URL after upload completes
 
     this.logger.log(`Received uploaded image for post ${postId}: ${fileUrl}`);
 
-    // => Thực hiện query lưu URL vào Database tại đây
+    // Persist URL/record in Database here:
     // await this.galleryRepo.save({ postId, imageUrl: fileUrl });
   }
 }
@@ -133,7 +131,7 @@ export class PostService {
 
 ---
 
-**Các lưu ý:**
+## 4. Operational Considerations
 
-- Bắt buộc phải có giải pháp dọn dẹp thư mục tạm (`/tmp/uploads`) định kỳ bằng cronjob đề phòng trường hợp node process bị sập bất thình lình, không kịp gọi hàm xóa file tạm ở Queue. Mặc định `FileProcessor` sẽ xóa khi upload thành công.
-- Cấu hình số lượng tác vụ chạy song song (concurrency) được thiết lập tại `FileProcessor` trong decorator `@Processor()`. Tùy theo sức chịu tải của Server (CPU/Disk I/O) mà điều chỉnh cho phù hợp.
+- Ensure a periodic cleanup cronjob is configured for temporary upload directories (`/tmp/uploads`) in case a process terminates unexpectedly before `FileProcessor` can delete the temporary file. Under normal conditions, `FileProcessor` automatically cleans up temporary files upon job completion.
+- Concurrency for file processing is configured via the `@Processor()` decorator in `FileProcessor`. Adjust concurrency according to server capacity (CPU/Disk I/O).

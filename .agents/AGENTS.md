@@ -43,5 +43,5 @@ This document defines project-specific guidelines and rules for working with thi
 ## 5. Git & Release Workflow
 
 - **Commit Convention**: Commit messages MUST follow Conventional Commits (e.g., `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
-- **Release Automation**: Releases are managed by `semantic-release` via [.releaserc.js](file:///.releaserc.js) and GitHub Actions [.github/workflows/release.yml](file:///.github/workflows/release.yml). Refer to [RELEASE.md](file:///RELEASE.md) for full release guidelines.
-- **Scripts**: Helper scripts are stored in `./scripts/` (`setup.sh`, `config.sh`, `clear-storage.sh`). Always execute scripts via `pnpm run setup` or `pnpm run config`.
+- **Release Automation**: Releases are managed by `semantic-release` via [.releaserc.js](file:///.releaserc.js) and GitHub Actions [.github/workflows/release.yml](file:///.github/workflows/release.yml). Refer to [docs/RELEASE.md](file:///docs/RELEASE.md) for full release guidelines.
+- **Scripts**: Helper scripts are stored in `./scripts/` (`setup.sh`, `clear-storage.sh`). Always execute setup via `pnpm run setup`.

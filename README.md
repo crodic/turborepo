@@ -36,51 +36,36 @@ pnpm install
 
 The repo uses one root `pnpm-lock.yaml`. Do not run a separate install that creates nested lockfiles inside `apps/api`, `apps/client`, or `apps/web`.
 
-## One-command Setup
+## Project Setup
 
-For a new local machine that should use Docker for local infrastructure, run:
+The project includes an interactive setup wizard that configures environment files, dependencies, database, infrastructure, and type checks:
 
 ```bash
 pnpm run setup
 ```
 
-The setup script will:
+When run in a terminal, an interactive prompt will appear:
 
-- Copy `apps/api/.env.example` to `apps/api/.env` when missing.
-- Copy `apps/client/.env.example` to `apps/client/.env` when missing.
-- Copy `apps/web/.env.example` to `apps/web/.env` when missing.
-- Install dependencies.
-- Start PostgreSQL, Redis, Mailpit, and pgAdmin with Docker Compose when Docker is available.
-- Create the database when it does not exist.
-- Run migrations.
-- Run seeds.
-- Sync permissions from source constants.
-- Run type checks.
+1. **Full Setup with Docker (Recommended)**: Starts PostgreSQL, Redis, Mailpit, and pgAdmin containers, sets up the database, runs migrations/seeds, syncs permissions, clears local storage, and runs type checks.
+2. **Local Setup without Docker**: Connects to your machine's existing PostgreSQL and Redis instances, runs database initialization, and performs type checks.
+3. **Database & Permissions Only**: Fast refresh that runs database migrations, seeds, permission sync, and storage clear without re-installing dependencies or checking types.
+4. **Reset Database (Drop & Fresh Migration + Seed)**: Drops all database schema tables and runs fresh migrations, seeds, and permissions sync (requires confirmation, ⚠️ permanent data loss).
+5. **Custom Setup**: Interactively select each step (env files, dependencies, Docker, database, storage, type checks).
 
-The script is safe to run more than once. It does not overwrite existing `.env` files, TypeORM skips applied migrations, and database creation skips existing databases.
+### CLI Flags (Automation / CI)
 
-## Setup Without Docker
-
-Use this flow when your machine already has the required services installed and running locally, for example PostgreSQL and Redis.
+You can bypass the interactive menu by passing flags directly:
 
 ```bash
-pnpm run config
+pnpm run setup --docker      # Full setup with Docker
+pnpm run setup --no-docker   # Setup with local PostgreSQL & Redis (alias: `pnpm run config`)
+pnpm run setup --db-only     # Database migrations, seeds, and permissions sync only
+pnpm run setup --reset-db    # Reset database schema, fresh migrations & seeds (alias: `pnpm run db:reset`)
+pnpm run setup --skip-types  # Skip workspace type check step
+pnpm run setup --help        # Show usage guide
 ```
 
-The config script will:
-
-- Copy `apps/api/.env.example` to `apps/api/.env` when missing.
-- Copy `apps/client/.env.example` to `apps/client/.env` when missing.
-- Copy `apps/web/.env.example` to `apps/web/.env` when missing.
-- Install dependencies.
-- Use the service connection values from `apps/api/.env`.
-- Create the database when it does not exist.
-- Run migrations.
-- Run seeds.
-- Sync permissions from source constants.
-- Run type checks.
-
-This script never starts Docker services. Before running it, make sure local PostgreSQL and Redis are already running and that `apps/api/.env` points to the correct host, port, username, password, and database name. It is safe to run more than once for the same reasons as `pnpm run setup`.
+The standard setup options (1, 2, 3) are idempotent and safe to run multiple times: they preserve existing `.env` files, keep existing database data, and skip already-applied migrations. Only Option 4 (`--reset-db`) drops and recreates schema tables.
 
 ## Environment Setup
 
@@ -334,7 +319,7 @@ Published images:
 - `ghcr.io/<owner>/<repo>-client`
 - `ghcr.io/<owner>/<repo>-web`
 
-Deployment instructions are documented in [DELOYMENT.md](./DELOYMENT.md).
+Deployment instructions are documented in [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
 
 ## Adding Packages
 
@@ -381,6 +366,14 @@ Husky runs from the root:
 - `commit-msg`: `pnpm exec commitlint --edit "$1"`
 
 Commit messages follow conventional commits.
+
+## Documentation & Guides
+
+- [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) - Production deployment guide (Docker, database migrations, CI/CD).
+- [docs/RELEASE.md](./docs/RELEASE.md) - Release automation and Conventional Commits guide.
+- [docs/DATATABLE.md](./docs/DATATABLE.md) - TanStack Table architecture and usage guide for the admin portal.
+- [docs/SORTABLE.md](./docs/SORTABLE.md) - Sortable image upload and reordering guide (client & API).
+- [docs/BACKGROUND_FILE_UPLOAD.md](./docs/BACKGROUND_FILE_UPLOAD.md) - Background file upload architecture using BullMQ and EventEmitter.
 
 ## Notes
 

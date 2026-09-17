@@ -1,13 +1,16 @@
-# Crodic Framework
+# NestJS API
 
-A NestJS backend using PostgreSQL, Redis, TypeORM, BullMQ, and Mailpit.
+The backend REST API for the monorepo, built with NestJS, PostgreSQL, Redis, TypeORM, BullMQ, and Mailpit.
+
+> **Note**: For root monorepo commands and orchestrations, refer to the root [README.md](../../README.md).
 
 ## Prerequisites
 
 - Docker and Docker Compose
 - Git
+- Node.js `20.19.0` and pnpm `10.30.3` (when running outside Docker)
 
-Node.js, pnpm, PostgreSQL, Redis, Mailpit, and pgAdmin are provided by Docker for local development.
+Node.js, pnpm, PostgreSQL, Redis, Mailpit, and pgAdmin can also be provided by Docker for local development.
 
 ## Local Docker Setup
 
@@ -17,35 +20,37 @@ Copy the example environment file and adjust values as needed:
 cp .env.example .env
 ```
 
-Start the full local stack:
+Start the local stack from repo root:
 
 ```bash
-docker compose up -d
+pnpm docker:dev
+# Or run with docker compose directly:
+docker compose -f apps/api/docker-compose.yml up -d
 ```
 
 Follow the app logs:
 
 ```bash
-docker compose logs -f app
+docker compose -f apps/api/docker-compose.yml logs -f app
 ```
 
 Stop the stack:
 
 ```bash
-docker compose down
+docker compose -f apps/api/docker-compose.yml down
 ```
 
 Remove local database, Redis, and pgAdmin volumes when you need a clean reset:
 
 ```bash
-docker compose down -v
+docker compose -f apps/api/docker-compose.yml down -v
 ```
 
 ## Local Services
 
-- API: http://localhost:3000
-- Swagger, in development: http://localhost:3000/api-docs
-- Bull Board: http://localhost:3000/api/queues
+- API: http://localhost:8000
+- Swagger, in development: http://localhost:8000/api-docs
+- Bull Board: http://localhost:8000/api/queues
 - Mailpit: http://localhost:8025
 - pgAdmin: http://localhost:5050
 
@@ -204,14 +209,14 @@ docker compose run --rm app pnpm exec eslint "{src,apps,libs,test}/**/*.ts"
 Build the production image locally:
 
 ```bash
-docker build --target production -t api:local .
+docker build -f apps/api/Dockerfile --target production -t api:local .
 ```
 
 Run the production image against the local Compose dependencies for a smoke test:
 
 ```bash
-docker compose up -d postgres redis mailpit
-docker run --rm --env-file .env --network web-server-pgsql_app-network -p 3000:3000 api:local
+docker compose -f apps/api/docker-compose.yml up -d postgres redis mailpit
+docker run --rm --env-file apps/api/.env -p 8000:8000 api:local
 ```
 
 ## Production Compose
