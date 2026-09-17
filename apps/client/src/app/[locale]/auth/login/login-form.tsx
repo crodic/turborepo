@@ -102,7 +102,7 @@ export default function LoginForm() {
         refreshToken,
       });
       window.dispatchEvent(new Event("auth:tokens-updated"));
-      router.push("/client-profile");
+      router.push("/profile");
     } catch (error) {
       if (error instanceof XiorError) {
         toast.error(

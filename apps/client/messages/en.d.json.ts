@@ -9,5 +9,102 @@ declare const messages: {
     en: "English";
     vi: "Vietnamese";
   };
+  Navigation: {
+    home: "Home";
+    profile: "Profile";
+    accountSettings: "Account Settings";
+    signIn: "Sign In";
+    signUp: "Sign Up";
+    logout: "Log out";
+  };
+  Profile: {
+    pageTitle: "Account Profile";
+    pageDescription: "Manage your personal details, password security, and connected accounts.";
+    tabs: {
+      general: "General Information";
+      security: "Security & Accounts";
+    };
+    memberSince: "Member since";
+    verified: "Verified";
+    unverified: "Unverified";
+    role: "Member";
+    loading: "Loading profile details...";
+    errorLoading: "Failed to load profile details. Please try again.";
+  };
+  GeneralInfo: {
+    title: "Personal Information";
+    description: "Update your name and personal details.";
+    firstName: "First name";
+    firstNamePlaceholder: "Enter your first name";
+    lastName: "Last name";
+    lastNamePlaceholder: "Enter your last name";
+    email: "Email address";
+    emailReadonlyHint: "Your email address is managed through your authentication provider and cannot be changed here.";
+    saveChanges: "Save changes";
+    saving: "Saving...";
+    success: "Profile updated successfully.";
+    error: "Failed to update profile. Please try again.";
+    validation: {
+      firstNameRequired: "First name is required.";
+      firstNameMax: "First name cannot exceed 100 characters.";
+      lastNameRequired: "Last name is required.";
+      lastNameMax: "Last name cannot exceed 100 characters.";
+    };
+  };
+  Security: {
+    title: "Security & Authentication";
+    description: "Manage your password, login credentials, and connected OAuth providers.";
+    password: {
+      changeTitle: "Change Password";
+      changeDescription: "Ensure your account is protected with a strong, secure password.";
+      currentPassword: "Current Password";
+      currentPasswordPlaceholder: "Enter current password";
+      newPassword: "New Password";
+      newPasswordPlaceholder: "Enter new password (min. 8 characters)";
+      confirmNewPassword: "Confirm New Password";
+      confirmNewPasswordPlaceholder: "Re-enter new password";
+      submitChange: "Update Password";
+      updating: "Updating...";
+      changeSuccess: "Password updated successfully.";
+      changeError: "Failed to update password. Please check your current password and try again.";
+      setupTitle: "Set Up Password";
+      setupDescription: "Add a password so you can sign in directly with email and password alongside Google.";
+      password: "Password";
+      passwordPlaceholder: "Enter password (min. 8 characters)";
+      confirmPassword: "Confirm Password";
+      confirmPasswordPlaceholder: "Re-enter password";
+      submitSetup: "Set Password";
+      settingUp: "Setting up...";
+      setupSuccess: "Password configured successfully.";
+      setupError: "Failed to set up password. Please try again.";
+      validation: {
+        currentRequired: "Current password is required.";
+        min: "Password must be at least 8 characters.";
+        match: "Passwords do not match.";
+      };
+    };
+    social: {
+      title: "Connected Accounts";
+      description: "Link external services to sign in quickly and securely.";
+      google: "Google";
+      googleDescription: "Sign in with your Google account credentials";
+      linked: "Linked";
+      notLinked: "Not linked";
+      linkGoogle: "Connect Google";
+      linking: "Connecting...";
+      linkSuccess: "Google account connected successfully.";
+      linkError: "Could not connect Google account.";
+    };
+    session: {
+      title: "Session Management";
+      description: "Log out from your current browser session.";
+      signOut: "Log Out";
+      signingOut: "Signing out...";
+      confirmTitle: "Sign out of your account?";
+      confirmDescription: "You will need to sign in again to access your account profile.";
+      cancel: "Cancel";
+      confirm: "Yes, log out";
+    };
+  };
 };
 export default messages;

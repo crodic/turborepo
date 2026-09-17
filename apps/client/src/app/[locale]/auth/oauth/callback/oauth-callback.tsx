@@ -40,7 +40,7 @@ export default function OAuthCallback() {
 
         window.dispatchEvent(new Event("auth:tokens-updated"));
         toast.success("Signed in with Google.");
-        router.replace("/client-profile");
+        router.replace("/profile");
       } catch {
         toast.error("Google sign-in failed. Please try again.");
         router.replace("/auth/login?social=failed");

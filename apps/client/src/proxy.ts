@@ -15,7 +15,7 @@ const AUTH_ROUTE = [
   "/auth/oauth/callback",
 ];
 const AUTH_CALLBACK_ROUTE = ["/auth/oauth/callback"];
-const PRIVATE_ROUTE = ["/client-profile"];
+const PRIVATE_ROUTE = ["/profile"];
 const handleI18nRouting = createMiddleware(routing);
 
 export async function proxy(request: NextRequest) {
@@ -39,10 +39,9 @@ export async function proxy(request: NextRequest) {
     }
 
     if (AUTH_ROUTE.includes(pathname) && refreshToken) {
-      return NextResponse.redirect(
-        new URL(`/${locale}/client-profile`, request.url),
-        { headers: intlResponse.headers }
-      );
+      return NextResponse.redirect(new URL(`/${locale}/profile`, request.url), {
+        headers: intlResponse.headers,
+      });
     }
 
     if (PRIVATE_ROUTE.includes(pathname)) {

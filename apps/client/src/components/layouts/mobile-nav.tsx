@@ -10,6 +10,7 @@ import {
   productLinks,
 } from "@/components/layouts/nav-links";
 import { LinkItem } from "@/components/layouts/sheard";
+import { Link } from "@/i18n/navigation";
 
 export function MobileNav() {
   const [open, setOpen] = React.useState(false);
@@ -86,10 +87,21 @@ export function MobileNav() {
                 ))}
               </div>
               <div className="mt-5 flex flex-col gap-2">
-                <Button className="w-full" variant="outline">
-                  Sign In
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  asChild
+                  onClick={() => setOpen(false)}
+                >
+                  <Link href="/auth/login">Sign In</Link>
                 </Button>
-                <Button className="w-full">Get Started</Button>
+                <Button
+                  className="w-full"
+                  asChild
+                  onClick={() => setOpen(false)}
+                >
+                  <Link href="/auth/sign-up">Get Started</Link>
+                </Button>
               </div>
             </div>
           </div>,

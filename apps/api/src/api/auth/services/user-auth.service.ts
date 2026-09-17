@@ -237,7 +237,7 @@ export class UserAuthService extends AuthService<
 
     if (oauthState?.mode === 'link') {
       await this.linkSocialAccount(oauthState.userId, profile);
-      return this.socialAuthService.buildClientRedirectUrl('/client-profile', {
+      return this.socialAuthService.buildClientRedirectUrl('/profile', {
         social: 'linked',
       });
     }
