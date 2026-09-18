@@ -46,7 +46,7 @@ export async function proxy(request: NextRequest) {
 
     if (PRIVATE_ROUTE.includes(pathname)) {
       if (refreshToken && !accessToken) {
-        return await refreshTokenMiddleware(request, intlResponse);
+        return await refreshTokenMiddleware(request, intlResponse, true);
       }
 
       if (!refreshToken) {
@@ -81,13 +81,13 @@ export async function proxy(request: NextRequest) {
         const oneMinuteLater = now + 1 * 60 * 1000;
 
         if (tokenExpiresAt < oneMinuteLater) {
-          return await refreshTokenMiddleware(request, intlResponse);
+          return await refreshTokenMiddleware(request, intlResponse, true);
         }
       }
     }
 
     if (refreshToken && !accessToken) {
-      return await refreshTokenMiddleware(request, intlResponse);
+      return await refreshTokenMiddleware(request, intlResponse, false);
     }
 
     return NextResponse.next({ headers: intlResponse.headers });
@@ -98,7 +98,8 @@ export async function proxy(request: NextRequest) {
 
 const refreshTokenMiddleware = async (
   request: NextRequest,
-  intlResponse: NextResponse
+  intlResponse: NextResponse,
+  redirectOnFailure: boolean
 ) => {
   const refreshToken = request.cookies.get("refreshToken")?.value || "";
   try {
@@ -113,7 +114,10 @@ const refreshTokenMiddleware = async (
     const { exp: expRefreshToken } = decodeToken(newRefreshToken) as JWTPayload;
 
     if (!expAccessToken || !expRefreshToken) {
-      return unauthorizedResponse(request, intlResponse);
+      if (redirectOnFailure) {
+        return unauthorizedResponse(request, intlResponse);
+      }
+      return clearCookiesAndContinue(intlResponse);
     }
 
     const response = intlResponse;
@@ -135,7 +139,10 @@ const refreshTokenMiddleware = async (
     return response;
   } catch (error) {
     console.log(error);
-    return unauthorizedResponse(request, intlResponse);
+    if (redirectOnFailure) {
+      return unauthorizedResponse(request, intlResponse);
+    }
+    return clearCookiesAndContinue(intlResponse);
   }
 };
 
@@ -146,6 +153,13 @@ const unauthorizedResponse = (
   const response = NextResponse.redirect(new URL("/auth/login", request.url), {
     headers: intlResponse.headers,
   });
+  response.cookies.delete("accessToken");
+  response.cookies.delete("refreshToken");
+  return response;
+};
+
+const clearCookiesAndContinue = (intlResponse: NextResponse) => {
+  const response = NextResponse.next({ headers: intlResponse.headers });
   response.cookies.delete("accessToken");
   response.cookies.delete("refreshToken");
   return response;
