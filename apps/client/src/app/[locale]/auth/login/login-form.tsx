@@ -27,15 +27,24 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { LoginResponseData } from "@/types/apis";
 import xior, { XiorError } from "xior";
 import { http } from "@/lib/http";
-import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AUTH_CODE, AUTH_QUERY_PARAM, AuthCode } from "@/constants/auth";
+import { Link } from "@/i18n/navigation";
 
 export default function LoginForm() {
   const t = useTranslations("Auth.login");
   const router = useRouter();
   const searchParams = useSearchParams();
   const handledMessageRef = useRef<string | null>(null);
+
+  const rawCode = searchParams.get(AUTH_QUERY_PARAM.CODE);
+  const code = (
+    rawCode && Object.values(AUTH_CODE).includes(rawCode as AuthCode)
+      ? rawCode
+      : null
+  ) as AuthCode | null;
 
   const loginFormSchema = z.object({
     email: z.string().min(1, t("email")),
@@ -101,7 +110,9 @@ export default function LoginForm() {
         refreshToken,
       });
       window.dispatchEvent(new Event("auth:tokens-updated"));
-      router.push("/profile");
+      const from = searchParams.get(AUTH_QUERY_PARAM.FROM);
+      const redirectTarget = from && from.startsWith("/") ? from : "/profile";
+      router.push(redirectTarget);
     } catch (error) {
       if (error instanceof XiorError) {
         toast.error(error.response?.data?.message || t("toasts.loginError"));
@@ -121,6 +132,15 @@ export default function LoginForm() {
           <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
         <CardContent>
+          {code && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertCircle className="size-4" />
+              <AlertTitle>{t(`alerts.${code}.title`)}</AlertTitle>
+              <AlertDescription>
+                {t(`alerts.${code}.description`)}
+              </AlertDescription>
+            </Alert>
+          )}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField

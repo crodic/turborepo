@@ -205,6 +205,20 @@
         "resetSuccess": "Mật khẩu đã được đặt lại thành công. Vui lòng đăng nhập.",
         "socialFailed": "Đăng nhập bằng Google thất bại. Vui lòng thử lại.",
         "loginError": "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin."
+      },
+      "alerts": {
+        "session_expired": {
+          "title": "Phiên đăng nhập hết hạn",
+          "description": "Phiên làm việc của bạn đã kết thúc. Vui lòng đăng nhập lại để tiếp tục."
+        },
+        "unauthorized": {
+          "title": "Yêu cầu đăng nhập",
+          "description": "Vui lòng đăng nhập để truy cập vào trang này."
+        },
+        "invalid_token": {
+          "title": "Phiên không hợp lệ",
+          "description": "Phiên xác thực của bạn không hợp lệ. Vui lòng đăng nhập lại."
+        }
       }
     },
     "signUp": {

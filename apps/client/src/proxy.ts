@@ -5,6 +5,7 @@ import { decodeToken } from "./lib/utils";
 import { JWTPayload } from "jose";
 import createMiddleware from "next-intl/middleware";
 import { routing } from "./i18n/routing";
+import { AUTH_CODE, AUTH_QUERY_PARAM, AuthCode } from "./constants/auth";
 
 const AUTH_ROUTE = [
   "/auth/login",
@@ -31,6 +32,7 @@ export async function proxy(request: NextRequest) {
     const refreshToken = request.cookies.get("refreshToken")?.value || "";
     const accessToken = request.cookies.get("accessToken")?.value || "";
     const isAuthCallbackRoute = AUTH_CALLBACK_ROUTE.includes(pathname);
+    const code = request.nextUrl.searchParams.get(AUTH_QUERY_PARAM.CODE);
 
     console.log(">>> Entered middleware with pathname: ", pathname);
 
@@ -38,7 +40,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.next({ headers: intlResponse.headers });
     }
 
-    if (AUTH_ROUTE.includes(pathname) && refreshToken) {
+    if (AUTH_ROUTE.includes(pathname) && refreshToken && !code) {
       return NextResponse.redirect(new URL(`/${locale}/profile`, request.url), {
         headers: intlResponse.headers,
       });
@@ -46,34 +48,34 @@ export async function proxy(request: NextRequest) {
 
     if (PRIVATE_ROUTE.includes(pathname)) {
       if (refreshToken && !accessToken) {
-        return await refreshTokenMiddleware(request, intlResponse, true);
+        return await refreshTokenMiddleware(
+          request,
+          intlResponse,
+          locale,
+          pathname
+        );
       }
 
       if (!refreshToken) {
-        const msg = encodeURIComponent(
-          "Session is expired, please login again."
+        return unauthorizedResponse(
+          request,
+          intlResponse,
+          locale,
+          pathname,
+          accessToken ? AUTH_CODE.SESSION_EXPIRED : AUTH_CODE.UNAUTHORIZED
         );
-        const response = NextResponse.redirect(
-          new URL(`/${locale}/auth/login?msg=${msg}`, request.url),
-          { headers: intlResponse.headers }
-        );
-        response.cookies.delete("accessToken");
-        return response;
       }
 
       if (accessToken && refreshToken) {
         const payload = decodeToken(accessToken);
         if (payload === null) {
-          const msg = encodeURIComponent(
-            "Session is expired, please login again."
+          return unauthorizedResponse(
+            request,
+            intlResponse,
+            locale,
+            pathname,
+            AUTH_CODE.INVALID_TOKEN
           );
-          const response = NextResponse.redirect(
-            new URL(`/${locale}/auth/login?msg=${msg}`, request.url),
-            { headers: intlResponse.headers }
-          );
-          response.cookies.delete("accessToken");
-          response.cookies.delete("refreshToken");
-          return response;
         }
 
         const tokenExpiresAt = (payload.exp as number) * 1000;
@@ -81,13 +83,23 @@ export async function proxy(request: NextRequest) {
         const oneMinuteLater = now + 1 * 60 * 1000;
 
         if (tokenExpiresAt < oneMinuteLater) {
-          return await refreshTokenMiddleware(request, intlResponse, true);
+          return await refreshTokenMiddleware(
+            request,
+            intlResponse,
+            locale,
+            pathname
+          );
         }
       }
     }
 
     if (refreshToken && !accessToken) {
-      return await refreshTokenMiddleware(request, intlResponse, false);
+      return await refreshTokenMiddleware(
+        request,
+        intlResponse,
+        locale,
+        pathname
+      );
     }
 
     return NextResponse.next({ headers: intlResponse.headers });
@@ -99,7 +111,8 @@ export async function proxy(request: NextRequest) {
 const refreshTokenMiddleware = async (
   request: NextRequest,
   intlResponse: NextResponse,
-  redirectOnFailure: boolean
+  locale: string,
+  pathname: string
 ) => {
   const refreshToken = request.cookies.get("refreshToken")?.value || "";
   try {
@@ -114,10 +127,13 @@ const refreshTokenMiddleware = async (
     const { exp: expRefreshToken } = decodeToken(newRefreshToken) as JWTPayload;
 
     if (!expAccessToken || !expRefreshToken) {
-      if (redirectOnFailure) {
-        return unauthorizedResponse(request, intlResponse);
-      }
-      return clearCookiesAndContinue(intlResponse);
+      return unauthorizedResponse(
+        request,
+        intlResponse,
+        locale,
+        pathname,
+        AUTH_CODE.SESSION_EXPIRED
+      );
     }
 
     const response = intlResponse;
@@ -131,7 +147,7 @@ const refreshTokenMiddleware = async (
     response.cookies.set("refreshToken", newRefreshToken, {
       httpOnly: true,
       path: "/",
-      expires: new Date(expAccessToken * 1000),
+      expires: new Date(expRefreshToken * 1000),
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
     });
@@ -139,27 +155,32 @@ const refreshTokenMiddleware = async (
     return response;
   } catch (error) {
     console.log(error);
-    if (redirectOnFailure) {
-      return unauthorizedResponse(request, intlResponse);
-    }
-    return clearCookiesAndContinue(intlResponse);
+    return unauthorizedResponse(
+      request,
+      intlResponse,
+      locale,
+      pathname,
+      AUTH_CODE.SESSION_EXPIRED
+    );
   }
 };
 
 const unauthorizedResponse = (
   request: NextRequest,
-  intlResponse: NextResponse
+  intlResponse: NextResponse,
+  locale: string,
+  pathname: string,
+  code: AuthCode = AUTH_CODE.SESSION_EXPIRED
 ) => {
-  const response = NextResponse.redirect(new URL("/auth/login", request.url), {
+  const redirectUrl = new URL(`/${locale}/auth/login`, request.url);
+  redirectUrl.searchParams.set(AUTH_QUERY_PARAM.CODE, code);
+  if (pathname && pathname !== "/" && !pathname.startsWith("/auth")) {
+    redirectUrl.searchParams.set(AUTH_QUERY_PARAM.FROM, pathname);
+  }
+
+  const response = NextResponse.redirect(redirectUrl, {
     headers: intlResponse.headers,
   });
-  response.cookies.delete("accessToken");
-  response.cookies.delete("refreshToken");
-  return response;
-};
-
-const clearCookiesAndContinue = (intlResponse: NextResponse) => {
-  const response = NextResponse.next({ headers: intlResponse.headers });
   response.cookies.delete("accessToken");
   response.cookies.delete("refreshToken");
   return response;

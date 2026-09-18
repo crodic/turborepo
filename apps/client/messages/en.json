@@ -205,6 +205,20 @@
         "resetSuccess": "Your password has been reset. Please sign in.",
         "socialFailed": "Google sign-in failed. Please try again.",
         "loginError": "Login failed. Please check your credentials."
+      },
+      "alerts": {
+        "session_expired": {
+          "title": "Session Expired",
+          "description": "Your session has expired. Please sign in again to continue."
+        },
+        "unauthorized": {
+          "title": "Authentication Required",
+          "description": "Please sign in to access this page."
+        },
+        "invalid_token": {
+          "title": "Invalid Session",
+          "description": "Your authentication session is invalid. Please sign in again."
+        }
       }
     },
     "signUp": {
