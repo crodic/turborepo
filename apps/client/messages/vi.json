@@ -181,8 +181,8 @@
   },
   "Auth": {
     "layout": {
-      "welcome": "Chào mừng đến với Visel Art",
-      "tagline": "Biến ý tưởng của bạn thành hiện thực với nền tảng hiện đại"
+      "welcome": "Chào mừng đến với Crodic Framework",
+      "tagline": "Nền tảng full-stack monorepo hiện đại để xây dựng và mở rộng ứng dụng"
     },
     "login": {
       "metaTitle": "Đăng nhập",

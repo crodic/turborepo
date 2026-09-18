@@ -22,8 +22,8 @@ export default async function AuthLayout({
           )}
         >
           <Image
-            src="/auth.jpg"
-            alt="auth background"
+            src="/crodic-auth.jpg"
+            alt="Crodic Framework"
             fill
             priority
             className="object-cover"
@@ -33,8 +33,8 @@ export default async function AuthLayout({
           <Link href="/" className="relative z-10 flex items-center gap-2">
             <WhiteLabelLogo
               fallback={
-                <span className="dancing-script-font text-primary text-4xl font-semibold text-shadow-2xs">
-                  Visel Art
+                <span className="text-primary text-2xl font-bold tracking-tight">
+                  Crodic Framework
                 </span>
               }
             />

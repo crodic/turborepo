@@ -181,8 +181,8 @@
   },
   "Auth": {
     "layout": {
-      "welcome": "Welcome to Visel Art",
-      "tagline": "Convert your ideas into a successful business with our modern platform"
+      "welcome": "Welcome to Crodic Framework",
+      "tagline": "Enterprise full-stack monorepo platform to build & scale modern applications"
     },
     "login": {
       "metaTitle": "Sign In",
