@@ -25,7 +25,12 @@ export default function UserAccount() {
   const tProfile = useTranslations("Profile");
 
   if (isLoading) {
-    return <Skeleton className="size-9 rounded-full" />;
+    return (
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-8 w-20 rounded-md" />
+        <Skeleton className="h-8 w-28 rounded-md" />
+      </div>
+    );
   }
 
   if (!profile) {
