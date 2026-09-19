@@ -70,12 +70,127 @@ wait_for_api_database() {
   done
 }
 
+set_env_val() {
+  local file="$1"
+  local key="$2"
+  local val="$3"
+
+  if [[ ! -f "$file" ]]; then
+    return
+  fi
+
+  node -e '
+    const fs = require("fs");
+    const file = process.argv[1];
+    const key = process.argv[2];
+    const val = process.argv[3];
+    if (!fs.existsSync(file)) process.exit(0);
+    let content = fs.readFileSync(file, "utf8");
+    const reg = new RegExp(`^${key}=.*$`, "m");
+    if (reg.test(content)) {
+      content = content.replace(reg, `${key}=${val}`);
+    } else {
+      content = content.trimEnd() + `\n${key}=${val}\n`;
+    }
+    fs.writeFileSync(file, content);
+  ' "$file" "$key" "$val"
+}
+
+OPT_API_PORT=""
+OPT_CLIENT_PORT=""
+OPT_WEB_PORT=""
+ACTUAL_API_PORT="8000"
+ACTUAL_CLIENT_PORT="3000"
+ACTUAL_WEB_PORT="5173"
+
+step_configure_ports() {
+  local default_api_port="8000"
+  local default_client_port="3000"
+  local default_web_port="5173"
+
+  if [[ -f "$API_DIR/.env" ]]; then
+    local p
+    p=$(grep -E "^APP_PORT=" "$API_DIR/.env" 2>/dev/null | cut -d= -f2 || true)
+    default_api_port="${p:-$default_api_port}"
+  fi
+
+  if [[ -f "$CLIENT_DIR/.env" ]]; then
+    local p
+    p=$(grep -E "^PORT=" "$CLIENT_DIR/.env" 2>/dev/null | cut -d= -f2 || true)
+    default_client_port="${p:-$default_client_port}"
+  fi
+
+  if [[ -f "$WEB_DIR/.env" ]]; then
+    local p
+    p=$(grep -E "^PORT=" "$WEB_DIR/.env" 2>/dev/null | cut -d= -f2 || true)
+    default_web_port="${p:-$default_web_port}"
+  fi
+
+  local target_api_port="${OPT_API_PORT:-}"
+  local target_client_port="${OPT_CLIENT_PORT:-}"
+  local target_web_port="${OPT_WEB_PORT:-}"
+
+  if [[ -t 0 && -t 1 ]] && [[ -z "$target_api_port" || -z "$target_client_port" || -z "$target_web_port" ]]; then
+    printf '\n\033[1;36m[setup]\033[0m Application Ports Configuration (Press Enter to keep defaults):\n'
+    if [[ -z "$target_api_port" ]]; then
+      read -r -p "  API Server port [default: ${default_api_port}]: " input_val || true
+      target_api_port="${input_val:-$default_api_port}"
+    fi
+
+    if [[ -z "$target_client_port" ]]; then
+      read -r -p "  Client Website port [default: ${default_client_port}]: " input_val || true
+      target_client_port="${input_val:-$default_client_port}"
+    fi
+
+    if [[ -z "$target_web_port" ]]; then
+      read -r -p "  Admin Portal (Web) port [default: ${default_web_port}]: " input_val || true
+      target_web_port="${input_val:-$default_web_port}"
+    fi
+  else
+    target_api_port="${target_api_port:-$default_api_port}"
+    target_client_port="${target_client_port:-$default_client_port}"
+    target_web_port="${target_web_port:-$default_web_port}"
+  fi
+
+  ACTUAL_API_PORT="$target_api_port"
+  ACTUAL_CLIENT_PORT="$target_client_port"
+  ACTUAL_WEB_PORT="$target_web_port"
+
+  log "Synchronizing ports & cross-service URLs (API: ${target_api_port}, Client: ${target_client_port}, Web: ${target_web_port})"
+
+  # 1. Update apps/api/.env
+  set_env_val "$API_DIR/.env" "APP_PORT" "$target_api_port"
+  set_env_val "$API_DIR/.env" "APP_URL" "http://localhost:${target_api_port}"
+  set_env_val "$API_DIR/.env" "APP_CORS_ORIGIN" "http://localhost:${target_web_port},http://localhost:${target_client_port}"
+  set_env_val "$API_DIR/.env" "APP_SECURE_HEADER_ORIGIN" "http://localhost:${target_client_port},http://localhost:${target_web_port}"
+  set_env_val "$API_DIR/.env" "AUTH_PORTAL_URL" "http://localhost:${target_web_port}"
+  set_env_val "$API_DIR/.env" "AUTH_PORTAL_RESET_PASSWORD_URL" "http://localhost:${target_web_port}/reset-password"
+  set_env_val "$API_DIR/.env" "USER_AUTH_CLIENT_URL" "http://localhost:${target_client_port}"
+  set_env_val "$API_DIR/.env" "USER_AUTH_CLIENT_RESET_PASSWORD_URL" "http://localhost:${target_client_port}/auth/reset-password"
+  set_env_val "$API_DIR/.env" "GOOGLE_OAUTH_CALLBACK_URL" "http://localhost:${target_api_port}/api/v1/user/auth/social/google/callback"
+
+  # 2. Update apps/client/.env
+  set_env_val "$CLIENT_DIR/.env" "PORT" "$target_client_port"
+  set_env_val "$CLIENT_DIR/.env" "NEXT_PUBLIC_APP_URL" "http://localhost:${target_client_port}"
+  set_env_val "$CLIENT_DIR/.env" "NEXT_PUBLIC_API_URL" "http://localhost:${target_api_port}"
+  set_env_val "$CLIENT_DIR/.env" "NEXT_PUBLIC_SOCKET_URL" "http://localhost:${target_api_port}"
+  set_env_val "$CLIENT_DIR/.env" "NEXT_PUBLIC_ADMIN_PORTAL_URL" "http://localhost:${target_web_port}"
+  set_env_val "$CLIENT_DIR/.env" "SERVER_API_URL" "http://localhost:${target_api_port}"
+
+  # 3. Update apps/web/.env
+  set_env_val "$WEB_DIR/.env" "PORT" "$target_web_port"
+  set_env_val "$WEB_DIR/.env" "VITE_API_URL" "http://localhost:${target_api_port}/api/v1"
+  set_env_val "$WEB_DIR/.env" "VITE_SOCKET_URL" "http://localhost:${target_api_port}"
+  set_env_val "$WEB_DIR/.env" "VITE_CLIENT_URL" "http://localhost:${target_client_port}"
+}
+
 # Modular steps
 step_prepare_env() {
   log "Preparing environment files (.env)"
   copy_env_if_missing "$API_DIR/.env.example" "$API_DIR/.env"
   copy_env_if_missing "$CLIENT_DIR/.env.example" "$CLIENT_DIR/.env"
   copy_env_if_missing "$WEB_DIR/.env.example" "$WEB_DIR/.env"
+  step_configure_ports
 }
 
 step_install_deps() {
@@ -86,7 +201,11 @@ step_install_deps() {
 step_start_docker() {
   if has_docker; then
     log "Starting PostgreSQL, Redis, Mailpit, and pgAdmin with Docker Compose"
-    docker compose -f "$API_DIR/docker-compose.yml" up -d postgres redis mailpit pgadmin
+    local compose_args=()
+    if [[ -f "$API_DIR/.env" ]]; then
+      compose_args+=(--env-file "$API_DIR/.env")
+    fi
+    docker compose "${compose_args[@]}" -f "$API_DIR/docker-compose.yml" up -d postgres redis mailpit pgadmin
   else
     warn "Docker Compose is not available. Skipping container startup."
     warn "Make sure PostgreSQL and Redis are reachable using apps/api/.env."
@@ -121,7 +240,11 @@ step_reset_database() {
 
   if has_docker; then
     log "Ensuring PostgreSQL is running with Docker Compose"
-    docker compose -f "$API_DIR/docker-compose.yml" up -d postgres redis mailpit
+    local compose_args=()
+    if [[ -f "$API_DIR/.env" ]]; then
+      compose_args+=(--env-file "$API_DIR/.env")
+    fi
+    docker compose "${compose_args[@]}" -f "$API_DIR/docker-compose.yml" up -d postgres redis mailpit
   fi
 
   log "Waiting for database connection"
@@ -151,8 +274,10 @@ step_clear_storage() {
 
 step_check_types() {
   log "Running workspace type checks"
+  rm -rf "$CLIENT_DIR/.next/types" "$CLIENT_DIR/.next/dev/types"
   run_pnpm check-types
 }
+
 
 show_help() {
   cat <<'EOF'
@@ -170,6 +295,9 @@ Options:
       --reset-db      Reset database: drop all tables, fresh migrations & seeds
   -f, --force         Skip confirmation prompts (used with --reset-db)
       --skip-types    Skip the type check step
+      --api-port <p>  Custom port for NestJS API (default: 8000)
+      --client-port <p> Custom port for Next.js Client (default: 3000)
+      --web-port <p>  Custom port for Vite Admin Portal (default: 5173)
   -h, --help          Show this help message
 
 Interactive Mode:
@@ -229,6 +357,18 @@ main() {
       --skip-types)
         skip_types=true
         shift
+        ;;
+      --api-port)
+        OPT_API_PORT="$2"
+        shift 2
+        ;;
+      --client-port)
+        OPT_CLIENT_PORT="$2"
+        shift 2
+        ;;
+      --web-port)
+        OPT_WEB_PORT="$2"
+        shift 2
         ;;
       -h|--help)
         show_help
@@ -361,9 +501,9 @@ main() {
   printf '\n'
   log "✨ Setup completed successfully!"
   info "Available local applications:"
-  printf '  - API Server:   \033[1;32mpnpm --filter api start:dev\033[0m  (http://localhost:8000)\n'
-  printf '  - Client App:   \033[1;32mpnpm --filter client dev\033[0m     (http://localhost:3000)\n'
-  printf '  - Admin Portal: \033[1;32mpnpm --filter web-portal dev\033[0m (http://localhost:5173)\n'
+  printf '  - API Server:   \033[1;32mpnpm --filter api start:dev\033[0m  (http://localhost:%s)\n' "$ACTUAL_API_PORT"
+  printf '  - Client App:   \033[1;32mpnpm --filter client dev\033[0m     (http://localhost:%s)\n' "$ACTUAL_CLIENT_PORT"
+  printf '  - Admin Portal: \033[1;32mpnpm --filter web-portal dev\033[0m (http://localhost:%s)\n' "$ACTUAL_WEB_PORT"
   printf '  - All at once:  \033[1;32mpnpm dev\033[0m\n\n'
 }
 

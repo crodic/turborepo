@@ -62,6 +62,7 @@ pnpm run setup --no-docker   # Setup with local PostgreSQL & Redis (alias: `pnpm
 pnpm run setup --db-only     # Database migrations, seeds, and permissions sync only
 pnpm run setup --reset-db    # Reset database schema, fresh migrations & seeds (alias: `pnpm run db:reset`)
 pnpm run setup --skip-types  # Skip workspace type check step
+pnpm run setup --api-port 8000 --client-port 3000 --web-port 5173  # Custom ports
 pnpm run setup --help        # Show usage guide
 ```
 

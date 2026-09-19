@@ -2,7 +2,8 @@ services:
   app:
     image: ${APP_IMAGE:?Set APP_IMAGE to the image you want to deploy}
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       NODE_ENV: production
       DATABASE_HOST: postgres
@@ -11,7 +12,7 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
     ports:
-      - '${APP_PORT:-3000}:${APP_PORT:-3000}'
+      - '${APP_PORT:-8000}:${APP_PORT:-8000}'
     depends_on:
       postgres:
         condition: service_healthy
@@ -23,6 +24,9 @@ services:
 
   postgres:
     image: postgres:16-alpine
+    env_file:
+      - path: .env
+        required: false
     environment:
       POSTGRES_DB: ${DATABASE_NAME:?Set DATABASE_NAME}
       POSTGRES_USER: ${DATABASE_USERNAME:?Set DATABASE_USERNAME}
@@ -43,6 +47,9 @@ services:
   redis:
     image: redis:7-alpine
     command: redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+    env_file:
+      - path: .env
+        required: false
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
     volumes:
