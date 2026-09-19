@@ -26,8 +26,14 @@ const buildEslintCommand = (workspace, files) => {
 };
 
 export default {
-  '*.{js,mjs,cjs,ts,tsx,json,md,yml,yaml,css,scss,html}': (files) =>
-    `prettier --write ${files.map(quote).join(' ')}`,
+  '*.{js,mjs,cjs,ts,tsx,json,md,yml,yaml,css,scss,html}': (files) => {
+    const validFiles = files.filter(
+      (f) => !f.includes('database/data') && !f.endsWith('.zip'),
+    );
+    return validFiles.length > 0
+      ? `prettier --write ${validFiles.map(quote).join(' ')}`
+      : [];
+  },
 
   '*.{js,mjs,cjs,ts,tsx}': (files) =>
     eslintWorkspaces

@@ -13,6 +13,7 @@ import {
   FlaskConicalIcon,
   BookOpenText,
   Send,
+  MapPin,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -90,6 +91,12 @@ export const sidebarLink: SidebarData = {
           url: '/files',
           icon: Files,
           permission: 'FILE',
+        },
+        {
+          title: 'navigation.management.locations',
+          url: '/locations',
+          icon: MapPin,
+          permission: 'LOCATION',
         },
       ],
     },

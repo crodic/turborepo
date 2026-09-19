@@ -33,6 +33,10 @@ export const groupPermission = [
     permissions: ['create', 'read', 'update', 'delete'],
   },
   {
+    group: 'LOCATION',
+    permissions: ['create', 'read', 'update', 'delete'],
+  },
+  {
     group: 'manage',
     permissions: ['all'],
   },
@@ -81,6 +85,12 @@ export const permissions = [
   { action: 'read', subject: 'PAGE' },
   { action: 'update', subject: 'PAGE' },
   { action: 'delete', subject: 'PAGE' },
+
+  // LOCATION
+  { action: 'create', subject: 'LOCATION' },
+  { action: 'read', subject: 'LOCATION' },
+  { action: 'update', subject: 'LOCATION' },
+  { action: 'delete', subject: 'LOCATION' },
 
   // SUPER
   { action: 'manage', subject: 'all' },

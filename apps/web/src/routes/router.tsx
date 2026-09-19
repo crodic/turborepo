@@ -27,6 +27,7 @@ import { NotFoundError } from '@/pages/errors/not-found-error'
 import { UnauthorizedError } from '@/pages/errors/unauthorized-error'
 import { PageFileOverview } from '@/pages/files'
 import { PageHelpCenter } from '@/pages/help-center'
+import { PageLocationOverview } from '@/pages/locations'
 import { PagePermissionOverview } from '@/pages/permissions'
 import { PagePermissionEdit } from '@/pages/permissions/edit'
 import PagePermissionShow from '@/pages/permissions/show'
@@ -342,6 +343,14 @@ const appRoutes: RouteObject[] = [
         element: (
           <RouteAuthorize action='read' subject='FILE'>
             <PageFileOverview />
+          </RouteAuthorize>
+        ),
+      },
+      {
+        path: '/locations',
+        element: (
+          <RouteAuthorize action='read' subject='LOCATION'>
+            <PageLocationOverview />
           </RouteAuthorize>
         ),
       },

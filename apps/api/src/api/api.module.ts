@@ -8,6 +8,7 @@ import { FileModule } from './file/file.module';
 import { HealthModule } from './health/health.module';
 import { HomeModule } from './home/home.module';
 
+import { LocationModule } from './location/location.module';
 import { NotificationModule } from './notification/notification.module';
 import { PermissionModule } from './permission/permission.module';
 import { PresenceModule } from './presence/presence.module';
@@ -36,6 +37,7 @@ import { WhiteLabelModule } from './white-label/white-label.module';
     NotificationModule,
     WhiteLabelModule,
     CmsPageModule,
+    LocationModule,
   ],
 })
 export class ApiModule {}

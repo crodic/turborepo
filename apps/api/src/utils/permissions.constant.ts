@@ -7,6 +7,7 @@ export enum AppSubjects {
   WhiteLabel = 'WHITE_LABEL',
   File = 'FILE',
   Page = 'PAGE',
+  Location = 'LOCATION',
 
   All = 'all',
 }
@@ -239,6 +240,36 @@ export const ALL_PERMISSIONS = [
     'CMS Pages Management',
     'Delete pages',
     'Delete CMS pages.',
+  ),
+
+  // Location
+  permissionMeta(
+    AppActions.Read,
+    AppSubjects.Location,
+    'Location Management',
+    'View locations',
+    'View regions, countries, states, and cities.',
+  ),
+  permissionMeta(
+    AppActions.Create,
+    AppSubjects.Location,
+    'Location Management',
+    'Create locations',
+    'Create regions, countries, states, and cities.',
+  ),
+  permissionMeta(
+    AppActions.Update,
+    AppSubjects.Location,
+    'Location Management',
+    'Update locations',
+    'Edit regions, countries, states, and cities.',
+  ),
+  permissionMeta(
+    AppActions.Delete,
+    AppSubjects.Location,
+    'Location Management',
+    'Delete locations',
+    'Remove regions, countries, states, and cities.',
   ),
 
   // SUPER

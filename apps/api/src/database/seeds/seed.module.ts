@@ -8,6 +8,7 @@ import databaseConfig from '@/database/config/database.config';
 import { TypeOrmConfigService } from '@/database/typeorm-config.service';
 import { AdminSeedModule } from './admin/admin-seed.module';
 import { CmsPageSeedModule } from './cms-page/cms-page-seed.module';
+import { LocationSeedModule } from './location/location-seed.module';
 import { SettingSeedModule } from './setting/setting-seed.module';
 import { UserSeedModule } from './user/user-seed.module';
 import { WhiteLabelSeedModule } from './white-label/white-label-seed.module';
@@ -19,6 +20,7 @@ import { WhiteLabelSeedModule } from './white-label/white-label-seed.module';
     WhiteLabelSeedModule,
     AdminSeedModule,
     CmsPageSeedModule,
+    LocationSeedModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [databaseConfig, appConfig],
