@@ -4,6 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import http from '@/lib/http'
+import { PaginateQueryBuilder } from '@/lib/query-builder'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -22,12 +24,8 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import AutoCompleteSelectControl from '@/components/forms/auto-complete-select-control'
-import {
-  apiCreateState,
-  apiUpdateState,
-  usePublicCountriesQuery,
-} from '../queries'
+import AutoCompleteAsyncSelectControl from '@/components/forms/auto-complete-async-select-control'
+import { apiCreateState, apiUpdateState } from '../queries'
 import {
   type StateFormSchema,
   stateFormSchema,
@@ -50,8 +48,6 @@ export function StateDialog({
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const isEdit = !!state
-
-  const { data: countries } = usePublicCountriesQuery()
 
   const form = useForm<StateFormSchema>({
     resolver: zodResolver(stateFormSchema),
@@ -147,25 +143,48 @@ export function StateDialog({
                     {t('locations.fields.country', 'Country')} *
                   </FormLabel>
                   <FormControl>
-                    <AutoCompleteSelectControl
+                    <AutoCompleteAsyncSelectControl
                       {...field}
-                      options={
-                        countries?.map((c) => ({
-                          id: c.id,
-                          name: `${c.name}${c.iso2 ? ` (${c.iso2})` : ''}`,
-                        })) || []
-                      }
-                      onChange={(val) => {
-                        field.onChange(val as string)
-                        const found = countries?.find((c) => c.id === val)
-                        if (found?.iso2) {
-                          form.setValue('countryCode', found.iso2)
-                        }
-                      }}
                       placeholder={t(
                         'locations.placeholders.selectCountry',
                         'Select a country'
                       )}
+                      defaultOption={
+                        state?.country
+                          ? {
+                              value: state.country.id,
+                              label: `${state.country.name}${state.country.iso2 ? ` (${state.country.iso2})` : ''}`,
+                            }
+                          : undefined
+                      }
+                      fetchOptions={async (search, page) => {
+                        const builder = new PaginateQueryBuilder()
+                          .page(page)
+                          .limit(15)
+                          .search(search)
+                          .sortBy('name', 'ASC')
+                        const res = await http.get('/countries', {
+                          params: builder.build(),
+                        })
+                        return {
+                          data: res.data.data.map((c: any) => ({
+                            value: c.id,
+                            label: `${c.name}${c.iso2 ? ` (${c.iso2})` : ''}`,
+                            iso2: c.iso2,
+                          })),
+                          hasMore: page < (res.data.meta?.totalPages ?? 1),
+                        }
+                      }}
+                      onChange={(val) => {
+                        field.onChange(val as string)
+                      }}
+                      onSelectOption={(opt: any) => {
+                        if (opt?.iso2) {
+                          form.setValue('countryCode', opt.iso2)
+                        } else if (!opt) {
+                          form.setValue('countryCode', '')
+                        }
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
