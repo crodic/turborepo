@@ -1,16 +1,32 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { WhiteLabelLogo } from "@/lib/white-label";
-import { getTranslations } from "next-intl/server";
 import Image from "next/image";
 import React from "react";
 
+interface AuthFormsLayoutProps {
+  children: React.ReactNode;
+  params: Promise<{ locale: string }>;
+}
+
 export default async function AuthLayout({
   children,
-}: {
-  children: React.ReactNode;
-}) {
-  const t = await getTranslations("Auth.layout");
+  params,
+}: AuthFormsLayoutProps) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+
+  const cookieStore = await cookies();
+  const refreshToken = cookieStore.get("refreshToken")?.value;
+
+  if (refreshToken) {
+    redirect(`/${locale}/profile`);
+  }
+
+  const t = await getTranslations({ locale, namespace: "Auth.layout" });
 
   return (
     <section className={cn("min-h-screen w-full")}>

@@ -7,16 +7,6 @@ import createMiddleware from "next-intl/middleware";
 import { routing } from "./i18n/routing";
 import { AUTH_CODE, AUTH_QUERY_PARAM, AuthCode } from "./constants/auth";
 
-const AUTH_ROUTE = [
-  "/auth/login",
-  "/auth/register",
-  "/auth/sign-up",
-  "/auth/forgot-password",
-  "/auth/reset-password",
-  "/auth/oauth/callback",
-];
-const AUTH_CALLBACK_ROUTE = ["/auth/oauth/callback"];
-const PRIVATE_ROUTE = ["/profile"];
 const handleI18nRouting = createMiddleware(routing);
 
 export async function proxy(request: NextRequest) {
@@ -31,65 +21,33 @@ export async function proxy(request: NextRequest) {
 
     const refreshToken = request.cookies.get("refreshToken")?.value || "";
     const accessToken = request.cookies.get("accessToken")?.value || "";
-    const isAuthCallbackRoute = AUTH_CALLBACK_ROUTE.includes(pathname);
-    const code = request.nextUrl.searchParams.get(AUTH_QUERY_PARAM.CODE);
 
     console.log(">>> Entered middleware with pathname: ", pathname);
 
-    if (isAuthCallbackRoute) {
-      return NextResponse.next({ headers: intlResponse.headers });
-    }
+    // Proactive token refresh & session validation for authenticated users
+    if (accessToken && refreshToken) {
+      const payload = decodeToken(accessToken);
+      if (payload === null) {
+        return unauthorizedResponse(
+          request,
+          intlResponse,
+          locale,
+          pathname,
+          AUTH_CODE.INVALID_TOKEN
+        );
+      }
 
-    if (AUTH_ROUTE.includes(pathname) && refreshToken && !code) {
-      return NextResponse.redirect(new URL(`/${locale}/profile`, request.url), {
-        headers: intlResponse.headers,
-      });
-    }
+      const tokenExpiresAt = (payload.exp as number) * 1000;
+      const now = Date.now();
+      const oneMinuteLater = now + 1 * 60 * 1000;
 
-    if (PRIVATE_ROUTE.includes(pathname)) {
-      if (refreshToken && !accessToken) {
+      if (tokenExpiresAt < oneMinuteLater) {
         return await refreshTokenMiddleware(
           request,
           intlResponse,
           locale,
           pathname
         );
-      }
-
-      if (!refreshToken) {
-        return unauthorizedResponse(
-          request,
-          intlResponse,
-          locale,
-          pathname,
-          accessToken ? AUTH_CODE.SESSION_EXPIRED : AUTH_CODE.UNAUTHORIZED
-        );
-      }
-
-      if (accessToken && refreshToken) {
-        const payload = decodeToken(accessToken);
-        if (payload === null) {
-          return unauthorizedResponse(
-            request,
-            intlResponse,
-            locale,
-            pathname,
-            AUTH_CODE.INVALID_TOKEN
-          );
-        }
-
-        const tokenExpiresAt = (payload.exp as number) * 1000;
-        const now = Date.now();
-        const oneMinuteLater = now + 1 * 60 * 1000;
-
-        if (tokenExpiresAt < oneMinuteLater) {
-          return await refreshTokenMiddleware(
-            request,
-            intlResponse,
-            locale,
-            pathname
-          );
-        }
       }
     }
 
@@ -102,7 +60,13 @@ export async function proxy(request: NextRequest) {
       );
     }
 
-    return NextResponse.next({ headers: intlResponse.headers });
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-pathname", pathname);
+
+    return NextResponse.next({
+      request: { headers: requestHeaders },
+      headers: intlResponse.headers,
+    });
   }
 
   return intlResponse;
