@@ -27,25 +27,28 @@ export default function LanguageSwitcher() {
   const params = useParams();
   const t = useTranslations("Languages");
 
-  function onSelectChange(locale: string) {
-    const nextLocale = locale as Locale;
+  function onSelectChange(selectedLocale: string) {
+    const nextLocale = selectedLocale as Locale;
+    // Defensive check to avoid duplicate prefix if pathname already has locale segment
+    const cleanPathname = pathname.startsWith(`/${locale}/`)
+      ? pathname.replace(`/${locale}`, "")
+      : pathname === `/${locale}`
+        ? "/"
+        : pathname;
+
     startTransition(() => {
       router.replace(
         // @ts-expect-error -- TypeScript will validate that only known `params`
         // are used in combination with a given `pathname`. Since the two will
         // always match for the current route, we can skip runtime checks.
-        { pathname, params },
+        { pathname: cleanPathname, params },
         { locale: nextLocale }
       );
     });
   }
 
   return (
-    <Select
-      defaultValue={locale}
-      onValueChange={onSelectChange}
-      disabled={isPending}
-    >
+    <Select value={locale} onValueChange={onSelectChange} disabled={isPending}>
       <SelectTrigger className="w-full max-w-48">
         <SelectValue placeholder="Select a language" />
       </SelectTrigger>

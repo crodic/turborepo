@@ -44,8 +44,8 @@
           "description": "High-performance monorepo orchestration with remote caching, unified lockfile, and shared configuration packages."
         },
         "auth": {
-          "title": "Robust Authentication & OAuth",
-          "description": "Access & refresh tokens, HTTP-only cookie sessions, Google OAuth linking, and granular role/CASL authorization."
+          "title": "Smart Auth & Dynamic Route Guards",
+          "description": "Zero-config folder-based route protection with App Router Route Groups, proactive HTTP-only token refresh, Google OAuth, and graceful session-expired alerts."
         },
         "forms": {
           "title": "Strict Form Validation",
@@ -63,6 +63,45 @@
           "title": "TailwindCSS v4 & Radix UI",
           "description": "Composable, accessible UI primitives with responsive layouts, dark/light theme switching, and smooth animations."
         }
+      }
+    },
+    "portal": {
+      "badge": "Admin Portal Included",
+      "title": "Turnkey Enterprise Administration",
+      "subtitle": "Ship with a dedicated Vite + React admin dashboard ready out-of-the-box. Manage users, permissions, audit trails, and branding without building from scratch.",
+      "openPortal": "Explore Admin Portal",
+      "features": {
+        "users": {
+          "title": "User & Admin Management",
+          "description": "Full lifecycle administration with email verification status, profile edits, and multi-admin hierarchy."
+        },
+        "rbac": {
+          "title": "CASL Role-Based Authorization",
+          "description": "Granular permission matrices and dynamic ability checks for secure operations across resources."
+        },
+        "whiteLabel": {
+          "title": "White-Label Brand Engine",
+          "description": "Multi-tenant logos, favicons, meta tags, and color schemes configured dynamically per environment."
+        },
+        "audit": {
+          "title": "Audit Logs & System Health",
+          "description": "Real-time activity logs, mail delivery status, and system event tracking for enterprise compliance."
+        }
+      },
+      "preview": {
+        "title": "Crodic Admin Control Center",
+        "systemOnline": "System Online",
+        "stats": {
+          "totalUsers": "Total Users",
+          "activeAdmins": "Active Admins",
+          "auditEvents": "Audit Events",
+          "systemHealth": "Health Score"
+        },
+        "recentUsersTitle": "Recent User Registrations",
+        "roleAdmin": "Admin",
+        "roleMember": "Member",
+        "statusActive": "Active",
+        "statusVerified": "Verified"
       }
     },
     "cta": {

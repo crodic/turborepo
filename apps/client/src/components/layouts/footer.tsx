@@ -166,7 +166,7 @@ export function Footer() {
               <li>
                 <Link
                   className="hover:text-foreground transition-colors"
-                  href="/pages/privacy"
+                  href="/pages/privacy-policy"
                 >
                   {t("privacy")}
                 </Link>
@@ -174,7 +174,7 @@ export function Footer() {
               <li>
                 <Link
                   className="hover:text-foreground transition-colors"
-                  href="/pages/terms"
+                  href="/pages/terms-of-service"
                 >
                   {t("terms")}
                 </Link>

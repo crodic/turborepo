@@ -4,6 +4,7 @@ import Layout from "@/components/layouts/layout";
 import { CtaSection } from "@/components/landing/cta-section";
 import { FeaturesSection } from "@/components/landing/features-section";
 import { HeroSection } from "@/components/landing/hero-section";
+import { PortalSection } from "@/components/landing/portal-section";
 import { TechStackSection } from "@/components/landing/tech-stack-section";
 import { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
@@ -35,6 +36,7 @@ export default async function RootPage({ params }: RootPageProps) {
         <HeroSection />
         <TechStackSection />
         <FeaturesSection />
+        <PortalSection />
         <CtaSection />
       </main>
       <Footer />

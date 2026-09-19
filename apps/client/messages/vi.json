@@ -44,8 +44,8 @@
           "description": "Điều phối monorepo hiệu năng cao với remote caching, duy nhất một file lockfile và chia sẻ cấu hình dùng chung."
         },
         "auth": {
-          "title": "Xác thực & OAuth toàn diện",
-          "description": "Cơ chế Access & Refresh tokens, phiên cookie HTTP-only bảo mật, liên kết Google OAuth và phân quyền CASL/Roles chi tiết."
+          "title": "Xác thực thông minh & Dynamic Route Guards",
+          "description": "Bảo vệ route tự động theo cấu trúc thư mục với Route Groups, quản lý phiên làm việc qua HTTP-only cookie, tự động refresh token ngầm và Alert cảnh báo hết hạn thông minh."
         },
         "forms": {
           "title": "Kiểm tra biểu mẫu chặt chẽ",
@@ -63,6 +63,45 @@
           "title": "TailwindCSS v4 & Radix UI",
           "description": "Hệ thống UI component tiếp cận chuẩn quốc tế, bố cục responsive, chuyển đổi giao diện Sáng/Tối và hiệu ứng mượt mà."
         }
+      }
+    },
+    "portal": {
+      "badge": "Tích Hợp Sẵn Admin Portal",
+      "title": "Cổng Quản Trị Doanh Nghiệp Toàn Diện",
+      "subtitle": "Sở hữu ngay dashboard quản trị xây dựng bằng Vite + React sẵn sàng sử dụng. Quản lý người dùng, phân quyền chi tiết, nhật ký hoạt động và tùy biến thương hiệu mà không cần code lại từ đầu.",
+      "openPortal": "Khám Phá Admin Portal",
+      "features": {
+        "users": {
+          "title": "Quản Lý Người Dùng & Admin",
+          "description": "Quản lý toàn diện vòng đời tài khoản, trạng thái xác thực email và phân cấp nhiều tài khoản quản trị."
+        },
+        "rbac": {
+          "title": "Phân Quyền CASL & RBAC",
+          "description": "Ma trận quyền hạn chi tiết và kiểm tra quyền động bảo đảm an toàn dữ liệu trên từng chức năng."
+        },
+        "whiteLabel": {
+          "title": "White-Label Tùy Biến Thương Hiệu",
+          "description": "Tự do cấu hình logo, favicon, thẻ SEO meta và chủ đề màu sắc theo từng thương hiệu hoặc khách hàng."
+        },
+        "audit": {
+          "title": "Nhật Ký Hoạt Động & Kiểm Toán",
+          "description": "Theo dõi lịch sử thao tác của admin trong thời gian thực, nhật ký gửi email và kiểm toán bảo mật."
+        }
+      },
+      "preview": {
+        "title": "Crodic Admin Control Center",
+        "systemOnline": "Hệ Thống Sẵn Sàng",
+        "stats": {
+          "totalUsers": "Tổng User",
+          "activeAdmins": "Admin Hoạt Động",
+          "auditEvents": "Sự Kiện Nhật Ký",
+          "systemHealth": "Độ Ổn Định"
+        },
+        "recentUsersTitle": "Người Dùng Mới Đăng Ký",
+        "roleAdmin": "Quản trị viên",
+        "roleMember": "Thành viên",
+        "statusActive": "Hoạt động",
+        "statusVerified": "Đã xác thực"
       }
     },
     "cta": {

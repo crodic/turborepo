@@ -1,11 +1,9 @@
 import { http } from "@/lib/http";
 
-export type CmsPage = {
-  id: string;
-  title: string;
-  slug: string;
+export type CmsPageTranslation = {
   locale: string;
-  status: "draft" | "published";
+  slug?: string;
+  title: string;
   content: string;
   seoTitle?: string;
   seoDescription?: string;
@@ -15,17 +13,50 @@ export type CmsPage = {
   ogImage?: string;
   canonicalUrl?: string;
   robots?: string;
-  publishedAt?: string;
+};
+
+export type CmsPageApiResponse = {
+  id: string;
+  status: "draft" | "published";
+  translations: CmsPageTranslation[];
+  publishedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
-export const getCmsPageBySlug = async (slug: string, locale: string) => {
+export type CmsPage = CmsPageTranslation & {
+  id: string;
+  status: "draft" | "published";
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const getCmsPageBySlug = async (
+  slug: string,
+  locale: string
+): Promise<CmsPage | null> => {
   try {
-    const { data } = await http.get<CmsPage>(
+    const { data } = await http.get<CmsPageApiResponse>(
       `/api/v1/public/cms-pages/by-slug/${slug}?locale=${locale}`
     );
-    return data;
+
+    if (!data || !data.translations || data.translations.length === 0) {
+      return null;
+    }
+
+    const translation =
+      data.translations.find((t) => t.locale === locale) ||
+      data.translations[0];
+
+    return {
+      id: data.id,
+      status: data.status,
+      publishedAt: data.publishedAt,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+      ...translation,
+    };
   } catch {
     return null;
   }

@@ -52,7 +52,7 @@ export default async function CmsPage({ params }: PageProps) {
       <Header />
       <div
         className="prose dark:prose-invert mx-auto w-full max-w-none px-6 py-12 md:px-12 md:py-20"
-        dangerouslySetInnerHTML={{ __html: page.content }}
+        dangerouslySetInnerHTML={{ __html: page.content || "" }}
       />
       <Footer />
     </Layout>

@@ -71,7 +71,6 @@ export default async function LocaleLayout({
 }) {
   // Ensure that the incoming `locale` is valid
   const { locale } = await params;
-  const messages = await getMessages();
 
   if (!hasLocale(routing.locales, locale)) {
     notFound();
@@ -79,6 +78,8 @@ export default async function LocaleLayout({
 
   // Enable static rendering
   setRequestLocale(locale);
+
+  const messages = await getMessages();
 
   // Fetch active white label on server (SSR)
   const whiteLabel = await fetchActiveClientWhiteLabel();
@@ -91,7 +92,7 @@ export default async function LocaleLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${dancingScript.variable} antialiased`}
       >
-        <NextIntlClientProvider messages={messages}>
+        <NextIntlClientProvider messages={messages} locale={locale}>
           <Provider>
             <WhiteLabelProvider initialData={whiteLabel}>
               <ThemeProvider

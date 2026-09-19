@@ -106,6 +106,46 @@ Google OAuth behavior:
 - Linking rejects Google accounts whose email differs from the current user email, which avoids accidentally merging two identities.
 - Users created through Google have no password by default; they can configure an initial password from the client profile page and then sign in with either Google or email/password.
 
+## Client Authentication & Route Protection Architecture (`apps/client`)
+
+The Next.js client website adopts a **zero-config, folder-based route protection architecture** powered by Next.js App Router Route Groups, eliminating the need to maintain manual route lists in middleware:
+
+### Route Architecture & Guards
+
+| Route Group / Folder             | Path Pattern                        | Protection Type         | Behavior                                                                                                                                                                                        |
+| :------------------------------- | :---------------------------------- | :---------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app/[locale]/(protected)/`  | `/profile`, `/settings`, ...        | **Auth Guard**          | Server Component layout (`ProtectedLayout`) checks authentication cookies. Unauthenticated visitors are automatically redirected to `/${locale}/auth/login?code=unauthorized&from=${pathname}`. |
+| `src/app/[locale]/auth/(forms)/` | `/auth/login`, `/auth/sign-up`, ... | **Guest Guard**         | Form layout (`AuthLayout`) checks session cookies. Authenticated users are automatically redirected to `/${locale}/profile`.                                                                    |
+| `src/app/[locale]/auth/oauth/`   | `/auth/oauth/callback`              | **Functional Callback** | Independent callback handler for Google OAuth token exchange. Free from the 2-column split form layout.                                                                                         |
+| Other routes                     | `/`, `/example`, ...                | **Default to Public**   | Openly accessible without auth barriers.                                                                                                                                                        |
+
+### Edge Middleware & Token Lifecycle (`proxy.ts`)
+
+- **Zero Route Hardcoding**: Middleware does not maintain hardcoded lists of private/public routes.
+- **Proactive Token Refresh**: Validates and refreshes access tokens before they expire (when `< 1 minute` remaining).
+- **Graceful Session Invalidation**: Stale or expired tokens are cleaned from cookies and redirected to the login page with standardized redirect codes (`code=session_expired`).
+
+### Standardized Auth Codes (`AUTH_CODE`) & Alert Notifications
+
+Redirects pass standardized codes defined in `src/constants/auth.ts`:
+
+- `SESSION_EXPIRED`: Session expired due to inactivity or invalid refresh token.
+- `UNAUTHORIZED`: Authentication required to access a protected route.
+- `INVALID_TOKEN`: Malformed or corrupted token session.
+
+The login form automatically captures these codes and displays a prominent `<Alert variant="destructive">` with localized messages, while remembering the destination via `from` query param for seamless post-login navigation.
+
+## Admin Portal (`apps/web`)
+
+The repository includes a turnkey enterprise Admin Portal built with **Vite + React 18**, **TailwindCSS**, and **TanStack Table**:
+
+- **User & Admin Management**: Multi-admin hierarchy, verified email management, and user lifecycle administration.
+- **CASL Role-Based Authorization**: Granular permissions matrix, action policies (`manage`, `read`, `create`, `update`, `delete`), and ability-guarded UI components.
+- **White-Label Customization**: Dynamic logos, favicons, SEO metadata, and brand styling configured per environment or tenant.
+- **Audit Trails & Security**: Real-time admin activity logs, email delivery logs, and notification dispatching.
+- **High-Performance Data Tables**: Server-side pagination, sorting, search, column visibility, and bulk actions powered by TanStack Table.
+- **Local URL**: Runs at `http://localhost:5173` via `pnpm --filter web-portal dev`.
+
 ## Run Locally
 
 Run everything through Turborepo:

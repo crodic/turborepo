@@ -63,6 +63,21 @@ export async function proxy(request: NextRequest) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-pathname", pathname);
 
+    // Forward any internal request headers set by next-intl middleware (e.g. x-next-intl-locale)
+    intlResponse.headers.forEach((value, key) => {
+      if (key.startsWith("x-middleware-request-")) {
+        requestHeaders.set(key.replace("x-middleware-request-", ""), value);
+      }
+    });
+
+    const rewriteUrl = intlResponse.headers.get("x-middleware-rewrite");
+    if (rewriteUrl) {
+      return NextResponse.rewrite(new URL(rewriteUrl, request.url), {
+        request: { headers: requestHeaders },
+        headers: intlResponse.headers,
+      });
+    }
+
     return NextResponse.next({
       request: { headers: requestHeaders },
       headers: intlResponse.headers,

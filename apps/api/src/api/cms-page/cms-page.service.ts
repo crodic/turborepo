@@ -66,18 +66,33 @@ export class CmsPageService {
 
   async findPublishedBySlug(
     slug: string,
-    locale: string,
+    locale?: string,
   ): Promise<CmsPageResDto> {
-    const page = await this.cmsPageRepository.findOne({
-      where: {
-        status: ECmsPageStatus.PUBLISHED,
-        deletedAt: IsNull(),
-        translations: {
-          slug: normalizeSlug(slug),
-          locale,
+    const normalized = normalizeSlug(slug);
+    let page = locale
+      ? await this.cmsPageRepository.findOne({
+          where: {
+            status: ECmsPageStatus.PUBLISHED,
+            deletedAt: IsNull(),
+            translations: {
+              slug: normalized,
+              locale,
+            },
+          },
+        })
+      : null;
+
+    if (!page) {
+      page = await this.cmsPageRepository.findOne({
+        where: {
+          status: ECmsPageStatus.PUBLISHED,
+          deletedAt: IsNull(),
+          translations: {
+            slug: normalized,
+          },
         },
-      },
-    });
+      });
+    }
 
     if (!page) {
       throw new NotFoundException('Page not found');
