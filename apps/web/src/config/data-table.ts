@@ -64,6 +64,12 @@ export const dataTableConfig = {
     'asyncSelect',
     'multiAsyncSelect',
   ] as const,
+  multiValueFilterVariants: [
+    'multiSelect',
+    'multiAsyncSelect',
+    'dateRange',
+    'range',
+  ] as const,
   operators: [
     'iLike',
     'notILike',
@@ -81,4 +87,15 @@ export const dataTableConfig = {
     'isRelativeToToday',
   ] as const,
   joinOperators: ['and', 'or'] as const,
+}
+
+const multiValueVariantsSet = new Set<string>(
+  dataTableConfig.multiValueFilterVariants
+)
+
+/**
+ * Checks whether a filter variant represents a multi-value filter (e.g. parsed as an array).
+ */
+export function isMultiValueFilterVariant(variant?: string): boolean {
+  return variant ? multiValueVariantsSet.has(variant) : false
 }

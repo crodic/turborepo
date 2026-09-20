@@ -20,6 +20,7 @@ import {
   useReactTable,
   type VisibilityState,
 } from '@tanstack/react-table'
+import { isMultiValueFilterVariant } from '@/config/data-table'
 import type { ExtendedColumnSort, QueryKeys } from '@/types/data-table'
 import {
   parseAsArrayOf,
@@ -265,7 +266,11 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
       const colKey = getColumnKey(column)
       if (!colKey) return acc
 
-      if (column.meta?.options) {
+      const isMulti =
+        isMultiValueFilterVariant(column.meta?.variant) ||
+        (Boolean(column.meta?.options) && !column.meta?.variant)
+
+      if (isMulti) {
         acc[colKey] = parseAsArrayOf(
           parseAsString,
           ARRAY_SEPARATOR
@@ -292,16 +297,15 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
 
     return Object.entries(filterValues).reduce<ColumnFiltersState>(
       (filters, [key, value]) => {
-        if (value !== null) {
-          const processedValue = Array.isArray(value)
-            ? value
-            : typeof value === 'string' && /[^a-zA-Z0-9]/.test(value)
-              ? value.split(/[^a-zA-Z0-9]+/).filter(Boolean)
-              : [value]
-
+        if (
+          value !== null &&
+          value !== undefined &&
+          value !== '' &&
+          (!Array.isArray(value) || value.length > 0)
+        ) {
           filters.push({
             id: key,
-            value: processedValue,
+            value,
           })
         }
         return filters
@@ -331,7 +335,12 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
               (column) => getColumnKey(column) === filter.id
             )
           ) {
-            acc[filter.id] = filter.value as string | string[]
+            const val = filter.value
+            if (val === '' || (Array.isArray(val) && val.length === 0)) {
+              acc[filter.id] = null
+            } else {
+              acc[filter.id] = val as string | string[]
+            }
           }
           return acc
         }, {})
