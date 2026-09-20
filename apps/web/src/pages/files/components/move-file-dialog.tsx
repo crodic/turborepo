@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -36,12 +36,26 @@ export function MoveFileDialog({
     setFolder(file?.folder ?? '')
   }, [file])
 
+  const displayName = useMemo(() => {
+    if (!file?.original_name) return ''
+    try {
+      return decodeURIComponent(file.original_name)
+    } catch {
+      return file.original_name
+    }
+  }, [file?.original_name])
+
   return (
     <Dialog open={Boolean(file)} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className='w-[92vw] sm:max-w-md'>
+        <DialogHeader className='max-w-full min-w-0'>
           <DialogTitle>{t('files.move.title')}</DialogTitle>
-          <DialogDescription>{file?.original_name}</DialogDescription>
+          <DialogDescription
+            className='max-w-full truncate font-mono text-xs'
+            title={displayName}
+          >
+            {displayName}
+          </DialogDescription>
         </DialogHeader>
         <FolderCreatableField
           label={t('files.table.folder')}
@@ -49,7 +63,7 @@ export function MoveFileDialog({
           folders={folders}
           onChange={setFolder}
         />
-        <DialogFooter>
+        <DialogFooter className='gap-2 sm:gap-0'>
           <Button variant='outline' onClick={() => onOpenChange(false)}>
             {t('buttons.cancel')}
           </Button>

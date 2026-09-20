@@ -17,6 +17,7 @@ type Props = {
   required?: boolean
   className?: string
   placeholder?: string
+  accept?: string
 }
 
 export function ImagePickerInput({
@@ -27,6 +28,7 @@ export function ImagePickerInput({
   required,
   className,
   placeholder = 'https://...',
+  accept = 'image/*',
 }: Props) {
   const { t } = useTranslation()
   const [isPickerOpen, setIsPickerOpen] = useState(false)
@@ -165,6 +167,8 @@ export function ImagePickerInput({
       <FilePickerDialog
         mode='url'
         multiple={false}
+        accept={accept}
+        value={value || null}
         open={isPickerOpen}
         onOpenChange={setIsPickerOpen}
         onValueChange={(url) => {

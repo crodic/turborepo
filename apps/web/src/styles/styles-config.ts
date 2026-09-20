@@ -94,9 +94,16 @@ export const stylesSelect: StylesConfig<Option> = {
     padding: 6,
   }),
 
+  menuPortal: (provided) => ({
+    ...provided,
+    zIndex: 9999,
+    pointerEvents: 'auto',
+  }),
+
   menuList: (provided) => ({
     ...provided,
     padding: '4px',
+    maxHeight: 240,
   }),
 }
 
