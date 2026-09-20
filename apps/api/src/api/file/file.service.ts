@@ -149,6 +149,28 @@ export class FileService {
       file.status = dto.status;
     }
 
+    if (dto.disk !== undefined) {
+      const targetDisk = this.normalizeUploadDisk(dto.disk);
+      const currentDisk = this.normalizeUploadDisk(file.disk ?? 'public');
+
+      if (targetDisk !== currentDisk) {
+        const sourceDisk = this.writeDisk(currentDisk);
+        const targetDriver = this.writeDisk(targetDisk);
+        const storageKey = this.toStorageKey(file.path);
+
+        if (await sourceDisk.exists(storageKey)) {
+          const fileStream = await sourceDisk.getStream(storageKey);
+          await targetDriver.put(storageKey, fileStream, {
+            mimeType: file.mime,
+            visibility: targetDisk === 'public' ? 'public' : 'private',
+          });
+          await sourceDisk.delete(storageKey);
+        }
+
+        file.disk = targetDisk;
+      }
+    }
+
     const saved = await this.fileRepository.save(file);
 
     return plainToInstance(FileResDto, saved, {

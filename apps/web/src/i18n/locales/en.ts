@@ -94,6 +94,15 @@ export default {
     'Public files are stored on the public local disk and can be opened directly by URL.',
   'files.upload.diskLocalHelp':
     'Local files are stored on the private local disk. Preview and download require an authenticated admin or user session.',
+  'files.disk.title': 'Storage Access',
+  'files.disk.public': 'Public',
+  'files.disk.local': 'Private',
+  'files.disk.publicTooltip':
+    'Public — Anyone with the link can view and download without login.',
+  'files.disk.localTooltip':
+    'Private — Requires an authenticated session to access.',
+  'files.disk.changeSuccess': 'Storage disk changed successfully.',
+  'files.disk.changeError': 'Failed to change storage disk.',
   'files.move.title': 'Move file',
   'files.delete.title': 'Delete file',
   'files.delete.description':

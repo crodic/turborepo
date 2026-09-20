@@ -574,6 +574,7 @@ export function PageFileOverview() {
         onCopyUrl={copyFileUrl}
         onMove={setMovingFile}
         onDelete={setDeletingFile}
+        onFileUpdated={(file) => setInspectedFile(file)}
         canUpdate={ability.can('update', 'FILE')}
         canDelete={ability.can('delete', 'FILE')}
       />

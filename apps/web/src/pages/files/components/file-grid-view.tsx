@@ -11,7 +11,9 @@ import {
   FileCode,
   FileSpreadsheet,
   FileText,
+  Globe,
   Loader2,
+  Lock,
   MoreVertical,
   MoveRight,
   Trash2,
@@ -29,6 +31,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { formatBytes } from '../columns'
 import {
   FilePreviewThumbnail,
@@ -324,8 +331,39 @@ const FileCardItem = memo(function FileCardItem({
           {file.original_name}
         </p>
 
-        <div className='text-muted-foreground mt-1 flex items-center justify-between text-[11px]'>
-          <span>{formatBytes(file.size)}</span>
+        <div className='text-muted-foreground mt-1.5 flex items-center justify-between text-[11px]'>
+          <div className='flex items-center gap-1.5'>
+            <span>{formatBytes(file.size)}</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className={cn(
+                    'inline-flex shrink-0 cursor-default items-center gap-1 rounded-sm px-1 py-0.5 text-[10px] font-medium',
+                    file.disk === 'local'
+                      ? 'border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                      : 'bg-muted text-muted-foreground border-border/60 border'
+                  )}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {file.disk === 'local' ? (
+                    <Lock className='size-2.5' />
+                  ) : (
+                    <Globe className='size-2.5' />
+                  )}
+                  <span>
+                    {file.disk === 'local'
+                      ? t('files.disk.local')
+                      : t('files.disk.public')}
+                  </span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side='top' className='max-w-xs text-xs'>
+                {file.disk === 'local'
+                  ? t('files.disk.localTooltip')
+                  : t('files.disk.publicTooltip')}
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <span>{format(new Date(file.createdAt), 'MMM d')}</span>
         </div>
       </div>

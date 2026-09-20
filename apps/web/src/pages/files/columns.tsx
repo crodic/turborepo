@@ -8,11 +8,14 @@ import {
   FileIcon,
   FileImage,
   Folder,
+  Globe,
+  Lock,
   MoreHorizontal,
   MoveRight,
   Tag,
   Trash2,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -23,6 +26,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header'
 import { FilePreviewThumbnail } from './file-preview'
 import { ColumnKey, type FileSchema } from './schema'
@@ -81,14 +89,49 @@ export function getFilesTableColumns({
       ),
       cell: ({ row }) => {
         const file = row.original
+        const isLocalDisk = file.disk === 'local'
 
         return (
           <div className='flex min-w-0 items-center gap-3'>
             <div className='bg-muted flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border'>
-              <FilePreviewThumbnail file={file} />
+              <FilePreviewThumbnail
+                file={file}
+                transformations='w_80,h_80,c_fill,q_75'
+                hoverToPlay={false}
+              />
             </div>
             <div className='min-w-0'>
-              <p className='truncate font-medium'>{file.original_name}</p>
+              <div className='flex items-center gap-1.5'>
+                <p className='truncate font-medium'>{file.original_name}</p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span
+                      className={cn(
+                        'inline-flex shrink-0 items-center gap-1 rounded-sm px-1 py-0.5 text-[10px] font-medium',
+                        isLocalDisk
+                          ? 'border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                          : 'bg-muted text-muted-foreground border-border/60 border'
+                      )}
+                    >
+                      {isLocalDisk ? (
+                        <Lock className='size-2.5' />
+                      ) : (
+                        <Globe className='size-2.5' />
+                      )}
+                      <span>
+                        {isLocalDisk
+                          ? i18n.t('files.disk.local')
+                          : i18n.t('files.disk.public')}
+                      </span>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side='top' className='max-w-xs text-xs'>
+                    {isLocalDisk
+                      ? i18n.t('files.disk.localTooltip')
+                      : i18n.t('files.disk.publicTooltip')}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <p className='text-muted-foreground truncate text-xs'>
                 {file.public_id}
               </p>

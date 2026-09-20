@@ -92,6 +92,15 @@ export default {
     'File public được lưu trên local public disk và có thể mở trực tiếp bằng URL.',
   'files.upload.diskLocalHelp':
     'File local được lưu trên local private disk. Preview và download cần phiên đăng nhập admin hoặc user.',
+  'files.disk.title': 'Quyền lưu trữ',
+  'files.disk.public': 'Công khai',
+  'files.disk.local': 'Riêng tư',
+  'files.disk.publicTooltip':
+    'Công khai — Bất kỳ ai có liên kết đều có thể truy cập mà không cần đăng nhập.',
+  'files.disk.localTooltip':
+    'Riêng tư — Chỉ thành viên đăng nhập mới có thể truy cập.',
+  'files.disk.changeSuccess': 'Đã chuyển đổi quyền lưu trữ thành công.',
+  'files.disk.changeError': 'Không thể chuyển đổi quyền lưu trữ.',
   'files.move.title': 'Di chuyển tệp',
   'files.delete.title': 'Xóa tệp',
   'files.delete.description':

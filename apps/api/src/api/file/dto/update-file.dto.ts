@@ -23,4 +23,9 @@ export class UpdateFileDto {
   @IsString()
   @IsIn(['active', 'archived'])
   status?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['public', 'local'])
+  disk?: 'public' | 'local';
 }

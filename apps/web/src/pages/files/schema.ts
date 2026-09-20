@@ -54,6 +54,7 @@ export const folderSchema = z.object({
 export const updateFileSchema = z.object({
   folder: folderNameSchema.nullable().optional(),
   status: fileStatusSchema.optional(),
+  disk: z.enum(['public', 'local']).optional(),
 })
 
 export const createFolderSchema = z.object({
