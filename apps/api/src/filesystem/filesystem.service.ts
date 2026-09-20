@@ -73,8 +73,11 @@ export class FilesystemService {
     return await this.disk().get(path);
   }
 
-  async getStream(path: string): Promise<Readable> {
-    return await this.disk().getStream(path);
+  async getStream(
+    path: string,
+    options?: { start?: number; end?: number },
+  ): Promise<Readable> {
+    return await this.disk().getStream(path, options);
   }
 
   async exists(path: string): Promise<boolean> {

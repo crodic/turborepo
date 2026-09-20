@@ -1,6 +1,13 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { FolderPlus, MousePointer, PlusIcon } from 'lucide-react'
+import {
+  FolderPlus,
+  LayoutGrid,
+  List,
+  MousePointer,
+  PanelRight,
+  PlusIcon,
+} from 'lucide-react'
 import {
   parseAsArrayOf,
   parseAsInteger,
@@ -14,7 +21,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { getSortingStateParser } from '@/lib/parsers'
 import { PaginateQueryBuilder } from '@/lib/query-builder'
 import { restApiErrorHandler } from '@/lib/rest-api-handler'
-import { normalizeDate, sortParser } from '@/lib/utils'
+import { cn, normalizeDate, sortParser } from '@/lib/utils'
 import { useDataTable } from '@/hooks/use-data-table'
 import useGetFilterParams from '@/hooks/use-get-filter-params'
 import { Button } from '@/components/ui/button'
@@ -31,6 +38,12 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { getFilesTableColumns } from './columns'
 import {
   DeleteFolderDialog,
+  FileBreadcrumbs,
+  FileDropzoneOverlay,
+  FileGridToolbar,
+  FileGridView,
+  FileInspector,
+  FolderCardGrid,
   FolderDialog,
   FolderPanel,
   MoveFileDialog,
@@ -49,6 +62,7 @@ import {
   fileQueryKeys,
   useDataFileFolders,
   useDataFileOverview,
+  useInfiniteDataFileOverview,
 } from './queries'
 import { ColumnKey, type FileSchema, type FolderSchema } from './schema'
 
@@ -79,12 +93,24 @@ export function PageFileOverview() {
   const { t } = useTranslation()
   const { ability } = useAuthStore()
   const queryClient = useQueryClient()
+
   const [activeFolder, setActiveFolder] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = window.localStorage.getItem('file-manager:view-mode')
+      if (saved === 'grid' || saved === 'table') return saved
+    }
+    return 'grid'
+  })
   const [localFolders, setLocalFolders] = useState<FolderSchema[]>([])
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [droppedFiles, setDroppedFiles] = useState<File[]>([])
   const [folderDialogOpen, setFolderDialogOpen] = useState(false)
   const [renameFolderOpen, setRenameFolderOpen] = useState(false)
+  const [folderToRename, setFolderToRename] = useState<string | null>(null)
   const [previewFile, setPreviewFile] = useState<FileSchema | null>(null)
+  const [inspectorOpen, setInspectorOpen] = useState(false)
+  const [inspectedFile, setInspectedFile] = useState<FileSchema | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickedUrl, setPickedUrl] = useState<string | null>(null)
   const [movingFile, setMovingFile] = useState<FileSchema | null>(null)
@@ -92,6 +118,7 @@ export function PageFileOverview() {
   const [bulkDeletingFiles, setBulkDeletingFiles] = useState<FileSchema[]>([])
   const [deletingFolder, setDeletingFolder] = useState<string | null>(null)
   const [deleteFolderFiles, setDeleteFolderFiles] = useState(false)
+
   const [, setPageQuery] = useQueryState('page', parseAsInteger.withDefault(1))
   const [, setSearchQuery] = useQueryState(
     'search',
@@ -133,9 +160,52 @@ export function PageFileOverview() {
     builder.eq('folder', activeFolder)
   }
 
+  // Derive activeCategory from URL params so it persists across page reloads
+  const activeCategory = useMemo(() => {
+    const mime = typeof filter.mime === 'string' ? filter.mime : null
+    const resourceType =
+      typeof filter.resource_type === 'string' ? filter.resource_type : null
+    if (mime === 'audio') return 'audio'
+    if (resourceType) return resourceType
+    return null
+  }, [filter.mime, filter.resource_type])
+
+  const isGridView = viewMode === 'grid'
+
   const params = builder.build()
-  const { data, isFetching } = useDataFileOverview(params)
+  const { data: pagedData, isFetching: isPagedFetching } = useDataFileOverview(
+    params,
+    { enabled: !isGridView }
+  )
+
+  const infiniteParams = useMemo(
+    () => ({
+      ...params,
+      limit: 24,
+    }),
+    [params]
+  )
+
+  const {
+    data: infiniteData,
+    isFetching: isInfiniteFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteDataFileOverview(infiniteParams, { enabled: isGridView })
+
   const { data: remoteFolders = [] } = useDataFileFolders()
+
+  const allGridFiles = useMemo(
+    () => infiniteData?.pages.flatMap((page) => page.data) ?? [],
+    [infiniteData?.pages]
+  )
+
+  const currentFiles = isGridView ? allGridFiles : (pagedData?.data ?? [])
+  const isFetching = isGridView ? isInfiniteFetching : isPagedFetching
+  const totalItems = isGridView
+    ? infiniteData?.pages[0]?.meta.totalItems
+    : pagedData?.meta.totalItems
 
   const folders = useMemo(() => {
     const map = new Map<string, FolderSchema>()
@@ -158,6 +228,9 @@ export function PageFileOverview() {
     mutationFn: apiDeleteFile,
     onSuccess: async () => {
       await invalidateFiles()
+      if (inspectedFile?.public_id === deletingFile?.public_id) {
+        setInspectedFile(null)
+      }
       setDeletingFile(null)
     },
   })
@@ -168,13 +241,20 @@ export function PageFileOverview() {
       setLocalFolders((current) =>
         current.filter((folder) => folder.folder !== deletingFolder)
       )
-      setActiveFolder(null)
+      if (activeFolder === deletingFolder) {
+        setActiveFolder(null)
+      }
       setDeletingFolder(null)
       setDeleteFolderFiles(false)
       await invalidateFiles()
     },
     onError: (error) => restApiErrorHandler(error as never),
   })
+
+  const handleInspectFile = useCallback((file: FileSchema) => {
+    setInspectedFile(file)
+    setInspectorOpen(true)
+  }, [])
 
   const columns = useMemo(
     () =>
@@ -190,9 +270,9 @@ export function PageFileOverview() {
   )
 
   const { table } = useDataTable({
-    data: data?.data ?? [],
+    data: currentFiles,
     columns,
-    pageCount: data?.meta.totalPages ?? 0,
+    pageCount: pagedData?.meta.totalPages ?? 0,
     initialState: {
       columnPinning: { left: ['select'], right: ['actions'] },
     },
@@ -242,8 +322,56 @@ export function PageFileOverview() {
     ]
   )
 
+  const handleCategorySelect = useCallback(
+    (category: string | null) => {
+      table.setPageIndex(0)
+      void setPageQuery(1)
+
+      if (!category || category === 'all') {
+        void setFilterQuery((current) => ({
+          ...current,
+          [ColumnKey.resourceType]: null,
+          [ColumnKey.mime]: null,
+        }))
+      } else if (category === 'audio') {
+        void setFilterQuery((current) => ({
+          ...current,
+          [ColumnKey.resourceType]: null,
+          [ColumnKey.mime]: 'audio',
+        }))
+      } else {
+        void setFilterQuery((current) => ({
+          ...current,
+          [ColumnKey.resourceType]: category,
+          [ColumnKey.mime]: null,
+        }))
+      }
+    },
+    [table, setPageQuery, setFilterQuery]
+  )
+
+  const handleViewModeChange = (mode: 'grid' | 'table') => {
+    setViewMode(mode)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('file-manager:view-mode', mode)
+    }
+  }
+
+  const handleDropFiles = useCallback((files: File[]) => {
+    if (files.length > 0) {
+      setDroppedFiles(files)
+      setUploadOpen(true)
+    }
+  }, [])
+
   return (
     <>
+      <FileDropzoneOverlay
+        activeFolder={activeFolder}
+        onDropFiles={handleDropFiles}
+        disabled={!ability.can('create', 'FILE')}
+      />
+
       <Header fixed>
         <div className='ms-auto flex items-center space-x-4'>
           <Search />
@@ -254,85 +382,219 @@ export function PageFileOverview() {
       </Header>
 
       <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
-        <div className='flex flex-wrap items-end justify-between gap-2'>
-          <div>
-            <h2 className='text-2xl font-bold tracking-tight'>
-              {t('files.overview.title')}
-            </h2>
-            <p className='text-muted-foreground'>
-              {t('files.overview.description')}
-            </p>
+        {/* Top Header & Action Controls */}
+        <div className='border-border/70 flex flex-wrap items-center justify-between gap-3 border-b pb-4'>
+          <div className='flex flex-col gap-1'>
+            <FileBreadcrumbs
+              activeFolder={activeFolder}
+              onSelectFolder={handleFolderSelect}
+              itemCount={totalItems}
+              isFetching={isFetching}
+            />
             {pickedUrl && (
-              <p className='text-muted-foreground mt-1 max-w-[min(720px,80vw)] truncate text-xs'>
+              <p className='text-muted-foreground mt-0.5 max-w-[min(720px,80vw)] truncate text-xs'>
                 {t('files.picker.demoValue')}: {pickedUrl}
               </p>
             )}
           </div>
+
           <div className='flex items-center gap-2'>
-            <Button variant='outline' onClick={() => setPickerOpen(true)}>
-              <MousePointer className='size-4' />
-              {t('files.picker.demoButton')}
+            {/* View Mode Toggle */}
+            <div className='border-border/80 bg-muted/40 flex items-center rounded-lg border p-0.5'>
+              <Button
+                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                size='icon'
+                className='size-7 rounded-md'
+                onClick={() => handleViewModeChange('grid')}
+                title={t('files.view.grid')}
+              >
+                <LayoutGrid className='size-3.5' />
+              </Button>
+              <Button
+                variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+                size='icon'
+                className='size-7 rounded-md'
+                onClick={() => handleViewModeChange('table')}
+                title={t('files.view.table')}
+              >
+                <List className='size-3.5' />
+              </Button>
+            </div>
+
+            {/* Inspector Toggle Button */}
+            <Button
+              variant={inspectorOpen ? 'secondary' : 'outline'}
+              size='icon'
+              className={cn(
+                'size-8',
+                inspectorOpen && 'border-primary/50 text-primary'
+              )}
+              onClick={() => setInspectorOpen((prev) => !prev)}
+              title={t('files.inspector.title')}
+            >
+              <PanelRight className='size-4' />
             </Button>
+
+            <Button
+              variant='outline'
+              size='sm'
+              className='h-8 gap-1.5 text-xs'
+              onClick={() => setPickerOpen(true)}
+            >
+              <MousePointer className='size-3.5' />
+              <span className='hidden sm:inline'>
+                {t('files.picker.demoButton')}
+              </span>
+            </Button>
+
             {ability.can('create', 'FILE') && (
               <>
                 <Button
                   variant='outline'
+                  size='sm'
+                  className='h-8 gap-1.5 text-xs'
                   onClick={() => setFolderDialogOpen(true)}
                 >
-                  <FolderPlus className='size-4' />
-                  {t('files.actions.createFolder')}
+                  <FolderPlus className='size-3.5' />
+                  <span className='hidden sm:inline'>
+                    {t('files.actions.createFolder')}
+                  </span>
                 </Button>
-                <Button onClick={() => setUploadOpen(true)}>
-                  <PlusIcon className='size-4' />
-                  {t('files.actions.upload')}
+                <Button
+                  size='sm'
+                  className='h-8 gap-1.5 text-xs'
+                  onClick={() => {
+                    setDroppedFiles([])
+                    setUploadOpen(true)
+                  }}
+                >
+                  <PlusIcon className='size-3.5' />
+                  <span>{t('files.actions.upload')}</span>
                 </Button>
               </>
             )}
           </div>
         </div>
 
-        <div className='grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]'>
+        {/* Main Body Layout */}
+        <div className='grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)]'>
+          {/* Left Sidebar */}
           <FolderPanel
             folders={folders}
             activeFolder={activeFolder}
-            totalFiles={data?.meta.totalItems ?? 0}
+            activeCategory={activeCategory}
+            totalFiles={totalItems ?? 0}
             onSelect={handleFolderSelect}
-            onRename={() => setRenameFolderOpen(true)}
+            onSelectCategory={handleCategorySelect}
+            onCreateFolder={() => setFolderDialogOpen(true)}
+            onRename={() => {
+              setFolderToRename(activeFolder)
+              setRenameFolderOpen(true)
+            }}
             onDelete={() => setDeletingFolder(activeFolder)}
+            canCreate={ability.can('create', 'FILE')}
             canUpdate={ability.can('update', 'FILE')}
             canDelete={ability.can('delete', 'FILE')}
           />
 
-          <DataTable
-            table={table}
-            onClickRowAction={setPreviewFile}
-            isFetching={isFetching}
-            actionBar={
-              <FilesTableActionBar
-                table={table}
-                onDelete={(files) => setBulkDeletingFiles(files)}
-                disabled={ability.can('delete', 'FILE') === false}
+          {/* Right Workspace Content */}
+          <div className='flex min-w-0 flex-1 flex-col gap-5'>
+            {/* Quick Access Folders when at root */}
+            {activeFolder === null && folders.length > 0 && (
+              <FolderCardGrid
+                folders={folders}
+                activeFolder={activeFolder}
+                onSelectFolder={handleFolderSelect}
+                onRenameFolder={(folder) => {
+                  setFolderToRename(folder)
+                  setRenameFolderOpen(true)
+                }}
+                onDeleteFolder={(folder) => setDeletingFolder(folder)}
+                canUpdate={ability.can('update', 'FILE')}
+                canDelete={ability.can('delete', 'FILE')}
               />
-            }
-          >
-            <DataTableToolbar table={table}>
-              <DataTableSortList table={table} />
-            </DataTableToolbar>
-          </DataTable>
+            )}
+
+            {/* Grid View Mode */}
+            {viewMode === 'grid' ? (
+              <div className='flex flex-col gap-4'>
+                <FileGridToolbar
+                  table={table}
+                  activeCategory={activeCategory}
+                  onSelectCategory={handleCategorySelect}
+                />
+
+                <FileGridView
+                  files={currentFiles}
+                  table={table}
+                  isFetching={isFetching}
+                  inspectedFile={inspectedFile}
+                  onInspectFile={handleInspectFile}
+                  onPreviewFile={setPreviewFile}
+                  onCopyUrl={copyFileUrl}
+                  onMoveFile={setMovingFile}
+                  onDeleteFile={setDeletingFile}
+                  canUpdate={ability.can('update', 'FILE')}
+                  canDelete={ability.can('delete', 'FILE')}
+                  hasNextPage={hasNextPage}
+                  isFetchingNextPage={isFetchingNextPage}
+                  fetchNextPage={fetchNextPage}
+                  totalItems={totalItems}
+                />
+              </div>
+            ) : (
+              /* Table View Mode */
+              <DataTable
+                table={table}
+                onClickRowAction={handleInspectFile}
+                isFetching={isFetching}
+              >
+                <DataTableToolbar table={table}>
+                  <DataTableSortList table={table} />
+                </DataTableToolbar>
+              </DataTable>
+            )}
+          </div>
         </div>
       </Main>
 
+      {/* Bulk Action Bar (Visible in both Grid and Table views when items are selected) */}
+      <FilesTableActionBar
+        table={table}
+        onDelete={(files) => setBulkDeletingFiles(files)}
+        disabled={ability.can('delete', 'FILE') === false}
+      />
+
+      {/* File Inspector Drawer */}
+      <FileInspector
+        open={inspectorOpen}
+        onOpenChange={setInspectorOpen}
+        file={inspectedFile}
+        onPreview={setPreviewFile}
+        onCopyUrl={copyFileUrl}
+        onMove={setMovingFile}
+        onDelete={setDeletingFile}
+        canUpdate={ability.can('update', 'FILE')}
+        canDelete={ability.can('delete', 'FILE')}
+      />
+
+      {/* Upload Dialog */}
       <UploadDialog
         open={uploadOpen}
         folder={activeFolder}
         folders={folders}
-        onOpenChange={setUploadOpen}
+        initialFiles={droppedFiles}
+        onOpenChange={(open) => {
+          setUploadOpen(open)
+          if (!open) setDroppedFiles([])
+        }}
         onUploaded={invalidateFiles}
         onCreateLocalFolder={(folder) => {
           handleFolderSelect(folder)
         }}
       />
 
+      {/* Create Folder Dialog */}
       <FolderDialog
         open={folderDialogOpen}
         title={t('files.folders.createTitle')}
@@ -348,23 +610,30 @@ export function PageFileOverview() {
         }}
       />
 
+      {/* Rename Folder Dialog */}
       <FolderDialog
         open={renameFolderOpen}
         title={t('files.folders.renameTitle')}
         submitLabel={t('buttons.save')}
-        defaultValue={activeFolder ?? ''}
-        onOpenChange={setRenameFolderOpen}
+        defaultValue={folderToRename ?? activeFolder ?? ''}
+        onOpenChange={(open) => {
+          setRenameFolderOpen(open)
+          if (!open) setFolderToRename(null)
+        }}
         onSubmit={async (folder) => {
-          if (!activeFolder) return
+          const target = folderToRename ?? activeFolder
+          if (!target) return
           const renamed = await apiRenameFolder({
-            folder: activeFolder,
+            folder: target,
             data: { folder },
           })
           handleFolderSelect(renamed.folder)
+          setFolderToRename(null)
           await invalidateFiles()
         }}
       />
 
+      {/* Move File Dialog */}
       <MoveFileDialog
         file={movingFile}
         folders={folders}
@@ -375,16 +644,21 @@ export function PageFileOverview() {
             publicId: movingFile.public_id,
             data: { folder },
           })
+          if (inspectedFile?.public_id === movingFile.public_id) {
+            setInspectedFile((prev) => (prev ? { ...prev, folder } : null))
+          }
           setMovingFile(null)
           await invalidateFiles()
         }}
       />
 
+      {/* Preview Dialog */}
       <PreviewDialog
         file={previewFile}
         onOpenChange={(open) => !open && setPreviewFile(null)}
       />
 
+      {/* Demo File Picker Dialog */}
       <FilePickerDialog
         open={pickerOpen}
         onOpenChange={setPickerOpen}
@@ -393,6 +667,7 @@ export function PageFileOverview() {
         onValueChange={(value) => setPickedUrl(value)}
       />
 
+      {/* Delete Single File Alert */}
       {deletingFile && (
         <DeleteAlertDialog
           open={Boolean(deletingFile)}
@@ -404,6 +679,7 @@ export function PageFileOverview() {
         />
       )}
 
+      {/* Delete Bulk Files Alert */}
       {bulkDeletingFiles.length > 0 && (
         <DeleteAlertDialog
           open={bulkDeletingFiles.length > 0}
@@ -416,6 +692,7 @@ export function PageFileOverview() {
         />
       )}
 
+      {/* Delete Folder Alert */}
       <DeleteFolderDialog
         folder={deletingFolder}
         deleteFiles={deleteFolderFiles}

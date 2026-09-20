@@ -99,11 +99,18 @@ export class S3Driver implements StorageDriver {
     return Buffer.from(byteArray);
   }
 
-  async getStream(filePath: string): Promise<Readable> {
+  async getStream(
+    filePath: string,
+    options?: { start?: number; end?: number },
+  ): Promise<Readable> {
     const key = this.normalizeKey(filePath);
     const command = new GetObjectCommand({
       Bucket: this.bucket,
       Key: key,
+      Range:
+        options?.start !== undefined
+          ? `bytes=${options.start}-${options.end ?? ''}`
+          : undefined,
     });
 
     const response = await this.client.send(command);

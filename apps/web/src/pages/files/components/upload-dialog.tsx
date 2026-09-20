@@ -33,6 +33,7 @@ export interface UploadDialogProps {
   open: boolean
   folder: string | null
   folders: FolderSchema[]
+  initialFiles?: File[]
   onOpenChange: (open: boolean) => void
   onUploaded: () => Promise<void>
   onCreateLocalFolder: (folder: string) => void
@@ -46,6 +47,7 @@ export function UploadDialog({
   open,
   folder,
   folders,
+  initialFiles,
   onOpenChange,
   onUploaded,
   onCreateLocalFolder,
@@ -61,10 +63,10 @@ export function UploadDialog({
   useEffect(() => {
     if (open) {
       setTargetFolder(folder ?? '')
-      setFiles([])
+      setFiles(initialFiles ?? [])
       setUploadProgress({})
     }
-  }, [open, folder])
+  }, [open, folder, initialFiles])
 
   const uploadMutation = useMutation({
     mutationFn: async () => {

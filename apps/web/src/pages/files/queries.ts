@@ -185,25 +185,33 @@ export async function apiDeleteFolder({
   })
 }
 
-export const useDataFileOverview = (params: PaginateQueryParams) =>
+export const useDataFileOverview = (
+  params: PaginateQueryParams,
+  options?: { enabled?: boolean }
+) =>
   useQuery({
     queryKey: fileQueryKeys.list(params),
     queryFn: () => apiGetFileListing(params),
+    ...options,
   })
 
-export const useInfiniteDataFileOverview = (params: PaginateQueryParams) =>
+export const useInfiniteDataFileOverview = (
+  params: PaginateQueryParams,
+  options?: { enabled?: boolean }
+) =>
   useInfiniteQuery({
     queryKey: fileQueryKeys.infiniteList(params),
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
       apiGetFileListing({
         ...params,
-        page: pageParam,
+        page: pageParam as number,
       }),
     getNextPageParam: (lastPage) =>
       lastPage.meta.currentPage < lastPage.meta.totalPages
         ? lastPage.meta.currentPage + 1
         : undefined,
+    ...options,
   })
 
 export const useDataFileFolders = () =>

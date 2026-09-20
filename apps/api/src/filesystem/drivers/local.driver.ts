@@ -49,10 +49,13 @@ export class LocalDriver implements StorageDriver {
     return await fs.readFile(fullPath);
   }
 
-  async getStream(filePath: string): Promise<Readable> {
+  async getStream(
+    filePath: string,
+    options?: { start?: number; end?: number },
+  ): Promise<Readable> {
     const fullPath = this.getFullPath(filePath);
     await fs.access(fullPath);
-    return createReadStream(fullPath);
+    return createReadStream(fullPath, options);
   }
 
   async exists(filePath: string): Promise<boolean> {

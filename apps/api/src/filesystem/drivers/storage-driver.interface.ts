@@ -27,7 +27,10 @@ export interface StorageDriver {
   /**
    * Read file content as a Readable Stream (ideal for large files).
    */
-  getStream: (path: string) => Promise<Readable>;
+  getStream: (
+    path: string,
+    options?: { start?: number; end?: number },
+  ) => Promise<Readable>;
 
   /**
    * Check if a file exists.
