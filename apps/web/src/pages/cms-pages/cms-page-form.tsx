@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useForm, useFieldArray, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeftIcon, SaveIcon } from 'lucide-react'
@@ -84,6 +84,35 @@ export function CmsPageForm({
     },
   })
 
+  useEffect(() => {
+    if (initialData) {
+      const updatedTranslations = LOCALES.map((l) => {
+        const existing = initialData.translations?.find(
+          (t) => t.locale === l.value
+        )
+        return {
+          locale: l.value,
+          title: existing?.title ?? '',
+          slug: existing?.slug ?? '',
+          content:
+            existing?.content ?? (l.value === 'en' ? DEFAULT_PAGE_CONTENT : ''),
+          seoTitle: existing?.seoTitle ?? '',
+          seoDescription: existing?.seoDescription ?? '',
+          seoKeywords: existing?.seoKeywords ?? '',
+          ogTitle: existing?.ogTitle ?? '',
+          ogDescription: existing?.ogDescription ?? '',
+          ogImage: existing?.ogImage ?? '',
+          canonicalUrl: existing?.canonicalUrl ?? '',
+          robots: existing?.robots ?? '',
+        }
+      })
+      form.reset({
+        status: initialData.status ?? 'draft',
+        translations: updatedTranslations,
+      })
+    }
+  }, [initialData, form])
+
   const { fields } = useFieldArray({
     control: form.control,
     name: 'translations',
@@ -95,17 +124,23 @@ export function CmsPageForm({
 
   const handleSubmit = form.handleSubmit((data) => {
     const validTranslations = data.translations.filter(
-      (t) => t.title && t.content && t.content !== DEFAULT_PAGE_CONTENT
+      (item) =>
+        item.title && item.content && item.content !== DEFAULT_PAGE_CONTENT
     )
 
     if (validTranslations.length === 0) {
-      toast.error('At least one translation must have both Title and Content')
+      toast.error(
+        t(
+          'cmsPages.message.atLeastOneTranslation',
+          'At least one translation must have both Title and Content'
+        )
+      )
       return
     }
 
-    for (const [index, t] of data.translations.entries()) {
-      const hasTitle = !!t.title
-      const hasContent = !!t.content && t.content !== DEFAULT_PAGE_CONTENT
+    for (const [index, item] of data.translations.entries()) {
+      const hasTitle = !!item.title
+      const hasContent = !!item.content && item.content !== DEFAULT_PAGE_CONTENT
 
       if (hasTitle && !hasContent) {
         form.setError(`translations.${index}.content`, {
@@ -113,7 +148,10 @@ export function CmsPageForm({
           message: 'Content is required',
         })
         toast.error(
-          `Please provide content for ${t.locale.toUpperCase()} translation`
+          t('cmsPages.message.missingContent', {
+            locale: item.locale.toUpperCase(),
+            defaultValue: `Please provide content for ${item.locale.toUpperCase()} translation`,
+          })
         )
         return
       }
@@ -123,15 +161,33 @@ export function CmsPageForm({
           message: 'Title is required',
         })
         toast.error(
-          `Please provide title for ${t.locale.toUpperCase()} translation`
+          t('cmsPages.message.missingTitle', {
+            locale: item.locale.toUpperCase(),
+            defaultValue: `Please provide title for ${item.locale.toUpperCase()} translation`,
+          })
         )
         return
       }
     }
 
+    const cleanedTranslations = validTranslations.map((t) => ({
+      locale: t.locale,
+      title: t.title!.trim(),
+      slug: t.slug?.trim() || undefined,
+      content: t.content!,
+      seoTitle: t.seoTitle?.trim() || undefined,
+      seoDescription: t.seoDescription?.trim() || undefined,
+      seoKeywords: t.seoKeywords?.trim() || undefined,
+      ogTitle: t.ogTitle?.trim() || undefined,
+      ogDescription: t.ogDescription?.trim() || undefined,
+      ogImage: t.ogImage?.trim() || undefined,
+      canonicalUrl: t.canonicalUrl?.trim() || undefined,
+      robots: t.robots?.trim() || undefined,
+    }))
+
     onSubmit({
       ...data,
-      translations: validTranslations as any,
+      translations: cleanedTranslations as any,
     })
   })
 

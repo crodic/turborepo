@@ -25,6 +25,7 @@ describe('FileChunkUploadService', () => {
   };
   let fileFolderService: {
     normalizeFolder: jest.Mock;
+    ensureFolder: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -57,6 +58,7 @@ describe('FileChunkUploadService', () => {
     };
     fileFolderService = {
       normalizeFolder: jest.fn((folder) => folder ?? null),
+      ensureFolder: jest.fn().mockResolvedValue(null),
     };
 
     const module: TestingModule = await Test.createTestingModule({

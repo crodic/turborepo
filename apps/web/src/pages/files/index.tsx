@@ -600,6 +600,7 @@ export function PageFileOverview() {
         open={folderDialogOpen}
         title={t('files.folders.createTitle')}
         submitLabel={t('files.actions.createFolder')}
+        existingFolders={folders.map((item) => item.folder)}
         onOpenChange={setFolderDialogOpen}
         onSubmit={async (folder) => {
           const created = await apiCreateFolder({ folder })
@@ -617,6 +618,7 @@ export function PageFileOverview() {
         title={t('files.folders.renameTitle')}
         submitLabel={t('buttons.save')}
         defaultValue={folderToRename ?? activeFolder ?? ''}
+        existingFolders={folders.map((item) => item.folder)}
         onOpenChange={(open) => {
           setRenameFolderOpen(open)
           if (!open) setFolderToRename(null)

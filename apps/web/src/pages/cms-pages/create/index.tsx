@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { ConfigDrawer } from '@/components/config-drawer'
@@ -12,14 +13,22 @@ import { apiCreateCmsPage } from '../queries'
 import type { CmsPageFormSchema } from '../schema'
 
 export function PageCmsPageCreate() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const mutation = useMutation({
     mutationFn: apiCreateCmsPage,
     onSuccess: (page) => {
-      toast.success('Page created successfully')
+      toast.success(
+        t('cmsPages.message.createSuccess', 'Page created successfully')
+      )
       navigate(`/cms-pages/${page.id}/show`)
     },
-    onError: () => toast.error('Could not create page'),
+    onError: (error: any) => {
+      const message =
+        error?.response?.data?.message ||
+        t('cmsPages.message.createError', 'Could not create page')
+      toast.error(Array.isArray(message) ? message.join(', ') : message)
+    },
   })
 
   const handleSubmit = (data: CmsPageFormSchema) => {

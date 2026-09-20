@@ -124,7 +124,7 @@ export class FileController {
   @CheckPolicies((ability: AppAbility) =>
     ability.can(AppActions.Create, AppSubjects.File),
   )
-  createFolder(@Body() dto: CreateFolderDto): FileFolderResDto {
+  createFolder(@Body() dto: CreateFolderDto): Promise<FileFolderResDto> {
     return this.fileFolderService.createFolder(dto.folder);
   }
 

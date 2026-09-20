@@ -73,12 +73,15 @@ export default {
   'files.folders.createOption': 'Create "{{folder}}"',
   'files.folders.invalidName':
     'Use one folder name only. Start with a letter or number; letters, numbers, spaces, dots, underscores, and hyphens are allowed.',
+  'files.folders.alreadyExists': 'Folder already exists',
   'files.folders.deleteTitle': 'Delete folder',
   'files.folders.deleteDescription':
     'Delete this folder. By default, folders with files are protected.',
   'files.folders.deleteFilesLabel': 'Also delete files in this folder',
   'files.folders.deleteFilesDescription':
     'This permanently removes every stored file and metadata record in the folder.',
+  'files.folders.createSuccess': 'Folder created successfully',
+  'files.folders.actionFailed': 'Failed to perform folder operation',
   'files.upload.title': 'Upload files',
   'files.upload.description':
     'Upload one or more files to the selected folder.',
@@ -1043,6 +1046,14 @@ export default {
   'apps.descending': 'Descending',
   'cmsPages.message.atLeastOneTranslation':
     'At least one translation must have both Title and Content',
+  'cmsPages.message.deleteSuccess': 'Page deleted successfully',
+  'cmsPages.message.deleteError': 'Could not delete page',
+  'cmsPages.message.updateSuccess': 'Page updated successfully',
+  'cmsPages.message.createSuccess': 'Page created successfully',
+  'cmsPages.message.missingContent':
+    'Please provide content for {{locale}} translation',
+  'cmsPages.message.missingTitle':
+    'Please provide title for {{locale}} translation',
   'cmsPages.show.pageDetails': 'Page details',
   'cmsPages.show.currentLocale': 'Current Locale',
   'cmsPages.show.publishedAt': 'Published At',
@@ -1051,6 +1062,21 @@ export default {
   'cmsPages.show.updatedAt': 'Updated At',
   'cmsPages.show.preview': 'Preview',
   'cmsPages.show.language': 'Language',
+  'cmsPages.show.contentPreview': 'Content Preview',
+  'cmsPages.show.seoPreview': 'SEO & Social Preview',
+  'cmsPages.show.googleSearchPreview': 'Google Search Result Preview',
+  'cmsPages.show.socialPreview': 'Social Share Card Preview (Open Graph)',
+  'cmsPages.show.seoDetails': 'Technical SEO Metadata',
+  'cmsPages.show.seoKeywords': 'SEO Keywords',
+  'cmsPages.show.canonicalUrl': 'Canonical URL',
+  'cmsPages.show.robots': 'Robots Tag',
+  'cmsPages.show.ogTitle': 'OG Title',
+  'cmsPages.show.ogDescription': 'OG Description',
+  'cmsPages.show.ogImage': 'OG Image',
+  'cmsPages.show.noSeoDescription':
+    'No meta description provided. Search engines may show content snippets.',
+  'cmsPages.show.noOgImage': 'No Open Graph image specified.',
+  'cmsPages.show.notPublished': 'Not published',
   'roles.message.systemRoleCannotBeDeleted': 'System roles cannot be deleted',
   'roles.message.systemRoleCannotBeUpdated': 'System roles cannot be updated',
   'roles.message.invalidPermission': 'Invalid permission selected',

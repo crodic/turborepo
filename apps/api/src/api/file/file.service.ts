@@ -142,7 +142,11 @@ export class FileService {
     });
 
     if (dto.folder !== undefined) {
-      file.folder = this.fileFolderService.normalizeFolder(dto.folder);
+      const normalizedFolder = this.fileFolderService.normalizeFolder(
+        dto.folder,
+      );
+      await this.fileFolderService.ensureFolder(normalizedFolder);
+      file.folder = normalizedFolder;
     }
 
     if (dto.status !== undefined) {
@@ -389,6 +393,10 @@ export class FileService {
       } catch (err) {
         this.logger.warn(`Failed to read image metadata: ${err}`);
       }
+    }
+
+    if (folder) {
+      await this.fileFolderService.ensureFolder(folder);
     }
 
     const media = this.fileRepository.create({

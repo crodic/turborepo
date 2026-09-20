@@ -30,6 +30,7 @@ export class StateEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 255 })
   name: string;
 
+  @Index('IDX_states_country_id')
   @Column({ name: 'country_id', type: 'bigint' })
   countryId: AutoIncrementID;
 

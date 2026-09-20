@@ -4,9 +4,13 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
+  Relation,
   UpdateDateColumn,
 } from 'typeorm';
+import { FileFolderEntity } from './file-folder.entity';
 
 @Entity('files')
 export class FileEntity {
@@ -22,6 +26,18 @@ export class FileEntity {
 
   @Column({ type: 'varchar', nullable: true })
   folder: string | null;
+
+  @ManyToOne(() => FileFolderEntity, (folder) => folder.files, {
+    nullable: true,
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn({
+    name: 'folder',
+    referencedColumnName: 'name',
+    foreignKeyConstraintName: 'FK_files_folder_name',
+  })
+  folderRelation?: Relation<FileFolderEntity>;
 
   @Column({ type: 'varchar', nullable: true })
   disk: string | null;

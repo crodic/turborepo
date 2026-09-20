@@ -55,6 +55,7 @@ export class CmsPageService {
   async findOne(id: AutoIncrementID): Promise<CmsPageResDto> {
     const page = await this.cmsPageRepository.findOne({
       where: { id, deletedAt: IsNull() },
+      relations: ['translations'],
     });
 
     if (!page) {
@@ -108,8 +109,13 @@ export class CmsPageService {
     const status = dto.status ?? ECmsPageStatus.DRAFT;
     const translations = dto.translations || [];
 
+    const slugs = new Set<string>();
     for (const t of translations) {
       t.slug = normalizeSlug(t.slug || t.title);
+      if (slugs.has(t.slug)) {
+        t.slug = `${t.locale}-${t.slug}`;
+      }
+      slugs.add(t.slug);
       await this.assertSlugAvailable(t.slug);
     }
 
@@ -121,7 +127,8 @@ export class CmsPageService {
       translations,
     });
 
-    return this.toDto(await this.cmsPageRepository.save(page));
+    const saved = await this.cmsPageRepository.save(page);
+    return this.findOne(saved.id);
   }
 
   async update(
@@ -131,6 +138,7 @@ export class CmsPageService {
   ): Promise<CmsPageResDto> {
     const page = await this.cmsPageRepository.findOne({
       where: { id, deletedAt: IsNull() },
+      relations: ['translations'],
     });
 
     if (!page) {
@@ -152,20 +160,56 @@ export class CmsPageService {
     }
 
     if (dto.translations) {
-      // Check slugs
+      const seenLocales = new Set<string>();
+      const deduplicatedTranslations: typeof dto.translations = [];
       for (const t of dto.translations) {
+        if (!seenLocales.has(t.locale)) {
+          seenLocales.add(t.locale);
+          deduplicatedTranslations.push(t);
+        }
+      }
+
+      const slugs = new Set<string>();
+      for (const t of deduplicatedTranslations) {
         t.slug = normalizeSlug(t.slug || t.title);
+        if (slugs.has(t.slug)) {
+          t.slug = `${t.locale}-${t.slug}`;
+        }
+        slugs.add(t.slug);
         await this.assertSlugAvailable(t.slug, id);
       }
 
-      // We overwrite translations for simplicity (delete old, insert new)
-      await this.translationRepository.delete({ pageId: id });
-      page.translations = dto.translations.map((t) =>
-        this.translationRepository.create({ ...t }),
+      await this.cmsPageRepository.manager.transaction(async (manager) => {
+        await manager.delete(CmsPageTranslationEntity, { pageId: id });
+        const translationEntities = deduplicatedTranslations.map((t) =>
+          manager.create(CmsPageTranslationEntity, {
+            ...t,
+            pageId: id,
+          }),
+        );
+        await manager.save(CmsPageTranslationEntity, translationEntities);
+        await manager.update(
+          CmsPageEntity,
+          { id },
+          {
+            status: page.status,
+            updatedBy: page.updatedBy,
+            publishedAt: page.publishedAt,
+          },
+        );
+      });
+    } else {
+      await this.cmsPageRepository.update(
+        { id },
+        {
+          status: page.status,
+          updatedBy: page.updatedBy,
+          publishedAt: page.publishedAt,
+        },
       );
     }
 
-    return this.toDto(await this.cmsPageRepository.save(page));
+    return this.findOne(id);
   }
 
   async remove(id: AutoIncrementID): Promise<{ message: string }> {

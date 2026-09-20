@@ -73,12 +73,15 @@ export default {
   'files.folders.createOption': 'Tạo "{{folder}}"',
   'files.folders.invalidName':
     'Chỉ nhập một tên thư mục. Bắt đầu bằng chữ hoặc số; cho phép chữ, số, khoảng trắng, dấu chấm, gạch dưới và gạch ngang.',
+  'files.folders.alreadyExists': 'Thư mục đã tồn tại',
   'files.folders.deleteTitle': 'Xóa thư mục',
   'files.folders.deleteDescription':
     'Xóa thư mục này. Mặc định hệ thống sẽ bảo vệ thư mục đang có tệp.',
   'files.folders.deleteFilesLabel': 'Xóa luôn các tệp trong thư mục',
   'files.folders.deleteFilesDescription':
     'Thao tác này xóa vĩnh viễn toàn bộ tệp đã lưu và metadata trong thư mục.',
+  'files.folders.createSuccess': 'Tạo thư mục thành công',
+  'files.folders.actionFailed': 'Thao tác với thư mục thất bại',
   'files.upload.title': 'Tải tệp lên',
   'files.upload.description': 'Tải một hoặc nhiều tệp lên thư mục đã chọn.',
   'files.upload.pickFiles': 'Chọn tệp',
@@ -1034,6 +1037,14 @@ export default {
   'apps.descending': 'Giảm dần',
   'cmsPages.message.atLeastOneTranslation':
     'Ít nhất một ngôn ngữ phải có đầy đủ Tiêu đề và Nội dung',
+  'cmsPages.message.deleteSuccess': 'Xóa trang thành công',
+  'cmsPages.message.deleteError': 'Không thể xóa trang',
+  'cmsPages.message.updateSuccess': 'Cập nhật trang thành công',
+  'cmsPages.message.createSuccess': 'Tạo trang mới thành công',
+  'cmsPages.message.missingContent':
+    'Vui lòng nhập nội dung cho bản dịch {{locale}}',
+  'cmsPages.message.missingTitle':
+    'Vui lòng nhập tiêu đề cho bản dịch {{locale}}',
   'cmsPages.show.pageDetails': 'Chi tiết trang',
   'cmsPages.show.currentLocale': 'Ngôn ngữ hiện tại',
   'cmsPages.show.publishedAt': 'Ngày xuất bản',
@@ -1042,6 +1053,22 @@ export default {
   'cmsPages.show.updatedAt': 'Ngày cập nhật',
   'cmsPages.show.preview': 'Xem trước',
   'cmsPages.show.language': 'Ngôn ngữ',
+  'cmsPages.show.contentPreview': 'Xem trước nội dung',
+  'cmsPages.show.seoPreview': 'Xem trước SEO & Mạng xã hội',
+  'cmsPages.show.googleSearchPreview': 'Xem trước kết quả tìm kiếm Google',
+  'cmsPages.show.socialPreview':
+    'Xem trước thẻ chia sẻ mạng xã hội (Open Graph)',
+  'cmsPages.show.seoDetails': 'Thông số kỹ thuật SEO',
+  'cmsPages.show.seoKeywords': 'Từ khóa SEO',
+  'cmsPages.show.canonicalUrl': 'Canonical URL',
+  'cmsPages.show.robots': 'Thẻ Robots',
+  'cmsPages.show.ogTitle': 'Tiêu đề Open Graph',
+  'cmsPages.show.ogDescription': 'Mô tả Open Graph',
+  'cmsPages.show.ogImage': 'Ảnh đại diện Open Graph',
+  'cmsPages.show.noSeoDescription':
+    'Chưa có mô tả SEO. Công cụ tìm kiếm sẽ tự trích xuất nội dung bài viết.',
+  'cmsPages.show.noOgImage': 'Chưa thiết lập ảnh đại diện Open Graph.',
+  'cmsPages.show.notPublished': 'Chưa xuất bản',
   'roles.message.systemRoleCannotBeDeleted': 'Không thể xoá vai trò hệ thống',
   'roles.message.systemRoleCannotBeUpdated':
     'Không thể cập nhật vai trò hệ thống',

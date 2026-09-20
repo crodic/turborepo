@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { AxiosError } from 'axios'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+import { restApiErrorHandler } from '@/lib/rest-api-handler'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -19,6 +21,7 @@ export interface FolderDialogProps {
   title: string
   submitLabel: string
   defaultValue?: string
+  existingFolders?: string[]
   onOpenChange: (open: boolean) => void
   onSubmit: (folder: string) => Promise<void>
 }
@@ -28,21 +31,44 @@ export function FolderDialog({
   title,
   submitLabel,
   defaultValue = '',
+  existingFolders,
   onOpenChange,
   onSubmit,
 }: FolderDialogProps) {
   const { t } = useTranslation()
   const [folder, setFolder] = useState(defaultValue)
   const normalizedFolder = folder.trim()
+
+  const isDuplicate =
+    Boolean(normalizedFolder) &&
+    Boolean(
+      existingFolders?.some(
+        (f) =>
+          f.toLowerCase() === normalizedFolder.toLowerCase() &&
+          f.toLowerCase() !== defaultValue.trim().toLowerCase()
+      )
+    )
+
   const folderError =
     normalizedFolder && !isValidFolderName(normalizedFolder)
       ? t('files.folders.invalidName')
-      : null
+      : isDuplicate
+        ? t('files.folders.alreadyExists')
+        : null
+
   const mutation = useMutation({
     mutationFn: () => onSubmit(normalizedFolder),
     onSuccess: () => {
       setFolder('')
       onOpenChange(false)
+    },
+    onError: (error) => {
+      if (error instanceof AxiosError) {
+        restApiErrorHandler(error)
+        return
+      }
+
+      toast.error(error instanceof Error ? error.message : 'Error')
     },
   })
 
@@ -62,13 +88,29 @@ export function FolderDialog({
             id='folder-name'
             value={folder}
             onChange={(event) => setFolder(event.target.value)}
+            onKeyDown={(e) => {
+              if (
+                e.key === 'Enter' &&
+                normalizedFolder &&
+                !folderError &&
+                !mutation.isPending
+              ) {
+                e.preventDefault()
+                mutation.mutate()
+              }
+            }}
           />
           {folderError && (
             <p className='text-destructive text-sm'>{folderError}</p>
           )}
-          {mutation.error instanceof AxiosError && (
+          {mutation.error && (
             <p className='text-destructive text-sm'>
-              {mutation.error.response?.data.message ?? mutation.error.message}
+              {mutation.error instanceof AxiosError
+                ? (mutation.error.response?.data?.message ??
+                  mutation.error.message)
+                : mutation.error instanceof Error
+                  ? mutation.error.message
+                  : String(mutation.error)}
             </p>
           )}
         </div>

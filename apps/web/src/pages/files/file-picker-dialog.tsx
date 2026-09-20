@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AxiosError } from 'axios'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   Check,
@@ -15,6 +16,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { PaginateQueryBuilder } from '@/lib/query-builder'
+import { restApiErrorHandler } from '@/lib/rest-api-handler'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -350,6 +352,11 @@ export function FilePickerDialog(props: FilePickerDialogProps) {
         t('files.folders.createSuccess', 'Folder created successfully')
       )
     } catch (err) {
+      if (err instanceof AxiosError) {
+        restApiErrorHandler(err)
+        return
+      }
+
       toast.error(
         err instanceof Error ? err.message : 'Failed to create folder'
       )

@@ -5,6 +5,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { createReadStream } from 'fs';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import { dirname, join } from 'path';
+import { FileFolderEntity } from './entities/file-folder.entity';
 import { FileEntity } from './entities/file.entity';
 import { FileFolderService } from './file-folder.service';
 import { FileService } from './file.service';
@@ -80,6 +81,14 @@ describe('FileService', () => {
         {
           provide: getRepositoryToken(FileEntity),
           useValue: repository,
+        },
+        {
+          provide: getRepositoryToken(FileFolderEntity),
+          useValue: {
+            findOne: jest.fn(),
+            save: jest.fn((val) => Promise.resolve(val)),
+            create: jest.fn((val) => val),
+          },
         },
         {
           provide: FileValidator,

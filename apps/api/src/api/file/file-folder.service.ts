@@ -11,6 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import { Repository } from 'typeorm';
 import { FileFolderResDto } from './dto/folder.dto';
+import { FileFolderEntity } from './entities/file-folder.entity';
 import { FileEntity } from './entities/file.entity';
 import {
   FILE_FOLDER_NAME_MESSAGE,
@@ -23,6 +24,8 @@ export class FileFolderService {
   constructor(
     @InjectRepository(FileEntity)
     private readonly fileRepository: Repository<FileEntity>,
+    @InjectRepository(FileFolderEntity)
+    private readonly folderRepository: Repository<FileFolderEntity>,
     private readonly storage: FilesystemService,
   ) {}
 
@@ -66,16 +69,53 @@ export class FileFolderService {
     return normalized;
   }
 
-  async listFolders(): Promise<FileFolderResDto[]> {
-    const rows = await this.fileRepository
+  async ensureFolder(folder?: string | null): Promise<FileFolderEntity | null> {
+    const normalized = this.normalizeFolder(folder);
+    if (!normalized) {
+      return null;
+    }
+
+    let entity = await this.folderRepository.findOne({
+      where: { name: normalized },
+    });
+
+    if (!entity) {
+      entity = await this.folderRepository.save(
+        this.folderRepository.create({ name: normalized }),
+      );
+    }
+
+    return entity;
+  }
+
+  async getFolderSummary(folderName: string): Promise<FileFolderResDto> {
+    const row = await this.fileRepository
       .createQueryBuilder('file')
-      .select('file.folder', 'folder')
+      .select('COUNT(file.id)', 'count')
+      .addSelect('COALESCE(SUM(file.size), 0)', 'size')
+      .where('file.folder = :folder', { folder: folderName })
+      .getRawOne<{ count: string; size: string }>();
+
+    return plainToInstance(
+      FileFolderResDto,
+      {
+        folder: folderName,
+        count: Number(row?.count ?? 0),
+        size: Number(row?.size ?? 0),
+      },
+      { excludeExtraneousValues: true },
+    );
+  }
+
+  async listFolders(): Promise<FileFolderResDto[]> {
+    const rows = await this.folderRepository
+      .createQueryBuilder('folder')
+      .leftJoin(FileEntity, 'file', 'file.folder = folder.name')
+      .select('folder.name', 'folder')
       .addSelect('COUNT(file.id)', 'count')
       .addSelect('COALESCE(SUM(file.size), 0)', 'size')
-      .where('file.folder IS NOT NULL')
-      .andWhere("file.folder <> ''")
-      .groupBy('file.folder')
-      .orderBy('file.folder', 'ASC')
+      .groupBy('folder.name')
+      .orderBy('folder.name', 'ASC')
       .getRawMany<{ folder: string; count: string; size: string }>();
 
     return plainToInstance(
@@ -89,28 +129,55 @@ export class FileFolderService {
     );
   }
 
-  createFolder(folder: string): FileFolderResDto {
-    return plainToInstance(
-      FileFolderResDto,
-      {
-        folder: this.assertFolder(folder),
-        count: 0,
-        size: 0,
-      },
-      { excludeExtraneousValues: true },
+  async createFolder(folder: string): Promise<FileFolderResDto> {
+    const normalized = this.assertFolder(folder);
+
+    const existing = await this.folderRepository.findOne({
+      where: { name: normalized },
+    });
+
+    if (existing) {
+      throw new BadRequestException('Folder already exists');
+    }
+
+    await this.folderRepository.save(
+      this.folderRepository.create({ name: normalized }),
     );
+
+    return this.getFolderSummary(normalized);
   }
 
   async renameFolder(from: string, to: string): Promise<FileFolderResDto> {
     const sourceFolder = this.assertFolder(from);
     const targetFolder = this.assertFolder(to);
 
-    const count = await this.fileRepository.count({
+    const existingSource = await this.folderRepository.findOne({
+      where: { name: sourceFolder },
+    });
+
+    const fileCount = await this.fileRepository.count({
       where: { folder: sourceFolder },
     });
 
-    if (count === 0) {
+    if (!existingSource && fileCount === 0) {
       throw new NotFoundException('Folder not found');
+    }
+
+    const existingTarget = await this.folderRepository.findOne({
+      where: { name: targetFolder },
+    });
+
+    if (existingTarget && existingTarget.name !== sourceFolder) {
+      throw new BadRequestException('Target folder already exists');
+    }
+
+    if (existingSource) {
+      existingSource.name = targetFolder;
+      await this.folderRepository.save(existingSource);
+    } else {
+      await this.folderRepository.save(
+        this.folderRepository.create({ name: targetFolder }),
+      );
     }
 
     await this.fileRepository
@@ -120,10 +187,7 @@ export class FileFolderService {
       .where('folder = :folder', { folder: sourceFolder })
       .execute();
 
-    const folders = await this.listFolders();
-    const renamed = folders.find((item) => item.folder === targetFolder);
-
-    return renamed ?? this.createFolder(targetFolder);
+    return this.getFolderSummary(targetFolder);
   }
 
   async deleteFolder(
@@ -131,9 +195,17 @@ export class FileFolderService {
     deleteFiles = false,
   ): Promise<{ message: string }> {
     const targetFolder = this.assertFolder(folder);
+    const existingFolder = await this.folderRepository.findOne({
+      where: { name: targetFolder },
+    });
+
     const files = await this.fileRepository.find({
       where: { folder: targetFolder },
     });
+
+    if (!existingFolder && files.length === 0) {
+      throw new NotFoundException('Folder not found');
+    }
 
     if (files.length > 0 && !deleteFiles) {
       throw new BadRequestException(
@@ -141,13 +213,17 @@ export class FileFolderService {
       );
     }
 
-    if (deleteFiles) {
+    if (deleteFiles && files.length > 0) {
       await Promise.allSettled(
         files.map((file) =>
           this.diskForFile(file).delete(this.toStorageKey(file.path)),
         ),
       );
       await this.fileRepository.delete({ folder: targetFolder });
+    }
+
+    if (existingFolder) {
+      await this.folderRepository.delete({ id: existingFolder.id });
     }
 
     return { message: 'Successfully deleted' };

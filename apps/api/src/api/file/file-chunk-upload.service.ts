@@ -180,6 +180,10 @@ export class FileChunkUploadService {
       }
     }
 
+    if (folder) {
+      await this.fileFolderService.ensureFolder(folder);
+    }
+
     const media = this.fileRepository.create({
       public_id: publicId,
       folder,

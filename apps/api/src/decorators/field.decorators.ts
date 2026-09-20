@@ -6,7 +6,7 @@ import {
 } from '@/utils/permissions.constant';
 import { applyDecorators } from '@nestjs/common';
 import { ApiProperty, type ApiPropertyOptions } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -212,8 +212,16 @@ export function StringFieldOptional(
     IStringFieldOptions = {},
 ): PropertyDecorator {
   return applyDecorators(
+    Transform(({ value }) =>
+      typeof value === 'string' && value.trim() === '' ? undefined : value,
+    ),
     IsOptional({ each: options.each }),
-    StringField({ required: false, ...options }),
+    StringField({
+      required: false,
+      minLength: 0,
+      nullable: true,
+      ...options,
+    }),
   );
 }
 
@@ -301,8 +309,11 @@ export function EmailFieldOptional(
   options: Omit<ApiPropertyOptions, 'type'> & IStringFieldOptions = {},
 ): PropertyDecorator {
   return applyDecorators(
+    Transform(({ value }) =>
+      typeof value === 'string' && value.trim() === '' ? undefined : value,
+    ),
     IsOptional({ each: options.each }),
-    EmailField({ required: false, ...options }),
+    EmailField({ required: false, minLength: 0, nullable: true, ...options }),
   );
 }
 
@@ -339,8 +350,11 @@ export function UUIDFieldOptional(
     IFieldOptions = {},
 ): PropertyDecorator {
   return applyDecorators(
+    Transform(({ value }) =>
+      typeof value === 'string' && value.trim() === '' ? undefined : value,
+    ),
     IsOptional({ each: options.each }),
-    UUIDField({ required: false, ...options }),
+    UUIDField({ required: false, nullable: true, ...options }),
   );
 }
 
@@ -362,8 +376,11 @@ export function URLFieldOptional(
   options: Omit<ApiPropertyOptions, 'type'> & IStringFieldOptions = {},
 ): PropertyDecorator {
   return applyDecorators(
+    Transform(({ value }) =>
+      typeof value === 'string' && value.trim() === '' ? undefined : value,
+    ),
     IsOptional({ each: options.each }),
-    URLField({ required: false, ...options }),
+    URLField({ required: false, minLength: 0, nullable: true, ...options }),
   );
 }
 

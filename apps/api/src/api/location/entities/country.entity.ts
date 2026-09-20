@@ -80,6 +80,7 @@ export class CountryEntity extends AbstractEntity {
   @Column({ type: 'double precision', nullable: true })
   longitude: number | null;
 
+  @Index('IDX_countries_region_id')
   @Column({ name: 'region_id', type: 'bigint', nullable: true })
   regionId: AutoIncrementID | null;
 
