@@ -1,28 +1,19 @@
 import { useEffect, useState } from 'react'
-import { format } from 'date-fns'
 import {
-  Calendar,
   Check,
-  Clock,
   Copy,
   Download,
   ExternalLink,
   Film,
-  Folder,
-  HardDrive,
   ImageIcon,
   Link2,
   Loader2,
-  Maximize2,
   Music,
-  RotateCcw,
-  Sparkles,
   Tag,
   Wand2,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -32,14 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatBytes } from '../columns'
 import {
@@ -49,53 +32,31 @@ import {
   isPreviewableVideo,
 } from '../file-preview'
 import { type FileSchema } from '../schema'
+import { FileMetadataView } from './file-metadata-view'
+import {
+  ImageTransformView,
+  type ImageTransformForm,
+  buildFileTransformUrl,
+  buildImageTransformations,
+  toPositiveTransform,
+  TransformSelect,
+} from './image-transform-view'
+import { TransformGuidelinePopover } from './transform-guideline-popover'
+
+export type { ImageTransformForm }
+export {
+  buildFileTransformUrl,
+  buildImageTransformations,
+  toPositiveTransform,
+  TransformSelect,
+  FileMetadataView,
+  ImageTransformView,
+  TransformGuidelinePopover,
+}
 
 export interface PreviewDialogProps {
   file: FileSchema | null
   onOpenChange: (open: boolean) => void
-}
-
-export type ImageTransformForm = {
-  width: string
-  height: string
-  crop: string
-  format: string
-  quality: string
-  effect: string
-  raw: string
-}
-
-export function toPositiveTransform(
-  prefix: string,
-  value: string,
-  max?: number
-) {
-  const number = Number(value)
-  if (!Number.isFinite(number) || number <= 0) return null
-  return `${prefix}_${max ? Math.min(number, max) : number}`
-}
-
-export function buildImageTransformations(value: ImageTransformForm) {
-  const parts = [
-    toPositiveTransform('w', value.width),
-    toPositiveTransform('h', value.height),
-    value.crop ? `c_${value.crop}` : null,
-    value.format ? `f_${value.format}` : null,
-    toPositiveTransform('q', value.quality, 100),
-    value.effect ? `e_${value.effect}` : null,
-    value.raw.trim() || null,
-  ].filter(Boolean)
-
-  return parts.join(',')
-}
-
-export function buildFileTransformUrl(url: string, transformations: string) {
-  const [baseUrl] = url.split('?')
-  const match = baseUrl.match(/^(.*\/storage\/uploads\/[^/]+)\/([^/]+)$/)
-
-  if (!match) return url
-
-  return `${match[1]}/${transformations}/${match[2]}`
 }
 
 export function PreviewDialog({ file, onOpenChange }: PreviewDialogProps) {
@@ -175,7 +136,7 @@ export function PreviewDialog({ file, onOpenChange }: PreviewDialogProps) {
     }
 
     setTransformations(nextTransformations)
-    toast.success('Applied transformations')
+    toast.success(t('files.transform.appliedToast', 'Applied transformations'))
   }
 
   const handleApplyPreset = (preset: Partial<ImageTransformForm>) => {
@@ -303,10 +264,12 @@ export function PreviewDialog({ file, onOpenChange }: PreviewDialogProps) {
                 <a
                   href={previewOpenUrl}
                   download={file.original_name}
-                  title='Download'
+                  title={t('files.actions.download', 'Download')}
                 >
                   <Download className='size-3.5' />
-                  <span className='hidden md:inline'>Download</span>
+                  <span className='hidden md:inline'>
+                    {t('files.actions.download', 'Download')}
+                  </span>
                 </a>
               </Button>
 
@@ -398,406 +361,5 @@ export function PreviewDialog({ file, onOpenChange }: PreviewDialogProps) {
         )}
       </DialogContent>
     </Dialog>
-  )
-}
-
-function FileMetadataView({
-  file,
-  previewOpenUrl,
-}: {
-  file: FileSchema
-  previewOpenUrl?: string
-}) {
-  const { t } = useTranslation()
-
-  return (
-    <div className='flex flex-col gap-4'>
-      {/* File Info Card */}
-      <div className='border-border/60 bg-muted/20 space-y-3 rounded-xl border p-3.5 shadow-xs'>
-        <p className='text-muted-foreground text-xs font-semibold tracking-wider uppercase'>
-          {t('files.inspector.information', 'File Details')}
-        </p>
-        <div className='space-y-2.5 text-xs'>
-          <div className='flex items-center justify-between gap-2'>
-            <span className='text-muted-foreground flex items-center gap-1.5'>
-              <Folder className='size-3.5' />
-              {t('files.table.folder')}
-            </span>
-            <Badge
-              variant='secondary'
-              className='max-w-42.5 truncate text-[11px] font-normal'
-            >
-              {file.folder ?? t('files.folders.root')}
-            </Badge>
-          </div>
-
-          <div className='flex items-center justify-between gap-2'>
-            <span className='text-muted-foreground flex items-center gap-1.5'>
-              <Tag className='size-3.5' />
-              {t('files.table.mime')}
-            </span>
-            <code className='bg-muted text-foreground rounded px-1.5 py-0.5 font-mono text-[11px]'>
-              {file.mime}
-            </code>
-          </div>
-
-          <div className='flex items-center justify-between gap-2'>
-            <span className='text-muted-foreground flex items-center gap-1.5'>
-              <HardDrive className='size-3.5' />
-              {t('files.table.size')}
-            </span>
-            <span className='text-foreground font-semibold'>
-              {formatBytes(file.size)}
-            </span>
-          </div>
-
-          {(file.width || file.height) && (
-            <div className='flex items-center justify-between gap-2'>
-              <span className='text-muted-foreground flex items-center gap-1.5'>
-                <Maximize2 className='size-3.5' />
-                {t('files.table.dimensions')}
-              </span>
-              <span className='text-foreground font-mono font-medium'>
-                {file.width} × {file.height}
-              </span>
-            </div>
-          )}
-
-          {Boolean(file.duration) && (
-            <div className='flex items-center justify-between gap-2'>
-              <span className='text-muted-foreground flex items-center gap-1.5'>
-                <Clock className='size-3.5' />
-                Duration
-              </span>
-              <span className='text-foreground font-mono font-medium'>
-                {Math.floor(file.duration! / 60)}:
-                {String(Math.floor(file.duration! % 60)).padStart(2, '0')}
-              </span>
-            </div>
-          )}
-
-          <div className='flex items-center justify-between gap-2'>
-            <span className='text-muted-foreground flex items-center gap-1.5'>
-              Status
-            </span>
-            <div className='flex items-center gap-1.5'>
-              <span
-                className={cn(
-                  'size-2 rounded-full',
-                  file.status === 'active'
-                    ? 'bg-emerald-500 ring-2 ring-emerald-500/20'
-                    : 'bg-amber-500 ring-2 ring-amber-500/20'
-                )}
-              />
-              <span className='text-foreground font-medium capitalize'>
-                {file.status}
-              </span>
-            </div>
-          </div>
-
-          {file.disk && (
-            <div className='flex items-center justify-between gap-2'>
-              <span className='text-muted-foreground flex items-center gap-1.5'>
-                {t('files.inspector.disk', 'Storage')}
-              </span>
-              <Badge
-                variant='outline'
-                className='font-mono text-[10px] uppercase'
-              >
-                {file.disk}
-              </Badge>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Dates Card */}
-      <div className='border-border/60 bg-muted/20 space-y-2.5 rounded-xl border p-3.5 text-xs shadow-xs'>
-        <div className='flex items-center justify-between gap-2'>
-          <span className='text-muted-foreground flex items-center gap-1.5'>
-            <Calendar className='size-3.5' />
-            {t('files.table.createdAt')}
-          </span>
-          <span className='text-foreground font-medium'>
-            {format(new Date(file.createdAt), 'dd/MM/yyyy HH:mm')}
-          </span>
-        </div>
-        {file.updatedAt && (
-          <div className='flex items-center justify-between gap-2'>
-            <span className='text-muted-foreground flex items-center gap-1.5'>
-              <Clock className='size-3.5' />
-              Updated
-            </span>
-            <span className='text-foreground font-medium'>
-              {format(new Date(file.updatedAt), 'dd/MM/yyyy HH:mm')}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Action Links */}
-      <div className='flex flex-col gap-2'>
-        <Button
-          variant='outline'
-          size='sm'
-          className='w-full justify-start text-xs'
-          asChild
-        >
-          <a href={previewOpenUrl} target='_blank' rel='noreferrer'>
-            <ExternalLink className='mr-2 size-3.5' />
-            {t('files.actions.open')}
-          </a>
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-function ImageTransformView({
-  value,
-  activeTransformations,
-  onChange,
-  onApply,
-  onReset,
-  onPreset,
-}: {
-  value: ImageTransformForm
-  activeTransformations: string
-  onChange: (value: ImageTransformForm) => void
-  onApply: () => void
-  onReset: () => void
-  onPreset: (preset: Partial<ImageTransformForm>) => void
-}) {
-  const { t } = useTranslation()
-
-  const update = (key: keyof ImageTransformForm, nextValue: string) => {
-    onChange({ ...value, [key]: nextValue })
-  }
-
-  return (
-    <div className='flex flex-col gap-4'>
-      {/* Quick Presets */}
-      <div className='space-y-2'>
-        <p className='text-muted-foreground text-xs font-semibold tracking-wider uppercase'>
-          Presets
-        </p>
-        <div className='flex flex-wrap gap-1.5'>
-          <Button
-            type='button'
-            variant='secondary'
-            size='sm'
-            className='h-7 rounded-lg text-[11px]'
-            onClick={() =>
-              onPreset({ width: '300', height: '300', crop: 'fill' })
-            }
-          >
-            300×300 Sq
-          </Button>
-          <Button
-            type='button'
-            variant='secondary'
-            size='sm'
-            className='h-7 rounded-lg text-[11px]'
-            onClick={() =>
-              onPreset({ width: '800', height: '600', crop: 'cover' })
-            }
-          >
-            800×600 Cover
-          </Button>
-          <Button
-            type='button'
-            variant='secondary'
-            size='sm'
-            className='h-7 rounded-lg text-[11px]'
-            onClick={() => onPreset({ format: 'webp', quality: '85' })}
-          >
-            WebP 85%
-          </Button>
-          <Button
-            type='button'
-            variant='secondary'
-            size='sm'
-            className='h-7 rounded-lg text-[11px]'
-            onClick={() => onPreset({ effect: 'grayscale' })}
-          >
-            B&W Filter
-          </Button>
-        </div>
-      </div>
-
-      {/* Form Controls */}
-      <div className='border-border/60 bg-muted/20 space-y-3 rounded-xl border p-3.5 shadow-xs'>
-        <p className='text-muted-foreground text-xs font-semibold tracking-wider uppercase'>
-          Dimensions
-        </p>
-        <div className='grid grid-cols-2 gap-2'>
-          <div className='space-y-1'>
-            <label className='text-muted-foreground text-[10px] font-medium'>
-              Width (px)
-            </label>
-            <Input
-              type='number'
-              min={1}
-              value={value.width}
-              onChange={(event) => update('width', event.target.value)}
-              placeholder='e.g. 400'
-              className='h-8 text-xs'
-            />
-          </div>
-          <div className='space-y-1'>
-            <label className='text-muted-foreground text-[10px] font-medium'>
-              Height (px)
-            </label>
-            <Input
-              type='number'
-              min={1}
-              value={value.height}
-              onChange={(event) => update('height', event.target.value)}
-              placeholder='e.g. 400'
-              className='h-8 text-xs'
-            />
-          </div>
-        </div>
-
-        <p className='text-muted-foreground pt-1 text-xs font-semibold tracking-wider uppercase'>
-          Cropping & Format
-        </p>
-        <div className='grid grid-cols-2 gap-2'>
-          <div className='space-y-1'>
-            <label className='text-muted-foreground text-[10px] font-medium'>
-              Crop Mode
-            </label>
-            <TransformSelect
-              value={value.crop}
-              placeholder='Auto'
-              options={['fill', 'cover', 'fit', 'limit', 'pad', 'thumb']}
-              onValueChange={(nextValue) => update('crop', nextValue)}
-            />
-          </div>
-          <div className='space-y-1'>
-            <label className='text-muted-foreground text-[10px] font-medium'>
-              Format
-            </label>
-            <TransformSelect
-              value={value.format}
-              placeholder='Original'
-              options={['webp', 'png', 'jpg']}
-              onValueChange={(nextValue) => update('format', nextValue)}
-            />
-          </div>
-        </div>
-
-        <p className='text-muted-foreground pt-1 text-xs font-semibold tracking-wider uppercase'>
-          Quality & Effect
-        </p>
-        <div className='grid grid-cols-2 gap-2'>
-          <div className='space-y-1'>
-            <label className='text-muted-foreground text-[10px] font-medium'>
-              Quality (1-100)
-            </label>
-            <Input
-              type='number'
-              min={1}
-              max={100}
-              value={value.quality}
-              onChange={(event) => update('quality', event.target.value)}
-              placeholder='e.g. 80'
-              className='h-8 text-xs'
-            />
-          </div>
-          <div className='space-y-1'>
-            <label className='text-muted-foreground text-[10px] font-medium'>
-              Effect
-            </label>
-            <TransformSelect
-              value={value.effect}
-              placeholder='None'
-              options={['grayscale', 'blur:8', 'sharpen:4']}
-              onValueChange={(nextValue) => update('effect', nextValue)}
-            />
-          </div>
-        </div>
-
-        <div className='space-y-1 pt-1'>
-          <label className='text-muted-foreground text-[10px] font-medium'>
-            Custom Raw String
-          </label>
-          <Input
-            value={value.raw}
-            onChange={(event) => update('raw', event.target.value)}
-            placeholder={t('files.transform.raw')}
-            className='h-8 font-mono text-xs'
-          />
-        </div>
-
-        {activeTransformations && (
-          <div className='border-primary/20 bg-primary/5 rounded-lg border p-2.5'>
-            <div className='mb-1 flex items-center justify-between gap-1'>
-              <span className='text-primary flex items-center gap-1 text-[11px] font-semibold'>
-                <Sparkles className='size-3' /> Active transforms:
-              </span>
-            </div>
-            <p className='text-foreground/90 font-mono text-[11px] break-all'>
-              {activeTransformations}
-            </p>
-          </div>
-        )}
-
-        <div className='flex gap-2 pt-2'>
-          <Button
-            size='sm'
-            className='h-8 flex-1 gap-1.5 text-xs'
-            onClick={onApply}
-          >
-            <Sparkles className='size-3.5' />
-            {t('files.transform.view')}
-          </Button>
-          <Button
-            size='sm'
-            variant='outline'
-            className='h-8 gap-1 text-xs'
-            onClick={onReset}
-          >
-            <RotateCcw className='size-3.5' />
-            {t('files.transform.reset')}
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export function TransformSelect({
-  value,
-  placeholder,
-  options,
-  onValueChange,
-}: {
-  value: string
-  placeholder: string
-  options: string[]
-  onValueChange: (value: string) => void
-}) {
-  return (
-    <Select
-      value={value || 'none'}
-      onValueChange={(nextValue) =>
-        onValueChange(nextValue === 'none' ? '' : nextValue)
-      }
-    >
-      <SelectTrigger className='h-8 w-full text-xs'>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value='none' className='text-xs'>
-          {placeholder}
-        </SelectItem>
-        {options.map((option) => (
-          <SelectItem key={option} value={option} className='text-xs'>
-            {option}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   )
 }
