@@ -76,6 +76,8 @@ interface UseDataTableProps<TData>
   scroll?: boolean
   shallow?: boolean
   startTransition?: React.TransitionStartFunction
+  storageKey?: string
+  enableVisibilityPersistence?: boolean
 }
 
 export function useDataTable<TData>(props: UseDataTableProps<TData>) {
@@ -92,6 +94,8 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     scroll = false,
     shallow = true,
     startTransition,
+    storageKey,
+    enableVisibilityPersistence = true,
     ...tableProps
   } = props
   const pageKey = queryKeys?.page ?? PAGE_KEY
@@ -99,6 +103,32 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
   const sortKey = queryKeys?.sort ?? SORT_KEY
   const filtersKey = queryKeys?.filters ?? FILTERS_KEY
   const joinOperatorKey = queryKeys?.joinOperator ?? JOIN_OPERATOR_KEY
+
+  // Auto-generate effective storage key based on pathname & column signature hash
+  const effectiveStorageKey = React.useMemo(() => {
+    if (!enableVisibilityPersistence) return undefined
+    if (storageKey) return storageKey
+    if (typeof window === 'undefined') return undefined
+
+    const pathname = window.location.pathname
+      .replace(/\/[0-9a-fA-F-]{8,}(?=\/|$)/g, '/:id')
+      .replace(/\/\d+(?=\/|$)/g, '/:id')
+
+    const colSignature = columns
+      .map((column) => getColumnKey(column))
+      .filter(Boolean)
+      .sort()
+      .join(',')
+
+    let hash = 0
+    for (let i = 0; i < colSignature.length; i++) {
+      hash = (hash << 5) - hash + colSignature.charCodeAt(i)
+      hash |= 0
+    }
+    const colHash = Math.abs(hash).toString(36)
+
+    return `data-table-visibility:${pathname}:${colHash}`
+  }, [enableVisibilityPersistence, storageKey, columns])
 
   const queryStateOptions = React.useMemo<
     Omit<UseQueryStateOptions<string>, 'parse'>
@@ -129,8 +159,39 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
   const [expanded, setExpanded] = React.useState<ExpandedState>(
     initialState?.expanded ?? {}
   )
+
+  // Synchronously initialize column visibility from localStorage to prevent layout shifts
   const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>(initialState?.columnVisibility ?? {})
+    React.useState<VisibilityState>(() => {
+      if (typeof window !== 'undefined' && effectiveStorageKey) {
+        try {
+          const saved = window.localStorage.getItem(effectiveStorageKey)
+          if (saved) {
+            return {
+              ...initialState?.columnVisibility,
+              ...(JSON.parse(saved) as VisibilityState),
+            }
+          }
+        } catch {
+          // Ignore parse or storage read errors
+        }
+      }
+      return initialState?.columnVisibility ?? {}
+    })
+
+  // Persist column visibility changes to localStorage
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && effectiveStorageKey) {
+      try {
+        window.localStorage.setItem(
+          effectiveStorageKey,
+          JSON.stringify(columnVisibility)
+        )
+      } catch {
+        // Ignore storage write errors (e.g. storage full or restricted)
+      }
+    }
+  }, [columnVisibility, effectiveStorageKey])
 
   const [page, setPage] = useQueryState(
     pageKey,
