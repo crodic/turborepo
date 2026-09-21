@@ -14,13 +14,38 @@ import { getMessages, setRequestLocale } from "next-intl/server";
 import { dancingScript, geistMono, geistSans } from "@/fonts";
 
 export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const whiteLabel = await fetchActiveClientWhiteLabel();
+
+  const defaultTitle = "Visel Art - Creative Platform";
+  const defaultDescription = "Creative Design & Modern Platform";
+
   if (!whiteLabel || !isWhiteLabelEnabled) {
     return {
-      title: "Visel Art - Creative Platform",
-      description: "Creative Design & Modern Platform",
+      metadataBase: new URL(baseUrl),
+      title: {
+        default: defaultTitle,
+        template: `%s | Visel Art`,
+      },
+      description: defaultDescription,
       icons: {
         icon: [{ rel: "icon", url: "/favicon.png" }],
+      },
+      openGraph: {
+        title: defaultTitle,
+        description: defaultDescription,
+        url: baseUrl,
+        siteName: "Visel Art",
+        type: "website",
+        images: [
+          { url: "/og-image.png", width: 1200, height: 630, alt: defaultTitle },
+        ],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: defaultTitle,
+        description: defaultDescription,
+        images: ["/og-image.png"],
       },
     };
   }
@@ -29,32 +54,46 @@ export async function generateMetadata(): Promise<Metadata> {
     whiteLabel.siteTitle ||
     whiteLabel.metaTitle ||
     whiteLabel.brandName ||
-    "Visel Art - Creative Platform";
-  const description =
-    whiteLabel.metaDescription || "Creative Design & Modern Platform";
+    defaultTitle;
+  const description = whiteLabel.metaDescription || defaultDescription;
   const iconUrl = whiteLabel.siteFavicon || "/favicon.png";
+  const siteName = whiteLabel.brandName || "Visel Art";
 
   return {
-    title,
+    metadataBase: new URL(baseUrl),
+    title: {
+      default: title,
+      template: `%s | ${siteName}`,
+    },
     description,
     icons: {
       icon: [{ rel: "icon", url: iconUrl }],
     },
-    openGraph: whiteLabel.ogImage
-      ? {
-          title,
-          description,
-          images: [{ url: whiteLabel.ogImage }],
-        }
-      : undefined,
-    twitter: whiteLabel.twitterImage
-      ? {
-          card: "summary_large_image",
-          title,
-          description,
-          images: [whiteLabel.twitterImage],
-        }
-      : undefined,
+    openGraph: {
+      title,
+      description,
+      url: baseUrl,
+      siteName,
+      type: "website",
+      images: whiteLabel.ogImage
+        ? [{ url: whiteLabel.ogImage }]
+        : [
+            {
+              url: "/og-image.png",
+              width: 1200,
+              height: 630,
+              alt: title,
+            },
+          ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: whiteLabel.twitterImage
+        ? [whiteLabel.twitterImage]
+        : ["/og-image.png"],
+    },
   };
 }
 
