@@ -121,14 +121,9 @@ export const sidebarLink: SidebarData = {
       onlyDevMode: true,
       items: [
         {
-          title: 'navigation.dev.formExamples',
-          url: '/dev/form-examples',
+          title: 'navigation.dev.playground',
+          url: '/dev',
           icon: FlaskConicalIcon,
-        },
-        {
-          title: 'navigation.dev.uiPreview',
-          url: '/dev/ui-preview',
-          icon: LayoutDashboard,
         },
       ],
     },

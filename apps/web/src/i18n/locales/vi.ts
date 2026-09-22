@@ -28,6 +28,7 @@ export default {
   'navigation.other.notifications': 'Thông báo',
   'navigation.other.website': 'Trang web',
   'navigation.dev.title': 'Phát triển',
+  'navigation.dev.playground': 'Playground',
   'navigation.dev.formExamples': 'Ví dụ form',
   'navigation.dev.uiPreview': 'Xem trước giao diện',
   'validation.required': 'Trường này là bắt buộc',

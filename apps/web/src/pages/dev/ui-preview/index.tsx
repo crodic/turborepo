@@ -195,7 +195,7 @@ export function PageUiPreview() {
   )
 }
 
-function ExpandingDataTableDemo() {
+export function ExpandingDataTableDemo() {
   const [enableExpanding, setEnableExpanding] = useState(true)
   const [enableVirtualRows, setEnableVirtualRows] = useState(true)
   const [enableVirtualColumns, setEnableVirtualColumns] = useState(true)

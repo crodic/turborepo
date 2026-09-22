@@ -791,7 +791,7 @@ export default function SortableImageUpload({
   )
 
   return (
-    <div className={cn('w-full max-w-4xl', className)}>
+    <div className={cn('w-full', className)}>
       {loading && (
         <div className='border-border bg-muted/20 mb-4 rounded-md border p-4'>
           <div className='mb-3 flex items-center justify-between gap-3'>

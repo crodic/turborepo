@@ -1,5 +1,6 @@
 import {
   createBrowserRouter,
+  Navigate,
   RouterProvider,
   type RouteObject,
 } from 'react-router'
@@ -467,18 +468,18 @@ const appRoutes: RouteObject[] = [
       ...(import.meta.env.DEV
         ? [
             {
-              path: 'dev/form-examples',
+              path: 'dev',
               lazy: async () => ({
-                Component: (await import('@/pages/dev/examples'))
-                  .PageFormExamples,
+                Component: (await import('@/pages/dev')).PageDevPlayground,
               }),
             },
             {
+              path: 'dev/form-examples',
+              element: <Navigate to='/dev?tab=forms' replace />,
+            },
+            {
               path: 'dev/ui-preview',
-              lazy: async () => ({
-                Component: (await import('@/pages/dev/ui-preview'))
-                  .PageUiPreview,
-              }),
+              element: <Navigate to='/dev?tab=table' replace />,
             },
           ]
         : []),

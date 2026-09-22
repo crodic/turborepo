@@ -28,6 +28,7 @@ export default {
   'navigation.other.notifications': 'Notifications',
   'navigation.other.website': 'Website',
   'navigation.dev.title': 'Development',
+  'navigation.dev.playground': 'Playground',
   'navigation.dev.formExamples': 'Form examples',
   'navigation.dev.uiPreview': 'UI Preview',
   'validation.required': 'This field is required',

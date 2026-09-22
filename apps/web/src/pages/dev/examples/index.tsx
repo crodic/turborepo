@@ -169,7 +169,7 @@ async function getErrorMessage(response: Response) {
   return `Request failed with status ${response.status}`
 }
 
-export function PageFormExamples() {
+export function FormExamplesDemo() {
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([])
   const [isLoadingImages, setIsLoadingImages] = useState(true)
   const [isSavingImages, setIsSavingImages] = useState(false)
@@ -264,6 +264,87 @@ export function PageFormExamples() {
   }
 
   return (
+    <div className='space-y-6'>
+      <div className='flex flex-col gap-1'>
+        <div className='flex items-center gap-2'>
+          <ImageIcon className='text-muted-foreground size-5' />
+          <h2 className='text-lg font-semibold tracking-tight'>
+            Form Components Example
+          </h2>
+        </div>
+        <p className='text-muted-foreground max-w-3xl text-sm'>
+          Local development preview for the image upload form components.
+        </p>
+      </div>
+
+      <Form {...form}>
+        <form className='space-y-6' onSubmit={form.handleSubmit(onSubmit)}>
+          <section className='border-border bg-card rounded-lg border p-5 shadow-sm'>
+            <div className='mb-5 space-y-1'>
+              <h3 className='text-base font-semibold'>Sortable Image Upload</h3>
+              <p className='text-muted-foreground text-sm'>
+                Reorder images, add new files, remove items, and choose a cover
+                image.
+              </p>
+            </div>
+            <SortableImageUploadField
+              control={form.control}
+              name='images'
+              coverIndexName='coverIndex'
+              label='Product Images'
+              description={({ loading }) =>
+                loading
+                  ? 'Loading saved images...'
+                  : 'Upload between 1 and 200 images. Drag to reorder.'
+              }
+              existingImages={existingImages}
+              maxFiles={200}
+              gridClassName='grid-cols-2 sm:grid-cols-4 xl:grid-cols-6'
+              disabled={isLoadingImages || isSavingImages}
+              loading={isLoadingImages}
+            />
+          </section>
+
+          <section className='border-border bg-card rounded-lg border p-5 shadow-sm'>
+            <div className='mb-5 space-y-1'>
+              <h3 className='text-base font-semibold'>Cover Upload</h3>
+              <p className='text-muted-foreground text-sm'>
+                Upload a cover image and drag the preview to crop it before
+                submit.
+              </p>
+            </div>
+            <CoverUploadField
+              control={form.control}
+              name='cover'
+              label='Product Cover'
+              description='Upload a cover image, then drag it inside the frame to crop before submit.'
+              accept='image/png'
+              disabled={isSavingImages}
+            />
+          </section>
+
+          <div className='flex justify-center gap-4'>
+            <Button type='submit' size='lg' disabled={isSavingImages}>
+              {isSavingImages ? 'Saving...' : 'Save Changes'}
+            </Button>
+            <Button
+              type='button'
+              variant='outline'
+              size='lg'
+              onClick={handleReset}
+              disabled={isSavingImages}
+            >
+              Reset
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </div>
+  )
+}
+
+export function PageFormExamples() {
+  return (
     <>
       <Header fixed>
         <div className='ms-auto flex items-center space-x-4'>
@@ -275,80 +356,7 @@ export function PageFormExamples() {
       </Header>
 
       <Main className='space-y-6'>
-        <div className='flex flex-col gap-2'>
-          <div className='flex items-center gap-2'>
-            <ImageIcon className='text-muted-foreground size-5' />
-            <h1 className='text-2xl font-bold tracking-tight'>
-              Form Components Example
-            </h1>
-          </div>
-          <p className='text-muted-foreground max-w-3xl text-sm'>
-            Local development preview for the image upload form components.
-          </p>
-        </div>
-
-        <Form {...form}>
-          <form className='space-y-6' onSubmit={form.handleSubmit(onSubmit)}>
-            <section className='border-border bg-card rounded-lg border p-5 shadow-sm'>
-              <div className='mb-5 space-y-1'>
-                <h2 className='text-lg font-semibold'>Sortable Image Upload</h2>
-                <p className='text-muted-foreground text-sm'>
-                  Reorder images, add new files, remove items, and choose a
-                  cover image.
-                </p>
-              </div>
-              <SortableImageUploadField
-                control={form.control}
-                name='images'
-                coverIndexName='coverIndex'
-                label='Product Images'
-                description={({ loading }) =>
-                  loading
-                    ? 'Loading saved images...'
-                    : 'Upload between 1 and 200 images. Drag to reorder.'
-                }
-                existingImages={existingImages}
-                maxFiles={200}
-                gridClassName='grid-cols-2 sm:grid-cols-4 xl:grid-cols-6'
-                disabled={isLoadingImages || isSavingImages}
-                loading={isLoadingImages}
-              />
-            </section>
-
-            <section className='border-border bg-card rounded-lg border p-5 shadow-sm'>
-              <div className='mb-5 space-y-1'>
-                <h2 className='text-lg font-semibold'>Cover Upload</h2>
-                <p className='text-muted-foreground text-sm'>
-                  Upload a cover image and drag the preview to crop it before
-                  submit.
-                </p>
-              </div>
-              <CoverUploadField
-                control={form.control}
-                name='cover'
-                label='Product Cover'
-                description='Upload a cover image, then drag it inside the frame to crop before submit.'
-                accept='image/png'
-                disabled={isSavingImages}
-              />
-            </section>
-
-            <div className='flex justify-center gap-4'>
-              <Button type='submit' size='lg' disabled={isSavingImages}>
-                {isSavingImages ? 'Saving...' : 'Save Changes'}
-              </Button>
-              <Button
-                type='button'
-                variant='outline'
-                size='lg'
-                onClick={handleReset}
-                disabled={isSavingImages}
-              >
-                Reset
-              </Button>
-            </div>
-          </form>
-        </Form>
+        <FormExamplesDemo />
       </Main>
     </>
   )
