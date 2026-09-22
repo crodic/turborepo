@@ -8,12 +8,16 @@ import {
   BarChart3Icon,
   BugIcon,
   CheckCircle2Icon,
+  CpuIcon,
   DatabaseIcon,
   ExternalLinkIcon,
+  HardDriveIcon,
+  LayersIcon,
   RefreshCwIcon,
   ServerIcon,
   ShieldCheckIcon,
   UsersIcon,
+  WorkflowIcon,
   XCircleIcon,
 } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
@@ -138,11 +142,41 @@ const emptySnapshot: PresenceSnapshot = {
 
 const HEALTH_QUERY_KEY = ['system_health'] as const
 const SENTRY_SUMMARY_QUERY_KEY = ['sentry_summary'] as const
+const QUEUE_STATS_QUERY_KEY = ['queue_stats'] as const
+
+type QueueStats = {
+  name: string
+  counts: {
+    waiting: number
+    active: number
+    completed: number
+    failed: number
+    delayed: number
+    paused: number
+  }
+}
+
+type QueueStatsResponse = {
+  bullBoardUrl: string
+  queues: QueueStats[]
+  updatedAt: string
+}
 
 async function apiGetSystemHealth(): Promise<HealthCheckResponse> {
   const apiUrl = new URL(import.meta.env.VITE_API_URL, window.location.origin)
   const healthUrl = `${apiUrl.origin}/health`
   const response = await axios.get<HealthCheckResponse>(healthUrl, {
+    timeout: 10000,
+    withCredentials: true,
+  })
+
+  return response.data
+}
+
+async function apiGetQueueStats(): Promise<QueueStatsResponse> {
+  const apiUrl = new URL(import.meta.env.VITE_API_URL, window.location.origin)
+  const queuesUrl = `${apiUrl.origin}/health/queues`
+  const response = await axios.get<QueueStatsResponse>(queuesUrl, {
     timeout: 10000,
     withCredentials: true,
   })
@@ -165,6 +199,11 @@ export function Dashboard() {
     queryKey: HEALTH_QUERY_KEY,
     queryFn: apiGetSystemHealth,
     refetchInterval: 30_000,
+  })
+  const queueQuery = useQuery({
+    queryKey: QUEUE_STATS_QUERY_KEY,
+    queryFn: apiGetQueueStats,
+    refetchInterval: 15_000,
   })
   const sentryQuery = useQuery({
     queryKey: SENTRY_SUMMARY_QUERY_KEY,
@@ -264,6 +303,12 @@ export function Dashboard() {
           isError={healthQuery.isError}
           updatedAt={healthQuery.dataUpdatedAt}
           onRefresh={() => healthQuery.refetch()}
+        />
+
+        <QueueMonitoringSection
+          data={queueQuery.data}
+          isLoading={queueQuery.isFetching}
+          onRefresh={() => queueQuery.refetch()}
         />
 
         <SentryHealthSection
@@ -686,6 +731,19 @@ function HealthSummaryItem({
   )
 }
 
+function getIndicatorIcon(name: string, healthy: boolean) {
+  const lower = name.toLowerCase()
+  if (lower.includes('database')) return <DatabaseIcon className='size-4' />
+  if (lower.includes('redis')) return <LayersIcon className='size-4' />
+  if (lower.includes('memory')) return <CpuIcon className='size-4' />
+  if (lower.includes('disk') || lower.includes('storage'))
+    return <HardDriveIcon className='size-4' />
+  if (lower.includes('queue')) return <WorkflowIcon className='size-4' />
+  if (lower.includes('system')) return <ServerIcon className='size-4' />
+  if (healthy) return <CheckCircle2Icon className='size-4' />
+  return <XCircleIcon className='size-4' />
+}
+
 function HealthIndicatorCard({
   indicator,
 }: {
@@ -702,13 +760,7 @@ function HealthIndicatorCard({
             : 'bg-destructive/10 text-destructive flex size-9 shrink-0 items-center justify-center rounded-md'
         }
       >
-        {indicator.name === 'database' ? (
-          <DatabaseIcon className='size-4' />
-        ) : healthy ? (
-          <CheckCircle2Icon className='size-4' />
-        ) : (
-          <XCircleIcon className='size-4' />
-        )}
+        {getIndicatorIcon(indicator.name, healthy)}
       </div>
       <div className='min-w-0 flex-1'>
         <div className='flex flex-wrap items-center gap-2'>
@@ -724,6 +776,162 @@ function HealthIndicatorCard({
         </p>
       </div>
     </div>
+  )
+}
+
+function QueueMonitoringSection({
+  data,
+  isLoading,
+  onRefresh,
+}: {
+  data?: QueueStatsResponse
+  isLoading: boolean
+  onRefresh: () => void
+}) {
+  const { t } = useTranslation()
+  const queues = data?.queues ?? []
+  const hasFailedJobs = queues.some((q) => (q.counts?.failed ?? 0) > 0)
+
+  return (
+    <Card>
+      <CardHeader className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+        <div className='space-y-1.5'>
+          <CardTitle className='flex items-center gap-2'>
+            <WorkflowIcon className='text-primary size-5' />
+            {t('dashboard.queues.title')}
+          </CardTitle>
+          <CardDescription>{t('dashboard.queues.description')}</CardDescription>
+        </div>
+        <div className='flex flex-wrap items-center gap-2'>
+          <Badge
+            variant={hasFailedJobs ? 'destructive' : 'secondary'}
+            className={
+              !hasFailedJobs
+                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                : ''
+            }
+          >
+            {hasFailedJobs
+              ? t('dashboard.queues.hasFailed')
+              : t('dashboard.queues.healthy')}
+          </Badge>
+          {data?.bullBoardUrl && (
+            <Button asChild variant='default' size='sm'>
+              <a
+                href={data.bullBoardUrl}
+                target='_blank'
+                rel='noreferrer'
+                className='gap-1.5'
+              >
+                <ExternalLinkIcon className='size-3.5' />
+                {t('dashboard.queues.openBullBoard')}
+              </a>
+            </Button>
+          )}
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            onClick={onRefresh}
+            disabled={isLoading}
+          >
+            <RefreshCwIcon
+              className={isLoading ? 'size-4 animate-spin' : 'size-4'}
+            />
+            {t('dashboard.systemHealth.refresh')}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {queues.length === 0 ? (
+          <div className='text-muted-foreground rounded-md border border-dashed p-4 text-sm'>
+            {isLoading
+              ? 'Loading queue metrics...'
+              : t('dashboard.queues.noQueues')}
+          </div>
+        ) : (
+          <div className='grid gap-4 md:grid-cols-2'>
+            {queues.map((queue) => {
+              const counts = queue.counts || {
+                waiting: 0,
+                active: 0,
+                completed: 0,
+                failed: 0,
+              }
+              const queueHasError = (counts.failed ?? 0) > 0
+
+              return (
+                <div
+                  key={queue.name}
+                  className='space-y-3 rounded-lg border p-4'
+                >
+                  <div className='flex items-center justify-between'>
+                    <div className='flex items-center gap-2'>
+                      <LayersIcon className='text-muted-foreground size-4' />
+                      <span className='font-semibold capitalize'>
+                        {queue.name} Queue
+                      </span>
+                    </div>
+                    <Badge
+                      variant={queueHasError ? 'destructive' : 'outline'}
+                      className='text-xs'
+                    >
+                      {counts.active > 0
+                        ? `${counts.active} ${t('dashboard.queues.active')}`
+                        : queueHasError
+                          ? `${counts.failed} ${t('dashboard.queues.failed')}`
+                          : 'Idle'}
+                    </Badge>
+                  </div>
+                  <div className='grid grid-cols-4 gap-2 text-center text-xs'>
+                    <div className='bg-muted/50 rounded p-2'>
+                      <p className='text-muted-foreground font-medium'>
+                        {t('dashboard.queues.waiting')}
+                      </p>
+                      <p className='mt-1 text-sm font-semibold'>
+                        {formatNumber(counts.waiting)}
+                      </p>
+                    </div>
+                    <div className='bg-muted/50 rounded p-2'>
+                      <p className='text-muted-foreground font-medium'>
+                        {t('dashboard.queues.active')}
+                      </p>
+                      <p
+                        className={`mt-1 text-sm font-semibold ${
+                          counts.active > 0 ? 'text-primary font-bold' : ''
+                        }`}
+                      >
+                        {formatNumber(counts.active)}
+                      </p>
+                    </div>
+                    <div className='bg-muted/50 rounded p-2'>
+                      <p className='text-muted-foreground font-medium'>
+                        {t('dashboard.queues.completed')}
+                      </p>
+                      <p className='mt-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400'>
+                        {formatNumber(counts.completed)}
+                      </p>
+                    </div>
+                    <div className='bg-muted/50 rounded p-2'>
+                      <p className='text-muted-foreground font-medium'>
+                        {t('dashboard.queues.failed')}
+                      </p>
+                      <p
+                        className={`mt-1 text-sm font-semibold ${
+                          queueHasError ? 'text-destructive font-bold' : ''
+                        }`}
+                      >
+                        {formatNumber(counts.failed)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 

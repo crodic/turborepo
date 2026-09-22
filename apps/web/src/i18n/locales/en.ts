@@ -752,6 +752,17 @@ export default {
   'dashboard.systemHealth.lastChecked': 'Last checked',
   'dashboard.systemHealth.unreachable':
     'Health endpoint is unreachable. Check the API process, network, or reverse proxy configuration.',
+  'dashboard.queues.title': 'Queues & Background Workers',
+  'dashboard.queues.description':
+    'Live metrics for BullMQ background workers, waiting tasks, and failed jobs.',
+  'dashboard.queues.openBullBoard': 'Open Bull-Board',
+  'dashboard.queues.waiting': 'Waiting',
+  'dashboard.queues.active': 'Active',
+  'dashboard.queues.completed': 'Completed',
+  'dashboard.queues.failed': 'Failed',
+  'dashboard.queues.noQueues': 'No active background queues detected.',
+  'dashboard.queues.healthy': 'Healthy',
+  'dashboard.queues.hasFailed': 'Attention: Failed jobs present',
   'dataTable.pagination.rowsPerPage': 'Rows per page',
   'dataTable.pagination.pageOf': 'Page {{current}} of {{total}}',
   'dataTable.pagination.selectedRows':
