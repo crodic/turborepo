@@ -35,19 +35,35 @@ export class SettingSeedService {
     private readonly settingRepository: Repository<SettingEntity>,
   ) {}
 
-  async run(): Promise<void> {
+  async run(customBrand?: string): Promise<void> {
+    const brand = customBrand || appSetting.value.site_brand;
+    const value = {
+      ...appSetting.value,
+      site_brand: brand,
+      site_title: brand,
+      meta_title: `${brand} Admin Portal`,
+      og_title: `${brand} Admin Portal`,
+      twitter_title: `${brand} Admin Portal`,
+    };
+
     const existingSetting = await this.settingRepository.findOne({
       where: { key: appSetting.key },
     });
 
     if (existingSetting) {
-      existingSetting.value = appSetting.value;
+      existingSetting.value = {
+        ...(existingSetting.value as Record<string, any>),
+        ...value,
+      };
       await this.settingRepository.save(existingSetting);
       return;
     }
 
     await this.settingRepository.save(
-      this.settingRepository.create(appSetting),
+      this.settingRepository.create({
+        key: appSetting.key,
+        value,
+      }),
     );
   }
 }

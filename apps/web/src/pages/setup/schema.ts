@@ -17,6 +17,8 @@ export const systemSetupSchema = z
       ),
     confirmPassword: z.string().min(1, 'Please confirm your password'),
     site_brand: z.string().min(1, 'Website name is required'),
+    theme_key: z.string().optional(),
+    custom_styles: z.any().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",

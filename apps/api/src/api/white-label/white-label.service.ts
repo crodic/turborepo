@@ -458,4 +458,107 @@ export class WhiteLabelService {
 
     await this.whiteLabelRepository.softRemove(item);
   }
+
+  async applySetupTheme(params: {
+    brandName?: string;
+    themeKey?: string;
+    customStyles?: WhiteLabelStyles;
+  }): Promise<void> {
+    const { brandName, themeKey, customStyles } = params;
+    const brand = brandName?.trim();
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const targets = [EWhiteLabelTarget.ADMIN, EWhiteLabelTarget.CLIENT];
+
+      for (const target of targets) {
+        const isClient = target === EWhiteLabelTarget.CLIENT;
+
+        // 1. If customStyles is provided by user via ThemeTokenEditor
+        if (customStyles && isWhiteLabelStyles(customStyles)) {
+          const customSlug = isClient ? 'client-custom-theme' : 'custom-theme';
+          const customName = isClient
+            ? '[Client] Custom Theme'
+            : 'Custom Theme';
+
+          let profile = await queryRunner.manager.findOne(WhiteLabelEntity, {
+            where: { slug: customSlug, target, deletedAt: IsNull() },
+          });
+
+          if (!profile) {
+            profile = queryRunner.manager.create(WhiteLabelEntity, {
+              slug: customSlug,
+              name: customName,
+              description: 'User customized theme generated from Setup Wizard',
+              brandName: brand || 'Visel Art',
+              siteTitle: isClient
+                ? `${brand || 'Visel Art'} - Creative Platform`
+                : `${brand || 'Visel Art'} Admin Portal`,
+              siteTagline: 'Creative Design & Modern Management Platform',
+              copyrightText: `© ${new Date().getFullYear()} ${brand || 'Visel Art'}. All rights reserved.`,
+              target,
+              styles: customStyles,
+              isActive: false,
+            });
+          } else {
+            profile.styles = customStyles;
+            if (brand) {
+              profile.brandName = brand;
+              profile.siteTitle = isClient
+                ? `${brand} - Creative Platform`
+                : `${brand} Admin Portal`;
+              profile.copyrightText = `© ${new Date().getFullYear()} ${brand}. All rights reserved.`;
+            }
+          }
+
+          // Deactivate all others for this target first
+          await queryRunner.manager.update(
+            WhiteLabelEntity,
+            { target, isActive: true },
+            { isActive: false },
+          );
+
+          profile.isActive = true;
+          await queryRunner.manager.save(profile);
+        } else {
+          // 2. Preset theme selection (or default)
+          const key = themeKey?.trim() || 'blue';
+          const baseSlug =
+            key === 'blue' ? 'default-blue' : slugify(key, { lower: true });
+          const targetSlug = isClient ? `client-${baseSlug}` : baseSlug;
+
+          const profile = await queryRunner.manager.findOne(WhiteLabelEntity, {
+            where: { slug: targetSlug, target, deletedAt: IsNull() },
+          });
+
+          if (profile) {
+            await queryRunner.manager.update(
+              WhiteLabelEntity,
+              { target, isActive: true },
+              { isActive: false },
+            );
+
+            profile.isActive = true;
+            if (brand) {
+              profile.brandName = brand;
+              profile.siteTitle = isClient
+                ? `${brand} - Creative Platform`
+                : `${brand} Admin Portal`;
+              profile.copyrightText = `© ${new Date().getFullYear()} ${brand}. All rights reserved.`;
+            }
+            await queryRunner.manager.save(profile);
+          }
+        }
+      }
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
 }

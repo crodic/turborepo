@@ -14,6 +14,7 @@
     "config": "bash ./scripts/setup.sh --no-docker",
     "setup": "bash ./scripts/setup.sh",
     "db:reset": "bash ./scripts/setup.sh --reset-db",
+    "db:fresh": "pnpm --filter api schema:drop && pnpm --filter api migration:run",
     "storage:clear": "bash ./scripts/clear-storage.sh",
     "docker:dev": "docker compose up --build",
     "docker:down": "docker compose down",

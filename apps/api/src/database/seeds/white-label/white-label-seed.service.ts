@@ -74,10 +74,24 @@ export class WhiteLabelSeedService {
     private readonly whiteLabelRepository: Repository<WhiteLabelEntity>,
   ) {}
 
-  async run(): Promise<void> {
-    const adminProfiles = this.loadStaticProfiles(EWhiteLabelTarget.ADMIN);
-    const clientProfiles = this.loadStaticProfiles(EWhiteLabelTarget.CLIENT);
+  async run(customBrand?: string, themeKey?: string): Promise<void> {
+    const adminProfiles = this.loadStaticProfiles(
+      EWhiteLabelTarget.ADMIN,
+      customBrand,
+    );
+    const clientProfiles = this.loadStaticProfiles(
+      EWhiteLabelTarget.CLIENT,
+      customBrand,
+    );
     const allProfiles = [...adminProfiles, ...clientProfiles];
+
+    const selectedKey = themeKey?.trim() || 'blue';
+    const targetAdminSlug =
+      selectedKey === 'blue' ? 'default-blue' : this.toSlug(selectedKey);
+    const targetClientSlug =
+      selectedKey === 'blue'
+        ? 'client-default-blue'
+        : `client-${this.toSlug(selectedKey)}`;
 
     const existingActiveAdmin = await this.whiteLabelRepository.findOne({
       where: {
@@ -97,11 +111,19 @@ export class WhiteLabelSeedService {
     });
     const hasActiveClient = !!existingActiveClient;
 
+    const overrideActive = Boolean(themeKey && themeKey.trim() !== '');
+
     for (const profile of allProfiles) {
       const isClientTarget = profile.target === EWhiteLabelTarget.CLIENT;
-      const shouldBootstrapDefault = isClientTarget
-        ? !hasActiveClient && profile.slug === 'client-default-blue'
-        : !hasActiveAdmin && profile.slug === 'default-blue';
+      const matchesTarget = isClientTarget
+        ? profile.slug === targetClientSlug
+        : profile.slug === targetAdminSlug;
+
+      const shouldBootstrapDefault = overrideActive
+        ? matchesTarget
+        : isClientTarget
+          ? !hasActiveClient && matchesTarget
+          : !hasActiveAdmin && matchesTarget;
 
       const existing = await this.whiteLabelRepository.findOne({
         where: { slug: profile.slug, deletedAt: IsNull() },
@@ -116,7 +138,9 @@ export class WhiteLabelSeedService {
         existing.copyrightText = profile.copyrightText;
         existing.styles = profile.styles;
 
-        if (shouldBootstrapDefault) {
+        if (overrideActive) {
+          existing.isActive = matchesTarget;
+        } else if (shouldBootstrapDefault) {
           existing.isActive = true;
         }
 
@@ -136,6 +160,7 @@ export class WhiteLabelSeedService {
 
   private loadStaticProfiles(
     target: EWhiteLabelTarget = EWhiteLabelTarget.ADMIN,
+    customBrand?: string,
   ): StaticWhiteLabelSeed[] {
     const themeColorPath = THEME_COLOR_PATHS.find((path) => existsSync(path));
 
@@ -158,6 +183,8 @@ export class WhiteLabelSeedService {
     vm.runInContext(`${script}\nthis.themeColors = themeColors;`, sandbox);
 
     const isClient = target === EWhiteLabelTarget.CLIENT;
+    const brand = customBrand?.trim() || 'Visel Art';
+    const year = new Date().getFullYear();
 
     return Object.entries(sandbox.themeColors ?? {}).map(([key, value]) => {
       const baseName = STATIC_THEME_NAMES[key] ?? this.toTitleCase(key);
@@ -169,12 +196,12 @@ export class WhiteLabelSeedService {
         slug,
         name,
         description: `Preset brand and styling profile for ${isClient ? 'Client' : 'Admin'} based on ${baseName}.`,
-        brandName: 'Visel Art',
+        brandName: brand,
         siteTitle: isClient
-          ? 'Visel Art - Creative Platform'
-          : 'Visel Art Admin Portal',
+          ? `${brand} - Creative Platform`
+          : `${brand} Admin Portal`,
         siteTagline: 'Creative Design & Modern Management Platform',
-        copyrightText: '© 2026 Visel Art. All rights reserved.',
+        copyrightText: `© ${year} ${brand}. All rights reserved.`,
         target,
         styles: {
           light: this.toThemeStyleProps(value.light),
