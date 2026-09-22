@@ -7,6 +7,7 @@ import { HeroSection } from "@/components/landing/hero-section";
 import { PortalSection } from "@/components/landing/portal-section";
 import { TechStackSection } from "@/components/landing/tech-stack-section";
 import { routing } from "@/i18n/routing";
+import { fetchActiveClientWhiteLabel } from "@/lib/white-label";
 import { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { WithContext, WebSite } from "schema-dts";
@@ -40,16 +41,22 @@ export default async function RootPage({ params }: RootPageProps) {
   const { locale } = await params;
   setRequestLocale(locale);
 
+  const t = await getTranslations({ locale, namespace: "Landing" });
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const whiteLabel = await fetchActiveClientWhiteLabel();
+
+  const siteName =
+    whiteLabel?.brandName || whiteLabel?.siteTitle || "Visel Art";
+
+  const description = whiteLabel?.metaDescription || t("metaDescription");
 
   const jsonLd: WithContext<WebSite> = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "Visel Art",
+    name: siteName,
     url: baseUrl,
     inLanguage: routing.locales,
-    description:
-      "Enterprise-ready fullstack monorepo boilerplate built with Next.js 15 App Router, NestJS, TailwindCSS v4, TypeORM, and TanStack Query.",
+    description,
   };
 
   return (

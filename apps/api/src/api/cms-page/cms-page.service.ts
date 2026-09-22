@@ -102,6 +102,21 @@ export class CmsPageService {
     return this.toDto(page);
   }
 
+  async findAllPublished(): Promise<CmsPageResDto[]> {
+    const pages = await this.cmsPageRepository.find({
+      where: {
+        status: ECmsPageStatus.PUBLISHED,
+        deletedAt: IsNull(),
+      },
+      relations: ['translations'],
+      order: {
+        publishedAt: 'DESC',
+      },
+    });
+
+    return this.toDtos(pages);
+  }
+
   async create(
     dto: CreateCmsPageReqDto,
     adminId: AutoIncrementID,

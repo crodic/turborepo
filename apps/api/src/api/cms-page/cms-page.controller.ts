@@ -107,6 +107,15 @@ export class CmsPageAdminController {
 export class CmsPagePublicController {
   constructor(private readonly cmsPageService: CmsPageService) {}
 
+  @Get()
+  @ApiPublic({
+    type: CmsPageResDto,
+    summary: 'Find all published CMS pages',
+  })
+  findAllPublished(): Promise<CmsPageResDto[]> {
+    return this.cmsPageService.findAllPublished();
+  }
+
   @Get('by-slug/*slug')
   @ApiPublic({
     type: CmsPageResDto,

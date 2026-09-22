@@ -61,3 +61,31 @@ export const getCmsPageBySlug = async (
     return null;
   }
 };
+
+export const fetchPublishedCmsPages = async (): Promise<
+  CmsPageApiResponse[]
+> => {
+  try {
+    const apiUrl =
+      process.env.SERVER_API_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://localhost:8000";
+
+    const response = await fetch(`${apiUrl}/api/v1/public/cms-pages`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      next: { revalidate: 300 },
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+};

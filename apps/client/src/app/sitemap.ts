@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
 import { routing } from "@/i18n/routing";
+import { fetchPublishedCmsPages } from "@/services/cms-pages";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
   const staticPages = [
@@ -18,7 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  return staticPages.flatMap((page) =>
+  const staticEntries: MetadataRoute.Sitemap = staticPages.flatMap((page) =>
     routing.locales.map((locale) => ({
       url: `${baseUrl}/${locale}${page.path}`,
       lastModified: new Date(),
@@ -26,4 +27,28 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: page.priority,
     }))
   );
+
+  const cmsPages = await fetchPublishedCmsPages();
+  const cmsEntries: MetadataRoute.Sitemap = [];
+
+  for (const page of cmsPages) {
+    if (!page.translations || page.translations.length === 0) continue;
+
+    for (const t of page.translations) {
+      if (!t.slug) continue;
+      // Skip pages marked with noindex
+      if (t.robots && t.robots.toLowerCase().includes("noindex")) {
+        continue;
+      }
+
+      cmsEntries.push({
+        url: `${baseUrl}/${t.locale}/pages/${t.slug}`,
+        lastModified: page.updatedAt ? new Date(page.updatedAt) : new Date(),
+        changeFrequency: "monthly",
+        priority: 0.7,
+      });
+    }
+  }
+
+  return [...staticEntries, ...cmsEntries];
 }
