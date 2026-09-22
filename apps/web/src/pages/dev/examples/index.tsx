@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ImageIcon } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
@@ -170,6 +171,7 @@ async function getErrorMessage(response: Response) {
 }
 
 export function FormExamplesDemo() {
+  const { t } = useTranslation()
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([])
   const [isLoadingImages, setIsLoadingImages] = useState(true)
   const [isSavingImages, setIsSavingImages] = useState(false)
@@ -207,7 +209,7 @@ export function FormExamplesDemo() {
           cover: form.getValues('cover'),
         })
       } catch {
-        toast.error('Could not load saved images')
+        toast.error(t('dev.forms.loadError'))
       } finally {
         if (isMounted) {
           setIsLoadingImages(false)
@@ -220,7 +222,7 @@ export function FormExamplesDemo() {
     return () => {
       isMounted = false
     }
-  }, [form])
+  }, [form, t])
 
   const onSubmit = async (data: FormValues) => {
     setIsSavingImages(true)
@@ -248,9 +250,9 @@ export function FormExamplesDemo() {
         coverIndex: saved.coverIndex,
         cover: data.cover,
       })
-      toast.success('Images saved successfully')
+      toast.success(t('dev.forms.saveSuccess'))
     } catch {
-      toast.error('Could not save images')
+      toast.error(t('dev.forms.saveError'))
     } finally {
       setIsSavingImages(false)
     }
@@ -269,11 +271,11 @@ export function FormExamplesDemo() {
         <div className='flex items-center gap-2'>
           <ImageIcon className='text-muted-foreground size-5' />
           <h2 className='text-lg font-semibold tracking-tight'>
-            Form Components Example
+            {t('dev.forms.title')}
           </h2>
         </div>
         <p className='text-muted-foreground max-w-3xl text-sm'>
-          Local development preview for the image upload form components.
+          {t('dev.forms.description')}
         </p>
       </div>
 
@@ -281,17 +283,18 @@ export function FormExamplesDemo() {
         <form className='space-y-6' onSubmit={form.handleSubmit(onSubmit)}>
           <section className='border-border bg-card rounded-lg border p-5 shadow-sm'>
             <div className='mb-5 space-y-1'>
-              <h3 className='text-base font-semibold'>Sortable Image Upload</h3>
+              <h3 className='text-base font-semibold'>
+                {t('dev.forms.sortableTitle')}
+              </h3>
               <p className='text-muted-foreground text-sm'>
-                Reorder images, add new files, remove items, and choose a cover
-                image.
+                {t('dev.forms.sortableDesc')}
               </p>
             </div>
             <SortableImageUploadField
               control={form.control}
               name='images'
               coverIndexName='coverIndex'
-              label='Product Images'
+              label={t('dev.forms.productImages')}
               description={({ loading }) =>
                 loading
                   ? 'Loading saved images...'
@@ -307,16 +310,17 @@ export function FormExamplesDemo() {
 
           <section className='border-border bg-card rounded-lg border p-5 shadow-sm'>
             <div className='mb-5 space-y-1'>
-              <h3 className='text-base font-semibold'>Cover Upload</h3>
+              <h3 className='text-base font-semibold'>
+                {t('dev.forms.coverTitle')}
+              </h3>
               <p className='text-muted-foreground text-sm'>
-                Upload a cover image and drag the preview to crop it before
-                submit.
+                {t('dev.forms.coverDesc')}
               </p>
             </div>
             <CoverUploadField
               control={form.control}
               name='cover'
-              label='Product Cover'
+              label={t('dev.forms.productCover')}
               description='Upload a cover image, then drag it inside the frame to crop before submit.'
               accept='image/png'
               disabled={isSavingImages}
@@ -325,7 +329,9 @@ export function FormExamplesDemo() {
 
           <div className='flex justify-center gap-4'>
             <Button type='submit' size='lg' disabled={isSavingImages}>
-              {isSavingImages ? 'Saving...' : 'Save Changes'}
+              {isSavingImages
+                ? t('dev.forms.saving')
+                : t('dev.forms.saveChanges')}
             </Button>
             <Button
               type='button'
@@ -334,7 +340,7 @@ export function FormExamplesDemo() {
               onClick={handleReset}
               disabled={isSavingImages}
             >
-              Reset
+              {t('dev.forms.reset')}
             </Button>
           </div>
         </form>

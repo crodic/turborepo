@@ -31,6 +31,32 @@ export default {
   'navigation.dev.playground': 'Playground',
   'navigation.dev.formExamples': 'Form examples',
   'navigation.dev.uiPreview': 'UI Preview',
+  'dev.playground.title': 'Developer Playground',
+  'dev.playground.badge': 'DEV ONLY',
+  'dev.playground.description':
+    'Component preview and interactive sandbox for local development testing.',
+  'dev.playground.tabForms': 'Forms & Uploads',
+  'dev.playground.tabTable': 'Data Table & Virtualization',
+  'dev.playground.uiPreviewTitle': 'UI Preview',
+  'dev.playground.uiPreviewDesc':
+    'Preview complex UI components like the DataTable feature playground.',
+  'dev.forms.title': 'Form Components Example',
+  'dev.forms.description':
+    'Local development preview for the image upload form components.',
+  'dev.forms.sortableTitle': 'Sortable Image Upload',
+  'dev.forms.sortableDesc':
+    'Reorder images, add new files, remove items, and choose a cover image.',
+  'dev.forms.productImages': 'Product Images',
+  'dev.forms.coverTitle': 'Cover Upload',
+  'dev.forms.coverDesc':
+    'Upload a cover image and drag the preview to crop it before submit.',
+  'dev.forms.productCover': 'Product Cover',
+  'dev.forms.saveChanges': 'Save Changes',
+  'dev.forms.saving': 'Saving...',
+  'dev.forms.reset': 'Reset',
+  'dev.forms.loadError': 'Could not load saved images',
+  'dev.forms.saveSuccess': 'Images saved successfully',
+  'dev.forms.saveError': 'Could not save images',
   'validation.required': 'This field is required',
   'validation.email': 'The {{field}} must be a valid email',
   'validation.min': 'The {{field}} must be at least {{min}} characters',
