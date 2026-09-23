@@ -88,10 +88,11 @@ export class PolarService {
       );
     }
 
-    const session = await polar.customerSessions.create({
-      customerId: params.customerId,
-      externalCustomerId: params.externalCustomerId,
-    });
+    const session = await polar.customerSessions.create(
+      params.customerId
+        ? { customerId: params.customerId }
+        : { externalCustomerId: params.externalCustomerId! },
+    );
 
     return session;
   }

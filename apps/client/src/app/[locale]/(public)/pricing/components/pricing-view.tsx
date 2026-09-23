@@ -75,6 +75,7 @@ export function PricingView() {
         successUrl,
         customerEmail: profile?.email,
         customerName: profile?.fullName,
+        userId: profile?.id ? String(profile.id) : undefined,
       },
       {
         onSettled: () => {

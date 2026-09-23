@@ -53,7 +53,10 @@ export function BillingCard() {
   const latestSub = activeSub || subscriptions?.[0];
 
   const handleOpenPortal = () => {
-    portalMutation.mutate();
+    portalMutation.mutate({
+      customerId: latestSub?.polarCustomerId || undefined,
+      customerEmail: latestSub?.customerEmail || undefined,
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -125,10 +128,16 @@ export function BillingCard() {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-foreground text-lg font-bold">
-                    {activeSub.productName || "Pro Plan"}
+                    {activeSub.productTitle ||
+                      activeSub.productName ||
+                      "Pro Plan"}
                   </h3>
                   <span className="text-muted-foreground text-sm font-semibold">
-                    ${activeSub.amount} /{" "}
+                    $
+                    {activeSub.amount
+                      ? (activeSub.amount / 100).toFixed(2)
+                      : "19.00"}{" "}
+                    /{" "}
                     {activeSub.recurringInterval === "year" ? "year" : "month"}
                   </span>
                 </div>
@@ -236,15 +245,14 @@ export function BillingCard() {
                   {orders.map((order) => (
                     <TableRow key={order.id} className="text-xs">
                       <TableCell className="text-muted-foreground font-mono">
-                        {order.orderId
-                          ? `${order.orderId.slice(0, 8)}...`
-                          : order.id.slice(0, 8)}
+                        {order.orderNumber || order.orderId || String(order.id)}
                       </TableCell>
                       <TableCell>
                         {format(new Date(order.createdAt), "MMM dd, yyyy")}
                       </TableCell>
                       <TableCell className="text-foreground font-semibold">
-                        ${order.amount} {order.currency.toUpperCase()}
+                        ${((order.amount || 0) / 100).toFixed(2)}{" "}
+                        {order.currency?.toUpperCase() || "USD"}
                       </TableCell>
                       <TableCell>
                         <Badge

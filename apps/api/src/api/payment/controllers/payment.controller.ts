@@ -52,7 +52,8 @@ export class PaymentController {
   }
 
   @Post('customer-portal')
-  @Public()
+  @UseGuards(UserAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Create a Customer Portal session',
     description:
@@ -65,9 +66,13 @@ export class PaymentController {
   })
   async createCustomerPortal(
     @Body() dto: CustomerPortalReqDto,
-    @CurrentUser() user?: { id?: string | number; email?: string },
+    @CurrentUser('id') userId?: string,
+    @CurrentUser('email') email?: string,
   ): Promise<CustomerPortalResDto> {
-    return await this.paymentService.createCustomerPortalSession(dto, user);
+    return await this.paymentService.createCustomerPortalSession(dto, {
+      id: userId,
+      email,
+    });
   }
 
   @Get('orders')
@@ -85,8 +90,9 @@ export class PaymentController {
   })
   async getMyOrders(
     @CurrentUser('id') userId: string,
+    @CurrentUser('email') email?: string,
   ): Promise<PaymentOrderResDto[]> {
-    return await this.paymentService.getUserOrders(String(userId));
+    return await this.paymentService.getUserOrders(String(userId), email);
   }
 
   @Get('subscriptions')
@@ -104,7 +110,11 @@ export class PaymentController {
   })
   async getMySubscriptions(
     @CurrentUser('id') userId: string,
+    @CurrentUser('email') email?: string,
   ): Promise<PaymentSubscriptionResDto[]> {
-    return await this.paymentService.getUserSubscriptions(String(userId));
+    return await this.paymentService.getUserSubscriptions(
+      String(userId),
+      email,
+    );
   }
 }

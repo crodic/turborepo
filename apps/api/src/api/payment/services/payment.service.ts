@@ -71,10 +71,20 @@ export class PaymentService {
     dto: CreateCheckoutReqDto,
     currentUser?: { id?: string | number; email?: string; fullName?: string },
   ): Promise<CreateCheckoutResDto> {
-    const userId =
+    let userId =
       dto.userId || (currentUser?.id ? String(currentUser.id) : undefined);
     const customerEmail = dto.customerEmail || currentUser?.email;
     const customerName = dto.customerName || currentUser?.fullName;
+
+    if (!userId && customerEmail) {
+      const user = await this.customerRepo.manager.query(
+        `SELECT id FROM users WHERE email = $1 LIMIT 1`,
+        [customerEmail],
+      );
+      if (user && user[0]?.id) {
+        userId = String(user[0].id);
+      }
+    }
 
     const orderNumber = this.generateOrderNumber();
 
@@ -332,7 +342,18 @@ export class PaymentService {
     const polarCustomerId = customerData.id || data.customer_id;
     const customerEmail = customerData.email || data.customer_email;
     const customerName = customerData.name || data.customer_name;
-    const userId = customerData.external_id || data.metadata?.userId || null;
+    let userId = customerData.external_id || data.metadata?.userId || null;
+
+    if (!userId && customerEmail) {
+      const user = await this.customerRepo.manager.query(
+        `SELECT id FROM users WHERE email = $1 LIMIT 1`,
+        [customerEmail],
+      );
+      if (user && user[0]?.id) {
+        userId = String(user[0].id);
+      }
+    }
+
     const orderNumber = data.metadata?.orderNumber;
 
     let customer: PaymentCustomerEntity | null = null;
@@ -383,6 +404,7 @@ export class PaymentService {
       if (data.currency) order.currency = data.currency;
       if (customer?.id && !order.customerId) order.customerId = customer.id;
       if (data.product?.name) order.productTitle = data.product.name;
+      if (userId && !order.userId) order.userId = userId;
     }
     await this.orderRepo.save(order);
 
@@ -417,7 +439,17 @@ export class PaymentService {
     const customerData = data.customer || {};
     const polarCustomerId = customerData.id || data.customer_id;
     const customerEmail = customerData.email || data.customer_email;
-    const userId = customerData.external_id || data.metadata?.userId || null;
+    let userId = customerData.external_id || data.metadata?.userId || null;
+
+    if (!userId && customerEmail) {
+      const user = await this.customerRepo.manager.query(
+        `SELECT id FROM users WHERE email = $1 LIMIT 1`,
+        [customerEmail],
+      );
+      if (user && user[0]?.id) {
+        userId = String(user[0].id);
+      }
+    }
 
     let customer: PaymentCustomerEntity | null = null;
     if (polarCustomerId && customerEmail) {
@@ -475,6 +507,9 @@ export class PaymentService {
       if (customer?.id && !subscription.customerId) {
         subscription.customerId = customer.id;
       }
+      if (userId && !subscription.userId) {
+        subscription.userId = userId;
+      }
     }
     await this.subscriptionRepo.save(subscription);
   }
@@ -518,21 +553,53 @@ export class PaymentService {
     }
   }
 
-  async getUserOrders(userId: string): Promise<PaymentOrderResDto[]> {
+  async getUserOrders(
+    userId: string,
+    email?: string,
+  ): Promise<PaymentOrderResDto[]> {
+    const whereConditions: any[] = [{ userId }];
+    if (email) {
+      whereConditions.push({ customerEmail: email });
+    }
     const orders = await this.orderRepo.find({
-      where: { userId },
+      where: whereConditions,
       order: { createdAt: 'DESC' },
     });
+
+    if (email) {
+      for (const order of orders) {
+        if (!order.userId) {
+          order.userId = userId;
+          void this.orderRepo.save(order);
+        }
+      }
+    }
+
     return plainToInstance(PaymentOrderResDto, orders);
   }
 
   async getUserSubscriptions(
     userId: string,
+    email?: string,
   ): Promise<PaymentSubscriptionResDto[]> {
+    const whereConditions: any[] = [{ userId }];
+    if (email) {
+      whereConditions.push({ customerEmail: email });
+    }
     const subscriptions = await this.subscriptionRepo.find({
-      where: { userId },
+      where: whereConditions,
       order: { createdAt: 'DESC' },
     });
+
+    if (email) {
+      for (const sub of subscriptions) {
+        if (!sub.userId) {
+          sub.userId = userId;
+          void this.subscriptionRepo.save(sub);
+        }
+      }
+    }
+
     return plainToInstance(PaymentSubscriptionResDto, subscriptions);
   }
 

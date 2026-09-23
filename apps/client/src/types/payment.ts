@@ -1,16 +1,19 @@
 export interface PaymentOrder {
-  id: string;
-  orderId: string;
-  checkoutId?: string | null;
-  customerId?: string | null;
+  id: string | number;
+  orderNumber: string;
+  orderId?: string;
+  polarCheckoutId?: string | null;
+  polarOrderId?: string | null;
+  customerId?: string | number | null;
   userId?: string | null;
   customerEmail?: string | null;
   customerName?: string | null;
   amount: number;
-  taxAmount: number;
+  taxAmount?: number;
   currency: string;
-  status: "pending" | "paid" | "refunded" | "partially_refunded" | "failed";
+  status: "pending" | "paid" | "refunded" | "canceled" | "failed";
   productId?: string | null;
+  productTitle?: string | null;
   productName?: string | null;
   subscriptionId?: string | null;
   invoiceUrl?: string | null;
@@ -21,12 +24,15 @@ export interface PaymentOrder {
 }
 
 export interface PaymentSubscription {
-  id: string;
-  subscriptionId: string;
-  customerId: string;
+  id: string | number;
+  polarSubscriptionId?: string;
+  subscriptionId?: string;
+  polarCustomerId?: string;
+  customerId?: string | number | null;
   userId?: string | null;
   customerEmail?: string | null;
   productId: string;
+  productTitle?: string | null;
   productName?: string | null;
   priceId?: string | null;
   status:
@@ -36,10 +42,11 @@ export interface PaymentSubscription {
     | "active"
     | "past_due"
     | "canceled"
-    | "unpaid";
-  amount: number;
-  currency: string;
-  recurringInterval: "month" | "year";
+    | "unpaid"
+    | "paused";
+  amount?: number;
+  currency?: string;
+  recurringInterval?: "month" | "year";
   currentPeriodStart?: string | null;
   currentPeriodEnd?: string | null;
   cancelAtPeriodEnd: boolean;
@@ -54,6 +61,7 @@ export interface CreateCheckoutPayload {
   successUrl: string;
   customerEmail?: string;
   customerName?: string;
+  userId?: string;
 }
 
 export interface CheckoutResponse {
@@ -61,6 +69,12 @@ export interface CheckoutResponse {
   url?: string;
   checkoutId: string;
   orderNumber: string;
+}
+
+export interface CustomerPortalPayload {
+  customerId?: string;
+  customerEmail?: string;
+  userId?: string;
 }
 
 export interface CustomerPortalResponse {

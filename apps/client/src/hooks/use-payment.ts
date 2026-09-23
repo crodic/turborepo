@@ -79,11 +79,15 @@ export function useCreateCheckoutSession() {
 export function useCustomerPortalSession() {
   const queryClient = useQueryClient();
 
-  return useMutation<CustomerPortalResponse, Error, void>({
-    mutationFn: async () => {
+  return useMutation<
+    CustomerPortalResponse,
+    Error,
+    CustomerPortalPayload | void
+  >({
+    mutationFn: async (payload) => {
       const response = await http.post<CustomerPortalResponse>(
         "/api/v1/payments/customer-portal",
-        {}
+        payload || {}
       );
       return response.data;
     },
