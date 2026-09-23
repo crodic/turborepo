@@ -61,8 +61,9 @@ export function useCreateCheckoutSession() {
       return response.data;
     },
     onSuccess: (data) => {
-      if (data?.url) {
-        window.location.href = data.url;
+      const redirectUrl = data?.checkoutUrl || data?.url;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
       }
     },
     onError: (error) => {
@@ -90,8 +91,9 @@ export function useCustomerPortalSession() {
       void queryClient.invalidateQueries({
         queryKey: PAYMENT_SUBSCRIPTIONS_QUERY_KEY,
       });
-      if (data?.url) {
-        window.location.href = data.url;
+      const redirectUrl = data?.portalUrl || data?.url;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
       }
     },
     onError: (error) => {

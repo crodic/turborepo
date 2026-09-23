@@ -2,16 +2,16 @@ import { Public } from '@/decorators/public.decorator';
 import {
   Controller,
   ForbiddenException,
+  HttpCode,
   HttpStatus,
   Logger,
   Post,
   RawBodyRequest,
   Req,
-  Res,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { WebhookVerificationError } from '@polar-sh/sdk/webhooks';
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
 import { PaymentService } from '../services/payment.service';
 import { PolarService } from '../services/polar.service';
 
@@ -30,6 +30,7 @@ export class PaymentWebhookController {
 
   @Post()
   @Public()
+  @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
     summary: 'Handle incoming Polar webhooks',
     description:
@@ -43,10 +44,7 @@ export class PaymentWebhookController {
     status: HttpStatus.FORBIDDEN,
     description: 'Invalid webhook signature',
   })
-  async handleWebhook(
-    @Req() req: RawBodyRequest<Request>,
-    @Res() res: Response,
-  ) {
+  async handleWebhook(@Req() req: RawBodyRequest<Request>) {
     const rawBody = req.rawBody || req.body;
     if (!rawBody) {
       this.logger.warn('Webhook received without raw body.');
@@ -63,18 +61,12 @@ export class PaymentWebhookController {
       throw error;
     }
 
-    try {
-      await this.paymentService.handleWebhook(event);
-      return res.status(HttpStatus.ACCEPTED).send({ received: true });
-    } catch (err: any) {
-      this.logger.error(
-        `Error processing webhook event: ${err.message}`,
-        err.stack,
-      );
-      // Return 500 so Polar can retry later if our internal processing failed
-      return res
-        .status(HttpStatus.INTERNAL_SERVER_ERROR)
-        .send({ error: err.message });
-    }
+    const webhookId =
+      (req.headers['webhook-id'] as string) ||
+      (req.headers['webhook_id'] as string) ||
+      undefined;
+
+    await this.paymentService.handleWebhook(event, webhookId);
+    return { received: true };
   }
 }

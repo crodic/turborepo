@@ -57,11 +57,13 @@ export interface CreateCheckoutPayload {
 }
 
 export interface CheckoutResponse {
-  url: string;
-  checkoutId?: string;
-  status?: string;
+  checkoutUrl: string;
+  url?: string;
+  checkoutId: string;
+  orderNumber: string;
 }
 
 export interface CustomerPortalResponse {
-  url: string;
+  portalUrl: string;
+  url?: string;
 }

@@ -76,12 +76,6 @@ export class PaymentService {
     const customerEmail = dto.customerEmail || currentUser?.email;
     const customerName = dto.customerName || currentUser?.fullName;
 
-    if (!customerEmail && !userId) {
-      throw new BadRequestException(
-        'customerEmail is required for guest checkout or user must be authenticated.',
-      );
-    }
-
     const orderNumber = this.generateOrderNumber();
 
     // Find or create local customer profile
@@ -140,6 +134,7 @@ export class PaymentService {
 
       return {
         checkoutUrl: checkout.url,
+        url: checkout.url,
         checkoutId: checkout.id,
         orderNumber,
       };
@@ -201,6 +196,7 @@ export class PaymentService {
 
       return {
         portalUrl: session.customerPortalUrl,
+        url: session.customerPortalUrl,
       };
     } catch (error: any) {
       this.logger.error(
@@ -218,10 +214,17 @@ export class PaymentService {
     }
   }
 
-  async handleWebhook(event: Record<string, any>): Promise<void> {
-    const eventId = event.id as string;
+  async handleWebhook(
+    event: Record<string, any>,
+    webhookId?: string,
+  ): Promise<void> {
     const eventType = event.type as string;
-    const data = event.data as Record<string, any>;
+    const data = (event.data || {}) as Record<string, any>;
+    const eventId =
+      webhookId ||
+      (event.id as string) ||
+      (data.id ? `${eventType}_${data.id}` : null) ||
+      crypto.randomUUID();
 
     this.logger.log(
       `Processing Polar webhook event: ${eventType} (${eventId})`,
