@@ -6,11 +6,14 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import xior from "xior";
 import { LoginResponseData } from "@/types/apis";
+import { useQueryClient } from "@tanstack/react-query";
+import { PROFILE_QUERY_KEY } from "@/hooks/use-profile";
 
 export default function OAuthCallback() {
   const t = useTranslations("Auth.oauth");
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const handledRef = useRef(false);
 
   useEffect(() => {
@@ -40,6 +43,7 @@ export default function OAuthCallback() {
           refreshToken: data.refreshToken,
         });
 
+        await queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY });
         window.dispatchEvent(new Event("auth:tokens-updated"));
         toast.success(t("successToast"));
         router.replace("/profile");
@@ -50,7 +54,7 @@ export default function OAuthCallback() {
     };
 
     void exchangeToken();
-  }, [router, searchParams, t]);
+  }, [queryClient, router, searchParams, t]);
 
   return (
     <div className="flex min-h-screen items-center justify-center px-6">
