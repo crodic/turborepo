@@ -1,13 +1,16 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 
-export enum PresenceUserType {
+export enum WsUserType {
   ADMIN = 'admin',
   USER = 'user',
 }
 
-export type PresencePrincipal = {
+export const PresenceUserType = WsUserType;
+export type PresenceUserType = WsUserType;
+
+export type WsPrincipal = {
   id: AutoIncrementID;
-  type: PresenceUserType;
+  type: WsUserType;
   sessionId?: AutoIncrementID | string;
   tokenHash?: string;
   email: string;
@@ -15,7 +18,9 @@ export type PresencePrincipal = {
   avatar?: string;
 };
 
-export type OnlinePresence = Omit<PresencePrincipal, 'tokenHash'> & {
+export type PresencePrincipal = WsPrincipal;
+
+export type OnlinePresence = Omit<WsPrincipal, 'tokenHash'> & {
   socketCount: number;
   connectedAt: Date;
   lastSeenAt: Date;

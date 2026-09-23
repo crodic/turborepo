@@ -124,6 +124,36 @@ export class RedisService implements OnModuleDestroy {
     return await this.client.sismember(key, member);
   }
 
+  // --- Sorted Set Operations ---
+
+  async zadd(
+    key: string,
+    score: number,
+    member: string | number,
+  ): Promise<number> {
+    return await this.client.zadd(key, score, member);
+  }
+
+  async zrem(key: string, ...members: (string | number)[]): Promise<number> {
+    return await this.client.zrem(key, ...members);
+  }
+
+  async zrangebyscore(
+    key: string,
+    min: number | string,
+    max: number | string,
+  ): Promise<string[]> {
+    return await this.client.zrangebyscore(key, min, max);
+  }
+
+  async zremrangebyscore(
+    key: string,
+    min: number | string,
+    max: number | string,
+  ): Promise<number> {
+    return await this.client.zremrangebyscore(key, min, max);
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.client.quit();
   }
