@@ -19,6 +19,7 @@ import { type AllConfigType } from './config/config.type';
 import { GlobalExceptionFilter } from './filters/global-exception.filter';
 import './instrument';
 import setupSwagger from './utils/setup-swagger';
+import { RedisIoAdapter } from './websocket/redis-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -121,6 +122,20 @@ async function bootstrap() {
 
   if (isDevelopment) {
     setupSwagger(app);
+  }
+
+  // Setup RedisIoAdapter for Socket.IO multi-instance clustering
+  const redisIoAdapter = new RedisIoAdapter(app);
+  try {
+    await redisIoAdapter.connectToRedis(configService);
+    app.useWebSocketAdapter(redisIoAdapter);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    app
+      .get(Logger)
+      .warn(
+        `Failed to connect RedisIoAdapter, falling back to default IoAdapter: ${message}`,
+      );
   }
 
   updateGlobalConfig({

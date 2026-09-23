@@ -83,6 +83,10 @@ const refreshTokenApi = async (refreshToken: string): Promise<string> => {
 
     http.defaults.headers.Authorization = `Bearer ${accessToken}`;
 
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("auth:tokens-updated"));
+    }
+
     return accessToken;
   } catch (err) {
     // Only logged-in users whose refresh token expired reach here.
