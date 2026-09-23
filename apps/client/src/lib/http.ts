@@ -1,4 +1,5 @@
 import xior, { XiorInterceptorRequestConfig } from "xior";
+import { decodeToken } from "./utils";
 
 export const http = xior.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL!,
@@ -30,6 +31,48 @@ http.interceptors.request.use(
 
 let refreshTokenPromise: Promise<string> | null = null;
 
+export async function refreshClientToken(
+  failedToken?: string
+): Promise<string | null> {
+  if (refreshTokenPromise) {
+    return refreshTokenPromise.catch(() => null);
+  }
+
+  // Check if user has tokens before attempting refresh
+  const tokenRes = await xior
+    .get<{
+      accessToken?: string;
+      refreshToken?: string;
+    }>(`${process.env.NEXT_PUBLIC_APP_URL}/api/auth/tokens`)
+    .catch(() => null);
+
+  const cookieAccessToken = tokenRes?.data?.accessToken;
+  const refreshToken = tokenRes?.data?.refreshToken;
+  if (!refreshToken) {
+    return null;
+  }
+
+  // If Next.js middleware (proxy.ts) has ALREADY refreshed the token on the server,
+  // the cookie already contains a valid, non-expired accessToken different from the failed one.
+  if (cookieAccessToken && cookieAccessToken !== failedToken) {
+    const payload = decodeToken(cookieAccessToken);
+    if (payload?.exp && payload.exp * 1000 > Date.now() + 15_000) {
+      http.defaults.headers.Authorization = `Bearer ${cookieAccessToken}`;
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("auth:tokens-updated"));
+      }
+      return cookieAccessToken;
+    }
+  }
+
+  refreshTokenPromise = refreshTokenApi(refreshToken);
+  try {
+    return await refreshTokenPromise;
+  } catch {
+    return null;
+  }
+}
+
 http.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -40,24 +83,16 @@ http.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      // Check if user has a refresh token before attempting refresh
-      const tokenRes = await xior
-        .get<{
-          refreshToken?: string;
-        }>(`${process.env.NEXT_PUBLIC_APP_URL}/api/auth/tokens`)
-        .catch(() => null);
+      const failedToken =
+        originalRequest.headers.Authorization?.toString().replace(
+          /^Bearer\s+/i,
+          ""
+        );
 
-      const refreshToken = tokenRes?.data?.refreshToken;
-      if (!refreshToken) {
-        // User is not logged in. Do not attempt refresh, do not logout, do not redirect.
-        return Promise.reject(error);
-      }
-
-      if (!refreshTokenPromise) {
-        refreshTokenPromise = refreshTokenApi(refreshToken);
-      }
-
-      return refreshTokenPromise.then((newAccessToken) => {
+      return refreshClientToken(failedToken).then((newAccessToken) => {
+        if (!newAccessToken) {
+          return Promise.reject(error);
+        }
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return http.request(originalRequest);
       });

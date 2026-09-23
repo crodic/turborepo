@@ -1,4 +1,5 @@
 import { io, type Socket } from "socket.io-client";
+import { refreshClientToken } from "@/lib/http";
 
 export type PresenceCounts = {
   admins: number;
@@ -146,54 +147,8 @@ export class WsClient {
   }
 
   private async refreshTokens(): Promise<string> {
-    const { refreshToken } = await this.fetchTokens();
-    if (!refreshToken) {
-      return "";
-    }
-
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/user/auth/refresh`,
-        {
-          method: "POST",
-          credentials: "same-origin",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ refreshToken }),
-        }
-      );
-
-      if (!response.ok) {
-        return "";
-      }
-
-      const tokens = (await response.json()) as {
-        accessToken?: string;
-        refreshToken?: string;
-      };
-
-      if (!tokens.accessToken || !tokens.refreshToken) {
-        return "";
-      }
-
-      await fetch("/api/auth/tokens", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(tokens),
-      });
-
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("auth:tokens-updated"));
-      }
-
-      return tokens.accessToken;
-    } catch {
-      return "";
-    }
+    const token = await refreshClientToken();
+    return token || "";
   }
 
   async connect(options?: { allowRefresh?: boolean }): Promise<Socket | null> {
