@@ -10,6 +10,7 @@ import { HomeModule } from './home/home.module';
 
 import { LocationModule } from './location/location.module';
 import { NotificationModule } from './notification/notification.module';
+import { PaymentModule } from './payment/payment.module';
 import { PermissionModule } from './permission/permission.module';
 import { RoleModule } from './role/role.module';
 import { SentryMonitoringModule } from './sentry-monitoring/sentry-monitoring.module';
@@ -36,6 +37,7 @@ import { WhiteLabelModule } from './white-label/white-label.module';
     WhiteLabelModule,
     CmsPageModule,
     LocationModule,
+    PaymentModule,
   ],
 })
 export class ApiModule {}

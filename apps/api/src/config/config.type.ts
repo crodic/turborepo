@@ -1,4 +1,5 @@
 import { AuthConfig } from '@/api/auth/config/auth-config.type';
+import { PaymentConfig } from '@/api/payment/config/payment-config.type';
 import { DatabaseConfig } from '@/database/config/database-config.type';
 import { StorageConfig } from '@/filesystem/config/storage-config.type';
 import { MailConfig } from '@/mail/config/mail-config.type';
@@ -12,4 +13,5 @@ export type AllConfigType = {
   auth: AuthConfig;
   mail: MailConfig;
   storage: StorageConfig;
+  payment: PaymentConfig;
 };

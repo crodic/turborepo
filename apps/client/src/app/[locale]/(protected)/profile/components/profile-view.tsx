@@ -9,7 +9,8 @@ import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import React from "react";
-import { AlertCircle, Lock, UserCircle } from "lucide-react";
+import { AlertCircle, CreditCard, Lock, UserCircle } from "lucide-react";
+import { BillingCard } from "./billing-card";
 import { ChangePasswordForm } from "./change-password-form";
 import { GeneralInfoForm } from "./general-info-form";
 import { ProfileHeader } from "./profile-header";
@@ -23,8 +24,13 @@ export function ProfileView() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  const tabParam = searchParams.get("tab");
   const currentTab =
-    searchParams.get("tab") === "security" ? "security" : "general";
+    tabParam === "security"
+      ? "security"
+      : tabParam === "billing"
+        ? "billing"
+        : "general";
 
   const handleTabChange = (value: string) => {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -84,7 +90,7 @@ export function ProfileView() {
         onValueChange={handleTabChange}
         className="w-full space-y-6"
       >
-        <TabsList className="grid w-full grid-cols-2 sm:inline-grid sm:w-auto">
+        <TabsList className="grid w-full grid-cols-3 sm:inline-grid sm:w-auto">
           <TabsTrigger value="general" className="gap-2">
             <UserCircle className="size-4" />
             <span>{t("tabs.general")}</span>
@@ -92,6 +98,10 @@ export function ProfileView() {
           <TabsTrigger value="security" className="gap-2">
             <Lock className="size-4" />
             <span>{t("tabs.security")}</span>
+          </TabsTrigger>
+          <TabsTrigger value="billing" className="gap-2">
+            <CreditCard className="size-4" />
+            <span>{t("tabs.billing")}</span>
           </TabsTrigger>
         </TabsList>
 
@@ -105,6 +115,10 @@ export function ProfileView() {
           <SocialAccountsCard />
 
           <SessionCard />
+        </TabsContent>
+
+        <TabsContent value="billing" className="space-y-6">
+          <BillingCard />
         </TabsContent>
       </Tabs>
     </div>

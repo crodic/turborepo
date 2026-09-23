@@ -10,6 +10,7 @@
     "home": "Trang chủ",
     "features": "Tính năng",
     "techStack": "Công nghệ",
+    "pricing": "Bảng giá",
     "profile": "Hồ sơ",
     "accountSettings": "Cài đặt tài khoản",
     "signIn": "Đăng nhập",
@@ -117,7 +118,36 @@
     "pageDescription": "Quản lý thông tin cá nhân, cài đặt bảo mật mật khẩu và các tài khoản liên kết.",
     "tabs": {
       "general": "Thông tin chung",
-      "security": "Bảo mật & Tài khoản"
+      "security": "Bảo mật & Tài khoản",
+      "billing": "Thanh toán & Gói"
+    },
+    "billing": {
+      "planTitle": "Gói dịch vụ hiện tại",
+      "planDescription": "Quản lý gói đăng ký và phương thức thanh toán của bạn.",
+      "renewsOn": "Tự động gia hạn vào",
+      "manageBilling": "Quản lý gói & Hóa đơn",
+      "openingPortal": "Đang mở cổng thanh toán...",
+      "freeTierTitle": "Gói miễn phí Starter",
+      "freeTierDesc": "Bạn đang sử dụng gói miễn phí. Hãy nâng cấp để mở khóa không giới hạn dự án, tăng tốc API và các tính năng cao cấp.",
+      "upgradePlan": "Nâng cấp gói",
+      "portalNotice": "Quản lý hóa đơn, cập nhật thẻ thanh toán và gia hạn được xử lý an toàn qua Polar Customer Portal.",
+      "historyTitle": "Lịch sử đơn hàng & Hóa đơn",
+      "historyDescription": "Xem và tải biên lai cho các giao dịch gần đây của bạn.",
+      "noOrders": "Chưa có giao dịch thanh toán nào.",
+      "status": {
+        "active": "Đang hoạt động",
+        "trialing": "Dùng thử",
+        "canceled": "Đã hủy",
+        "pastDue": "Quá hạn thanh toán"
+      },
+      "table": {
+        "orderId": "Mã đơn hàng",
+        "date": "Ngày",
+        "amount": "Số tiền",
+        "status": "Trạng thái",
+        "receipt": "Biên lai / Hóa đơn",
+        "viewReceipt": "Xem biên lai"
+      }
     },
     "memberSince": "Thành viên từ",
     "verified": "Đã xác thực",
@@ -322,5 +352,101 @@
       "successToast": "Đăng nhập bằng Google thành công.",
       "failedToast": "Đăng nhập Google thất bại. Vui lòng thử lại."
     }
+  },
+  "Pricing": {
+    "metaTitle": "Bảng giá & Các gói dịch vụ",
+    "metaDescription": "Bảng giá minh bạch, linh hoạt dành cho các nhóm phát triển và sản phẩm hiện đại.",
+    "badge": "Bảng giá linh hoạt",
+    "title": "Bảng giá đơn giản, minh bạch",
+    "subtitle": "Chọn gói phù hợp với tốc độ phát triển của bạn. Bắt đầu miễn phí, nâng cấp khi cần tính năng cao cấp.",
+    "intervals": {
+      "monthly": "Theo tháng",
+      "yearly": "Theo năm",
+      "save20": "Tiết kiệm 20%",
+      "perMonth": "/ tháng",
+      "perYear": "/ năm",
+      "billedAnnually": "Thanh toán theo năm (~${amount}/tháng)"
+    },
+    "tiers": {
+      "starter": {
+        "name": "Cơ bản",
+        "description": "Phù hợp cho các dự án cá nhân và thử nghiệm ý tưởng.",
+        "free": "Miễn phí",
+        "cta": "Bắt đầu miễn phí",
+        "features": {
+          "item1": "Tối đa 3 dự án",
+          "item2": "Hỗ trợ cộng đồng",
+          "item3": "Truy cập API tiêu chuẩn",
+          "item4": "Báo cáo phân tích cơ bản"
+        }
+      },
+      "pro": {
+        "name": "Chuyên nghiệp",
+        "badge": "Phổ biến nhất",
+        "description": "Đầy đủ công cụ cho các startup và nhóm phát triển cần tăng tốc.",
+        "cta": "Nâng cấp lên Pro",
+        "features": {
+          "item1": "Không giới hạn dự án & workspace",
+          "item2": "Ưu tiên hỗ trợ qua email & chat",
+          "item3": "Cộng tác nhóm nâng cao",
+          "item4": "Hạn mức API cao & Webhooks thời gian thực",
+          "item5": "Tùy biến thương hiệu & tên miền riêng"
+        }
+      },
+      "enterprise": {
+        "name": "Doanh nghiệp",
+        "description": "Hạ tầng chuyên biệt, bảo mật cấp doanh nghiệp và hỗ trợ riêng.",
+        "cta": "Đăng ký Enterprise",
+        "features": {
+          "item1": "Bao gồm tất cả tính năng Pro",
+          "item2": "Quản lý tài khoản riêng & cam kết SLA 99.9%",
+          "item3": "Đăng nhập một lần tùy chỉnh (SSO, SAML)",
+          "item4": "Nhật ký kiểm toán & tuân thủ bảo mật",
+          "item5": "Hợp đồng và hóa đơn VAT theo yêu cầu",
+          "item6": "Tùy chọn triển khai Private Cloud riêng"
+        }
+      }
+    },
+    "featuresHeading": "Tính năng bao gồm",
+    "redirecting": "Đang chuyển đến cổng thanh toán...",
+    "trust": {
+      "secureTitle": "Bảo mật & Chuẩn quốc tế",
+      "secureDesc": "Thanh toán an toàn qua Polar với mã hóa chuẩn quốc tế.",
+      "instantTitle": "Kích hoạt tức thì",
+      "instantDesc": "Sử dụng ngay các tính năng nâng cao ngay khi hoàn tất thanh toán.",
+      "cancelTitle": "Hủy gói bất kỳ lúc nào",
+      "cancelDesc": "Không ràng buộc hợp đồng. Quản lý hoặc hủy gói bất cứ lúc nào."
+    },
+    "faq": {
+      "title": "Câu hỏi thường gặp",
+      "subtitle": "Tất cả những gì bạn cần biết về thanh toán và các gói dịch vụ.",
+      "item1": {
+        "question": "Tôi có thể đổi gói hoặc hủy gói bất kỳ lúc nào không?",
+        "answer": "Hoàn toàn có thể. Bạn có thể nâng cấp, hạ cấp hoặc hủy gói bất kỳ lúc nào từ trang quản lý thanh toán trong tài khoản của bạn. Thay đổi sẽ có hiệu lực ngay lập tức."
+      },
+      "item2": {
+        "question": "Các phương thức thanh toán nào được hỗ trợ?",
+        "answer": "Chúng tôi hỗ trợ mọi loại thẻ thanh toán quốc tế (Visa, Mastercard, JCB, Amex), Apple Pay và Google Pay qua cổng thanh toán Polar."
+      },
+      "item3": {
+        "question": "Chính sách ưu đãi thanh toán theo năm hoạt động như thế nào?",
+        "answer": "Khi chọn chu kỳ thanh toán theo năm, bạn sẽ nhận được mức giảm giá 20% so với trả từng tháng. Bạn chỉ cần thanh toán một lần cho cả năm."
+      },
+      "item4": {
+        "question": "Tôi có nhận được hóa đơn và biên lai thanh toán không?",
+        "answer": "Có, hệ thống tự động xuất biên lai và hóa đơn cho mỗi giao dịch, bạn có thể tải về bất cứ lúc nào trong cổng quản lý thanh toán."
+      }
+    }
+  },
+  "PaymentSuccess": {
+    "metaTitle": "Thanh toán thành công",
+    "metaDescription": "Giao dịch thanh toán của bạn đã được xử lý thành công.",
+    "title": "Cảm ơn bạn đã đăng ký!",
+    "subtitle": "Giao dịch của bạn đã được xác nhận và tài khoản đã được nâng cấp thành công.",
+    "referenceId": "Mã đơn hàng",
+    "whatsNextTitle": "Bước tiếp theo là gì?",
+    "whatsNextDesc": "Biên lai xác nhận đã được gửi về email của bạn. Bạn có thể quản lý gói, tải hóa đơn và trải nghiệm đầy đủ các tính năng nâng cao ngay bây giờ.",
+    "viewBilling": "Quản lý gói & Đơn hàng",
+    "returnHome": "Quay lại trang chủ"
   }
 }

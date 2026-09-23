@@ -10,6 +10,7 @@
     "home": "Home",
     "features": "Features",
     "techStack": "Tech Stack",
+    "pricing": "Pricing",
     "profile": "Profile",
     "accountSettings": "Account Settings",
     "signIn": "Sign In",
@@ -117,7 +118,36 @@
     "pageDescription": "Manage your personal details, password security, and connected accounts.",
     "tabs": {
       "general": "General Information",
-      "security": "Security & Accounts"
+      "security": "Security & Accounts",
+      "billing": "Billing & Plans"
+    },
+    "billing": {
+      "planTitle": "Subscription Plan",
+      "planDescription": "Manage your active subscription plan and payment preferences.",
+      "renewsOn": "Renews on",
+      "manageBilling": "Manage Subscription & Invoices",
+      "openingPortal": "Opening Customer Portal...",
+      "freeTierTitle": "Free Starter Plan",
+      "freeTierDesc": "You are currently on the free tier. Upgrade to unlock unlimited workspaces, high-speed API limits, and premium features.",
+      "upgradePlan": "Upgrade Plan",
+      "portalNotice": "Self-service billing, invoice downloads, and card updates are securely managed via Polar Customer Portal.",
+      "historyTitle": "Invoices & Payment History",
+      "historyDescription": "View and download receipts for all your recent transactions.",
+      "noOrders": "No billing transactions found yet.",
+      "status": {
+        "active": "Active",
+        "trialing": "Trial",
+        "canceled": "Canceled",
+        "pastDue": "Past Due"
+      },
+      "table": {
+        "orderId": "Order ID",
+        "date": "Date",
+        "amount": "Amount",
+        "status": "Status",
+        "receipt": "Invoice / Receipt",
+        "viewReceipt": "Receipt"
+      }
     },
     "memberSince": "Member since",
     "verified": "Verified",
@@ -322,5 +352,101 @@
       "successToast": "Signed in with Google successfully.",
       "failedToast": "Google sign-in failed. Please try again."
     }
+  },
+  "Pricing": {
+    "metaTitle": "Pricing & Plans",
+    "metaDescription": "Transparent and flexible pricing plans designed for teams and modern products.",
+    "badge": "Flexible Pricing",
+    "title": "Simple, transparent pricing",
+    "subtitle": "Choose the plan that fits your growth. Start for free, upgrade when you need advanced capabilities.",
+    "intervals": {
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "save20": "Save 20%",
+      "perMonth": "/ month",
+      "perYear": "/ year",
+      "billedAnnually": "Billed annually (${amount}/mo)"
+    },
+    "tiers": {
+      "starter": {
+        "name": "Starter",
+        "description": "Perfect for hobbyists and side projects looking to explore.",
+        "free": "Free",
+        "cta": "Get Started Free",
+        "features": {
+          "item1": "Up to 3 projects",
+          "item2": "Community support",
+          "item3": "Standard API access",
+          "item4": "Basic analytics"
+        }
+      },
+      "pro": {
+        "name": "Pro",
+        "badge": "Most Popular",
+        "description": "Everything growing businesses and indie hackers need to ship fast.",
+        "cta": "Upgrade to Pro",
+        "features": {
+          "item1": "Unlimited projects & workspaces",
+          "item2": "Priority email & chat support",
+          "item3": "Advanced team collaboration",
+          "item4": "High-speed API limits & Webhooks",
+          "item5": "Custom branding & domains"
+        }
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "description": "Dedicated power, compliance, and custom infrastructure for scale.",
+        "cta": "Get Enterprise",
+        "features": {
+          "item1": "All Pro features included",
+          "item2": "Dedicated account manager & 99.9% SLA",
+          "item3": "Custom SSO (SAML, Okta, Google Workspace)",
+          "item4": "Audit logs & enterprise compliance",
+          "item5": "Custom contractual billing & invoices",
+          "item6": "On-premise / private cloud deployment option"
+        }
+      }
+    },
+    "featuresHeading": "What's included",
+    "redirecting": "Redirecting to checkout...",
+    "trust": {
+      "secureTitle": "Encrypted & Compliant",
+      "secureDesc": "Payments handled securely via Polar with end-to-end encryption.",
+      "instantTitle": "Instant Activation",
+      "instantDesc": "Access your premium features immediately after checkout.",
+      "cancelTitle": "Cancel Anytime",
+      "cancelDesc": "No lock-ins. Easily pause or cancel your subscription at will."
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "subtitle": "Everything you need to know about our billing and plans.",
+      "item1": {
+        "question": "Can I change my plan or cancel at any time?",
+        "answer": "Yes, you can upgrade, downgrade, or cancel your subscription anytime directly from your profile billing portal. Your changes take effect immediately."
+      },
+      "item2": {
+        "question": "What payment methods are supported?",
+        "answer": "We support all major credit and debit cards (Visa, Mastercard, American Express), Apple Pay, and Google Pay through Polar."
+      },
+      "item3": {
+        "question": "How does the annual billing discount work?",
+        "answer": "When you choose the yearly billing cycle, you receive a 20% discount compared to the monthly plan. You are billed once a year."
+      },
+      "item4": {
+        "question": "Do you offer invoices and receipts?",
+        "answer": "Yes, an automated invoice and receipt is generated for every payment and can be downloaded anytime from your customer portal."
+      }
+    }
+  },
+  "PaymentSuccess": {
+    "metaTitle": "Payment Successful",
+    "metaDescription": "Your payment has been processed successfully.",
+    "title": "Thank you for your purchase!",
+    "subtitle": "Your payment was processed successfully and your account has been upgraded.",
+    "referenceId": "Order Reference",
+    "whatsNextTitle": "What happens next?",
+    "whatsNextDesc": "We have sent a confirmation receipt to your email. You can manage your subscription, download invoices, and explore all pro features right now.",
+    "viewBilling": "Go to Billing & Subscriptions",
+    "returnHome": "Return to Home"
   }
 }

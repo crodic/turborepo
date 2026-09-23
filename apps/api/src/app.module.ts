@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { ApiModule } from '@/api/api.module';
 import authConfig from '@/api/auth/config/auth.config';
+import paymentConfig from '@/api/payment/config/payment.config';
 import { BackgroundModule } from '@/background/background.module';
 import appConfig from '@/config/app.config';
 import { AllConfigType } from '@/config/config.type';
@@ -51,6 +52,7 @@ import loggerFactory from './utils/logger-factory';
         authConfig,
         mailConfig,
         storageConfig,
+        paymentConfig,
       ],
       envFilePath: ['.env'],
     }),

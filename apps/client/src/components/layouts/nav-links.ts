@@ -1,6 +1,7 @@
 import {
   Boxes,
   Code2,
+  CreditCard,
   FileCode2,
   Layers,
   LockKeyhole,
@@ -49,6 +50,12 @@ export const platformLinks: LinkItemType[] = [
     href: "/profile?tab=security",
     description: "Password configuration & connected accounts",
     icon: Code2,
+  },
+  {
+    label: "Subscription & Billing",
+    href: "/profile?tab=billing",
+    description: "Manage plans, invoices & payment methods",
+    icon: CreditCard,
   },
   {
     label: "Design System",

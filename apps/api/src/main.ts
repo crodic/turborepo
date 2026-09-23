@@ -24,6 +24,7 @@ import { RedisIoAdapter } from './websocket/redis-io.adapter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
+    rawBody: true,
   });
 
   // Use Pino Logger

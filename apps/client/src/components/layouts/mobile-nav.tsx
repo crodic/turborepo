@@ -7,7 +7,7 @@ import { LinkItem } from "@/components/layouts/sheard";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
-import { LogOut, MenuIcon, User, XIcon } from "lucide-react";
+import { LogOut, MenuIcon, Sparkles, User, XIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useProfile, useSignOut } from "@/hooks/use-profile";
@@ -116,6 +116,18 @@ export function MobileNav() {
               </div>
 
               <div className="mt-6 flex flex-col gap-2 border-t pt-4">
+                <Button
+                  className="w-full justify-start gap-2"
+                  variant="outline"
+                  asChild
+                  onClick={() => setOpen(false)}
+                >
+                  <Link href="/pricing">
+                    <Sparkles className="text-primary size-4" />
+                    <span>{t("pricing")}</span>
+                  </Link>
+                </Button>
+
                 {profile ? (
                   <>
                     <Link

@@ -18,6 +18,7 @@
     "NEXT_PUBLIC_*",
     "NODE_ENV",
     "NOTIFICATION_RETENTION_DAYS",
+    "POLAR_*",
     "PORT",
     "PROD",
     "REDIS_*",
