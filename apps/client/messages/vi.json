@@ -362,10 +362,18 @@
     "intervals": {
       "monthly": "Theo tháng",
       "yearly": "Theo năm",
+      "oneTime": "Trọn đời",
       "save20": "Tiết kiệm 20%",
       "perMonth": "/ tháng",
       "perYear": "/ năm",
-      "billedAnnually": "Thanh toán theo năm (~${amount}/tháng)"
+      "perLifetime": "/ trọn đời",
+      "payOnce": "Thanh toán 1 lần, sở hữu trọn đời",
+      "billedAnnually": "Thanh toán theo năm (~{amount}/tháng)"
+    },
+    "empty": {
+      "title": "Chưa có gói cước nào",
+      "description": "Chúng tôi đang cập nhật các gói dịch vụ cho chu kỳ này. Vui lòng quay lại sau.",
+      "backHome": "Về trang chủ"
     },
     "tiers": {
       "starter": {

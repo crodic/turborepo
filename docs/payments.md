@@ -372,3 +372,120 @@ pnpm --filter api migration:generate src/database/migrations/VerifySync
 ```
 
 _(Should output: `No changes in database schema were found`)_
+
+---
+
+### 8.3. Local Webhook Development via Polar CLI (Official Method)
+
+The official and recommended way to test Polar webhooks locally is using the **[Polar CLI](https://polar.sh/docs)**. The CLI connects directly to Polar via a secure listener and forwards all sandbox events to your localhost server without requiring third-party tunneling services.
+
+#### Step 1: Install the Polar CLI
+
+Install the official CLI on macOS, Linux, or WSL:
+
+```bash
+curl -fsSL https://polar.sh/install.sh | bash
+```
+
+Verify installation:
+
+```bash
+polar --version
+```
+
+#### Step 2: Login to Polar Account
+
+Authenticate the CLI session:
+
+```bash
+# For Sandbox environment (Default for development)
+polar login --sandbox
+
+# Or for Production
+polar login
+```
+
+A browser window will open to authenticate and authorize the CLI.
+
+#### Step 3: Listen and Forward Webhooks to Local Server
+
+Run the listener pointing to your NestJS payment webhook endpoint:
+
+```bash
+polar listen http://localhost:3000/api/v1/payments/webhook
+```
+
+When prompted, select your **Organization**.
+
+The CLI will start listening and print your **Webhook Secret** in the terminal:
+
+```text
+> Ready! Listening for webhooks...
+> Webhook Secret: polar_whsec_xxxxxxxxxxxxxxxxxxxx
+```
+
+#### Step 4: Configure Local Environment Variable
+
+Copy the webhook secret from the terminal output into `apps/api/.env`:
+
+```env
+# apps/api/.env
+POLAR_WEBHOOK_SECRET=polar_whsec_your_secret_from_terminal
+```
+
+> [!IMPORTANT]
+> Failing to set this exact `POLAR_WEBHOOK_SECRET` will result in `403 Forbidden` (`Invalid Polar webhook signature`) when your application attempts to verify incoming webhook payloads.
+
+Restart your NestJS server to apply the updated secret:
+
+```bash
+pnpm --filter api dev
+```
+
+#### Step 5: Triggering and Verifying Webhook Events
+
+##### 1. Trigger Test Events via Polar CLI
+
+You can test specific event flows instantly using `polar trigger`:
+
+```bash
+# Test order completion
+polar trigger order.paid
+
+# Test subscription activation
+polar trigger subscription.active
+
+# Test real-time product price/catalog update
+polar trigger product.updated
+```
+
+##### 2. Complete an End-to-End Test Checkout
+
+1. Open the Client pricing page: `http://localhost:3001/pricing`.
+2. Select any plan (Monthly, Yearly, or Lifetime).
+3. On the Polar Sandbox checkout page, use the test card details:
+   - **Card Number**: `4242 4242 4242 4242`
+   - **Expiry Date**: Any future date (e.g., `12/28`)
+   - **CVC**: Any 3 digits (`123`)
+4. Upon clicking **Pay**, watch the Polar CLI forward `order.paid` and `subscription.created` directly to your local NestJS backend.
+
+##### 3. Check Backend Terminal Logs & Database
+
+Your NestJS server console will display:
+
+```text
+[Nest] LOG [PaymentService] Processing Polar webhook event: order.paid (order_paid_...)
+[Nest] LOG [PaymentService] Order ORD-... successfully marked as PAID
+[Nest] LOG [PaymentService] Financial transaction record created: tx_...
+```
+
+All received webhooks are audited in the `payment_webhook_events` PostgreSQL table with status `PROCESSED`.
+
+---
+
+#### Alternative: Using Third-Party Tunnels (ngrok / cloudflared)
+
+If the Polar CLI is unavailable in your environment, you can expose your local port via an HTTPS tunnel:
+
+- **`ngrok`**: `ngrok http 3000` ➔ Set Webhook URL on Polar Dashboard to `https://<ngrok-url>/api/v1/payments/webhook`.
+- **`cloudflared`**: `cloudflared tunnel --url http://localhost:3000` ➔ Set Webhook URL to `https://<cf-url>/api/v1/payments/webhook`.

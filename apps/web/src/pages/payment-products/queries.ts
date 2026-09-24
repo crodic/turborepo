@@ -1,10 +1,11 @@
 import z from 'zod'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   type ApiMetadata,
   apiMetadataSchema,
   type PaginateQueryParams,
 } from '@/global'
+import { toast } from 'sonner'
 import http from '@/lib/http'
 import {
   paymentProductSchema,
@@ -86,3 +87,28 @@ export const useDataPaymentProductById = (id: string) =>
     queryFn: () => apiGetPaymentProductById(id),
     enabled: !!id,
   })
+
+export async function apiSyncProductsFromPolar() {
+  const response = await http.post('/admin/payments/products/sync-polar')
+  return response.data
+}
+
+export const useMutationSyncProductsFromPolar = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: apiSyncProductsFromPolar,
+    onSuccess: (data: any) => {
+      void queryClient.invalidateQueries({
+        queryKey: paymentProductQueryKeys.all,
+      })
+      toast.success(
+        `Successfully synced ${data?.syncedCount ?? 0} products from Polar!`
+      )
+    },
+    onError: (error: any) => {
+      toast.error(
+        error?.response?.data?.message || 'Failed to sync products from Polar.'
+      )
+    },
+  })
+}

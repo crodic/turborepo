@@ -14,10 +14,10 @@ export class CreateCheckoutReqDto {
   planSlug!: string;
 
   @StringField({
-    description: 'Billing interval: monthly or yearly',
+    description: 'Billing interval: monthly, yearly, or one_time',
     example: 'monthly',
   })
-  @IsIn(['monthly', 'yearly'])
+  @IsIn(['monthly', 'yearly', 'one_time'])
   interval!: string;
 
   @StringFieldOptional({

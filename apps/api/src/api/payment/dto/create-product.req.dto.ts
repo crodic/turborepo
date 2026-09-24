@@ -32,7 +32,7 @@ export class CreateProductReqDto {
     description: 'Billing interval',
     example: 'monthly',
   })
-  @IsIn(['monthly', 'yearly'])
+  @IsIn(['monthly', 'yearly', 'one_time'])
   interval!: string;
 
   @NumberField({

@@ -27,19 +27,46 @@ import {
   Zap,
   Loader2,
   ArrowRight,
+  PackageSearch,
 } from "lucide-react";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import {
   useCreateCheckoutSession,
   usePricingProducts,
 } from "@/hooks/use-payment";
 import { useProfile } from "@/hooks/use-profile";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { PaymentProduct } from "@/types/payment";
 
+const formatPrice = (price: number, currency = "USD") => {
+  const curr = (currency || "USD").toUpperCase();
+  if (curr === "VND") {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+      maximumFractionDigits: 0,
+    }).format(price);
+  }
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: curr,
+    maximumFractionDigits: 2,
+  }).format(price);
+};
+
 export function PricingView() {
   const t = useTranslations("Pricing");
-  const [interval, setInterval] = useState<"monthly" | "yearly">("monthly");
+  const [interval, setInterval] = useState<"monthly" | "yearly" | "one_time">(
+    "monthly"
+  );
   const [selectedProductId, setSelectedProductId] = useState<string | null>(
     null
   );
@@ -139,32 +166,64 @@ export function PricingView() {
                 {t("intervals.save20")}
               </span>
             </button>
+            <button
+              type="button"
+              onClick={() => setInterval("one_time")}
+              className={cn(
+                "rounded-lg px-4 py-2 text-sm font-medium transition-all",
+                interval === "one_time"
+                  ? "bg-background text-foreground font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {t("intervals.oneTime")}
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Pricing Cards Grid */}
-      <div className="mt-12 grid grid-cols-1 items-stretch gap-8 md:grid-cols-3 lg:gap-8">
-        {isProductsLoading ? (
-          <>
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="flex flex-col justify-between p-6">
-                <div className="space-y-4">
-                  <Skeleton className="h-6 w-1/3" />
-                  <Skeleton className="h-4 w-2/3" />
-                  <Skeleton className="h-10 w-1/2" />
-                  <div className="space-y-2 pt-4">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-4/5" />
-                    <Skeleton className="h-4 w-3/4" />
-                  </div>
+      {/* Pricing Cards Grid / Empty State */}
+      {isProductsLoading ? (
+        <div className="mt-12 grid grid-cols-1 items-stretch gap-8 md:grid-cols-3 lg:gap-8">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="flex flex-col justify-between p-6">
+              <div className="space-y-4">
+                <Skeleton className="h-6 w-1/3" />
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-10 w-1/2" />
+                <div className="space-y-2 pt-4">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-4/5" />
+                  <Skeleton className="h-4 w-3/4" />
                 </div>
-                <Skeleton className="mt-8 h-10 w-full" />
-              </Card>
-            ))}
-          </>
-        ) : (
-          currentProducts.map((product) => {
+              </div>
+              <Skeleton className="mt-8 h-10 w-full" />
+            </Card>
+          ))}
+        </div>
+      ) : currentProducts.length === 0 ? (
+        <div className="mt-12 flex justify-center">
+          <Empty className="border-border/60 bg-card/40 max-w-xl border py-14 shadow-sm backdrop-blur-sm">
+            <EmptyMedia
+              variant="icon"
+              className="bg-primary/10 text-primary size-14 rounded-2xl"
+            >
+              <PackageSearch className="size-7" />
+            </EmptyMedia>
+            <EmptyHeader>
+              <EmptyTitle>{t("empty.title")}</EmptyTitle>
+              <EmptyDescription>{t("empty.description")}</EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button variant="outline" asChild>
+                <Link href="/">{t("empty.backHome")}</Link>
+              </Button>
+            </EmptyContent>
+          </Empty>
+        </div>
+      ) : (
+        <div className="mt-12 grid grid-cols-1 items-stretch gap-8 md:grid-cols-3 lg:gap-8">
+          {currentProducts.map((product) => {
             const isSelected =
               selectedProductId === String(product.id) &&
               createCheckoutMutation.isPending;
@@ -201,21 +260,31 @@ export function PricingView() {
                     <span className="text-4xl font-extrabold tracking-tight">
                       {product.isFree
                         ? t("tiers.starter.free")
-                        : `$${product.price}`}
+                        : formatPrice(product.price, product.currency)}
                     </span>
                     {!product.isFree && (
                       <span className="text-muted-foreground text-sm font-medium">
                         {isYearly
                           ? t("intervals.perYear")
-                          : t("intervals.perMonth")}
+                          : interval === "monthly"
+                            ? t("intervals.perMonth")
+                            : t("intervals.perLifetime")}
                       </span>
                     )}
                   </div>
                   {isYearly && !product.isFree && (
                     <p className="text-muted-foreground text-xs">
                       {t("intervals.billedAnnually", {
-                        amount: String(Math.round(product.price / 12)),
+                        amount: formatPrice(
+                          Math.round(product.price / 12),
+                          product.currency
+                        ),
                       })}
+                    </p>
+                  )}
+                  {interval === "one_time" && !product.isFree && (
+                    <p className="text-muted-foreground text-xs">
+                      {t("intervals.payOnce")}
                     </p>
                   )}
                 </CardHeader>
@@ -267,9 +336,9 @@ export function PricingView() {
                 </CardFooter>
               </Card>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
 
       {/* Trust & Guarantee Badges */}
       <div className="border-border/80 bg-muted/30 mt-16 grid grid-cols-1 gap-6 rounded-2xl border p-6 text-center sm:grid-cols-3 sm:p-8">

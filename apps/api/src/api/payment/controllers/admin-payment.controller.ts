@@ -78,6 +78,20 @@ export class AdminPaymentController {
     return await this.productService.getAdminProductById(id);
   }
 
+  @Post('products/sync-polar')
+  @ApiOperation({
+    summary: 'Synchronize products from Polar (Admin)',
+    description:
+      'Fetches active products directly from Polar API and synchronizes them into the database.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Products synchronized successfully',
+  })
+  async syncProductsFromPolar() {
+    return await this.productService.syncAllProductsFromPolar();
+  }
+
   @Post('products')
   @ApiOperation({
     summary: 'Create a new pricing product (Admin)',

@@ -3,7 +3,7 @@ export interface PaymentProduct {
   planSlug: string;
   name: string;
   description?: string | null;
-  interval: "monthly" | "yearly";
+  interval: "monthly" | "yearly" | "one_time";
   price: number;
   currency: string;
   polarProductId?: string;
@@ -76,7 +76,7 @@ export interface PaymentSubscription {
 
 export interface CreateCheckoutPayload {
   planSlug: string;
-  interval: "monthly" | "yearly";
+  interval: "monthly" | "yearly" | "one_time";
   productId?: string;
   successUrl: string;
   customerEmail?: string;

@@ -330,6 +330,11 @@ export class PaymentService {
 
     try {
       switch (eventType) {
+        case 'product.created':
+        case 'product.updated':
+          await this.productService.syncProductFromPolar(data);
+          break;
+
         case 'order.created':
         case 'order.paid':
           await this.handleOrderPaid(data);

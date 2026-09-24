@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { PlusIcon } from 'lucide-react'
+import { PlusIcon, RefreshCw } from 'lucide-react'
 import { parseAsString } from 'nuqs'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
@@ -18,7 +18,10 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { getPaymentProductsTableColumns } from './columns'
-import { useDataPaymentProductsOverview } from './queries'
+import {
+  useDataPaymentProductsOverview,
+  useMutationSyncProductsFromPolar,
+} from './queries'
 import { ColumnKey, type PaymentProductSchema } from './schema'
 
 const productFilterParsers = {
@@ -29,6 +32,7 @@ const productFilterParsers = {
 export function PagePaymentProductsOverview() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const syncMutation = useMutationSyncProductsFromPolar()
   const {
     page,
     perPage,
@@ -85,10 +89,22 @@ export function PagePaymentProductsOverview() {
               })}
             </p>
           </div>
-          <Button onClick={() => navigate('create')}>
-            <PlusIcon />
-            {t('buttons.create', { defaultValue: 'Add Plan' })}
-          </Button>
+          <div className='flex items-center gap-2'>
+            <Button
+              variant='outline'
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
+            >
+              <RefreshCw
+                className={`mr-1.5 size-4 ${syncMutation.isPending ? 'animate-spin' : ''}`}
+              />
+              {syncMutation.isPending ? 'Syncing...' : 'Sync from Polar'}
+            </Button>
+            <Button onClick={() => navigate('create')}>
+              <PlusIcon />
+              {t('buttons.create', { defaultValue: 'Add Custom Plan' })}
+            </Button>
+          </div>
         </div>
         <DataTable
           table={table}

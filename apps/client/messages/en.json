@@ -362,10 +362,18 @@
     "intervals": {
       "monthly": "Monthly",
       "yearly": "Yearly",
+      "oneTime": "Lifetime",
       "save20": "Save 20%",
       "perMonth": "/ month",
       "perYear": "/ year",
-      "billedAnnually": "Billed annually (${amount}/mo)"
+      "perLifetime": "/ pay once",
+      "payOnce": "One-time payment, lifetime access",
+      "billedAnnually": "Billed annually ({amount}/mo)"
+    },
+    "empty": {
+      "title": "No plans available",
+      "description": "We are currently updating our pricing packages for this interval. Please check back later.",
+      "backHome": "Back to Home"
     },
     "tiers": {
       "starter": {

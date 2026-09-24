@@ -16,7 +16,7 @@ export class PaymentProductResDto {
   })
   description?: string | null;
 
-  @ApiProperty({ example: 'monthly', enum: ['monthly', 'yearly'] })
+  @ApiProperty({ example: 'monthly', enum: ['monthly', 'yearly', 'one_time'] })
   interval!: string;
 
   @ApiProperty({ example: 19 })

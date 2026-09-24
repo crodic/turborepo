@@ -42,10 +42,16 @@ export function getPaymentProductsTableColumns(): ColumnDef<PaymentProductSchema
         const interval = row.getValue<string>(ColumnKey.interval)
         return (
           <Badge
-            variant={interval === 'yearly' ? 'default' : 'outline'}
+            variant={
+              interval === 'yearly'
+                ? 'default'
+                : interval === 'one_time'
+                  ? 'secondary'
+                  : 'outline'
+            }
             className='capitalize'
           >
-            {interval}
+            {interval === 'one_time' ? 'One-time' : interval}
           </Badge>
         )
       },

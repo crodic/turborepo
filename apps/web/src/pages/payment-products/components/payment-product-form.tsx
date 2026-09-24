@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2 } from 'lucide-react'
+import { Info, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import {
@@ -72,9 +72,21 @@ export function PaymentProductForm({
     defaultValues,
   })
 
+  const isPolarManaged = Boolean(initialData?.polarProductId)
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
+        {isPolarManaged && (
+          <div className='flex items-center gap-2.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-700 dark:text-blue-300'>
+            <Info className='size-5 shrink-0' />
+            <span>
+              This plan is synchronized from Polar. Pricing, billing interval,
+              and slug are managed directly in the Polar Dashboard to ensure
+              data integrity.
+            </span>
+          </div>
+        )}
         <div className='grid grid-cols-1 gap-6 md:grid-cols-2'>
           {/* Basic Plan Info */}
           <Card>
@@ -94,6 +106,7 @@ export function PaymentProductForm({
                     <FormControl>
                       <Input
                         placeholder='e.g. starter, pro, enterprise'
+                        disabled={isPolarManaged}
                         {...field}
                       />
                     </FormControl>
@@ -129,6 +142,7 @@ export function PaymentProductForm({
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
+                        disabled={isPolarManaged}
                       >
                         <FormControl>
                           <SelectTrigger className='w-full'>
@@ -138,6 +152,9 @@ export function PaymentProductForm({
                         <SelectContent>
                           <SelectItem value='monthly'>Monthly</SelectItem>
                           <SelectItem value='yearly'>Yearly</SelectItem>
+                          <SelectItem value='one_time'>
+                            One-time (Lifetime)
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -154,6 +171,7 @@ export function PaymentProductForm({
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value || 'usd'}
+                        disabled={isPolarManaged}
                       >
                         <FormControl>
                           <SelectTrigger className='w-full'>
@@ -185,6 +203,7 @@ export function PaymentProductForm({
                             type='number'
                             min='0'
                             step='1'
+                            disabled={isPolarManaged}
                             placeholder={
                               currentCurrency === 'vnd' ? '499000' : '19'
                             }
