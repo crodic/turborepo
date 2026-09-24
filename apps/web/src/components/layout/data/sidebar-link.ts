@@ -14,6 +14,8 @@ import {
   BookOpenText,
   Send,
   MapPin,
+  CreditCard,
+  Receipt,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -97,6 +99,16 @@ export const sidebarLink: SidebarData = {
           url: '/locations',
           icon: MapPin,
           permission: 'LOCATION',
+        },
+        {
+          title: 'navigation.management.payments',
+          url: '/payments',
+          icon: Receipt,
+        },
+        {
+          title: 'navigation.management.paymentProducts',
+          url: '/payment-products',
+          icon: CreditCard,
         },
       ],
     },

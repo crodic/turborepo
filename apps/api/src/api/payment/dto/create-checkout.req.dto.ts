@@ -4,14 +4,27 @@ import {
   StringFieldOptional,
 } from '@/decorators/field.decorators';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsObject, IsOptional, IsUrl } from 'class-validator';
+import { IsIn, IsObject, IsOptional, IsUrl } from 'class-validator';
 
 export class CreateCheckoutReqDto {
   @StringField({
-    description: 'Polar Product ID to purchase or subscribe to',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'Plan slug identifier (e.g. pro, enterprise)',
+    example: 'pro',
   })
-  productId!: string;
+  planSlug!: string;
+
+  @StringField({
+    description: 'Billing interval: monthly or yearly',
+    example: 'monthly',
+  })
+  @IsIn(['monthly', 'yearly'])
+  interval!: string;
+
+  @StringFieldOptional({
+    description: 'Optional Polar Product ID fallback',
+    example: 'f6387289-7bfc-42cc-8e85-00d4a922dc9f',
+  })
+  productId?: string;
 
   @ApiProperty({
     description: 'URL to redirect the customer to after successful payment',
@@ -46,4 +59,10 @@ export class CreateCheckoutReqDto {
   @IsObject()
   @IsOptional()
   metadata?: Record<string, any>;
+
+  @StringFieldOptional({
+    description: 'Payment gateway provider (default: polar)',
+    example: 'polar',
+  })
+  gateway?: string;
 }

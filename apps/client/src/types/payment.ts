@@ -1,3 +1,21 @@
+export interface PaymentProduct {
+  id: string | number;
+  planSlug: string;
+  name: string;
+  description?: string | null;
+  interval: "monthly" | "yearly";
+  price: number;
+  currency: string;
+  polarProductId?: string;
+  features: string[];
+  badge?: string | null;
+  ctaText: string;
+  isPopular: boolean;
+  isFree: boolean;
+  isActive: boolean;
+  sortOrder: number;
+}
+
 export interface PaymentOrder {
   id: string | number;
   orderNumber: string;
@@ -57,7 +75,9 @@ export interface PaymentSubscription {
 }
 
 export interface CreateCheckoutPayload {
-  productId: string;
+  planSlug: string;
+  interval: "monthly" | "yearly";
+  productId?: string;
   successUrl: string;
   customerEmail?: string;
   customerName?: string;

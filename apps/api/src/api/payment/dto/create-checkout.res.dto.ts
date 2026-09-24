@@ -8,12 +8,6 @@ export class CreateCheckoutResDto {
   checkoutUrl!: string;
 
   @ApiProperty({
-    description: 'Alias of checkoutUrl for client convenience',
-    example: 'https://sandbox.polar.sh/checkout/chk_123456789',
-  })
-  url?: string;
-
-  @ApiProperty({
     description: 'Polar Checkout Session ID',
     example: 'chk_123456789',
   })

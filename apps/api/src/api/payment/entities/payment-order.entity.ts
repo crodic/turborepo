@@ -1,6 +1,15 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Relation,
+} from 'typeorm';
+import { UserEntity } from '../../user/entities/user.entity';
 
 export enum PaymentOrderStatus {
   PENDING = 'pending',
@@ -22,9 +31,19 @@ export class PaymentOrderEntity extends AbstractEntity {
   @Index('UQ_payment_orders_order_number', { unique: true })
   orderNumber!: string;
 
-  @Column({ name: 'user_id', type: 'varchar', length: 100, nullable: true })
+  @Column({ name: 'user_id', type: 'bigint', nullable: true })
   @Index('IDX_payment_orders_user_id')
-  userId?: string | null;
+  userId?: AutoIncrementID | null;
+
+  @ManyToOne(() => UserEntity, (user) => user.orders, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({
+    name: 'user_id',
+    foreignKeyConstraintName: 'FK_payment_orders_user_id',
+  })
+  user?: Relation<UserEntity> | null;
 
   @Column({ name: 'customer_id', type: 'bigint', nullable: true })
   @Index('IDX_payment_orders_customer_id')

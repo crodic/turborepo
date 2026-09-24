@@ -7,11 +7,4 @@ export class CustomerPortalResDto {
       'https://sandbox.polar.sh/your-org/portal?customer_session_token=token_123',
   })
   portalUrl!: string;
-
-  @ApiProperty({
-    description: 'Alias of portalUrl for client convenience',
-    example:
-      'https://sandbox.polar.sh/your-org/portal?customer_session_token=token_123',
-  })
-  url?: string;
 }

@@ -6,8 +6,10 @@ import { extractErrorMessage } from "@/hooks/use-profile";
 import {
   CheckoutResponse,
   CreateCheckoutPayload,
+  CustomerPortalPayload,
   CustomerPortalResponse,
   PaymentOrder,
+  PaymentProduct,
   PaymentSubscription,
 } from "@/types/payment";
 import { toast } from "sonner";
@@ -16,6 +18,24 @@ export const PAYMENT_SUBSCRIPTIONS_QUERY_KEY = [
   "payment-subscriptions",
 ] as const;
 export const PAYMENT_ORDERS_QUERY_KEY = ["payment-orders"] as const;
+export const PRICING_PRODUCTS_QUERY_KEY = ["pricing-products"] as const;
+
+export function usePricingProducts() {
+  return useQuery<PaymentProduct[]>({
+    queryKey: PRICING_PRODUCTS_QUERY_KEY,
+    queryFn: async () => {
+      try {
+        const response = await http.get<PaymentProduct[]>(
+          "/api/v1/payments/products"
+        );
+        return response.data || [];
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+}
 
 export function useUserSubscriptions() {
   return useQuery<PaymentSubscription[]>({

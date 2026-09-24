@@ -29,6 +29,10 @@ import { UnauthorizedError } from '@/pages/errors/unauthorized-error'
 import { PageFileOverview } from '@/pages/files'
 import { PageHelpCenter } from '@/pages/help-center'
 import { PageLocationOverview } from '@/pages/locations'
+import { PagePaymentProductsOverview } from '@/pages/payment-products'
+import { PagePaymentProductCreate } from '@/pages/payment-products/create'
+import { PagePaymentProductEdit } from '@/pages/payment-products/edit'
+import { PagePaymentsOverview } from '@/pages/payments'
 import { PagePermissionOverview } from '@/pages/permissions'
 import { PagePermissionEdit } from '@/pages/permissions/edit'
 import PagePermissionShow from '@/pages/permissions/show'
@@ -352,6 +356,43 @@ const appRoutes: RouteObject[] = [
         element: (
           <RouteAuthorize action='read' subject='LOCATION'>
             <PageLocationOverview />
+          </RouteAuthorize>
+        ),
+      },
+      {
+        path: '/payment-products',
+        children: [
+          {
+            index: true,
+            element: (
+              <RouteAuthorize isAnyPermission>
+                <PagePaymentProductsOverview />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: 'create',
+            element: (
+              <RouteAuthorize isAnyPermission>
+                <PagePaymentProductCreate />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: ':id/edit',
+            element: (
+              <RouteAuthorize isAnyPermission>
+                <PagePaymentProductEdit />
+              </RouteAuthorize>
+            ),
+          },
+        ],
+      },
+      {
+        path: '/payments',
+        element: (
+          <RouteAuthorize isAnyPermission>
+            <PagePaymentsOverview />
           </RouteAuthorize>
         ),
       },

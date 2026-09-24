@@ -5,17 +5,22 @@ import { PaymentWebhookController } from './controllers/payment-webhook.controll
 import { PaymentController } from './controllers/payment.controller';
 import { PaymentCustomerEntity } from './entities/payment-customer.entity';
 import { PaymentOrderEntity } from './entities/payment-order.entity';
+import { PaymentProductEntity } from './entities/payment-product.entity';
 import { PaymentSubscriptionEntity } from './entities/payment-subscription.entity';
 import { PaymentTransactionEntity } from './entities/payment-transaction.entity';
 import { PaymentWebhookEventEntity } from './entities/payment-webhook-event.entity';
+import { PaymentGatewayFactory } from './factories/payment-gateway.factory';
+import { PolarProvider } from './providers/polar.provider';
 import { PaymentService } from './services/payment.service';
 import { PolarService } from './services/polar.service';
+import { ProductService } from './services/product.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       PaymentCustomerEntity,
       PaymentOrderEntity,
+      PaymentProductEntity,
       PaymentTransactionEntity,
       PaymentSubscriptionEntity,
       PaymentWebhookEventEntity,
@@ -26,7 +31,19 @@ import { PolarService } from './services/polar.service';
     PaymentWebhookController,
     AdminPaymentController,
   ],
-  providers: [PolarService, PaymentService],
-  exports: [PolarService, PaymentService],
+  providers: [
+    PolarService,
+    PolarProvider,
+    PaymentGatewayFactory,
+    PaymentService,
+    ProductService,
+  ],
+  exports: [
+    PolarService,
+    PolarProvider,
+    PaymentGatewayFactory,
+    PaymentService,
+    ProductService,
+  ],
 })
 export class PaymentModule {}

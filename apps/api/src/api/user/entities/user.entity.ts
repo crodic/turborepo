@@ -13,12 +13,21 @@ import {
   PrimaryGeneratedColumn,
   Relation,
 } from 'typeorm';
+import { PaymentOrderEntity } from '../../payment/entities/payment-order.entity';
+import { PaymentSubscriptionEntity } from '../../payment/entities/payment-subscription.entity';
 import { UserAccountEntity } from './user-account.entity';
 
 @Entity('users')
 export class UserEntity extends AbstractEntity {
   @OneToMany(() => UserAccountEntity, (account) => account.user)
   accounts?: Relation<UserAccountEntity>[];
+
+  @OneToMany(() => PaymentOrderEntity, (order) => order.user)
+  orders?: Relation<PaymentOrderEntity>[];
+
+  @OneToMany(() => PaymentSubscriptionEntity, (sub) => sub.user)
+  subscriptions?: Relation<PaymentSubscriptionEntity>[];
+
   private previousPassword?: string;
 
   constructor(data?: Partial<UserEntity>) {

@@ -20,8 +20,10 @@ import { CreateCheckoutResDto } from '../dto/create-checkout.res.dto';
 import { CustomerPortalReqDto } from '../dto/customer-portal.req.dto';
 import { CustomerPortalResDto } from '../dto/customer-portal.res.dto';
 import { PaymentOrderResDto } from '../dto/payment-order.res.dto';
+import { PaymentProductResDto } from '../dto/payment-product.res.dto';
 import { PaymentSubscriptionResDto } from '../dto/payment-subscription.res.dto';
 import { PaymentService } from '../services/payment.service';
+import { ProductService } from '../services/product.service';
 
 @ApiTags('Payments')
 @Controller({
@@ -29,7 +31,26 @@ import { PaymentService } from '../services/payment.service';
   version: '1',
 })
 export class PaymentController {
-  constructor(private readonly paymentService: PaymentService) {}
+  constructor(
+    private readonly paymentService: PaymentService,
+    private readonly productService: ProductService,
+  ) {}
+
+  @Get('products')
+  @Public()
+  @ApiOperation({
+    summary: 'Get active pricing products',
+    description:
+      'Retrieves the list of all active pricing tiers and products for client checkout and pricing table display.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'List of active pricing products',
+    type: [PaymentProductResDto],
+  })
+  async getProducts(): Promise<PaymentProductResDto[]> {
+    return await this.productService.getActiveProducts();
+  }
 
   @Post('checkout')
   @Public()

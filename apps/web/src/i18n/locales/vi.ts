@@ -16,6 +16,8 @@ export default {
   'navigation.management.whiteLabels': 'Tùy biến thương hiệu',
   'navigation.management.files': 'Tệp tin',
   'navigation.management.locations': 'Địa điểm',
+  'navigation.management.payments': 'Thanh toán & Đơn hàng',
+  'navigation.management.paymentProducts': 'Gói thanh toán',
   'navigation.orders.title': 'Đơn hàng',
   'navigation.other.title': 'Khác',
   'navigation.other.settings': 'Cài đặt',

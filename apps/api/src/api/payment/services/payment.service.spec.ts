@@ -20,8 +20,9 @@ import {
   PaymentWebhookEventEntity,
   PaymentWebhookStatus,
 } from '../entities/payment-webhook-event.entity';
+import { PaymentGatewayFactory } from '../factories/payment-gateway.factory';
 import { PaymentService } from './payment.service';
-import { PolarService } from './polar.service';
+import { ProductService } from './product.service';
 
 describe('PaymentService', () => {
   let service: PaymentService;
@@ -40,9 +41,18 @@ describe('PaymentService', () => {
   let webhookEventRepoMock: Partial<
     Record<keyof Repository<PaymentWebhookEventEntity>, jest.Mock>
   >;
-  let polarServiceMock: {
+  let polarProviderMock: {
+    name: string;
     createCheckoutSession: jest.Mock;
-    createCustomerSession: jest.Mock;
+    createCustomerPortalSession: jest.Mock;
+    validateWebhook: jest.Mock;
+  };
+  let gatewayFactoryMock: {
+    getProvider: jest.Mock;
+    hasProvider: jest.Mock;
+  };
+  let productServiceMock: {
+    getProductBySlugAndInterval: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -52,6 +62,9 @@ describe('PaymentService', () => {
       save: jest
         .fn()
         .mockImplementation((entity) => Promise.resolve({ ...entity, id: 1 })),
+      manager: {
+        query: jest.fn().mockResolvedValue([]),
+      } as any,
     };
 
     orderRepoMock = {
@@ -88,15 +101,36 @@ describe('PaymentService', () => {
         .mockImplementation((entity) => Promise.resolve({ ...entity, id: 40 })),
     };
 
-    polarServiceMock = {
+    polarProviderMock = {
+      name: 'polar',
       createCheckoutSession: jest.fn().mockResolvedValue({
-        id: 'chk_123',
-        url: 'https://sandbox.polar.sh/checkout/chk_123',
+        providerCheckoutId: 'chk_123',
+        checkoutUrl: 'https://sandbox.polar.sh/checkout/chk_123',
         amount: 2900,
         currency: 'usd',
       }),
-      createCustomerSession: jest.fn().mockResolvedValue({
-        customerPortalUrl: 'https://sandbox.polar.sh/portal/token_123',
+      createCustomerPortalSession: jest.fn().mockResolvedValue({
+        portalUrl: 'https://sandbox.polar.sh/portal/token_123',
+      }),
+      validateWebhook: jest.fn(),
+    };
+
+    gatewayFactoryMock = {
+      getProvider: jest.fn().mockReturnValue(polarProviderMock),
+      hasProvider: jest.fn().mockReturnValue(true),
+    };
+
+    productServiceMock = {
+      getProductBySlugAndInterval: jest.fn().mockResolvedValue({
+        id: 1,
+        planSlug: 'pro',
+        name: 'Pro',
+        interval: 'monthly',
+        price: 19,
+        currency: 'usd',
+        polarProductId: 'prod_123',
+        isFree: false,
+        isActive: true,
       }),
     };
 
@@ -124,8 +158,12 @@ describe('PaymentService', () => {
           useValue: webhookEventRepoMock,
         },
         {
-          provide: PolarService,
-          useValue: polarServiceMock,
+          provide: PaymentGatewayFactory,
+          useValue: gatewayFactoryMock,
+        },
+        {
+          provide: ProductService,
+          useValue: productServiceMock,
         },
       ],
     }).compile();
@@ -138,10 +176,22 @@ describe('PaymentService', () => {
   });
 
   describe('createCheckout', () => {
-    it('should throw BadRequestException if neither customerEmail nor userId is provided', async () => {
+    it('should throw BadRequestException if product is free', async () => {
+      productServiceMock.getProductBySlugAndInterval.mockResolvedValueOnce({
+        id: 1,
+        planSlug: 'starter',
+        name: 'Starter',
+        interval: 'monthly',
+        price: 0,
+        currency: 'usd',
+        polarProductId: '',
+        isFree: true,
+      });
+
       await expect(
         service.createCheckout({
-          productId: 'prod_123',
+          planSlug: 'starter',
+          interval: 'monthly',
           successUrl: 'https://example.com/success',
         }),
       ).rejects.toThrow(BadRequestException);
@@ -150,7 +200,8 @@ describe('PaymentService', () => {
     it('should create an order and call polarService.createCheckoutSession', async () => {
       const result = await service.createCheckout(
         {
-          productId: 'prod_123',
+          planSlug: 'pro',
+          interval: 'monthly',
           successUrl: 'https://example.com/success',
           customerEmail: 'test@example.com',
         },
@@ -158,7 +209,7 @@ describe('PaymentService', () => {
       );
 
       expect(orderRepoMock.create).toHaveBeenCalled();
-      expect(polarServiceMock.createCheckoutSession).toHaveBeenCalled();
+      expect(polarProviderMock.createCheckoutSession).toHaveBeenCalled();
       expect(result.checkoutUrl).toBe(
         'https://sandbox.polar.sh/checkout/chk_123',
       );
@@ -266,7 +317,9 @@ describe('PaymentService', () => {
         { id: 'usr_1', email: 'test@example.com' },
       );
 
-      expect(polarServiceMock.createCustomerSession).toHaveBeenCalledWith({
+      expect(
+        polarProviderMock.createCustomerPortalSession,
+      ).toHaveBeenCalledWith({
         customerId: 'cus_polar_1',
         externalCustomerId: undefined,
       });

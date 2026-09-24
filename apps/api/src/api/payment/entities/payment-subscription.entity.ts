@@ -1,6 +1,15 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Relation,
+} from 'typeorm';
+import { UserEntity } from '../../user/entities/user.entity';
 
 export enum PaymentSubscriptionStatus {
   ACTIVE = 'active',
@@ -20,9 +29,19 @@ export class PaymentSubscriptionEntity extends AbstractEntity {
   })
   id!: AutoIncrementID;
 
-  @Column({ name: 'user_id', type: 'varchar', length: 100, nullable: true })
+  @Column({ name: 'user_id', type: 'bigint', nullable: true })
   @Index('IDX_payment_subscriptions_user_id')
-  userId?: string | null;
+  userId?: AutoIncrementID | null;
+
+  @ManyToOne(() => UserEntity, (user) => user.subscriptions, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({
+    name: 'user_id',
+    foreignKeyConstraintName: 'FK_payment_subscriptions_user_id',
+  })
+  user?: Relation<UserEntity> | null;
 
   @Column({ name: 'customer_id', type: 'bigint', nullable: true })
   @Index('IDX_payment_subscriptions_customer_id')

@@ -15,7 +15,7 @@ import {
   Paginated,
   PaginateQuery,
 } from 'nestjs-paginate';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 import { CreateCheckoutReqDto } from '../dto/create-checkout.req.dto';
 import { CreateCheckoutResDto } from '../dto/create-checkout.res.dto';
 import { CustomerPortalReqDto } from '../dto/customer-portal.req.dto';
@@ -41,7 +41,8 @@ import {
   PaymentWebhookEventEntity,
   PaymentWebhookStatus,
 } from '../entities/payment-webhook-event.entity';
-import { PolarService } from './polar.service';
+import { PaymentGatewayFactory } from '../factories/payment-gateway.factory';
+import { ProductService } from './product.service';
 
 @Injectable()
 export class PaymentService {
@@ -58,116 +59,177 @@ export class PaymentService {
     private readonly subscriptionRepo: Repository<PaymentSubscriptionEntity>,
     @InjectRepository(PaymentWebhookEventEntity)
     private readonly webhookEventRepo: Repository<PaymentWebhookEventEntity>,
-    private readonly polarService: PolarService,
+    private readonly gatewayFactory: PaymentGatewayFactory,
+    private readonly productService: ProductService,
   ) {}
 
+  /**
+   * Generates a collision-resistant unique order reference number
+   */
   private generateOrderNumber(): string {
     const timestamp = Date.now().toString(36).toUpperCase();
     const randomHex = crypto.randomBytes(3).toString('hex').toUpperCase();
     return `ORD-${timestamp}-${randomHex}`;
   }
 
+  /**
+   * Helper: Resolves internal user ID by email lookup in users table
+   */
+  private async resolveUserIdByEmail(
+    email?: string | null,
+  ): Promise<string | null> {
+    if (!email || !this.customerRepo?.manager?.query) return null;
+    try {
+      const user = await this.customerRepo.manager.query(
+        `SELECT id FROM users WHERE email = $1 LIMIT 1`,
+        [email],
+      );
+      return user?.[0]?.id ? String(user[0].id) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Helper: Finds an existing local customer profile by userId or email
+   */
+  private async findLocalCustomer(
+    userId?: AutoIncrementID | string | null,
+    email?: string | null,
+  ): Promise<PaymentCustomerEntity | null> {
+    if (userId) {
+      const customer = await this.customerRepo.findOne({
+        where: { userId: userId as AutoIncrementID },
+      });
+      if (customer) return customer;
+    }
+    if (email) {
+      return await this.customerRepo.findOne({ where: { email } });
+    }
+    return null;
+  }
+
+  /**
+   * Creates a checkout session via Polar and stores a pending order
+   */
   async createCheckout(
     dto: CreateCheckoutReqDto,
     currentUser?: { id?: string | number; email?: string; fullName?: string },
   ): Promise<CreateCheckoutResDto> {
+    // 1. Resolve product configuration from DB
+    const product = await this.productService.getProductBySlugAndInterval(
+      dto.planSlug,
+      dto.interval,
+    );
+
+    if (product.isFree) {
+      throw new BadRequestException(
+        'Cannot initiate payment checkout for a free plan.',
+      );
+    }
+
+    const polarProductId = product.polarProductId || dto.productId;
+    if (!polarProductId) {
+      throw new BadRequestException(
+        `Pricing plan "${dto.planSlug}" (${dto.interval}) does not have a Polar Product ID configured. Please contact support.`,
+      );
+    }
+
+    // 2. Resolve user identity
     let userId =
       dto.userId || (currentUser?.id ? String(currentUser.id) : undefined);
     const customerEmail = dto.customerEmail || currentUser?.email;
     const customerName = dto.customerName || currentUser?.fullName;
 
     if (!userId && customerEmail) {
-      const user = await this.customerRepo.manager.query(
-        `SELECT id FROM users WHERE email = $1 LIMIT 1`,
-        [customerEmail],
-      );
-      if (user && user[0]?.id) {
-        userId = String(user[0].id);
-      }
+      userId = (await this.resolveUserIdByEmail(customerEmail)) || undefined;
     }
 
     const orderNumber = this.generateOrderNumber();
+    const customer = await this.findLocalCustomer(userId, customerEmail);
 
-    // Find or create local customer profile
-    let customer: PaymentCustomerEntity | null = null;
-    if (userId) {
-      customer = await this.customerRepo.findOne({ where: { userId } });
-    }
-    if (!customer && customerEmail) {
-      customer = await this.customerRepo.findOne({
-        where: { email: customerEmail },
-      });
-    }
+    const provider = this.gatewayFactory.getProvider(dto.gateway || 'polar');
 
-    // Create pending order record in database
+    // 3. Create pending order record in database
     const order = this.orderRepo.create({
       orderNumber,
-      userId: userId || null,
+      userId: (userId as AutoIncrementID) || null,
       customerId: customer?.id || null,
       customerEmail: customerEmail || customer?.email || 'unknown@example.com',
       customerName: customerName || customer?.name || null,
-      productId: dto.productId,
-      amount: 0, // Will be updated on webhook with actual charged amount from Polar
-      currency: 'usd',
+      productId: polarProductId,
+      productTitle: product.name,
+      amount: product.price ? product.price * 100 : 0,
+      currency: product.currency || 'usd',
       status: PaymentOrderStatus.PENDING,
       metadata: {
         ...dto.metadata,
+        gateway: provider.name,
+        planSlug: product.planSlug,
+        interval: product.interval,
         orderNumber,
       },
     });
     await this.orderRepo.save(order);
 
-    // Call Polar API to generate checkout session
+    // 4. Call Payment Gateway Provider to generate checkout session
     try {
-      const checkout = await this.polarService.createCheckoutSession({
-        productId: dto.productId,
+      const checkout = await provider.createCheckoutSession({
+        productId: polarProductId,
+        orderNumber,
+        amount: product.price ? product.price * 100 : 0,
+        currency: product.currency || 'usd',
         successUrl: dto.successUrl,
         customerEmail: customerEmail || undefined,
         customerName: customerName || undefined,
         externalCustomerId: userId,
         metadata: {
           ...dto.metadata,
+          gateway: provider.name,
           orderNumber,
           localOrderId: String(order.id),
+          planSlug: product.planSlug,
+          interval: product.interval,
         },
       });
 
-      // Update order with Polar Checkout Session ID
-      order.polarCheckoutId = checkout.id;
-      if (checkout.amount) {
-        order.amount = checkout.amount;
-      }
-      if (checkout.currency) {
-        order.currency = checkout.currency;
-      }
+      // Update order with Provider Checkout Session ID and values
+      order.polarCheckoutId = checkout.providerCheckoutId || null;
+      if (checkout.amount) order.amount = checkout.amount;
+      if (checkout.currency) order.currency = checkout.currency;
       await this.orderRepo.save(order);
 
+      this.logger.log(
+        `Checkout session created: ${checkout.providerCheckoutId || checkout.checkoutUrl} for order ${orderNumber} via [${provider.name}] (plan: ${product.planSlug})`,
+      );
+
       return {
-        checkoutUrl: checkout.url,
-        url: checkout.url,
-        checkoutId: checkout.id,
+        checkoutUrl: checkout.checkoutUrl,
+        checkoutId: checkout.providerCheckoutId || '',
         orderNumber,
       };
     } catch (error: any) {
       order.status = PaymentOrderStatus.FAILED;
       await this.orderRepo.save(order);
+
       this.logger.error(
-        `Failed to create Polar checkout: ${error.message}`,
+        `Failed to create [${provider.name}] checkout: ${error.message}`,
         error.stack,
       );
 
-      // Re-throw NestJS HTTP exceptions (e.g. ServiceUnavailableException from ensureConfigured)
       if (error instanceof HttpException) {
         throw error;
       }
 
-      // Wrap raw Polar SDK / network errors into a user-friendly BadRequestException
       throw new BadRequestException(
-        'Failed to create checkout session. Please verify your Polar product configuration and try again.',
+        'Failed to create checkout session. Please verify payment configuration and try again.',
       );
     }
   }
 
+  /**
+   * Generates a customer billing portal URL
+   */
   async createCustomerPortalSession(
     dto: CustomerPortalReqDto,
     currentUser?: { id?: string | number; email?: string },
@@ -180,13 +242,7 @@ export class PaymentService {
 
     // Lookup customer from database if not directly provided
     if (!customerId) {
-      let customer: PaymentCustomerEntity | null = null;
-      if (userId) {
-        customer = await this.customerRepo.findOne({ where: { userId } });
-      }
-      if (!customer && email) {
-        customer = await this.customerRepo.findOne({ where: { email } });
-      }
+      const customer = await this.findLocalCustomer(userId, email);
       if (customer) {
         customerId = customer.polarCustomerId;
       }
@@ -198,19 +254,25 @@ export class PaymentService {
       );
     }
 
+    const provider = this.gatewayFactory.getProvider('polar');
+    if (!provider.createCustomerPortalSession) {
+      throw new BadRequestException(
+        `Customer portal is not supported by [${provider.name}] gateway.`,
+      );
+    }
+
     try {
-      const session = await this.polarService.createCustomerSession({
+      const session = await provider.createCustomerPortalSession({
         customerId: customerId || undefined,
         externalCustomerId: !customerId ? userId : undefined,
       });
 
       return {
-        portalUrl: session.customerPortalUrl,
-        url: session.customerPortalUrl,
+        portalUrl: session.portalUrl,
       };
     } catch (error: any) {
       this.logger.error(
-        `Failed to create customer portal session: ${error.message}`,
+        `Failed to create customer portal session via [${provider.name}]: ${error.message}`,
         error.stack,
       );
 
@@ -224,6 +286,9 @@ export class PaymentService {
     }
   }
 
+  /**
+   * Handles incoming Polar webhook events with idempotency guarantees
+   */
   async handleWebhook(
     event: Record<string, any>,
     webhookId?: string,
@@ -252,7 +317,7 @@ export class PaymentService {
       return;
     }
 
-    // Save or update incoming event
+    // Save or update incoming event record
     const webhookEvent =
       existingEvent ||
       this.webhookEventRepo.create({
@@ -305,36 +370,40 @@ export class PaymentService {
     }
   }
 
+  /**
+   * Helper: Synchronizes Polar customer record with local database
+   */
   private async syncCustomer(
     polarCustomerId: string,
     email: string,
-    userId?: string | null,
+    userId?: AutoIncrementID | string | null,
     name?: string | null,
   ): Promise<PaymentCustomerEntity> {
     let customer = await this.customerRepo.findOne({
       where: { polarCustomerId },
     });
+
+    const parsedUserId = userId ? (userId as AutoIncrementID) : null;
+
     if (!customer) {
       customer = this.customerRepo.create({
         polarCustomerId,
         email,
-        userId: userId || null,
+        userId: parsedUserId,
         name: name || null,
       });
     } else {
-      if (userId && !customer.userId) {
-        customer.userId = userId;
-      }
-      if (email && customer.email !== email) {
-        customer.email = email;
-      }
-      if (name && !customer.name) {
-        customer.name = name;
-      }
+      if (parsedUserId && !customer.userId) customer.userId = parsedUserId;
+      if (email && customer.email !== email) customer.email = email;
+      if (name && !customer.name) customer.name = name;
     }
+
     return await this.customerRepo.save(customer);
   }
 
+  /**
+   * Webhook handler: Processes paid order events and records ledger transaction
+   */
   private async handleOrderPaid(data: Record<string, any>): Promise<void> {
     const polarOrderId = data.id;
     const checkoutId = data.checkout_id;
@@ -342,19 +411,12 @@ export class PaymentService {
     const polarCustomerId = customerData.id || data.customer_id;
     const customerEmail = customerData.email || data.customer_email;
     const customerName = customerData.name || data.customer_name;
-    let userId = customerData.external_id || data.metadata?.userId || null;
-
-    if (!userId && customerEmail) {
-      const user = await this.customerRepo.manager.query(
-        `SELECT id FROM users WHERE email = $1 LIMIT 1`,
-        [customerEmail],
-      );
-      if (user && user[0]?.id) {
-        userId = String(user[0].id);
-      }
-    }
-
     const orderNumber = data.metadata?.orderNumber;
+
+    const userId =
+      customerData.external_id ||
+      data.metadata?.userId ||
+      (await this.resolveUserIdByEmail(customerEmail));
 
     let customer: PaymentCustomerEntity | null = null;
     if (polarCustomerId && customerEmail) {
@@ -381,12 +443,11 @@ export class PaymentService {
     }
 
     if (!order) {
-      // If order was created directly via checkout link or external flow, create record
       order = this.orderRepo.create({
         orderNumber: orderNumber || this.generateOrderNumber(),
         polarOrderId,
         polarCheckoutId: checkoutId || null,
-        userId: userId || null,
+        userId: (userId as AutoIncrementID) || null,
         customerId: customer?.id || null,
         customerEmail: customerEmail || 'unknown@example.com',
         customerName: customerName || null,
@@ -404,7 +465,7 @@ export class PaymentService {
       if (data.currency) order.currency = data.currency;
       if (customer?.id && !order.customerId) order.customerId = customer.id;
       if (data.product?.name) order.productTitle = data.product.name;
-      if (userId && !order.userId) order.userId = userId;
+      if (userId && !order.userId) order.userId = userId as AutoIncrementID;
     }
     await this.orderRepo.save(order);
 
@@ -430,8 +491,15 @@ export class PaymentService {
       });
       await this.transactionRepo.save(transaction);
     }
+
+    this.logger.log(
+      `Order ${order.orderNumber} successfully marked as PAID (Amount: ${order.amount} ${order.currency})`,
+    );
   }
 
+  /**
+   * Webhook handler: Processes subscription updates and renewals
+   */
   private async handleSubscriptionUpdated(
     data: Record<string, any>,
   ): Promise<void> {
@@ -439,17 +507,11 @@ export class PaymentService {
     const customerData = data.customer || {};
     const polarCustomerId = customerData.id || data.customer_id;
     const customerEmail = customerData.email || data.customer_email;
-    let userId = customerData.external_id || data.metadata?.userId || null;
 
-    if (!userId && customerEmail) {
-      const user = await this.customerRepo.manager.query(
-        `SELECT id FROM users WHERE email = $1 LIMIT 1`,
-        [customerEmail],
-      );
-      if (user && user[0]?.id) {
-        userId = String(user[0].id);
-      }
-    }
+    const userId =
+      customerData.external_id ||
+      data.metadata?.userId ||
+      (await this.resolveUserIdByEmail(customerEmail));
 
     let customer: PaymentCustomerEntity | null = null;
     if (polarCustomerId && customerEmail) {
@@ -512,8 +574,15 @@ export class PaymentService {
       }
     }
     await this.subscriptionRepo.save(subscription);
+
+    this.logger.log(
+      `Subscription ${polarSubId} updated to status: ${mappedStatus}`,
+    );
   }
 
+  /**
+   * Webhook handler: Processes subscription cancellations
+   */
   private async handleSubscriptionCanceled(
     data: Record<string, any>,
   ): Promise<void> {
@@ -525,39 +594,50 @@ export class PaymentService {
       subscription.status = PaymentSubscriptionStatus.CANCELED;
       subscription.cancelAtPeriodEnd = false;
       await this.subscriptionRepo.save(subscription);
+      this.logger.log(`Subscription ${polarSubId} marked as CANCELED`);
     }
   }
 
+  /**
+   * Webhook handler: Processes order refunds and records ledger refund transaction
+   */
   private async handleOrderRefunded(data: Record<string, any>): Promise<void> {
     const polarOrderId = data.order_id || data.id;
     const order = await this.orderRepo.findOne({
       where: { polarOrderId },
     });
-    if (order) {
-      order.status = PaymentOrderStatus.REFUNDED;
-      await this.orderRepo.save(order);
+    if (!order) return;
 
-      const refundTx = this.transactionRepo.create({
-        userId: order.userId || null,
-        orderId: order.id,
-        polarPaymentId: data.id ? `refund_${data.id}` : null,
-        type: PaymentTransactionType.REFUND,
-        status: PaymentTransactionStatus.SUCCESS,
-        amount: data.amount || order.amount,
-        feeAmount: 0,
-        netAmount: -(data.amount || order.amount),
-        currency: order.currency,
-        metadata: data,
-      });
-      await this.transactionRepo.save(refundTx);
-    }
+    order.status = PaymentOrderStatus.REFUNDED;
+    await this.orderRepo.save(order);
+
+    const refundTx = this.transactionRepo.create({
+      userId: order.userId || null,
+      orderId: order.id,
+      polarPaymentId: data.id ? `refund_${data.id}` : null,
+      type: PaymentTransactionType.REFUND,
+      status: PaymentTransactionStatus.SUCCESS,
+      amount: data.amount || order.amount,
+      feeAmount: 0,
+      netAmount: -(data.amount || order.amount),
+      currency: order.currency,
+      metadata: data,
+    });
+    await this.transactionRepo.save(refundTx);
+
+    this.logger.log(`Order ${order.orderNumber} successfully REFUNDED`);
   }
 
+  /**
+   * Retrieves orders for a specific user, with safe batch backfill for missing userId
+   */
   async getUserOrders(
     userId: string,
     email?: string,
   ): Promise<PaymentOrderResDto[]> {
-    const whereConditions: any[] = [{ userId }];
+    const whereConditions: FindOptionsWhere<PaymentOrderEntity>[] = [
+      { userId: userId as AutoIncrementID },
+    ];
     if (email) {
       whereConditions.push({ customerEmail: email });
     }
@@ -567,22 +647,32 @@ export class PaymentService {
     });
 
     if (email) {
-      for (const order of orders) {
-        if (!order.userId) {
-          order.userId = userId;
-          void this.orderRepo.save(order);
+      const ordersToBackfill = orders.filter((order) => !order.userId);
+      if (ordersToBackfill.length > 0) {
+        for (const order of ordersToBackfill) {
+          order.userId = userId as AutoIncrementID;
         }
+        await this.orderRepo.save(ordersToBackfill).catch((err) => {
+          this.logger.warn(
+            `Failed to backfill userId for orders: ${err.message}`,
+          );
+        });
       }
     }
 
     return plainToInstance(PaymentOrderResDto, orders);
   }
 
+  /**
+   * Retrieves subscriptions for a specific user, with safe batch backfill for missing userId
+   */
   async getUserSubscriptions(
     userId: string,
     email?: string,
   ): Promise<PaymentSubscriptionResDto[]> {
-    const whereConditions: any[] = [{ userId }];
+    const whereConditions: FindOptionsWhere<PaymentSubscriptionEntity>[] = [
+      { userId: userId as AutoIncrementID },
+    ];
     if (email) {
       whereConditions.push({ customerEmail: email });
     }
@@ -592,11 +682,16 @@ export class PaymentService {
     });
 
     if (email) {
-      for (const sub of subscriptions) {
-        if (!sub.userId) {
-          sub.userId = userId;
-          void this.subscriptionRepo.save(sub);
+      const subsToBackfill = subscriptions.filter((sub) => !sub.userId);
+      if (subsToBackfill.length > 0) {
+        for (const sub of subsToBackfill) {
+          sub.userId = userId as AutoIncrementID;
         }
+        await this.subscriptionRepo.save(subsToBackfill).catch((err) => {
+          this.logger.warn(
+            `Failed to backfill userId for subscriptions: ${err.message}`,
+          );
+        });
       }
     }
 
@@ -614,13 +709,16 @@ export class PaymentService {
   async getAdminOrders(
     query: PaginateQuery,
   ): Promise<Paginated<PaymentOrderResDto>> {
-    const queryBuilder = this.orderRepo.createQueryBuilder('order');
+    const queryBuilder = this.orderRepo
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.user', 'user');
 
     const result = await paginate(query, queryBuilder, {
       sortableColumns: ['id', 'amount', 'status', 'createdAt', 'updatedAt'],
       searchableColumns: ['orderNumber', 'customerEmail', 'polarOrderId'],
       defaultSortBy: [['id', 'DESC']],
       filterableColumns: {
+        userId: [FilterOperator.EQ],
         status: [FilterOperator.EQ, FilterOperator.IN],
         customerEmail: [FilterOperator.ILIKE],
         createdAt: [FilterOperator.GTE, FilterOperator.LTE, FilterOperator.BTW],
@@ -636,13 +734,16 @@ export class PaymentService {
   async getAdminTransactions(
     query: PaginateQuery,
   ): Promise<Paginated<PaymentTransactionResDto>> {
-    const queryBuilder = this.transactionRepo.createQueryBuilder('tx');
+    const queryBuilder = this.transactionRepo
+      .createQueryBuilder('tx')
+      .leftJoinAndSelect('tx.user', 'user');
 
     const result = await paginate(query, queryBuilder, {
       sortableColumns: ['id', 'amount', 'type', 'status', 'createdAt'],
-      searchableColumns: ['polarPaymentId', 'userId'],
+      searchableColumns: ['polarPaymentId'],
       defaultSortBy: [['id', 'DESC']],
       filterableColumns: {
+        userId: [FilterOperator.EQ],
         type: [FilterOperator.EQ],
         status: [FilterOperator.EQ],
         createdAt: [FilterOperator.GTE, FilterOperator.LTE, FilterOperator.BTW],
@@ -658,13 +759,16 @@ export class PaymentService {
   async getAdminSubscriptions(
     query: PaginateQuery,
   ): Promise<Paginated<PaymentSubscriptionResDto>> {
-    const queryBuilder = this.subscriptionRepo.createQueryBuilder('sub');
+    const queryBuilder = this.subscriptionRepo
+      .createQueryBuilder('sub')
+      .leftJoinAndSelect('sub.user', 'user');
 
     const result = await paginate(query, queryBuilder, {
       sortableColumns: ['id', 'status', 'currentPeriodEnd', 'createdAt'],
-      searchableColumns: ['polarSubscriptionId', 'customerEmail', 'userId'],
+      searchableColumns: ['polarSubscriptionId', 'customerEmail'],
       defaultSortBy: [['id', 'DESC']],
       filterableColumns: {
+        userId: [FilterOperator.EQ],
         status: [FilterOperator.EQ, FilterOperator.IN],
         customerEmail: [FilterOperator.ILIKE],
       },
@@ -674,5 +778,33 @@ export class PaymentService {
       ...result,
       data: plainToInstance(PaymentSubscriptionResDto, result.data),
     } as Paginated<PaymentSubscriptionResDto>;
+  }
+
+  /**
+   * Retrieves overall payment and subscription summary for a specific user
+   */
+  async getUserPaymentSummary(userId: AutoIncrementID) {
+    const subscriptions = await this.subscriptionRepo.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+
+    const orders = await this.orderRepo.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+
+    const paidOrders = orders.filter(
+      (o) => o.status === PaymentOrderStatus.PAID,
+    );
+    const totalSpent = paidOrders.reduce((sum, o) => sum + (o.amount || 0), 0);
+
+    return {
+      subscriptions: plainToInstance(PaymentSubscriptionResDto, subscriptions),
+      recentOrders: plainToInstance(PaymentOrderResDto, orders.slice(0, 10)),
+      totalSpent,
+      totalOrdersCount: paidOrders.length,
+      currency: orders[0]?.currency || 'usd',
+    };
   }
 }

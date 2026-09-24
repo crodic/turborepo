@@ -20,6 +20,7 @@ import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { NotFoundError } from '@/pages/errors/not-found-error'
 import { apiDeleteUser, useDataGetUserDetail } from '../queries'
+import { UserPaymentCard } from './components/user-payment-card'
 
 export function PageUserShow() {
   const navigate = useNavigate()
@@ -157,6 +158,8 @@ export function PageUserShow() {
               </Descriptions>
             </CardContent>
           </Card>
+
+          <UserPaymentCard userId={id} />
         </div>
       </Main>
     </>

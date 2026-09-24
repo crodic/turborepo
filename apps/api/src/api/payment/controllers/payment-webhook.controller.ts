@@ -12,8 +12,8 @@ import {
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { WebhookVerificationError } from '@polar-sh/sdk/webhooks';
 import type { Request } from 'express';
+import { PaymentGatewayFactory } from '../factories/payment-gateway.factory';
 import { PaymentService } from '../services/payment.service';
-import { PolarService } from '../services/polar.service';
 
 @ApiTags('Payments - Webhook')
 @Controller({
@@ -24,7 +24,7 @@ export class PaymentWebhookController {
   private readonly logger = new Logger(PaymentWebhookController.name);
 
   constructor(
-    private readonly polarService: PolarService,
+    private readonly gatewayFactory: PaymentGatewayFactory,
     private readonly paymentService: PaymentService,
   ) {}
 
@@ -53,7 +53,8 @@ export class PaymentWebhookController {
 
     let event: Record<string, any>;
     try {
-      event = this.polarService.validateWebhookEvent(rawBody, req.headers);
+      const provider = this.gatewayFactory.getProvider('polar');
+      event = await provider.validateWebhook(rawBody, req.headers);
     } catch (error) {
       if (error instanceof WebhookVerificationError) {
         throw new ForbiddenException('Invalid Polar webhook signature');

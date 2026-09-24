@@ -1,6 +1,15 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Relation,
+} from 'typeorm';
+import { UserEntity } from '../../user/entities/user.entity';
 
 @Entity('payment_customers')
 export class PaymentCustomerEntity extends AbstractEntity {
@@ -10,9 +19,19 @@ export class PaymentCustomerEntity extends AbstractEntity {
   })
   id!: AutoIncrementID;
 
-  @Column({ name: 'user_id', type: 'varchar', length: 100, nullable: true })
+  @Column({ name: 'user_id', type: 'bigint', nullable: true })
   @Index('IDX_payment_customers_user_id')
-  userId?: string | null;
+  userId?: AutoIncrementID | null;
+
+  @ManyToOne(() => UserEntity, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({
+    name: 'user_id',
+    foreignKeyConstraintName: 'FK_payment_customers_user_id',
+  })
+  user?: Relation<UserEntity> | null;
 
   @Column({ name: 'polar_customer_id', type: 'varchar', length: 150 })
   @Index('UQ_payment_customers_polar_customer_id', { unique: true })

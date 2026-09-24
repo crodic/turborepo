@@ -16,6 +16,8 @@ export default {
   'navigation.management.whiteLabels': 'White Label',
   'navigation.management.files': 'Files',
   'navigation.management.locations': 'Locations',
+  'navigation.management.payments': 'Payments',
+  'navigation.management.paymentProducts': 'Payment Products',
   'navigation.orders.title': 'Orders',
   'navigation.other.title': 'Other',
   'navigation.other.settings': 'Settings',

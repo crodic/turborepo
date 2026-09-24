@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentService } from '../services/payment.service';
+import { ProductService } from '../services/product.service';
 import { PaymentController } from './payment.controller';
 
 describe('PaymentController', () => {
@@ -9,6 +10,9 @@ describe('PaymentController', () => {
     createCustomerPortalSession: jest.Mock;
     getUserOrders: jest.Mock;
     getUserSubscriptions: jest.Mock;
+  };
+  let productServiceMock: {
+    getActiveProducts: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -25,12 +29,20 @@ describe('PaymentController', () => {
       getUserSubscriptions: jest.fn().mockResolvedValue([]),
     };
 
+    productServiceMock = {
+      getActiveProducts: jest.fn().mockResolvedValue([]),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PaymentController],
       providers: [
         {
           provide: PaymentService,
           useValue: paymentServiceMock,
+        },
+        {
+          provide: ProductService,
+          useValue: productServiceMock,
         },
       ],
     }).compile();
@@ -42,9 +54,16 @@ describe('PaymentController', () => {
     expect(controller).toBeDefined();
   });
 
+  it('should get active products', async () => {
+    const result = await controller.getProducts();
+    expect(productServiceMock.getActiveProducts).toHaveBeenCalled();
+    expect(result).toEqual([]);
+  });
+
   it('should create checkout session', async () => {
     const result = await controller.createCheckout({
-      productId: 'prod_123',
+      planSlug: 'pro',
+      interval: 'monthly',
       successUrl: 'https://example.com/success',
     });
 
@@ -65,7 +84,10 @@ describe('PaymentController', () => {
 
   it('should retrieve user orders', async () => {
     const result = await controller.getMyOrders('usr_1');
-    expect(paymentServiceMock.getUserOrders).toHaveBeenCalledWith('usr_1');
+    expect(paymentServiceMock.getUserOrders).toHaveBeenCalledWith(
+      'usr_1',
+      undefined,
+    );
     expect(result).toEqual([]);
   });
 
@@ -73,6 +95,7 @@ describe('PaymentController', () => {
     const result = await controller.getMySubscriptions('usr_1');
     expect(paymentServiceMock.getUserSubscriptions).toHaveBeenCalledWith(
       'usr_1',
+      undefined,
     );
     expect(result).toEqual([]);
   });
