@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState, useTransition } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { PRICING_FAQS } from "@/config/pricing.config";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,8 +62,50 @@ const formatPrice = (price: number, currency = "USD") => {
   }).format(price);
 };
 
+const getProductDisplayPrice = (product: PaymentProduct, locale: string) => {
+  if (product.isFree) {
+    return { price: 0, currency: product.currency || "USD", isFree: true };
+  }
+
+  const targetCurrency = locale === "vi" ? "vnd" : "usd";
+  if (product.prices && product.prices.length > 0) {
+    const activePrices = product.prices.filter((p) => !p.isArchived);
+
+    // 1. Try to find active price matching target currency with amount > 0
+    const matchedPaid = activePrices.find(
+      (p) => p.currency.toLowerCase() === targetCurrency && p.amount > 0
+    );
+    if (matchedPaid) {
+      return {
+        price: matchedPaid.amount,
+        currency: matchedPaid.currency,
+        isFree: false,
+      };
+    }
+
+    // 2. Try to find any active paid price
+    const anyPaid = activePrices.find((p) => p.amount > 0);
+    if (anyPaid) {
+      return {
+        price: anyPaid.amount,
+        currency: anyPaid.currency,
+        isFree: false,
+      };
+    }
+
+    // 3. If all active prices are 0
+    if (activePrices.length > 0 && activePrices.every((p) => p.amount === 0)) {
+      return { price: 0, currency: activePrices[0].currency, isFree: true };
+    }
+  }
+
+  const isFree = product.isFree || product.price === 0;
+  return { price: product.price, currency: product.currency || "USD", isFree };
+};
+
 export function PricingView() {
   const t = useTranslations("Pricing");
+  const locale = useLocale();
   const [interval, setInterval] = useState<"monthly" | "yearly" | "one_time">(
     "monthly"
   );
@@ -84,7 +126,8 @@ export function PricingView() {
   }, [products, interval]);
 
   const handleSelectPlan = (product: PaymentProduct) => {
-    if (product.isFree) {
+    const displayPrice = getProductDisplayPrice(product, locale);
+    if (product.isFree || displayPrice.isFree) {
       if (profile) {
         startTransition(() => {
           router.push("/profile");
@@ -228,41 +271,97 @@ export function PricingView() {
               selectedProductId === String(product.id) &&
               createCheckoutMutation.isPending;
             const isYearly = interval === "yearly";
+            const displayPrice = getProductDisplayPrice(product, locale);
+
+            // Clean title: remove "(Monthly)", "(Yearly)" etc. for neat card display
+            const cleanTitle = product.name
+              .replace(/\s*\((Monthly|Yearly|Lifetime|One-time)\)/i, "")
+              .trim();
+
+            const isPopular = product.isPopular || product.planSlug === "pro";
+            const badgeText =
+              product.badge || (isPopular ? t("tiers.pro.badge") : null);
+
+            const fallbackDescription =
+              product.description ||
+              (product.isFree
+                ? t("tiers.starter.description")
+                : product.planSlug === "enterprise"
+                  ? t("tiers.enterprise.description")
+                  : t("tiers.pro.description"));
+
+            const fallbackFeatures =
+              product.features && product.features.length > 0
+                ? product.features
+                : product.isFree
+                  ? [
+                      t("tiers.starter.features.item1"),
+                      t("tiers.starter.features.item2"),
+                      t("tiers.starter.features.item3"),
+                      t("tiers.starter.features.item4"),
+                    ]
+                  : product.planSlug === "enterprise"
+                    ? [
+                        t("tiers.enterprise.features.item1"),
+                        t("tiers.enterprise.features.item2"),
+                        t("tiers.enterprise.features.item3"),
+                        t("tiers.enterprise.features.item4"),
+                        t("tiers.enterprise.features.item5"),
+                        t("tiers.enterprise.features.item6"),
+                      ]
+                    : [
+                        t("tiers.pro.features.item1"),
+                        t("tiers.pro.features.item2"),
+                        t("tiers.pro.features.item3"),
+                        t("tiers.pro.features.item4"),
+                        t("tiers.pro.features.item5"),
+                      ];
+
+            const ctaLabel =
+              product.ctaText ||
+              (product.isFree
+                ? t("tiers.starter.cta")
+                : product.planSlug === "enterprise"
+                  ? t("tiers.enterprise.cta")
+                  : t("tiers.pro.cta"));
 
             return (
               <Card
                 key={product.id}
                 className={cn(
                   "relative flex flex-col justify-between transition-all duration-300",
-                  product.isPopular
+                  isPopular
                     ? "border-primary shadow-primary/5 ring-primary bg-card/60 shadow-xl ring-2 backdrop-blur-sm md:-translate-y-2"
                     : "border-border hover:border-border/80 bg-card/40 shadow-md"
                 )}
               >
-                {product.isPopular && (
+                {badgeText && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
                     <Badge className="bg-primary text-primary-foreground px-3 py-1 font-semibold shadow-md">
                       <Sparkles className="mr-1 size-3" />
-                      {product.badge || t("tiers.pro.badge")}
+                      {badgeText}
                     </Badge>
                   </div>
                 )}
 
                 <CardHeader className="space-y-2 pb-6">
                   <CardTitle className="text-xl font-bold">
-                    {product.name}
+                    {cleanTitle}
                   </CardTitle>
                   <CardDescription className="min-h-10 text-sm">
-                    {product.description || ""}
+                    {fallbackDescription}
                   </CardDescription>
 
                   <div className="flex items-baseline gap-1 pt-4">
                     <span className="text-4xl font-extrabold tracking-tight">
-                      {product.isFree
+                      {displayPrice.isFree
                         ? t("tiers.starter.free")
-                        : formatPrice(product.price, product.currency)}
+                        : formatPrice(
+                            displayPrice.price,
+                            displayPrice.currency
+                          )}
                     </span>
-                    {!product.isFree && (
+                    {!displayPrice.isFree && (
                       <span className="text-muted-foreground text-sm font-medium">
                         {isYearly
                           ? t("intervals.perYear")
@@ -272,21 +371,26 @@ export function PricingView() {
                       </span>
                     )}
                   </div>
-                  {isYearly && !product.isFree && (
-                    <p className="text-muted-foreground text-xs">
-                      {t("intervals.billedAnnually", {
-                        amount: formatPrice(
-                          Math.round(product.price / 12),
-                          product.currency
-                        ),
-                      })}
-                    </p>
-                  )}
-                  {interval === "one_time" && !product.isFree && (
-                    <p className="text-muted-foreground text-xs">
-                      {t("intervals.payOnce")}
-                    </p>
-                  )}
+                  <div className="h-5 text-xs">
+                    {isYearly && !displayPrice.isFree ? (
+                      <p className="text-muted-foreground">
+                        {t("intervals.billedAnnually", {
+                          amount: formatPrice(
+                            Math.round(displayPrice.price / 12),
+                            displayPrice.currency
+                          ),
+                        })}
+                      </p>
+                    ) : interval === "one_time" && !displayPrice.isFree ? (
+                      <p className="text-muted-foreground">
+                        {t("intervals.payOnce")}
+                      </p>
+                    ) : displayPrice.isFree ? (
+                      <p className="text-muted-foreground">
+                        {t("intervals.freeForever")}
+                      </p>
+                    ) : null}
+                  </div>
                 </CardHeader>
 
                 <CardContent className="flex-1 space-y-4">
@@ -295,7 +399,7 @@ export function PricingView() {
                       {t("featuresHeading")}
                     </p>
                     <ul className="space-y-2.5">
-                      {(product.features || []).map((feature, idx) => (
+                      {fallbackFeatures.map((feature, idx) => (
                         <li
                           key={idx}
                           className="flex items-start gap-2.5 text-sm"
@@ -312,9 +416,9 @@ export function PricingView() {
                   <Button
                     className={cn(
                       "w-full font-semibold transition-all",
-                      product.isPopular ? "shadow-primary/20 shadow-md" : ""
+                      isPopular ? "shadow-primary/20 shadow-md" : ""
                     )}
-                    variant={product.isPopular ? "default" : "outline"}
+                    variant={isPopular ? "default" : "outline"}
                     disabled={createCheckoutMutation.isPending}
                     onClick={() => handleSelectPlan(product)}
                   >
@@ -325,10 +429,7 @@ export function PricingView() {
                       </>
                     ) : (
                       <>
-                        {product.ctaText ||
-                          (product.isFree
-                            ? t("tiers.starter.cta")
-                            : t("tiers.pro.cta"))}
+                        {ctaLabel}
                         <ArrowRight className="ml-1.5 size-4" />
                       </>
                     )}

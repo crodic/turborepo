@@ -23,8 +23,24 @@ export const paymentProductSchema = z.object({
   interval: z.enum(['monthly', 'yearly', 'one_time']),
   price: z.number(),
   currency: z.string().default('usd'),
+  prices: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        amount: z.number(),
+        currency: z.string(),
+        isArchived: z.boolean().optional(),
+      })
+    )
+    .optional()
+    .default([]),
   polarProductId: z.string().nullish().default(''),
   features: z.array(z.string()).default([]),
+  metadata: z.record(z.string(), z.any()).optional().default({}),
+  benefits: z.array(z.record(z.string(), z.any())).optional().default([]),
+  medias: z.array(z.record(z.string(), z.any())).optional().default([]),
+  trialInterval: z.string().nullish(),
+  trialIntervalCount: z.number().nullish(),
   badge: z.string().nullish(),
   ctaText: z.string().default('Get Started'),
   isPopular: z.boolean().default(false),

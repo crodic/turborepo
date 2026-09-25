@@ -6,8 +6,19 @@ export interface PaymentProduct {
   interval: "monthly" | "yearly" | "one_time";
   price: number;
   currency: string;
+  prices?: Array<{
+    id?: string;
+    amount: number;
+    currency: string;
+    isArchived?: boolean;
+  }>;
   polarProductId?: string;
   features: string[];
+  metadata?: Record<string, any>;
+  benefits?: Array<Record<string, any>>;
+  medias?: Array<Record<string, any>>;
+  trialInterval?: string | null;
+  trialIntervalCount?: number | null;
   badge?: string | null;
   ctaText: string;
   isPopular: boolean;

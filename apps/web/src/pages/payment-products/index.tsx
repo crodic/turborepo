@@ -25,8 +25,10 @@ import {
 import { ColumnKey, type PaymentProductSchema } from './schema'
 
 const productFilterParsers = {
+  name: parseAsString,
   planSlug: parseAsString,
   interval: parseAsString,
+  isActive: parseAsString.withDefault('true'),
 } as const
 
 export function PagePaymentProductsOverview() {
@@ -38,6 +40,7 @@ export function PagePaymentProductsOverview() {
     perPage,
     sorting: sort,
     filter,
+    search,
   } = useGetFilterParams<PaymentProductSchema, typeof productFilterParsers>({
     allowedSorts: [
       ColumnKey.sortOrder,
@@ -52,9 +55,22 @@ export function PagePaymentProductsOverview() {
   const builder = new PaginateQueryBuilder()
     .page(page)
     .limit(perPage)
+    .ilike('name', filter.name)
     .ilike('planSlug', filter.planSlug)
     .eq('interval', filter.interval)
     .applySorts(sortParser(sort))
+
+  if (
+    filter.isActive !== null &&
+    filter.isActive !== undefined &&
+    filter.isActive !== ''
+  ) {
+    builder.eq('isActive', filter.isActive)
+  }
+
+  if (search) {
+    builder.search(search)
+  }
 
   const { data, isFetching } = useDataPaymentProductsOverview(builder.build())
   const columns = useMemo(() => getPaymentProductsTableColumns(), [])

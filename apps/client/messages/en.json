@@ -368,7 +368,8 @@
       "perYear": "/ year",
       "perLifetime": "/ pay once",
       "payOnce": "One-time payment, lifetime access",
-      "billedAnnually": "Billed annually ({amount}/mo)"
+      "billedAnnually": "Billed annually ({amount}/mo)",
+      "freeForever": "Free forever, no card needed"
     },
     "empty": {
       "title": "No plans available",

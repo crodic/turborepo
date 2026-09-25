@@ -48,6 +48,19 @@ export class CreateProductReqDto {
   })
   currency?: string;
 
+  @ApiPropertyOptional({
+    description: 'Multiple prices for multi-currency support',
+    type: 'array',
+  })
+  @IsArray()
+  @IsOptional()
+  prices?: Array<{
+    id?: string;
+    amount: number;
+    currency: string;
+    isArchived?: boolean;
+  }>;
+
   @StringFieldOptional({
     description:
       'Polar Product ID for automated billing (leave blank for free plan)',

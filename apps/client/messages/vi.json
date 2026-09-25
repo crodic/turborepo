@@ -368,7 +368,8 @@
       "perYear": "/ năm",
       "perLifetime": "/ trọn đời",
       "payOnce": "Thanh toán 1 lần, sở hữu trọn đời",
-      "billedAnnually": "Thanh toán theo năm (~{amount}/tháng)"
+      "billedAnnually": "Thanh toán theo năm (~{amount}/tháng)",
+      "freeForever": "Miễn phí vĩnh viễn, không cần thẻ"
     },
     "empty": {
       "title": "Chưa có gói cước nào",

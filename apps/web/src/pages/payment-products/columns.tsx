@@ -7,7 +7,8 @@ import { ColumnKey, type PaymentProductSchema } from './schema'
 export function getPaymentProductsTableColumns(): ColumnDef<PaymentProductSchema>[] {
   return [
     {
-      accessorKey: ColumnKey.planSlug,
+      id: ColumnKey.planSlug,
+      accessorFn: (row) => row.planSlug,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label='Slug' />
       ),
@@ -16,9 +17,16 @@ export function getPaymentProductsTableColumns(): ColumnDef<PaymentProductSchema
           {row.getValue(ColumnKey.planSlug)}
         </span>
       ),
+      meta: {
+        label: 'Slug',
+        placeholder: 'Filter slug...',
+        variant: 'text',
+      },
+      enableColumnFilter: true,
     },
     {
-      accessorKey: ColumnKey.name,
+      id: ColumnKey.name,
+      accessorFn: (row) => row.name,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label='Name' />
       ),
@@ -32,9 +40,16 @@ export function getPaymentProductsTableColumns(): ColumnDef<PaymentProductSchema
           )}
         </div>
       ),
+      meta: {
+        label: 'Name',
+        placeholder: 'Search name or polar id...',
+        variant: 'text',
+      },
+      enableColumnFilter: true,
     },
     {
-      accessorKey: ColumnKey.interval,
+      id: ColumnKey.interval,
+      accessorFn: (row) => row.interval,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label='Interval' />
       ),
@@ -55,6 +70,16 @@ export function getPaymentProductsTableColumns(): ColumnDef<PaymentProductSchema
           </Badge>
         )
       },
+      meta: {
+        label: 'Interval',
+        variant: 'select',
+        options: [
+          { label: 'Monthly', value: 'monthly' },
+          { label: 'Yearly', value: 'yearly' },
+          { label: 'One-time', value: 'one_time' },
+        ],
+      },
+      enableColumnFilter: true,
     },
     {
       accessorKey: ColumnKey.price,
@@ -65,8 +90,55 @@ export function getPaymentProductsTableColumns(): ColumnDef<PaymentProductSchema
         const isFree = row.original.isFree
         const price = row.getValue<number>(ColumnKey.price)
         const currency = (row.original.currency || 'USD').toUpperCase()
+        const rawPrices = row.original.prices
+        const activePrices =
+          rawPrices && rawPrices.length > 0
+            ? rawPrices.filter((p) => !p.isArchived)
+            : []
 
         if (isFree) {
+          return (
+            <span className='font-semibold text-green-600 dark:text-green-400'>
+              Free
+            </span>
+          )
+        }
+
+        if (activePrices.length > 0) {
+          if (activePrices.every((p) => p.amount === 0)) {
+            return (
+              <span className='font-semibold text-green-600 dark:text-green-400'>
+                Free
+              </span>
+            )
+          }
+
+          return (
+            <div className='flex flex-wrap items-center gap-1.5'>
+              {activePrices.map((p, idx) => {
+                const curr = (p.currency || 'USD').toUpperCase()
+                const formatted =
+                  p.amount === 0
+                    ? 'Free'
+                    : curr === 'VND'
+                      ? `${Number(p.amount).toLocaleString('vi-VN')} ₫`
+                      : `$${p.amount} ${curr}`
+
+                return (
+                  <Badge
+                    key={p.id || idx}
+                    variant={p.amount === 0 ? 'secondary' : 'outline'}
+                    className='font-mono text-xs font-medium'
+                  >
+                    {formatted}
+                  </Badge>
+                )
+              })}
+            </div>
+          )
+        }
+
+        if (price === 0) {
           return (
             <span className='font-semibold text-green-600 dark:text-green-400'>
               Free
@@ -104,18 +176,28 @@ export function getPaymentProductsTableColumns(): ColumnDef<PaymentProductSchema
       },
     },
     {
-      accessorKey: ColumnKey.isActive,
+      id: ColumnKey.isActive,
+      accessorFn: (row) => (row.isActive ? 'true' : 'false'),
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label='Status' />
       ),
       cell: ({ row }) => {
-        const isActive = row.getValue<boolean>(ColumnKey.isActive)
+        const isActive = row.original.isActive
         return (
           <Badge variant={isActive ? 'default' : 'secondary'}>
             {isActive ? 'Active' : 'Inactive'}
           </Badge>
         )
       },
+      meta: {
+        label: 'Status',
+        variant: 'select',
+        options: [
+          { label: 'Active', value: 'true' },
+          { label: 'Inactive', value: 'false' },
+        ],
+      },
+      enableColumnFilter: true,
     },
     {
       accessorKey: ColumnKey.sortOrder,

@@ -86,7 +86,8 @@ export class ProductService {
         ['id', 'ASC'],
       ],
       filterableColumns: {
-        planSlug: [FilterOperator.EQ, FilterOperator.IN],
+        planSlug: [FilterOperator.EQ, FilterOperator.IN, FilterOperator.ILIKE],
+        name: [FilterOperator.EQ, FilterOperator.ILIKE],
         interval: [FilterOperator.EQ, FilterOperator.IN],
         isActive: [FilterOperator.EQ],
       },
@@ -128,11 +129,18 @@ export class ProductService {
     const product = this.productRepo.create({
       ...dto,
       currency: dto.currency || 'usd',
+      prices:
+        dto.prices && dto.prices.length > 0
+          ? dto.prices
+          : [{ amount: dto.price, currency: dto.currency || 'usd' }],
       polarProductId: dto.polarProductId || '',
       features: dto.features || [],
+      metadata: {},
+      benefits: [],
+      medias: [],
       ctaText: dto.ctaText || 'Get Started',
       isPopular: dto.isPopular ?? false,
-      isFree: dto.isFree ?? false,
+      isFree: dto.isFree ?? dto.price === 0,
       isActive: dto.isActive ?? true,
       sortOrder: dto.sortOrder ?? 0,
     });
@@ -176,6 +184,14 @@ export class ProductService {
     }
 
     Object.assign(product, dto);
+    if (dto.price !== undefined && !dto.prices) {
+      product.prices = [
+        {
+          amount: dto.price,
+          currency: dto.currency || product.currency || 'usd',
+        },
+      ];
+    }
     const updated = await this.productRepo.save(product);
     this.logger.log(
       `Product #${id} updated: ${updated.planSlug} (${updated.interval}) - Polar ID: ${updated.polarProductId}`,
@@ -223,29 +239,88 @@ export class ProductService {
     }
 
     // Extract price and currency
-    const prices = polarProduct.prices || [];
-    const defaultPrice = prices[0] || {};
-    const rawAmount =
-      defaultPrice.price_amount ?? defaultPrice.priceAmount ?? 0;
-    const currency = (
-      defaultPrice.price_currency ??
-      defaultPrice.priceCurrency ??
-      'usd'
-    ).toLowerCase();
+    const rawPrices = polarProduct.prices || [];
+    const parsedPrices: Array<{
+      id?: string;
+      amount: number;
+      currency: string;
+      isArchived?: boolean;
+    }> = [];
 
-    // Zero-decimal currencies (VND, JPY) don't divide by 100
-    const isZeroDecimal = currency === 'vnd' || currency === 'jpy';
-    const price = isZeroDecimal ? rawAmount : Math.round(rawAmount / 100);
+    for (const p of rawPrices) {
+      const pId = p.id;
+      const rawAmount = p.price_amount ?? p.priceAmount ?? 0;
+      const pCurrency = (
+        p.price_currency ??
+        p.priceCurrency ??
+        'usd'
+      ).toLowerCase();
+      const isZeroDecimal = pCurrency === 'vnd' || pCurrency === 'jpy';
+      const amount = isZeroDecimal ? rawAmount : Math.round(rawAmount / 100);
+      const isPriceArchived = Boolean(p.is_archived ?? p.isArchived);
+
+      parsedPrices.push({
+        id: pId,
+        amount,
+        currency: pCurrency,
+        isArchived: isPriceArchived,
+      });
+    }
+
+    const activePrices = parsedPrices.filter((p) => !p.isArchived);
+    // Prefer the first non-zero (paid) price as the primary fallback, else first active price
+    const paidPrice = activePrices.find((p) => p.amount > 0);
+    const primaryPrice = paidPrice ||
+      activePrices[0] || { amount: 0, currency: 'usd' };
+
+    const price = primaryPrice.amount;
+    const currency = primaryPrice.currency;
+    const isFree =
+      activePrices.length === 0 || !activePrices.some((p) => p.amount > 0);
 
     const isArchived = Boolean(
       polarProduct.is_archived ?? polarProduct.isArchived,
     );
 
-    // Extract features from benefits if provided
+    const rawMetadata = polarProduct.metadata || {};
     const benefits = polarProduct.benefits || [];
+    const medias = polarProduct.medias || [];
+    const trialInterval =
+      polarProduct.trial_interval ?? polarProduct.trialInterval ?? null;
+    const trialIntervalCount =
+      polarProduct.trial_interval_count ??
+      polarProduct.trialIntervalCount ??
+      null;
+
+    // Optional overrides configured in Polar metadata
+    const metaBadge = rawMetadata.badge ?? rawMetadata.tag ?? undefined;
+    const metaCtaText =
+      rawMetadata.ctaText ?? rawMetadata.cta_text ?? undefined;
+    const metaIsPopular =
+      rawMetadata.isPopular !== undefined
+        ? rawMetadata.isPopular === true || rawMetadata.isPopular === 'true'
+        : undefined;
+    const metaSortOrder =
+      rawMetadata.sortOrder !== undefined
+        ? Number(rawMetadata.sortOrder)
+        : rawMetadata.sort_order !== undefined
+          ? Number(rawMetadata.sort_order)
+          : undefined;
+
+    // Extract features from benefits if provided
     const features: string[] = benefits
       .map((b: any) => b.description || b.name || '')
       .filter((text: string) => text.trim().length > 0);
+
+    // Calculate candidate slug from Polar metadata or product name
+    const candidateSlug =
+      rawMetadata.planSlug ||
+      rawMetadata.slug ||
+      name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') ||
+      `plan-${polarProductId.slice(0, 8)}`;
 
     // 1. Check if product already exists by polarProductId
     const product = await this.productRepo.findOne({
@@ -253,6 +328,20 @@ export class ProductService {
     });
 
     if (product) {
+      // Update planSlug if user updated it on Polar and there is no unique constraint conflict
+      if (candidateSlug && candidateSlug !== product.planSlug) {
+        const conflict = await this.productRepo.findOne({
+          where: { planSlug: candidateSlug, interval },
+        });
+        if (!conflict || conflict.id === product.id) {
+          product.planSlug = candidateSlug;
+        } else {
+          this.logger.warn(
+            `Skipping planSlug update for product #${product.id} to "${candidateSlug}" due to conflict with existing product #${conflict.id}`,
+          );
+        }
+      }
+
       // Update existing product
       product.name = name;
       if (description !== null && description !== undefined) {
@@ -260,32 +349,36 @@ export class ProductService {
       }
       product.price = price;
       product.currency = currency;
+      product.prices = parsedPrices;
       product.interval = interval;
+      product.isFree = isFree;
       product.isActive = !isArchived;
+      product.metadata = rawMetadata;
+      product.benefits = benefits;
+      product.medias = medias;
+      product.trialInterval = trialInterval;
+      product.trialIntervalCount = trialIntervalCount;
 
-      if (
-        features.length > 0 &&
-        (!product.features || product.features.length === 0)
-      ) {
+      if (metaBadge !== undefined) product.badge = metaBadge;
+      if (metaCtaText !== undefined) product.ctaText = metaCtaText;
+      if (metaIsPopular !== undefined) product.isPopular = metaIsPopular;
+      if (metaSortOrder !== undefined && !Number.isNaN(metaSortOrder)) {
+        product.sortOrder = metaSortOrder;
+      }
+
+      if (features.length > 0) {
         product.features = features;
       }
 
       const updated = await this.productRepo.save(product);
       this.logger.log(
-        `Synchronized product #${updated.id} from Polar: "${updated.name}" (${updated.interval}) - Price: ${updated.price} ${updated.currency.toUpperCase()}`,
+        `Synchronized product #${updated.id} from Polar: "${updated.name}" (${updated.planSlug} - ${updated.interval}) - Primary Price: ${updated.price} ${updated.currency.toUpperCase()}`,
       );
       return updated;
     }
 
     // 2. Generate slug for new product
-    let planSlug =
-      polarProduct.metadata?.planSlug ||
-      polarProduct.metadata?.slug ||
-      name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '') ||
-      `plan-${polarProductId.slice(0, 8)}`;
+    let planSlug = candidateSlug;
 
     // Ensure (planSlug, interval) uniqueness
     const existingWithSlug = await this.productRepo.findOne({
@@ -300,7 +393,22 @@ export class ProductService {
         if (description) existingWithSlug.description = description;
         existingWithSlug.price = price;
         existingWithSlug.currency = currency;
+        existingWithSlug.prices = parsedPrices;
+        existingWithSlug.isFree = isFree;
         existingWithSlug.isActive = !isArchived;
+        existingWithSlug.metadata = rawMetadata;
+        existingWithSlug.benefits = benefits;
+        existingWithSlug.medias = medias;
+        existingWithSlug.trialInterval = trialInterval;
+        existingWithSlug.trialIntervalCount = trialIntervalCount;
+        if (metaBadge !== undefined) existingWithSlug.badge = metaBadge;
+        if (metaCtaText !== undefined) existingWithSlug.ctaText = metaCtaText;
+        if (metaIsPopular !== undefined)
+          existingWithSlug.isPopular = metaIsPopular;
+        if (metaSortOrder !== undefined && !Number.isNaN(metaSortOrder)) {
+          existingWithSlug.sortOrder = metaSortOrder;
+        }
+
         const linked = await this.productRepo.save(existingWithSlug);
         this.logger.log(
           `Linked and synchronized existing product #${linked.id} with Polar ID ${polarProductId}`,
@@ -321,13 +429,20 @@ export class ProductService {
       interval,
       price,
       currency,
+      prices: parsedPrices,
+      metadata: rawMetadata,
+      benefits,
+      medias,
+      trialInterval,
+      trialIntervalCount,
       features,
-      badge: null,
-      ctaText: 'Get Started',
-      isPopular: false,
-      isFree: price === 0,
+      badge: metaBadge ?? null,
+      ctaText: metaCtaText ?? 'Get Started',
+      isPopular: metaIsPopular ?? false,
+      isFree,
       isActive: !isArchived,
-      sortOrder: 0,
+      sortOrder:
+        metaSortOrder && !Number.isNaN(metaSortOrder) ? metaSortOrder : 0,
     });
 
     const saved = await this.productRepo.save(newProduct);

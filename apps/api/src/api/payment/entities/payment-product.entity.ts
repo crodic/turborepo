@@ -31,6 +31,14 @@ export class PaymentProductEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 10, default: 'usd' })
   currency!: string;
 
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  prices!: Array<{
+    id?: string;
+    amount: number;
+    currency: string;
+    isArchived?: boolean;
+  }>;
+
   @Column({
     name: 'polar_product_id',
     type: 'varchar',
@@ -41,6 +49,30 @@ export class PaymentProductEntity extends AbstractEntity {
 
   @Column({ type: 'jsonb', default: () => "'[]'" })
   features!: string[];
+
+  @Column({ type: 'jsonb', default: () => "'{}'" })
+  metadata!: Record<string, any>;
+
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  benefits!: Array<Record<string, any>>;
+
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  medias!: Array<Record<string, any>>;
+
+  @Column({
+    name: 'trial_interval',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  trialInterval?: string | null;
+
+  @Column({
+    name: 'trial_interval_count',
+    type: 'integer',
+    nullable: true,
+  })
+  trialIntervalCount?: number | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   badge?: string | null;
