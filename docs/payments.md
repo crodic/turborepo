@@ -95,6 +95,8 @@ erDiagram
     users ||--o{ payment_subscriptions : "owns"
     users ||--o{ payment_customers : "mapped to"
     users ||--o{ payment_transactions : "audited by"
+    users ||--o{ payment_refund_requests : "requests"
+    payment_orders ||--o{ payment_refund_requests : "has"
 
     payment_products {
         bigint id PK
@@ -167,6 +169,21 @@ erDiagram
         varchar card_last4
     }
 
+    payment_refund_requests {
+        bigint id PK
+        bigint order_id FK "REFERENCES payment_orders(id)"
+        bigint user_id FK "REFERENCES users(id) ON DELETE SET NULL"
+        integer amount "in cents"
+        varchar currency "usd"
+        varchar reason "customer_request | satisfaction_guarantee | ..."
+        text customer_note
+        varchar status "pending | approved | rejected"
+        text admin_note
+        bigint reviewed_by FK "REFERENCES admin_users(id)"
+        timestamp reviewed_at
+        varchar polar_refund_id
+    }
+
     payment_webhook_events {
         bigint id PK
         varchar polar_event_id UK
@@ -181,6 +198,7 @@ erDiagram
 1. `1780192650000-create-payment-tables.ts`: Creates baseline tables (`payment_customers`, `payment_orders`, `payment_subscriptions`, `payment_transactions`, `payment_webhook_events`).
 2. `1780192750000-create-payment-products-table.ts`: Creates `payment_products` catalog table and seeds default tier plans (`starter`, `pro`, `enterprise`).
 3. `1780192850000-link-users-to-payment-tables.ts`: Converts `user_id` columns to `bigint` and creates Foreign Key constraints referencing `users(id)` with `ON DELETE SET NULL ON UPDATE NO ACTION`.
+4. `1780192950000-create-payment-refund-requests-table.ts`: Creates `payment_refund_requests` table with foreign key relations to `payment_orders`, `users`, and `admin_users`.
 
 ---
 
@@ -260,6 +278,125 @@ Authenticated users can manage their payment methods, view invoices, or cancel s
 4. Backend calls Polar API to generate an authenticated Customer Portal session.
 5. Client opens the Polar Customer Portal URL in a secure new tab.
 
+### 4.4. Subscription Renewal & Lifecycle Flow
+
+Subscriptions follow an automated recurring lifecycle managed by Polar as the Merchant of Record:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Customer as Customer
+    participant Polar as Polar Gateway
+    participant Webhook as Webhook Controller (/payments/webhook)
+    participant Service as PaymentService
+    participant DB as PostgreSQL
+    participant Client as Client Web App (apps/client)
+
+    Note over Polar: Billing cycle reaches currentPeriodEnd
+    Polar->>Polar: Auto-charge customer's saved payment method
+
+    alt Charge Succeeded (Renewal Success)
+        Polar->>Webhook: Webhook: order.paid (new cycle order)
+        Webhook->>Service: handleOrderPaid(data)
+        Service->>DB: Insert PaymentOrder (status: PAID) & PaymentTransaction (CHARGE)
+
+        Polar->>Webhook: Webhook: subscription.updated (or subscription.active)
+        Webhook->>Service: handleSubscriptionUpdated(data)
+        Service->>DB: Advance currentPeriodStart & currentPeriodEnd, status: ACTIVE
+
+        Customer->>Client: Visits /profile
+        Client->>DB: Query useUserSubscriptions()
+        Client-->>Customer: Displays new renewal date ("Renews on [Next Date]")
+
+    else Charge Failed (Card Expired / Insufficient Funds)
+        Polar->>Webhook: Webhook: subscription.updated (status: past_due)
+        Webhook->>Service: handleSubscriptionUpdated(data)
+        Service->>DB: Update PaymentSubscription status: PAST_DUE
+        Polar->>Customer: Polar triggers Smart Retries & email notice
+        Client-->>Customer: Displays "Past Due" banner with link to Customer Portal
+    end
+```
+
+#### Key Renewal Lifecycle Details:
+
+1. **Auto-Renewal & Fulfillment**: On every billing anniversary (`monthly` or `yearly`), Polar charges the card and emits `order.paid`. The backend creates a new `PaymentOrderEntity` and ledger entry `PaymentTransactionEntity`.
+2. **Subscription Period Extension**: `subscription.updated` webhook pushes updated `current_period_start` and `current_period_end` timestamps to the local `payment_subscriptions` record.
+3. **Cancellation At Period End**: When a user cancels their subscription in the Customer Portal, Polar sets `cancel_at_period_end = true`. The user retains active feature access until `current_period_end`, at which point Polar fires `subscription.canceled` and the local status transitions to `CANCELED`.
+4. **Dunning & Past Due**: When recurring payment attempts fail, the subscription enters `past_due` status. Polar executes automated retry schedules before permanently canceling the subscription.
+
+---
+
+### 4.5. Refund Lifecycle & Administrative Processing
+
+The refund system provides both a customer self-service request pipeline and direct administrative refund capabilities:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Customer as Customer
+    participant Client as Client Portal (apps/client)
+    participant API as Backend API (apps/api)
+    participant DB as PostgreSQL
+    participant Polar as Polar Gateway
+    participant Admin as Admin Portal (apps/web)
+
+    Note over Customer,Admin: Step 1: Customer Submits Refund Request
+    Customer->>Client: Clicks "Request Refund" (within 14 days of paid order)
+    Client->>API: POST /api/v1/payments/orders/:id/refund-request (reason, note)
+    API->>DB: Verify order is PAID, within 14 days, no existing PENDING request
+    API->>DB: Save PaymentRefundRequest (status: PENDING)
+    API-->>Admin: Realtime WebSocket Notification & Admin Email Dispatched
+
+    Note over Customer,Admin: Step 2: Administrative Review & Execution
+    Admin->>API: POST /api/v1/admin/payments/refund-requests/:id/review { action, amount, adminNote }
+    alt Action: Approve
+        API->>Polar: polar.refunds.create({ orderId, reason, amount, comment, revokeBenefits: true })
+        Polar-->>API: Refund confirmed (polarRefundId)
+        API->>DB: Update PaymentOrder status: REFUNDED
+        API->>DB: Insert PaymentTransaction (type: REFUND, negative netAmount)
+        API->>DB: Cancel active subscription if order was for recurring plan
+        API->>DB: Update PaymentRefundRequest status: APPROVED
+        API-->>Customer: Dispatch Refund Approved Email (with expected bank timeline)
+    else Action: Reject
+        API->>DB: Update PaymentRefundRequest status: REJECTED (with adminNote)
+        API-->>Customer: Dispatch Refund Declined Email (with explanation)
+    end
+```
+
+#### Refund Policies & Constraints:
+
+- **14-Day Eligibility Window**: Requests are rejected with `400 Bad Request` if submitted later than 14 days post-purchase.
+- **Paid Status Requirement**: Only orders with `status: PAID` can be refunded.
+- **Pending De-duplication**: An order cannot have more than one `PENDING` refund request at any given time.
+- **Partial or Full Refund**: Admins can approve the full purchase amount or specify an adjusted partial amount in cents.
+- **Direct Refund**: Admins can initiate refunds directly from the Orders table (`POST /api/v1/admin/payments/orders/:id/direct-refund`) without a customer request.
+
+---
+
+### 4.6. Automated Notifications & Email Dispatch Workflow
+
+The refund subsystem features bidirectional automated alerts across WebSocket and email channels:
+
+#### 1. Real-Time Admin Alerts (On New Refund Request)
+
+- **In-App Realtime Notification**:
+  - Filtered by admin preference: `admin.notifications.system !== false`.
+  - Dispatches WebSocket event `emitNewNotification` and `emitUnreadCount` (`AdminNotificationType.RefundRequested`).
+  - Bell notification indicator lights up immediately in Admin Portal (`apps/web`).
+- **Admin Email Notice**:
+  - Filtered by admin preference: `admin.notifications.email !== false`.
+  - Rendered via Handlebars template [`admin-refund-requested.hbs`](file:///apps/api/src/mail/templates/admin-refund-requested.hbs).
+  - Includes Order Number, Customer Email, Requested Amount, Reason, Customer Note, and direct CTA link to `/payments`.
+
+#### 2. Customer Notification (On Review Resolution)
+
+- **Refund Approved**:
+  - Rendered via Handlebars template [`customer-refund-reviewed.hbs`](file:///apps/api/src/mail/templates/customer-refund-reviewed.hbs).
+  - Details: Order Number, Approved Amount, Support Note, and reassurance explaining the standard **5 to 10 business day** bank processing window.
+- **Refund Declined**:
+  - Sent via the same template with `isApproved: false`.
+  - Details: Order Number, Status `DECLINED`, and the specific reason provided by the reviewing administrator.
+
 ---
 
 ## 5. Admin Portal Management (`apps/web`)
@@ -274,14 +411,20 @@ Accessible via the sidebar navigation under **Management -> Payments**:
   - Real-time search across order number, customer email, and Polar order ID.
   - Status badges (`PAID`, `PENDING`, `REFUNDED`, `FAILED`, `EXPIRED`).
   - Direct links to associated user profiles (`User #ID`).
+  - **Direct Refund Action**: Nút **Refund** trực tiếp trên từng đơn hàng `paid`, mở [`DirectRefundDialog`](file:///apps/web/src/pages/payments/components/direct-refund-dialog.tsx) cho phép Admin hoàn tiền trực tiếp qua Polar API mà không cần khách hàng gửi yêu cầu trước.
 - **Subscriptions Tab** ([`subscriptions-tab.tsx`](file:///apps/web/src/pages/payments/components/subscriptions-tab.tsx)):
   - Monitoring of recurring SaaS subscriptions.
-  - Active/Cancelled status indicators.
+  - Active/Cancelled/Past Due status indicators.
   - Renewal tracking (`Period End` and `Auto Renew` status).
 - **Transactions Tab** ([`transactions-tab.tsx`](file:///apps/web/src/pages/payments/components/transactions-tab.tsx)):
   - Financial ledger auditing.
   - Breakdowns for Gross Amount, Platform Fee, and Net Settlement Amount.
   - Card brand and last 4 digits tracking.
+- **Refund Requests Tab** ([`refund-requests-tab.tsx`](file:///apps/web/src/pages/payments/components/refund-requests-tab.tsx)):
+  - Hàng đợi quản lý danh sách yêu cầu hoàn tiền gửi từ khách hàng.
+  - Bộ lọc trạng thái: `pending`, `approved`, `rejected`.
+  - Hiển thị chi tiết: Mã yêu cầu, đơn hàng, khách hàng, số tiền, lý do và ghi chú của khách.
+  - Nút **Review** mở [`ReviewRefundDialog`](file:///apps/web/src/pages/payments/components/review-refund-dialog.tsx) hỗ trợ Approve (toàn phần hoặc tùy chỉnh một phần số tiền) hoặc Reject kèm ghi chú lý do.
 
 ### 5.2. Payment Products & Pricing Tier Manager (`/payment-products`)
 
@@ -290,6 +433,8 @@ Accessible under **Management -> Payment Products**:
 - Add, update, or deprecate pricing plans dynamically.
 - Modify Polar Product IDs for production or sandbox without redeploying code.
 - Customize features list (JSON/array), promotional badges (`Popular`, `Free`), and call-to-action text.
+- **Composite Unique Constraint**: `(plan_slug, interval)` là unique key. Cho phép sử dụng cùng 1 slug (ví dụ `pro`) cho cả gói `monthly` và `yearly`.
+- **Faceted Filters & Search**: Bảng dữ liệu hỗ trợ tìm kiếm theo tên/slug và faceted filter theo `interval` và `isActive` (mặc định lọc `isActive = true` khi tải trang).
 
 ### 5.3. User-Specific Payment Audit (`/users/:id/show`)
 
@@ -306,28 +451,33 @@ Integrated into the User Detail view ([`UserPaymentCard`](file:///apps/web/src/p
 
 ### 6.1. Public / Client Endpoints (`/api/v1/payments`)
 
-| Method | Endpoint            | Auth                       | Description                                                    |
-| :----- | :------------------ | :------------------------- | :------------------------------------------------------------- |
-| `GET`  | `/products`         | None                       | Retrieves all active pricing products for public pricing table |
-| `POST` | `/checkout`         | Optional (JWT recommended) | Initiates checkout session by `planSlug` and `interval`        |
-| `POST` | `/webhook`          | Webhook Signature          | Ingests Polar webhook events with idempotency                  |
-| `GET`  | `/customer-portal`  | User JWT                   | Generates Polar customer self-service portal link              |
-| `GET`  | `/my-orders`        | User JWT                   | Returns payment orders for current authenticated user          |
-| `GET`  | `/my-subscriptions` | User JWT                   | Returns subscriptions for current authenticated user           |
+| Method | Endpoint                     | Auth                       | Description                                                    |
+| :----- | :--------------------------- | :------------------------- | :------------------------------------------------------------- |
+| `GET`  | `/products`                  | None                       | Retrieves all active pricing products for public pricing table |
+| `POST` | `/checkout`                  | Optional (JWT recommended) | Initiates checkout session by `planSlug` and `interval`        |
+| `POST` | `/webhook`                   | Webhook Signature          | Ingests Polar webhook events with idempotency                  |
+| `GET`  | `/customer-portal`           | User JWT                   | Generates Polar customer self-service portal link              |
+| `GET`  | `/my-orders`                 | User JWT                   | Returns payment orders for current authenticated user          |
+| `GET`  | `/my-subscriptions`          | User JWT                   | Returns subscriptions for current authenticated user           |
+| `POST` | `/orders/:id/refund-request` | User JWT                   | Submits a refund request for an eligible paid order (14 days)  |
+| `GET`  | `/refund-requests`           | User JWT                   | Returns all refund requests submitted by authenticated user    |
 
 ### 6.2. Admin Endpoints (`/api/v1/admin/payments`)
 
-| Method   | Endpoint                 | Auth      | Description                                                 |
-| :------- | :----------------------- | :-------- | :---------------------------------------------------------- |
-| `GET`    | `/orders`                | Admin JWT | Paginated list of all customer orders                       |
-| `GET`    | `/subscriptions`         | Admin JWT | Paginated list of all SaaS subscriptions                    |
-| `GET`    | `/transactions`          | Admin JWT | Paginated list of financial ledger transactions             |
-| `GET`    | `/users/:userId/summary` | Admin JWT | Summary of LTV, active plan, and orders for a specific user |
-| `GET`    | `/products`              | Admin JWT | Paginated list of payment products/tiers                    |
-| `GET`    | `/products/:id`          | Admin JWT | Get product configuration by ID                             |
-| `POST`   | `/products`              | Admin JWT | Create a new pricing tier / Polar product mapping           |
-| `PUT`    | `/products/:id`          | Admin JWT | Update pricing tier or Polar product ID                     |
-| `DELETE` | `/products/:id`          | Admin JWT | Soft/Hard remove a pricing tier                             |
+| Method   | Endpoint                      | Auth      | Description                                                 |
+| :------- | :---------------------------- | :-------- | :---------------------------------------------------------- |
+| `GET`    | `/orders`                     | Admin JWT | Paginated list of all customer orders                       |
+| `GET`    | `/subscriptions`              | Admin JWT | Paginated list of all SaaS subscriptions                    |
+| `GET`    | `/transactions`               | Admin JWT | Paginated list of financial ledger transactions             |
+| `GET`    | `/users/:userId/summary`      | Admin JWT | Summary of LTV, active plan, and orders for a specific user |
+| `GET`    | `/products`                   | Admin JWT | Paginated list of payment products/tiers                    |
+| `GET`    | `/products/:id`               | Admin JWT | Get product configuration by ID                             |
+| `POST`   | `/products`                   | Admin JWT | Create a new pricing tier / Polar product mapping           |
+| `PUT`    | `/products/:id`               | Admin JWT | Update pricing tier or Polar product ID                     |
+| `DELETE` | `/products/:id`               | Admin JWT | Soft/Hard remove a pricing tier                             |
+| `GET`    | `/refund-requests`            | Admin JWT | Paginated list of all customer refund requests              |
+| `POST`   | `/refund-requests/:id/review` | Admin JWT | Reviews (Approves or Rejects) a pending refund request      |
+| `POST`   | `/orders/:id/direct-refund`   | Admin JWT | Directly refunds a paid order without prior request         |
 
 ---
 

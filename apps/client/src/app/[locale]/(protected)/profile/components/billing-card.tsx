@@ -25,8 +25,11 @@ import {
 import {
   useCustomerPortalSession,
   useUserOrders,
+  useUserRefundRequests,
   useUserSubscriptions,
 } from "@/hooks/use-payment";
+import { PaymentOrder } from "@/types/payment";
+import { RefundRequestDialog } from "./refund-request-dialog";
 import {
   CreditCard,
   ExternalLink,
@@ -37,6 +40,7 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
+  Undo2,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -45,7 +49,12 @@ export function BillingCard() {
   const { data: subscriptions, isLoading: isLoadingSubs } =
     useUserSubscriptions();
   const { data: orders, isLoading: isLoadingOrders } = useUserOrders();
+  const { data: refundRequests } = useUserRefundRequests();
   const portalMutation = useCustomerPortalSession();
+
+  const [refundDialogOpen, setRefundDialogOpen] = React.useState(false);
+  const [selectedOrderForRefund, setSelectedOrderForRefund] =
+    React.useState<PaymentOrder | null>(null);
 
   const activeSub = subscriptions?.find(
     (s) => s.status === "active" || s.status === "trialing"
@@ -242,45 +251,99 @@ export function BillingCard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.map((order) => (
-                    <TableRow key={order.id} className="text-xs">
-                      <TableCell className="text-muted-foreground font-mono">
-                        {order.orderNumber || order.orderId || String(order.id)}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(order.createdAt), "MMM dd, yyyy")}
-                      </TableCell>
-                      <TableCell className="text-foreground font-semibold">
-                        ${((order.amount || 0) / 100).toFixed(2)}{" "}
-                        {order.currency?.toUpperCase() || "USD"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            order.status === "paid" ? "secondary" : "outline"
-                          }
-                          className="text-[11px] capitalize"
-                        >
-                          {order.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {order.receiptUrl || order.invoiceUrl ? (
-                          <a
-                            href={order.receiptUrl || order.invoiceUrl || "#"}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary inline-flex items-center gap-1 font-medium hover:underline"
-                          >
-                            <span>{t("table.viewReceipt")}</span>
-                            <ExternalLink className="size-3" />
-                          </a>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {orders.map((order) => {
+                    const refundReq = refundRequests?.find(
+                      (r) => String(r.orderId) === String(order.id)
+                    );
+                    const isWithin14Days =
+                      (Date.now() - new Date(order.createdAt).getTime()) /
+                        (1000 * 60 * 60 * 24) <=
+                      14;
+                    const canRequestRefund =
+                      order.status === "paid" && !refundReq && isWithin14Days;
+
+                    return (
+                      <TableRow key={order.id} className="text-xs">
+                        <TableCell className="text-muted-foreground font-mono">
+                          {order.orderNumber ||
+                            order.orderId ||
+                            String(order.id)}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(order.createdAt), "MMM dd, yyyy")}
+                        </TableCell>
+                        <TableCell className="text-foreground font-semibold">
+                          ${((order.amount || 0) / 100).toFixed(2)}{" "}
+                          {order.currency?.toUpperCase() || "USD"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge
+                              variant={
+                                order.status === "paid"
+                                  ? "secondary"
+                                  : order.status === "refunded"
+                                    ? "destructive"
+                                    : "outline"
+                              }
+                              className="text-[11px] capitalize"
+                            >
+                              {order.status}
+                            </Badge>
+
+                            {refundReq?.status === "pending" && (
+                              <Badge
+                                variant="outline"
+                                className="border-amber-500/30 bg-amber-500/10 text-[10px] text-amber-600 dark:text-amber-400"
+                              >
+                                {t("table.refundPending")}
+                              </Badge>
+                            )}
+                            {refundReq?.status === "rejected" && (
+                              <Badge
+                                variant="outline"
+                                className="border-rose-500/30 bg-rose-500/10 text-[10px] text-rose-600 dark:text-rose-400"
+                              >
+                                {t("table.refundRejected")}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {order.receiptUrl || order.invoiceUrl ? (
+                              <a
+                                href={
+                                  order.receiptUrl || order.invoiceUrl || "#"
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary inline-flex items-center gap-1 font-medium hover:underline"
+                              >
+                                <span>{t("table.viewReceipt")}</span>
+                                <ExternalLink className="size-3" />
+                              </a>
+                            ) : null}
+
+                            {canRequestRefund && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-muted-foreground hover:text-foreground h-7 gap-1 px-2 text-xs"
+                                onClick={() => {
+                                  setSelectedOrderForRefund(order);
+                                  setRefundDialogOpen(true);
+                                }}
+                              >
+                                <Undo2 className="size-3" />
+                                <span>{t("table.requestRefund")}</span>
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -291,6 +354,12 @@ export function BillingCard() {
           )}
         </CardContent>
       </Card>
+
+      <RefundRequestDialog
+        order={selectedOrderForRefund}
+        open={refundDialogOpen}
+        onOpenChange={setRefundDialogOpen}
+      />
     </div>
   );
 }

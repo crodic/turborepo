@@ -22,6 +22,7 @@ export enum AdminNotificationType {
   SessionRevoked = 'admin.session.revoked',
   SessionsRevokedAll = 'admin.session.revoked_all',
   ManualMessage = 'admin.manual.message',
+  RefundRequested = 'admin.payment.refund_requested',
 }
 
 type CreateAdminNotificationParams = {
@@ -52,6 +53,7 @@ const NOTIFICATION_TYPE_CATEGORY: Partial<
   [AdminNotificationType.SessionRevoked]: 'security',
   [AdminNotificationType.SessionsRevokedAll]: 'security',
   [AdminNotificationType.ManualMessage]: 'system',
+  [AdminNotificationType.RefundRequested]: 'system',
 };
 
 @Injectable()
@@ -133,6 +135,48 @@ export class NotificationService {
     }
 
     return true;
+  }
+
+  async notifyAdmins(params: {
+    type: AdminNotificationType | string;
+    title: string;
+    message: string;
+    data?: Record<string, unknown> | null;
+  }): Promise<{ inAppCount: number; emailRecipients: AdminUserEntity[] }> {
+    const allAdmins = await this.adminUserRepository.find({
+      select: ['id', 'email', 'firstName', 'lastName', 'notifications'],
+      where: { deletedAt: IsNull() },
+    });
+
+    let inAppCount = 0;
+    const emailRecipients: AdminUserEntity[] = [];
+
+    for (const admin of allAdmins) {
+      const preferences = {
+        ...DEFAULT_NOTIFICATION_PREFERENCES,
+        ...(admin.notifications ?? {}),
+      };
+
+      const category =
+        NOTIFICATION_TYPE_CATEGORY[params.type as AdminNotificationType] ??
+        'system';
+      if (preferences[category] !== false) {
+        await this.createForAdmin({
+          adminId: admin.id,
+          type: params.type,
+          title: params.title,
+          message: params.message,
+          data: params.data,
+        });
+        inAppCount++;
+      }
+
+      if (preferences.email !== false && admin.email) {
+        emailRecipients.push(admin);
+      }
+    }
+
+    return { inAppCount, emailRecipients };
   }
 
   async listMine(

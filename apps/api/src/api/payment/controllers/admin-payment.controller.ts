@@ -1,4 +1,5 @@
 import { AutoIncrementID } from '@/common/types/common.type';
+import { CurrentUser } from '@/decorators/current-user.decorator';
 import { AdminAuthGuard } from '@/guards/admin-auth.guard';
 import {
   Body,
@@ -7,6 +8,7 @@ import {
   Get,
   HttpStatus,
   Param,
+  ParseIntPipe,
   Post,
   Put,
   UseGuards,
@@ -20,10 +22,13 @@ import {
 } from '@nestjs/swagger';
 import { Paginate, Paginated, PaginateQuery } from 'nestjs-paginate';
 import { CreateProductReqDto } from '../dto/create-product.req.dto';
+import { DirectRefundReqDto } from '../dto/direct-refund.req.dto';
 import { PaymentOrderResDto } from '../dto/payment-order.res.dto';
 import { PaymentProductResDto } from '../dto/payment-product.res.dto';
+import { PaymentRefundRequestResDto } from '../dto/payment-refund-request.res.dto';
 import { PaymentSubscriptionResDto } from '../dto/payment-subscription.res.dto';
 import { PaymentTransactionResDto } from '../dto/payment-transaction.res.dto';
+import { ReviewRefundRequestReqDto } from '../dto/review-refund-request.req.dto';
 import { UpdateProductReqDto } from '../dto/update-product.req.dto';
 import { UserPaymentSummaryResDto } from '../dto/user-payment-summary.res.dto';
 import { PaymentService } from '../services/payment.service';
@@ -211,5 +216,65 @@ export class AdminPaymentController {
     @Param('userId') userId: AutoIncrementID,
   ): Promise<UserPaymentSummaryResDto> {
     return await this.paymentService.getUserPaymentSummary(userId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Refund Management (Admin)
+  // ---------------------------------------------------------------------------
+
+  @Get('refund-requests')
+  @ApiOperation({
+    summary: 'Get all refund requests (Admin)',
+    description:
+      'Retrieves a paginated list of all customer-submitted refund requests.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Paginated list of refund requests',
+  })
+  async getRefundRequests(
+    @Paginate() query: PaginateQuery,
+  ): Promise<Paginated<PaymentRefundRequestResDto>> {
+    return await this.paymentService.getAdminRefundRequests(query);
+  }
+
+  @Post('refund-requests/:id/review')
+  @ApiOperation({
+    summary: 'Review a refund request (Admin)',
+    description:
+      'Approves or rejects a pending refund request. Approving automatically triggers Polar gateway refund.',
+  })
+  @ApiParam({ name: 'id', description: 'Refund Request ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Refund request reviewed successfully',
+    type: PaymentRefundRequestResDto,
+  })
+  async reviewRefundRequest(
+    @Param('id', ParseIntPipe) id: AutoIncrementID,
+    @Body() dto: ReviewRefundRequestReqDto,
+    @CurrentUser('id') adminId: AutoIncrementID,
+  ): Promise<PaymentRefundRequestResDto> {
+    return await this.paymentService.reviewRefundRequest(adminId, id, dto);
+  }
+
+  @Post('orders/:id/direct-refund')
+  @ApiOperation({
+    summary: 'Direct refund an order (Admin)',
+    description:
+      'Directly executes a refund for a paid order via Polar without requiring prior customer submission.',
+  })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Order refunded successfully',
+    type: PaymentOrderResDto,
+  })
+  async directRefundOrder(
+    @Param('id', ParseIntPipe) id: AutoIncrementID,
+    @Body() dto: DirectRefundReqDto,
+    @CurrentUser('id') adminId: AutoIncrementID,
+  ): Promise<PaymentOrderResDto> {
+    return await this.paymentService.directRefundOrder(adminId, id, dto);
   }
 }

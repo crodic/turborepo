@@ -18,6 +18,13 @@ export default {
   'navigation.management.locations': 'Địa điểm',
   'navigation.management.payments': 'Thanh toán & Đơn hàng',
   'navigation.management.paymentProducts': 'Gói thanh toán',
+  'payments.title': 'Thanh toán & Hóa đơn',
+  'payments.description':
+    'Theo dõi đơn hàng toàn cầu, các gói đăng ký định kỳ SaaS, nhật ký giao dịch và yêu cầu hoàn tiền.',
+  'payments.tabs.orders': 'Đơn hàng',
+  'payments.tabs.subscriptions': 'Gói đăng ký',
+  'payments.tabs.transactions': 'Giao dịch',
+  'payments.tabs.refundRequests': 'Yêu cầu hoàn tiền',
   'navigation.orders.title': 'Đơn hàng',
   'navigation.other.title': 'Khác',
   'navigation.other.settings': 'Cài đặt',

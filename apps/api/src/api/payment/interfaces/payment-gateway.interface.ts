@@ -27,6 +27,20 @@ export type GatewayCustomerPortalOutput = {
   portalUrl: string;
 };
 
+export type GatewayRefundInput = {
+  orderId: string;
+  amount: number;
+  reason: string;
+  comment?: string;
+};
+
+export type GatewayRefundOutput = {
+  refundId: string;
+  status: string;
+  amount: number;
+  raw?: any;
+};
+
 export interface IPaymentGateway {
   readonly name: string;
 
@@ -37,6 +51,8 @@ export interface IPaymentGateway {
   createCustomerPortalSession?(
     input: GatewayCustomerPortalInput,
   ): Promise<GatewayCustomerPortalOutput>;
+
+  createRefund?(input: GatewayRefundInput): Promise<GatewayRefundOutput>;
 
   validateWebhook(
     payload: string | Buffer,

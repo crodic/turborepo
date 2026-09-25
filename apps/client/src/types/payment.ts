@@ -112,3 +112,27 @@ export interface CustomerPortalResponse {
   portalUrl: string;
   url?: string;
 }
+
+export interface PaymentRefundRequest {
+  id: string | number;
+  orderId: string | number;
+  orderNumber?: string;
+  customerEmail?: string;
+  userId?: string | number | null;
+  amount: number;
+  currency: string;
+  reason: string;
+  customerNote?: string | null;
+  status: "pending" | "approved" | "rejected" | "processed";
+  adminNote?: string | null;
+  reviewedBy?: string | number | null;
+  reviewedAt?: string | null;
+  polarRefundId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateRefundRequestPayload {
+  reason: string;
+  customerNote?: string;
+}

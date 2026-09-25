@@ -1,10 +1,11 @@
 import { z } from 'zod'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   type ApiMetadata,
   apiMetadataSchema,
   type PaginateQueryParams,
 } from '@/global'
+import { toast } from 'sonner'
 import http from '@/lib/http'
 import {
   paymentOrderSchema,
@@ -15,6 +16,10 @@ import {
   type PaymentTransactionSchema,
   userPaymentSummarySchema,
   type UserPaymentSummarySchema,
+  paymentRefundRequestSchema,
+  type PaymentRefundRequestSchema,
+  type ReviewRefundRequestSchema,
+  type DirectRefundSchema,
 } from './schema'
 
 export async function apiGetAdminOrders(
@@ -79,3 +84,93 @@ export const useDataUserPaymentSummary = (userId: string) =>
     queryFn: () => apiGetUserPaymentSummary(userId),
     enabled: !!userId,
   })
+
+export async function apiGetAdminRefundRequests(
+  params: PaginateQueryParams
+): Promise<ApiMetadata & { data: PaymentRefundRequestSchema[] }> {
+  const response = await http.get('/admin/payments/refund-requests', { params })
+
+  return apiMetadataSchema
+    .extend({ data: z.array(paymentRefundRequestSchema) })
+    .parse(response.data)
+}
+
+export const useDataAdminRefundRequests = (params: PaginateQueryParams) =>
+  useQuery({
+    queryKey: ['admin-payment-refund-requests', params],
+    queryFn: () => apiGetAdminRefundRequests(params),
+  })
+
+export const useMutationReviewRefundRequest = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string | number
+      data: ReviewRefundRequestSchema
+    }) => {
+      const response = await http.post(
+        `/admin/payments/refund-requests/${id}/review`,
+        data
+      )
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['admin-payment-refund-requests'],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['admin-payment-orders'],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['admin-payment-transactions'],
+      })
+      toast.success('Refund request reviewed successfully.')
+    },
+    onError: (error: any) => {
+      toast.error(
+        error?.response?.data?.message || 'Failed to review refund request.'
+      )
+    },
+  })
+}
+
+export const useMutationDirectRefundOrder = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string | number
+      data: DirectRefundSchema
+    }) => {
+      const response = await http.post(
+        `/admin/payments/orders/${id}/direct-refund`,
+        data
+      )
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['admin-payment-orders'],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['admin-payment-refund-requests'],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['admin-payment-transactions'],
+      })
+      toast.success('Order refunded successfully.')
+    },
+    onError: (error: any) => {
+      toast.error(
+        error?.response?.data?.message || 'Failed to process refund for order.'
+      )
+    },
+  })
+}

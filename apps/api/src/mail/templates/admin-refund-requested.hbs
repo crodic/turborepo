@@ -1,0 +1,94 @@
+<html lang='en'>
+  <body
+    style='margin:0;padding:0;background:#eef2f7;font-family:Arial,Helvetica,sans-serif;color:#111827;'
+  >
+    <table
+      role='presentation'
+      width='100%'
+      cellspacing='0'
+      cellpadding='0'
+      style='background:#eef2f7;'
+    >
+      <tr>
+        <td align='center' style='padding:40px 16px;'>
+          <table
+            role='presentation'
+            width='100%'
+            cellspacing='0'
+            cellpadding='0'
+            style='max-width:640px;background:#ffffff;border:1px solid #dbe3ef;border-radius:24px;overflow:hidden;box-shadow:0 20px 50px rgba(15,23,42,0.10);'
+          >
+            <tr>
+              <td style='padding:30px 36px 24px;background:#0f172a;'>
+                <span
+                  style='display:inline-block;width:40px;height:40px;border-radius:12px;background:#f59e0b;text-align:center;line-height:40px;color:#ffffff;font-size:18px;font-weight:700;'
+                >$</span>
+                <span
+                  style='float:right;border:1px solid rgba(255,255,255,0.20);border-radius:999px;color:#fde68a;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:8px 12px;'
+                >Refund Request</span>
+              </td>
+            </tr>
+            <tr>
+              <td style='padding:36px 36px 14px;'>
+                <h1
+                  style='margin:0;color:#111827;font-size:28px;line-height:36px;font-weight:800;'
+                >New Refund Request Submitted</h1>
+                <p
+                  style='margin:16px 0 0;color:#4b5563;font-size:15px;line-height:24px;'
+                >A customer has requested a refund for order <strong>#{{orderNumber}}</strong>. Please review the details below:</p>
+              </td>
+            </tr>
+            <tr>
+              <td style='padding:0 36px 20px;'>
+                <table
+                  role='presentation'
+                  width='100%'
+                  cellspacing='0'
+                  cellpadding='12'
+                  style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;font-size:14px;'
+                >
+                  <tr>
+                    <td style='color:#64748b;width:35%;'>Order Number:</td>
+                    <td style='font-weight:600;color:#0f172a;'>#{{orderNumber}}</td>
+                  </tr>
+                  <tr>
+                    <td style='color:#64748b;'>Customer Email:</td>
+                    <td style='font-weight:600;color:#0f172a;'>{{customerEmail}}</td>
+                  </tr>
+                  <tr>
+                    <td style='color:#64748b;'>Requested Amount:</td>
+                    <td style='font-weight:700;color:#059669;'>{{amount}} {{currency}}</td>
+                  </tr>
+                  <tr>
+                    <td style='color:#64748b;'>Reason:</td>
+                    <td style='font-weight:600;color:#0f172a;text-transform:capitalize;'>{{reason}}</td>
+                  </tr>
+                  {{#if customerNote}}
+                  <tr>
+                    <td style='color:#64748b;vertical-align:top;'>Customer Note:</td>
+                    <td style='color:#334155;font-style:italic;'>&ldquo;{{customerNote}}&rdquo;</td>
+                  </tr>
+                  {{/if}}
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style='padding:10px 36px 24px;'>
+                <a
+                  href='{{portalUrl}}'
+                  target='_blank'
+                  style='display:inline-block;padding:14px 28px;background:#0f172a;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;border-radius:12px;'
+                >Review in Admin Portal</a>
+              </td>
+            </tr>
+            <tr>
+              <td style='padding:20px 36px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:12px;'>
+                You received this notification because your admin account has notifications enabled.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

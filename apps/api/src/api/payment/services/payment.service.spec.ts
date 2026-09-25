@@ -1,4 +1,7 @@
+import { NotificationService } from '@/api/notification/notification.service';
+import { MailService } from '@/mail/mail.service';
 import { BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -7,6 +10,7 @@ import {
   PaymentOrderEntity,
   PaymentOrderStatus,
 } from '../entities/payment-order.entity';
+import { PaymentRefundRequestEntity } from '../entities/payment-refund-request.entity';
 import {
   PaymentSubscriptionEntity,
   PaymentSubscriptionStatus,
@@ -32,6 +36,9 @@ describe('PaymentService', () => {
   let orderRepoMock: Partial<
     Record<keyof Repository<PaymentOrderEntity>, jest.Mock>
   >;
+  let refundRequestRepoMock: Partial<
+    Record<keyof Repository<PaymentRefundRequestEntity>, jest.Mock>
+  >;
   let transactionRepoMock: Partial<
     Record<keyof Repository<PaymentTransactionEntity>, jest.Mock>
   >;
@@ -54,6 +61,17 @@ describe('PaymentService', () => {
   let productServiceMock: {
     getProductBySlugAndInterval: jest.Mock;
   };
+  let notificationServiceMock: {
+    notifyAdmins: jest.Mock;
+  };
+  let mailServiceMock: {
+    sendAdminRefundRequestedEmail: jest.Mock;
+    sendCustomerRefundReviewedEmail: jest.Mock;
+  };
+  let configServiceMock: {
+    get: jest.Mock;
+    getOrThrow: jest.Mock;
+  };
 
   beforeEach(async () => {
     customerRepoMock = {
@@ -73,6 +91,15 @@ describe('PaymentService', () => {
       save: jest
         .fn()
         .mockImplementation((entity) => Promise.resolve({ ...entity, id: 10 })),
+      find: jest.fn().mockResolvedValue([]),
+    };
+
+    refundRequestRepoMock = {
+      findOne: jest.fn(),
+      create: jest.fn().mockImplementation((dto) => ({ ...dto, id: 50 })),
+      save: jest
+        .fn()
+        .mockImplementation((entity) => Promise.resolve({ ...entity, id: 50 })),
       find: jest.fn().mockResolvedValue([]),
     };
 
@@ -134,6 +161,25 @@ describe('PaymentService', () => {
       }),
     };
 
+    notificationServiceMock = {
+      notifyAdmins: jest.fn().mockResolvedValue({
+        inAppCount: 1,
+        emailRecipients: [{ id: 1, email: 'admin@example.com' }],
+      }),
+    };
+
+    mailServiceMock = {
+      sendAdminRefundRequestedEmail: jest.fn().mockResolvedValue(''),
+      sendCustomerRefundReviewedEmail: jest.fn().mockResolvedValue(''),
+    };
+
+    configServiceMock = {
+      get: jest.fn().mockReturnValue('http://localhost:3000'),
+      getOrThrow: jest
+        .fn()
+        .mockReturnValue('http://localhost:5173/reset-password'),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentService,
@@ -144,6 +190,10 @@ describe('PaymentService', () => {
         {
           provide: getRepositoryToken(PaymentOrderEntity),
           useValue: orderRepoMock,
+        },
+        {
+          provide: getRepositoryToken(PaymentRefundRequestEntity),
+          useValue: refundRequestRepoMock,
         },
         {
           provide: getRepositoryToken(PaymentTransactionEntity),
@@ -164,6 +214,18 @@ describe('PaymentService', () => {
         {
           provide: ProductService,
           useValue: productServiceMock,
+        },
+        {
+          provide: NotificationService,
+          useValue: notificationServiceMock,
+        },
+        {
+          provide: MailService,
+          useValue: mailServiceMock,
+        },
+        {
+          provide: ConfigService,
+          useValue: configServiceMock,
         },
       ],
     }).compile();

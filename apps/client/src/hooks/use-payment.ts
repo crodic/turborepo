@@ -6,10 +6,12 @@ import { extractErrorMessage } from "@/hooks/use-profile";
 import {
   CheckoutResponse,
   CreateCheckoutPayload,
+  CreateRefundRequestPayload,
   CustomerPortalPayload,
   CustomerPortalResponse,
   PaymentOrder,
   PaymentProduct,
+  PaymentRefundRequest,
   PaymentSubscription,
 } from "@/types/payment";
 import { toast } from "sonner";
@@ -19,6 +21,9 @@ export const PAYMENT_SUBSCRIPTIONS_QUERY_KEY = [
 ] as const;
 export const PAYMENT_ORDERS_QUERY_KEY = ["payment-orders"] as const;
 export const PRICING_PRODUCTS_QUERY_KEY = ["pricing-products"] as const;
+export const PAYMENT_REFUND_REQUESTS_QUERY_KEY = [
+  "payment-refund-requests",
+] as const;
 
 export function usePricingProducts() {
   return useQuery<PaymentProduct[]>({
@@ -124,6 +129,59 @@ export function useCustomerPortalSession() {
       const msg = extractErrorMessage(
         error,
         "Failed to open customer billing portal. Please try again."
+      );
+      toast.error(msg);
+    },
+  });
+}
+
+export function useUserRefundRequests() {
+  return useQuery<PaymentRefundRequest[]>({
+    queryKey: PAYMENT_REFUND_REQUESTS_QUERY_KEY,
+    queryFn: async () => {
+      try {
+        const response = await http.get<PaymentRefundRequest[]>(
+          "/api/v1/payments/refund-requests"
+        );
+        return response.data || [];
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 1000 * 60 * 2,
+  });
+}
+
+export function useCreateRefundRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    PaymentRefundRequest,
+    Error,
+    { orderId: string | number; data: CreateRefundRequestPayload }
+  >({
+    mutationFn: async ({ orderId, data }) => {
+      const response = await http.post<PaymentRefundRequest>(
+        `/api/v1/payments/orders/${orderId}/refund-request`,
+        data
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: PAYMENT_ORDERS_QUERY_KEY,
+      });
+      void queryClient.invalidateQueries({
+        queryKey: PAYMENT_REFUND_REQUESTS_QUERY_KEY,
+      });
+      toast.success(
+        "Refund request submitted successfully. Our team will review it shortly."
+      );
+    },
+    onError: (error) => {
+      const msg = extractErrorMessage(
+        error,
+        "Failed to submit refund request. Please try again."
       );
       toast.error(msg);
     },

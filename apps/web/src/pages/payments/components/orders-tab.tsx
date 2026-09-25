@@ -1,6 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import type { ColumnDef } from '@tanstack/react-table'
+import { RotateCcw } from 'lucide-react'
 import { parseAsString } from 'nuqs'
 import { Link } from 'react-router'
 import { PaginateQueryBuilder } from '@/lib/query-builder'
@@ -8,11 +9,13 @@ import { sortParser } from '@/lib/utils'
 import { useDataTable } from '@/hooks/use-data-table'
 import useGetFilterParams from '@/hooks/use-get-filter-params'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/data-table/data-table'
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header'
 import { DataTableToolbar } from '@/components/data-table/data-table-toolbar'
 import { useDataAdminOrders } from '../queries'
 import { type PaymentOrderSchema } from '../schema'
+import { DirectRefundDialog } from './direct-refund-dialog'
 
 const statusVariant: Record<
   string,
@@ -31,6 +34,11 @@ const orderFilterParsers = {
 } as const
 
 export function OrdersTab() {
+  const [selectedOrder, setSelectedOrder] = useState<PaymentOrderSchema | null>(
+    null
+  )
+  const [directRefundOpen, setDirectRefundOpen] = useState(false)
+
   const {
     page,
     perPage,
@@ -149,6 +157,31 @@ export function OrdersTab() {
           </span>
         ),
       },
+      {
+        id: 'actions',
+        header: () => <span className='text-xs'>Actions</span>,
+        cell: ({ row }) => {
+          const order = row.original
+          if (order.status === 'paid') {
+            return (
+              <Button
+                variant='outline'
+                size='sm'
+                className='text-muted-foreground hover:text-foreground h-7 gap-1 px-2 text-xs font-medium'
+                onClick={() => {
+                  setSelectedOrder(order)
+                  setDirectRefundOpen(true)
+                }}
+              >
+                <RotateCcw className='size-3 text-amber-600 dark:text-amber-400' />
+                <span>Refund</span>
+              </Button>
+            )
+          }
+
+          return null
+        },
+      },
     ],
     []
   )
@@ -161,8 +194,16 @@ export function OrdersTab() {
   })
 
   return (
-    <DataTable table={table} isFetching={isFetching}>
-      <DataTableToolbar table={table} />
-    </DataTable>
+    <>
+      <DataTable table={table} isFetching={isFetching}>
+        <DataTableToolbar table={table} />
+      </DataTable>
+
+      <DirectRefundDialog
+        order={selectedOrder}
+        open={directRefundOpen}
+        onOpenChange={setDirectRefundOpen}
+      />
+    </>
   )
 }

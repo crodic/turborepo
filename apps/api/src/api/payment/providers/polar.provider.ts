@@ -52,6 +52,26 @@ export class PolarProvider implements IPaymentGateway {
     };
   }
 
+  async createRefund(
+    input: import('../interfaces/payment-gateway.interface').GatewayRefundInput,
+  ): Promise<
+    import('../interfaces/payment-gateway.interface').GatewayRefundOutput
+  > {
+    const refund = await this.polarService.createRefund({
+      orderId: input.orderId,
+      amount: input.amount,
+      reason: input.reason,
+      comment: input.comment,
+    });
+
+    return {
+      refundId: refund.id,
+      status: refund.status,
+      amount: refund.amount,
+      raw: refund,
+    };
+  }
+
   async validateWebhook(
     payload: string | Buffer,
     headers: Record<string, string | string[] | undefined>,

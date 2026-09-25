@@ -205,6 +205,77 @@ export class MailService {
     return html;
   }
 
+  renderAdminRefundRequested(context: {
+    orderNumber: string;
+    customerEmail: string;
+    amount: string;
+    currency: string;
+    reason: string;
+    customerNote?: string;
+    portalUrl: string;
+  }): string {
+    return this.renderTemplate('admin-refund-requested', context);
+  }
+
+  async sendAdminRefundRequestedEmail(
+    email: string,
+    context: {
+      orderNumber: string;
+      customerEmail: string;
+      amount: string;
+      currency: string;
+      reason: string;
+      customerNote?: string;
+      portalUrl: string;
+    },
+    renderedHtml?: string,
+  ): Promise<string> {
+    const html = renderedHtml ?? this.renderAdminRefundRequested(context);
+    await this.mailerService.sendMail({
+      to: email,
+      subject: `[Refund Request] Order #${context.orderNumber} - ${context.amount} ${context.currency.toUpperCase()}`,
+      html,
+    });
+    return html;
+  }
+
+  renderCustomerRefundReviewed(context: {
+    customerEmail: string;
+    orderNumber: string;
+    isApproved: boolean;
+    amount?: string;
+    currency?: string;
+    adminNote?: string;
+    clientUrl: string;
+  }): string {
+    return this.renderTemplate('customer-refund-reviewed', context);
+  }
+
+  async sendCustomerRefundReviewedEmail(
+    email: string,
+    context: {
+      customerEmail: string;
+      orderNumber: string;
+      isApproved: boolean;
+      amount?: string;
+      currency?: string;
+      adminNote?: string;
+      clientUrl: string;
+    },
+    renderedHtml?: string,
+  ): Promise<string> {
+    const html = renderedHtml ?? this.renderCustomerRefundReviewed(context);
+    const subject = context.isApproved
+      ? `Refund Approved: Order #${context.orderNumber}`
+      : `Refund Request Update: Order #${context.orderNumber}`;
+    await this.mailerService.sendMail({
+      to: email,
+      subject,
+      html,
+    });
+    return html;
+  }
+
   private renderTemplate(
     templateName:
       | 'admin-email-verification'
@@ -214,7 +285,9 @@ export class MailService {
       | 'admin-email'
       | 'admin-account-deletion-requested'
       | 'admin-account-hard-deleted'
-      | 'admin-account-hard-deleted-report',
+      | 'admin-account-hard-deleted-report'
+      | 'admin-refund-requested'
+      | 'customer-refund-reviewed',
     context: Record<string, unknown>,
   ): string {
     const templatePath = join(__dirname, 'templates', `${templateName}.hbs`);

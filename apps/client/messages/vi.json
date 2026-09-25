@@ -146,7 +146,34 @@
         "amount": "Số tiền",
         "status": "Trạng thái",
         "receipt": "Biên lai / Hóa đơn",
-        "viewReceipt": "Xem biên lai"
+        "viewReceipt": "Xem biên lai",
+        "refundPending": "Đang chờ hoàn tiền",
+        "refundRejected": "Từ chối hoàn tiền",
+        "requestRefund": "Yêu cầu hoàn tiền"
+      },
+      "refundDialog": {
+        "title": "Yêu cầu hoàn tiền",
+        "description": "Gửi yêu cầu hoàn tiền cho đơn hàng #{orderNumber}.",
+        "policyNotice": "Yêu cầu hoàn tiền áp dụng theo chính sách hoàn tiền trong vòng 14 ngày. Sau khi gửi, đội ngũ quản trị sẽ xem xét trong vòng 24-48 giờ.",
+        "reasonLabel": "Lý do hoàn tiền",
+        "reasonPlaceholder": "Chọn lý do hoàn tiền",
+        "reasons": {
+          "satisfactionGuarantee": "Chưa hài lòng với dịch vụ / Không đúng mong đợi",
+          "serviceDisruption": "Lỗi kỹ thuật hoặc gián đoạn dịch vụ",
+          "duplicate": "Thanh toán trùng lặp ngoài ý muốn",
+          "customerRequest": "Thay đổi nhu cầu sử dụng",
+          "other": "Lý do khác"
+        },
+        "noteLabel": "Thông tin chi tiết (Không bắt buộc)",
+        "notePlaceholder": "Vui lòng chia sẻ thêm lý do để chúng tôi cải thiện chất lượng dịch vụ...",
+        "noteDescription": "Tối đa 500 ký tự.",
+        "cancel": "Hủy",
+        "submit": "Gửi yêu cầu hoàn tiền",
+        "submitting": "Đang gửi yêu cầu...",
+        "validation": {
+          "reasonRequired": "Vui lòng chọn lý do hoàn tiền.",
+          "noteTooLong": "Ghi chú không được vượt quá 500 ký tự."
+        }
       }
     },
     "memberSince": "Thành viên từ",

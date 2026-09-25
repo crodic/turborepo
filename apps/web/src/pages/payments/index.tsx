@@ -8,13 +8,14 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { OrdersTab } from './components/orders-tab'
+import { RefundRequestsTab } from './components/refund-requests-tab'
 import { SubscriptionsTab } from './components/subscriptions-tab'
 import { TransactionsTab } from './components/transactions-tab'
 
 export function PagePaymentsOverview() {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<
-    'orders' | 'subscriptions' | 'transactions'
+    'orders' | 'subscriptions' | 'transactions' | 'refund-requests'
   >('orders')
 
   return (
@@ -59,6 +60,11 @@ export function PagePaymentsOverview() {
                 defaultValue: 'Transactions',
               })}
             </TabsTrigger>
+            <TabsTrigger value='refund-requests'>
+              {t('payments.tabs.refundRequests', {
+                defaultValue: 'Refund Requests',
+              })}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value='orders' className='mt-0'>
@@ -71,6 +77,10 @@ export function PagePaymentsOverview() {
 
           <TabsContent value='transactions' className='mt-0'>
             <TransactionsTab />
+          </TabsContent>
+
+          <TabsContent value='refund-requests' className='mt-0'>
+            <RefundRequestsTab />
           </TabsContent>
         </Tabs>
       </Main>

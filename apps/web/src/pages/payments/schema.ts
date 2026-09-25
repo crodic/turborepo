@@ -110,3 +110,52 @@ export const userPaymentSummarySchema = z.object({
 })
 
 export type UserPaymentSummarySchema = z.infer<typeof userPaymentSummarySchema>
+
+export const PaymentRefundRequestStatus = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+} as const
+
+export type PaymentRefundRequestStatus =
+  (typeof PaymentRefundRequestStatus)[keyof typeof PaymentRefundRequestStatus]
+
+export const paymentRefundRequestSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  orderId: z.union([z.string(), z.number()]),
+  userId: z.union([z.string(), z.number()]),
+  amount: z.number(),
+  currency: z.string(),
+  reason: z.string(),
+  customerNote: z.string().nullish(),
+  status: z.string(),
+  adminNote: z.string().nullish(),
+  reviewedBy: z.union([z.string(), z.number()]).nullish(),
+  reviewedAt: z.string().nullish(),
+  polarRefundId: z.string().nullish(),
+  createdAt: z.string(),
+  updatedAt: z.string().nullish(),
+  order: paymentOrderSchema.nullish(),
+})
+
+export type PaymentRefundRequestSchema = z.infer<
+  typeof paymentRefundRequestSchema
+>
+
+export const reviewRefundRequestSchema = z.object({
+  action: z.enum(['approve', 'reject']),
+  adminNote: z.string().max(500).optional(),
+  amount: z.number().int().positive().optional(),
+})
+
+export type ReviewRefundRequestSchema = z.infer<
+  typeof reviewRefundRequestSchema
+>
+
+export const directRefundSchema = z.object({
+  reason: z.string().min(1, 'Reason is required'),
+  comment: z.string().max(500).optional(),
+  amount: z.number().int().positive().optional(),
+})
+
+export type DirectRefundSchema = z.infer<typeof directRefundSchema>

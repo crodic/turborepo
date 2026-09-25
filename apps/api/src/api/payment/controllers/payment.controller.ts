@@ -1,3 +1,4 @@
+import { AutoIncrementID } from '@/common/types/common.type';
 import { CurrentUser } from '@/decorators/current-user.decorator';
 import { Public } from '@/decorators/public.decorator';
 import { UserAuthGuard } from '@/guards/user-auth.guard';
@@ -6,6 +7,8 @@ import {
   Controller,
   Get,
   HttpStatus,
+  Param,
+  ParseIntPipe,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -17,10 +20,12 @@ import {
 } from '@nestjs/swagger';
 import { CreateCheckoutReqDto } from '../dto/create-checkout.req.dto';
 import { CreateCheckoutResDto } from '../dto/create-checkout.res.dto';
+import { CreateRefundRequestReqDto } from '../dto/create-refund-request.req.dto';
 import { CustomerPortalReqDto } from '../dto/customer-portal.req.dto';
 import { CustomerPortalResDto } from '../dto/customer-portal.res.dto';
 import { PaymentOrderResDto } from '../dto/payment-order.res.dto';
 import { PaymentProductResDto } from '../dto/payment-product.res.dto';
+import { PaymentRefundRequestResDto } from '../dto/payment-refund-request.res.dto';
 import { PaymentSubscriptionResDto } from '../dto/payment-subscription.res.dto';
 import { PaymentService } from '../services/payment.service';
 import { ProductService } from '../services/product.service';
@@ -137,5 +142,45 @@ export class PaymentController {
       String(userId),
       email,
     );
+  }
+
+  @Post('orders/:id/refund-request')
+  @UseGuards(UserAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Request a refund for an order',
+    description:
+      'Submits a refund request for an eligible paid order. Requests must be submitted within 14 days of purchase.',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Refund request submitted successfully',
+    type: PaymentRefundRequestResDto,
+  })
+  async createRefundRequest(
+    @Param('id', ParseIntPipe) orderId: AutoIncrementID,
+    @Body() dto: CreateRefundRequestReqDto,
+    @CurrentUser('id') userId: AutoIncrementID,
+  ): Promise<PaymentRefundRequestResDto> {
+    return await this.paymentService.createRefundRequest(userId, orderId, dto);
+  }
+
+  @Get('refund-requests')
+  @UseGuards(UserAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get current user refund requests',
+    description:
+      'Retrieves all refund requests submitted by the authenticated user.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'List of user refund requests',
+    type: [PaymentRefundRequestResDto],
+  })
+  async getMyRefundRequests(
+    @CurrentUser('id') userId: AutoIncrementID,
+  ): Promise<PaymentRefundRequestResDto[]> {
+    return await this.paymentService.getUserRefundRequests(userId);
   }
 }

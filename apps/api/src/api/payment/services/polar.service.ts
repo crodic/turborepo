@@ -102,6 +102,24 @@ export class PolarService {
     return await polar.products.list({});
   }
 
+  async createRefund(params: {
+    orderId: string;
+    reason: string;
+    amount: number;
+    comment?: string;
+    revokeBenefits?: boolean;
+  }) {
+    const polar = this.ensureConfigured();
+
+    return await polar.refunds.create({
+      orderId: params.orderId,
+      reason: params.reason as any,
+      amount: params.amount,
+      comment: params.comment,
+      revokeBenefits: params.revokeBenefits ?? true,
+    });
+  }
+
   validateWebhookEvent(
     rawBody: string | Buffer,
     headers: Record<string, string | string[] | undefined>,

@@ -18,6 +18,13 @@ export default {
   'navigation.management.locations': 'Locations',
   'navigation.management.payments': 'Payments',
   'navigation.management.paymentProducts': 'Payment Products',
+  'payments.title': 'Payments & Billing',
+  'payments.description':
+    'Monitor global orders, SaaS recurring subscriptions, payment transaction logs, and refund requests.',
+  'payments.tabs.orders': 'Orders',
+  'payments.tabs.subscriptions': 'Subscriptions',
+  'payments.tabs.transactions': 'Transactions',
+  'payments.tabs.refundRequests': 'Refund Requests',
   'navigation.orders.title': 'Orders',
   'navigation.other.title': 'Other',
   'navigation.other.settings': 'Settings',
