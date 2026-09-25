@@ -25,6 +25,26 @@ export default {
   'payments.tabs.subscriptions': 'Subscriptions',
   'payments.tabs.transactions': 'Transactions',
   'payments.tabs.refundRequests': 'Refund Requests',
+  'paymentProducts.title': 'Payment Products',
+  'paymentProducts.description':
+    'Manage pricing tiers, subscription intervals, feature lists, and Polar Product IDs.',
+  'paymentProducts.createTitle': 'Create Pricing Plan',
+  'paymentProducts.createDescription':
+    'Add a new subscription tier with Polar Product ID integration.',
+  'paymentProducts.createSuccess': 'Plan "{{name}}" created successfully',
+  'paymentProducts.editTitle': 'Edit Pricing Plan',
+  'paymentProducts.editDescription':
+    'Update plan pricing, features, and Polar Product ID integration.',
+  'paymentProducts.updateSuccess': 'Plan "{{name}}" updated successfully',
+  'paymentProducts.deleteTitle': 'Delete plan "{{name}}" ({{interval}})?',
+  'paymentProducts.deleteDesc':
+    'Are you sure you want to remove this pricing plan? If it has existing orders, it will be safely archived on Polar to preserve existing subscriptions. If it has no orders, it will be permanently deleted.',
+  'paymentProducts.deleteSuccess': 'Payment product deleted successfully',
+  'paymentProducts.syncSuccess': 'Successfully synced products from Polar!',
+  'paymentProducts.syncError': 'Failed to sync products from Polar.',
+  'paymentProducts.syncFromPolar': 'Sync from Polar',
+  'paymentProducts.syncing': 'Syncing...',
+  'paymentProducts.addPlan': 'Add Custom Plan',
   'navigation.orders.title': 'Orders',
   'navigation.other.title': 'Other',
   'navigation.other.settings': 'Settings',

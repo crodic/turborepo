@@ -365,7 +365,7 @@ const appRoutes: RouteObject[] = [
           {
             index: true,
             element: (
-              <RouteAuthorize isAnyPermission>
+              <RouteAuthorize action='read' subject='PAYMENT_PRODUCT'>
                 <PagePaymentProductsOverview />
               </RouteAuthorize>
             ),
@@ -373,7 +373,7 @@ const appRoutes: RouteObject[] = [
           {
             path: 'create',
             element: (
-              <RouteAuthorize isAnyPermission>
+              <RouteAuthorize action='create' subject='PAYMENT_PRODUCT'>
                 <PagePaymentProductCreate />
               </RouteAuthorize>
             ),
@@ -381,7 +381,7 @@ const appRoutes: RouteObject[] = [
           {
             path: ':id/edit',
             element: (
-              <RouteAuthorize isAnyPermission>
+              <RouteAuthorize action='update' subject='PAYMENT_PRODUCT'>
                 <PagePaymentProductEdit />
               </RouteAuthorize>
             ),
@@ -391,7 +391,7 @@ const appRoutes: RouteObject[] = [
       {
         path: '/payments',
         element: (
-          <RouteAuthorize isAnyPermission>
+          <RouteAuthorize action='read' subject='PAYMENT'>
             <PagePaymentsOverview />
           </RouteAuthorize>
         ),

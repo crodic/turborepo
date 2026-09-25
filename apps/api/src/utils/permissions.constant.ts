@@ -8,6 +8,8 @@ export enum AppSubjects {
   File = 'FILE',
   Page = 'PAGE',
   Location = 'LOCATION',
+  Payment = 'PAYMENT',
+  PaymentProduct = 'PAYMENT_PRODUCT',
 
   All = 'all',
 }
@@ -270,6 +272,52 @@ export const ALL_PERMISSIONS = [
     'Location Management',
     'Delete locations',
     'Remove regions, countries, states, and cities.',
+  ),
+
+  // Payment
+  permissionMeta(
+    AppActions.Read,
+    AppSubjects.Payment,
+    'Payment Management',
+    'View payments',
+    'View payment orders, subscriptions, transactions, and refund requests.',
+  ),
+  permissionMeta(
+    AppActions.Update,
+    AppSubjects.Payment,
+    'Payment Management',
+    'Manage refunds',
+    'Review, approve, reject refund requests and issue direct refunds.',
+  ),
+
+  // Payment Product
+  permissionMeta(
+    AppActions.Read,
+    AppSubjects.PaymentProduct,
+    'Payment Products Management',
+    'View payment products',
+    'View pricing products, plans, and tier configurations.',
+  ),
+  permissionMeta(
+    AppActions.Create,
+    AppSubjects.PaymentProduct,
+    'Payment Products Management',
+    'Create payment products',
+    'Create new pricing products and plans.',
+  ),
+  permissionMeta(
+    AppActions.Update,
+    AppSubjects.PaymentProduct,
+    'Payment Products Management',
+    'Update payment products',
+    'Edit pricing products, sync from Polar, and update plan configurations.',
+  ),
+  permissionMeta(
+    AppActions.Delete,
+    AppSubjects.PaymentProduct,
+    'Payment Products Management',
+    'Delete payment products',
+    'Delete or archive pricing products.',
   ),
 
   // SUPER

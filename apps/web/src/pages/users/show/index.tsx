@@ -6,6 +6,7 @@ import { ArrowLeftIcon, EditIcon, TrashIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -25,6 +26,7 @@ import { UserPaymentCard } from './components/user-payment-card'
 export function PageUserShow() {
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const { ability } = useAuthStore()
   const queryClient = useQueryClient()
   const params = useParams()
   const id = params.id as string
@@ -159,7 +161,7 @@ export function PageUserShow() {
             </CardContent>
           </Card>
 
-          <UserPaymentCard userId={id} />
+          {ability.can('read', 'PAYMENT') && <UserPaymentCard userId={id} />}
         </div>
       </Main>
     </>

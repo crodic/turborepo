@@ -1,6 +1,10 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import { CurrentUser } from '@/decorators/current-user.decorator';
+import { CheckPolicies } from '@/decorators/policies.decorator';
 import { AdminAuthGuard } from '@/guards/admin-auth.guard';
+import { PoliciesGuard } from '@/guards/policies.guard';
+import { AppAbility } from '@/shared/casl/ability.factory';
+import { AppActions, AppSubjects } from '@/utils/permissions.constant';
 import {
   Body,
   Controller,
@@ -39,7 +43,7 @@ import { ProductService } from '../services/product.service';
   path: 'admin/payments',
   version: '1',
 })
-@UseGuards(AdminAuthGuard)
+@UseGuards(AdminAuthGuard, PoliciesGuard)
 @ApiBearerAuth()
 export class AdminPaymentController {
   constructor(
@@ -60,6 +64,9 @@ export class AdminPaymentController {
     status: HttpStatus.OK,
     description: 'Paginated list of payment products',
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.PaymentProduct),
+  )
   async getProducts(
     @Paginate() query: PaginateQuery,
   ): Promise<Paginated<PaymentProductResDto>> {
@@ -77,6 +84,9 @@ export class AdminPaymentController {
     description: 'Product details',
     type: PaymentProductResDto,
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.PaymentProduct),
+  )
   async getProductById(
     @Param('id') id: AutoIncrementID,
   ): Promise<PaymentProductResDto> {
@@ -93,8 +103,28 @@ export class AdminPaymentController {
     status: HttpStatus.OK,
     description: 'Products synchronized successfully',
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Update, AppSubjects.PaymentProduct),
+  )
   async syncProductsFromPolar() {
     return await this.productService.syncAllProductsFromPolar();
+  }
+
+  @Get('benefits')
+  @ApiOperation({
+    summary: 'Get available Polar benefits (Admin)',
+    description:
+      'Retrieves all available benefits defined in Polar for product attachment.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'List of Polar benefits',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.PaymentProduct),
+  )
+  async getBenefits() {
+    return await this.productService.getPolarBenefits();
   }
 
   @Post('products')
@@ -108,6 +138,9 @@ export class AdminPaymentController {
     description: 'Product created successfully',
     type: PaymentProductResDto,
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Create, AppSubjects.PaymentProduct),
+  )
   async createProduct(
     @Body() dto: CreateProductReqDto,
   ): Promise<PaymentProductResDto> {
@@ -125,6 +158,9 @@ export class AdminPaymentController {
     description: 'Product updated successfully',
     type: PaymentProductResDto,
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Update, AppSubjects.PaymentProduct),
+  )
   async updateProduct(
     @Param('id') id: AutoIncrementID,
     @Body() dto: UpdateProductReqDto,
@@ -142,6 +178,9 @@ export class AdminPaymentController {
     status: HttpStatus.OK,
     description: 'Product deleted successfully',
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Delete, AppSubjects.PaymentProduct),
+  )
   async deleteProduct(
     @Param('id') id: AutoIncrementID,
   ): Promise<{ success: boolean }> {
@@ -162,6 +201,9 @@ export class AdminPaymentController {
     status: HttpStatus.OK,
     description: 'Paginated list of payment orders',
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.Payment),
+  )
   async getOrders(
     @Paginate() query: PaginateQuery,
   ): Promise<Paginated<PaymentOrderResDto>> {
@@ -178,6 +220,9 @@ export class AdminPaymentController {
     status: HttpStatus.OK,
     description: 'Paginated list of payment transactions',
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.Payment),
+  )
   async getTransactions(
     @Paginate() query: PaginateQuery,
   ): Promise<Paginated<PaymentTransactionResDto>> {
@@ -194,6 +239,9 @@ export class AdminPaymentController {
     status: HttpStatus.OK,
     description: 'Paginated list of subscriptions',
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.Payment),
+  )
   async getSubscriptions(
     @Paginate() query: PaginateQuery,
   ): Promise<Paginated<PaymentSubscriptionResDto>> {
@@ -212,6 +260,9 @@ export class AdminPaymentController {
     description: 'User payment summary',
     type: UserPaymentSummaryResDto,
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.Payment),
+  )
   async getUserPaymentSummary(
     @Param('userId') userId: AutoIncrementID,
   ): Promise<UserPaymentSummaryResDto> {
@@ -232,6 +283,9 @@ export class AdminPaymentController {
     status: HttpStatus.OK,
     description: 'Paginated list of refund requests',
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.Payment),
+  )
   async getRefundRequests(
     @Paginate() query: PaginateQuery,
   ): Promise<Paginated<PaymentRefundRequestResDto>> {
@@ -250,6 +304,9 @@ export class AdminPaymentController {
     description: 'Refund request reviewed successfully',
     type: PaymentRefundRequestResDto,
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Update, AppSubjects.Payment),
+  )
   async reviewRefundRequest(
     @Param('id', ParseIntPipe) id: AutoIncrementID,
     @Body() dto: ReviewRefundRequestReqDto,
@@ -270,6 +327,9 @@ export class AdminPaymentController {
     description: 'Order refunded successfully',
     type: PaymentOrderResDto,
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Update, AppSubjects.Payment),
+  )
   async directRefundOrder(
     @Param('id', ParseIntPipe) id: AutoIncrementID,
     @Body() dto: DirectRefundReqDto,

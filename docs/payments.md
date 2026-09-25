@@ -464,20 +464,42 @@ Integrated into the User Detail view ([`UserPaymentCard`](file:///apps/web/src/p
 
 ### 6.2. Admin Endpoints (`/api/v1/admin/payments`)
 
-| Method   | Endpoint                      | Auth      | Description                                                 |
-| :------- | :---------------------------- | :-------- | :---------------------------------------------------------- |
-| `GET`    | `/orders`                     | Admin JWT | Paginated list of all customer orders                       |
-| `GET`    | `/subscriptions`              | Admin JWT | Paginated list of all SaaS subscriptions                    |
-| `GET`    | `/transactions`               | Admin JWT | Paginated list of financial ledger transactions             |
-| `GET`    | `/users/:userId/summary`      | Admin JWT | Summary of LTV, active plan, and orders for a specific user |
-| `GET`    | `/products`                   | Admin JWT | Paginated list of payment products/tiers                    |
-| `GET`    | `/products/:id`               | Admin JWT | Get product configuration by ID                             |
-| `POST`   | `/products`                   | Admin JWT | Create a new pricing tier / Polar product mapping           |
-| `PUT`    | `/products/:id`               | Admin JWT | Update pricing tier or Polar product ID                     |
-| `DELETE` | `/products/:id`               | Admin JWT | Soft/Hard remove a pricing tier                             |
-| `GET`    | `/refund-requests`            | Admin JWT | Paginated list of all customer refund requests              |
-| `POST`   | `/refund-requests/:id/review` | Admin JWT | Reviews (Approves or Rejects) a pending refund request      |
-| `POST`   | `/orders/:id/direct-refund`   | Admin JWT | Directly refunds a paid order without prior request         |
+Tất cả các endpoint Admin được bảo vệ bởi cả `AdminAuthGuard` và `PoliciesGuard` sử dụng hệ thống CASL RBAC.
+
+| Method   | Endpoint                      | Auth & Required Permission | Description                                                 |
+| :------- | :---------------------------- | :------------------------- | :---------------------------------------------------------- |
+| `GET`    | `/orders`                     | `read:PAYMENT`             | Paginated list of all customer orders                       |
+| `GET`    | `/subscriptions`              | `read:PAYMENT`             | Paginated list of all SaaS subscriptions                    |
+| `GET`    | `/transactions`               | `read:PAYMENT`             | Paginated list of financial ledger transactions             |
+| `GET`    | `/users/:userId/summary`      | `read:PAYMENT`             | Summary of LTV, active plan, and orders for a specific user |
+| `GET`    | `/products`                   | `read:PAYMENT_PRODUCT`     | Paginated list of payment products/tiers                    |
+| `GET`    | `/products/:id`               | `read:PAYMENT_PRODUCT`     | Get product configuration by ID                             |
+| `GET`    | `/benefits`                   | `read:PAYMENT_PRODUCT`     | Get available Polar benefits for attachment                 |
+| `POST`   | `/products/sync-polar`        | `update:PAYMENT_PRODUCT`   | Fetch & sync active products from Polar API                 |
+| `POST`   | `/products`                   | `create:PAYMENT_PRODUCT`   | Create a new pricing tier & sync directly to Polar          |
+| `PUT`    | `/products/:id`               | `update:PAYMENT_PRODUCT`   | Update pricing tier & sync changes to Polar                 |
+| `DELETE` | `/products/:id`               | `delete:PAYMENT_PRODUCT`   | Archive/Delete product adhering to Polar safety constraints |
+| `GET`    | `/refund-requests`            | `read:PAYMENT`             | Paginated list of all customer refund requests              |
+| `POST`   | `/refund-requests/:id/review` | `update:PAYMENT`           | Reviews (Approves or Rejects) a pending refund request      |
+| `POST`   | `/orders/:id/direct-refund`   | `update:PAYMENT`           | Directly refunds a paid order without prior request         |
+
+### 6.3. Two-Way Polar Synchronization & Rules (Strict Polar Docs Adherence)
+
+Admin can manage products directly from the Admin Portal without navigating to Polar dashboard:
+
+1. **Product Creation (`POST /admin/payments/products` -> `POST /v1/products/`)**:
+   - Creates the product directly on Polar with fixed or free pricing and visibility (`public` or `private`).
+   - Obtains the Polar Product UUID and persists it in PostgreSQL.
+   - Attaches selected Polar benefits automatically via `POST /v1/products/{id}/benefits`.
+2. **Product Editing (`PUT /admin/payments/products/:id` -> `PATCH /v1/products/{id}`)**:
+   - Updates `name`, `description`, `prices`, `metadata`, `visibility`.
+   - Synchronizes benefit entitlement updates via `POST /v1/products/{id}/benefits`.
+   - **Polar Invariant**: Billing model (`recurring` vs `one_time`) and `interval` (`monthly` vs `yearly`) **cannot be changed** once created on Polar. The UI form disables these fields in edit mode to preserve subscription integrity.
+3. **Safe Deletion & Archiving (`DELETE /admin/payments/products/:id`)**:
+   - **Rule from Polar Docs**: _"Only products without orders, subscriptions, trials or discounts can be deleted. Products that are in use can only be archived."_
+   - When an admin initiates deletion:
+     - If the product has orders in `payment_orders`: It is **safely archived** on Polar (`is_archived: true`) and marked `isActive = false` in PostgreSQL. Existing subscribers continue uninterrupted.
+     - If the product has zero orders: It is removed from Polar and permanently deleted from PostgreSQL.
 
 ---
 

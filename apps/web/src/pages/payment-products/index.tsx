@@ -3,6 +3,7 @@ import { PlusIcon, RefreshCw } from 'lucide-react'
 import { parseAsString } from 'nuqs'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
+import { useAuthStore } from '@/stores/auth-store'
 import { PaginateQueryBuilder } from '@/lib/query-builder'
 import { sortParser } from '@/lib/utils'
 import { useDataTable } from '@/hooks/use-data-table'
@@ -34,6 +35,9 @@ const productFilterParsers = {
 export function PagePaymentProductsOverview() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { ability } = useAuthStore()
+  const canCreate = ability.can('create', 'PAYMENT_PRODUCT')
+  const canUpdate = ability.can('update', 'PAYMENT_PRODUCT')
   const syncMutation = useMutationSyncProductsFromPolar()
   const {
     page,
@@ -106,27 +110,33 @@ export function PagePaymentProductsOverview() {
             </p>
           </div>
           <div className='flex items-center gap-2'>
-            <Button
-              variant='outline'
-              onClick={() => syncMutation.mutate()}
-              disabled={syncMutation.isPending}
-            >
-              <RefreshCw
-                className={`mr-1.5 size-4 ${syncMutation.isPending ? 'animate-spin' : ''}`}
-              />
-              {syncMutation.isPending ? 'Syncing...' : 'Sync from Polar'}
-            </Button>
-            <Button onClick={() => navigate('create')}>
-              <PlusIcon />
-              {t('buttons.create', { defaultValue: 'Add Custom Plan' })}
-            </Button>
+            {canUpdate && (
+              <Button
+                variant='outline'
+                onClick={() => syncMutation.mutate()}
+                disabled={syncMutation.isPending}
+              >
+                <RefreshCw
+                  className={`mr-1.5 size-4 ${syncMutation.isPending ? 'animate-spin' : ''}`}
+                />
+                {syncMutation.isPending ? 'Syncing...' : 'Sync from Polar'}
+              </Button>
+            )}
+            {canCreate && (
+              <Button onClick={() => navigate('create')}>
+                <PlusIcon />
+                {t('buttons.create', { defaultValue: 'Add Custom Plan' })}
+              </Button>
+            )}
           </div>
         </div>
         <DataTable
           table={table}
           isFetching={isFetching}
           onClickRowAction={(row) => {
-            navigate(`/payment-products/${row.id}/edit`)
+            if (canUpdate) {
+              navigate(`/payment-products/${row.id}/edit`)
+            }
           }}
         >
           <DataTableToolbar table={table}>

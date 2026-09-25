@@ -25,6 +25,26 @@ export default {
   'payments.tabs.subscriptions': 'Gói đăng ký',
   'payments.tabs.transactions': 'Giao dịch',
   'payments.tabs.refundRequests': 'Yêu cầu hoàn tiền',
+  'paymentProducts.title': 'Gói sản phẩm thanh toán',
+  'paymentProducts.description':
+    'Quản lý các gói giá, chu kỳ đăng ký, danh sách tính năng và liên kết Polar Product ID.',
+  'paymentProducts.createTitle': 'Tạo gói sản phẩm mới',
+  'paymentProducts.createDescription':
+    'Thêm gói giá mới và tự động đồng bộ sang cổng thanh toán Polar.',
+  'paymentProducts.createSuccess': 'Đã tạo gói "{{name}}" thành công',
+  'paymentProducts.editTitle': 'Chỉnh sửa gói sản phẩm',
+  'paymentProducts.editDescription':
+    'Cập nhật giá, tính năng và đồng bộ thay đổi sang Polar.',
+  'paymentProducts.updateSuccess': 'Đã cập nhật gói "{{name}}" thành công',
+  'paymentProducts.deleteTitle': 'Xóa gói "{{name}}" ({{interval}})?',
+  'paymentProducts.deleteDesc':
+    'Bạn có chắc chắn muốn xóa gói giá này? Nếu gói đã có đơn hàng phát sinh, hệ thống sẽ tự động lưu trữ (Archive) trên Polar để bảo toàn đăng ký của khách hàng cũ. Nếu chưa có đơn, gói sẽ bị xóa vĩnh viễn.',
+  'paymentProducts.deleteSuccess': 'Đã xóa gói sản phẩm thành công',
+  'paymentProducts.syncSuccess': 'Đã đồng bộ sản phẩm từ Polar thành công!',
+  'paymentProducts.syncError': 'Đồng bộ sản phẩm từ Polar thất bại.',
+  'paymentProducts.syncFromPolar': 'Đồng bộ từ Polar',
+  'paymentProducts.syncing': 'Đang đồng bộ...',
+  'paymentProducts.addPlan': 'Thêm gói tùy chỉnh',
   'navigation.orders.title': 'Đơn hàng',
   'navigation.other.title': 'Khác',
   'navigation.other.settings': 'Cài đặt',

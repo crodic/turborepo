@@ -37,6 +37,14 @@ export const groupPermission = [
     permissions: ['create', 'read', 'update', 'delete'],
   },
   {
+    group: 'PAYMENT',
+    permissions: ['read', 'update'],
+  },
+  {
+    group: 'PAYMENT_PRODUCT',
+    permissions: ['create', 'read', 'update', 'delete'],
+  },
+  {
     group: 'manage',
     permissions: ['all'],
   },
@@ -91,6 +99,16 @@ export const permissions = [
   { action: 'read', subject: 'LOCATION' },
   { action: 'update', subject: 'LOCATION' },
   { action: 'delete', subject: 'LOCATION' },
+
+  // PAYMENT
+  { action: 'read', subject: 'PAYMENT' },
+  { action: 'update', subject: 'PAYMENT' },
+
+  // PAYMENT_PRODUCT
+  { action: 'create', subject: 'PAYMENT_PRODUCT' },
+  { action: 'read', subject: 'PAYMENT_PRODUCT' },
+  { action: 'update', subject: 'PAYMENT_PRODUCT' },
+  { action: 'delete', subject: 'PAYMENT_PRODUCT' },
 
   // SUPER
   { action: 'manage', subject: 'all' },

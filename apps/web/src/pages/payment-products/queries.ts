@@ -8,6 +8,8 @@ import {
 import { toast } from 'sonner'
 import http from '@/lib/http'
 import {
+  polarBenefitSchema,
+  type PolarBenefitSchema,
   paymentProductSchema,
   type PaymentProductFormSchema,
   type PaymentProductSchema,
@@ -17,7 +19,20 @@ export const paymentProductQueryKeys = {
   all: ['payment-products'] as const,
   list: (params: PaginateQueryParams) => ['payment-products', params] as const,
   detail: (id: string) => ['payment-product', id] as const,
+  benefits: ['polar-benefits'] as const,
 }
+
+export async function apiGetPolarBenefits(): Promise<PolarBenefitSchema[]> {
+  const response = await http.get('/admin/payments/benefits')
+  return z.array(polarBenefitSchema).parse(response.data)
+}
+
+export const useDataPolarBenefits = () =>
+  useQuery({
+    queryKey: paymentProductQueryKeys.benefits,
+    queryFn: apiGetPolarBenefits,
+    staleTime: 60 * 1000,
+  })
 
 export async function apiGetPaymentProductsListing(
   params: PaginateQueryParams
@@ -46,9 +61,17 @@ function preparePayload(data: PaymentProductFormSchema) {
         .filter(Boolean)
     : []
 
-  const { featuresText, ...rest } = data
+  const interval =
+    data.billingType === 'one_time'
+      ? 'one_time'
+      : data.interval === 'one_time'
+        ? 'monthly'
+        : data.interval
+
+  const { featuresText, billingType, ...rest } = data
   return {
     ...rest,
+    interval,
     features,
   }
 }

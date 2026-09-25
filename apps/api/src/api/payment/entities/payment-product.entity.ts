@@ -95,6 +95,9 @@ export class PaymentProductEntity extends AbstractEntity {
   @Index('IDX_payment_products_is_active')
   isActive!: boolean;
 
+  @Column({ type: 'varchar', length: 20, default: 'public' })
+  visibility!: string;
+
   @Column({ name: 'sort_order', type: 'integer', default: 0 })
   sortOrder!: number;
 

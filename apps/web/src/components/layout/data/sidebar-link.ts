@@ -104,11 +104,13 @@ export const sidebarLink: SidebarData = {
           title: 'navigation.management.payments',
           url: '/payments',
           icon: Receipt,
+          permission: 'PAYMENT',
         },
         {
           title: 'navigation.management.paymentProducts',
           url: '/payment-products',
           icon: CreditCard,
+          permission: 'PAYMENT_PRODUCT',
         },
       ],
     },

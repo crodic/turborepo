@@ -5,6 +5,7 @@ import { Edit2Icon, MoreHorizontalIcon, Trash2Icon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -27,6 +28,9 @@ export default function ComponentTableRowActions({
   const queryClient = useQueryClient()
   const item = row.original
   const [openDelete, setOpenDelete] = useState(false)
+  const { ability } = useAuthStore()
+  const canUpdate = ability.can('update', 'PAYMENT_PRODUCT')
+  const canDelete = ability.can('delete', 'PAYMENT_PRODUCT')
 
   const deleteMutation = useMutation({
     mutationFn: apiDeletePaymentProduct,
@@ -44,6 +48,8 @@ export default function ComponentTableRowActions({
     },
   })
 
+  if (!canUpdate && !canDelete) return null
+
   return (
     <>
       <DropdownMenu>
@@ -53,21 +59,26 @@ export default function ComponentTableRowActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align='end'>
-          <DropdownMenuItem
-            onClick={() => navigate(`/payment-products/${item.id}/edit`)}
-          >
-            <Edit2Icon className='size-4' />
-            {t('buttons.edit', { defaultValue: 'Edit' })}
-          </DropdownMenuItem>
+          {canUpdate && (
+            <DropdownMenuItem
+              onClick={() => navigate(`/payment-products/${item.id}/edit`)}
+            >
+              <Edit2Icon className='size-4' />
+              {t('buttons.edit', { defaultValue: 'Edit' })}
+            </DropdownMenuItem>
+          )}
 
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className='text-destructive focus:text-destructive'
-            onClick={() => setOpenDelete(true)}
-          >
-            <Trash2Icon className='size-4' />
-            {t('buttons.delete', { defaultValue: 'Delete' })}
-          </DropdownMenuItem>
+          {canUpdate && canDelete && <DropdownMenuSeparator />}
+
+          {canDelete && (
+            <DropdownMenuItem
+              className='text-destructive focus:text-destructive'
+              onClick={() => setOpenDelete(true)}
+            >
+              <Trash2Icon className='size-4' />
+              {t('buttons.delete', { defaultValue: 'Delete' })}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -81,7 +92,7 @@ export default function ComponentTableRowActions({
         })}
         description={t('paymentProducts.deleteDesc', {
           defaultValue:
-            'Are you sure you want to remove this pricing plan? Existing active subscriptions will not be deleted.',
+            'Are you sure you want to remove this pricing plan? If it has existing orders, it will be safely archived on Polar to preserve existing subscriptions. If it has no orders, it will be permanently deleted.',
         })}
       />
     </>

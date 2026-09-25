@@ -106,6 +106,31 @@ export class CreateProductReqDto {
   })
   isFree?: boolean;
 
+  @ApiPropertyOptional({
+    description: 'Polar Benefit IDs to grant on purchase',
+    example: ['ben_123', 'ben_456'],
+    type: [String],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  benefits?: string[];
+
+  @StringFieldOptional({
+    description: 'Product visibility (public or private)',
+    example: 'public',
+  })
+  @IsIn(['public', 'private'])
+  visibility?: 'public' | 'private';
+
+  @ApiPropertyOptional({
+    description: 'Custom metadata object',
+    type: 'object',
+    additionalProperties: true,
+  })
+  @IsOptional()
+  metadata?: Record<string, any>;
+
   @BooleanFieldOptional({
     description: 'Whether this plan is currently active and visible to users',
     example: true,

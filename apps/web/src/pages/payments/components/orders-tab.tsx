@@ -4,6 +4,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { RotateCcw } from 'lucide-react'
 import { parseAsString } from 'nuqs'
 import { Link } from 'react-router'
+import { useAuthStore } from '@/stores/auth-store'
 import { PaginateQueryBuilder } from '@/lib/query-builder'
 import { sortParser } from '@/lib/utils'
 import { useDataTable } from '@/hooks/use-data-table'
@@ -60,6 +61,9 @@ export function OrdersTab() {
   if (filter.status) {
     builder.eq('status', filter.status)
   }
+
+  const { ability } = useAuthStore()
+  const canManageRefund = ability.can('update', 'PAYMENT')
 
   const { data, isFetching } = useDataAdminOrders(builder.build())
 
@@ -162,7 +166,7 @@ export function OrdersTab() {
         header: () => <span className='text-xs'>Actions</span>,
         cell: ({ row }) => {
           const order = row.original
-          if (order.status === 'paid') {
+          if (order.status === 'paid' && canManageRefund) {
             return (
               <Button
                 variant='outline'
@@ -183,7 +187,7 @@ export function OrdersTab() {
         },
       },
     ],
-    []
+    [canManageRefund]
   )
 
   const { table } = useDataTable({

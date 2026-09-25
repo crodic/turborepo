@@ -4,6 +4,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { CheckCircle2, Clock, ShieldCheck, XCircle } from 'lucide-react'
 import { parseAsString } from 'nuqs'
 import { Link } from 'react-router'
+import { useAuthStore } from '@/stores/auth-store'
 import { PaginateQueryBuilder } from '@/lib/query-builder'
 import { sortParser } from '@/lib/utils'
 import { useDataTable } from '@/hooks/use-data-table'
@@ -57,6 +58,9 @@ export function RefundRequestsTab() {
   if (filter.status) {
     builder.eq('status', filter.status)
   }
+
+  const { ability } = useAuthStore()
+  const canManageRefund = ability.can('update', 'PAYMENT')
 
   const { data, isFetching } = useDataAdminRefundRequests(builder.build())
 
@@ -191,7 +195,7 @@ export function RefundRequestsTab() {
         header: () => <span className='text-xs'>Actions</span>,
         cell: ({ row }) => {
           const req = row.original
-          if (req.status === 'pending') {
+          if (req.status === 'pending' && canManageRefund) {
             return (
               <Button
                 variant='outline'
@@ -216,7 +220,7 @@ export function RefundRequestsTab() {
         },
       },
     ],
-    []
+    [canManageRefund]
   )
 
   const { table } = useDataTable({

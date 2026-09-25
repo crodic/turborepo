@@ -17,6 +17,7 @@ import { Repository } from 'typeorm';
 import { CreateProductReqDto } from '../dto/create-product.req.dto';
 import { PaymentProductResDto } from '../dto/payment-product.res.dto';
 import { UpdateProductReqDto } from '../dto/update-product.req.dto';
+import { PaymentOrderEntity } from '../entities/payment-order.entity';
 import { PaymentProductEntity } from '../entities/payment-product.entity';
 import { PolarService } from './polar.service';
 
@@ -27,6 +28,8 @@ export class ProductService {
   constructor(
     @InjectRepository(PaymentProductEntity)
     private readonly productRepo: Repository<PaymentProductEntity>,
+    @InjectRepository(PaymentOrderEntity)
+    private readonly orderRepo: Repository<PaymentOrderEntity>,
     private readonly polarService: PolarService,
   ) {}
 
@@ -113,7 +116,7 @@ export class ProductService {
   }
 
   /**
-   * Creates a new pricing product in the database
+   * Creates a new pricing product and synchronizes it to Polar if configured
    */
   async createProduct(dto: CreateProductReqDto): Promise<PaymentProductResDto> {
     const existing = await this.productRepo.findOne({
@@ -126,18 +129,64 @@ export class ProductService {
       );
     }
 
+    let polarProductId = dto.polarProductId || '';
+    let polarMetadata = dto.metadata || {};
+
+    // 1. Sync product to Polar if Polar Gateway is configured and polarProductId was not manually provided
+    if (this.polarService.isGatewayConfigured() && !polarProductId) {
+      try {
+        const polarProduct = await this.polarService.createPolarProduct({
+          name: dto.name,
+          description: dto.description,
+          interval: dto.interval as 'monthly' | 'yearly' | 'one_time',
+          price: dto.price,
+          currency: dto.currency || 'usd',
+          isFree: dto.isFree,
+          metadata: {
+            ...polarMetadata,
+            planSlug: dto.planSlug,
+            badge: dto.badge,
+            ctaText: dto.ctaText,
+            sortOrder: dto.sortOrder,
+          },
+          visibility: dto.visibility || 'public',
+        });
+
+        polarProductId = polarProduct.id;
+        polarMetadata =
+          (polarProduct.metadata as Record<string, any>) || polarMetadata;
+
+        // Grant benefits if provided
+        if (dto.benefits && dto.benefits.length > 0) {
+          await this.polarService.updateProductBenefits(
+            polarProductId,
+            dto.benefits,
+          );
+        }
+      } catch (err: any) {
+        this.logger.error(
+          `Failed to create product on Polar: ${err.message}`,
+          err.stack,
+        );
+        throw err;
+      }
+    }
+
+    const initialPrices =
+      dto.prices && dto.prices.length > 0
+        ? dto.prices
+        : [{ amount: dto.price, currency: dto.currency || 'usd' }];
+
     const product = this.productRepo.create({
       ...dto,
       currency: dto.currency || 'usd',
-      prices:
-        dto.prices && dto.prices.length > 0
-          ? dto.prices
-          : [{ amount: dto.price, currency: dto.currency || 'usd' }],
-      polarProductId: dto.polarProductId || '',
+      prices: initialPrices,
+      polarProductId,
       features: dto.features || [],
-      metadata: {},
-      benefits: [],
+      metadata: polarMetadata,
+      benefits: dto.benefits ? dto.benefits.map((b) => ({ id: b })) : [],
       medias: [],
+      visibility: dto.visibility || 'public',
       ctaText: dto.ctaText || 'Get Started',
       isPopular: dto.isPopular ?? false,
       isFree: dto.isFree ?? dto.price === 0,
@@ -154,7 +203,7 @@ export class ProductService {
   }
 
   /**
-   * Updates an existing pricing product
+   * Updates an existing pricing product and synchronizes changes to Polar
    */
   async updateProduct(
     id: AutoIncrementID,
@@ -183,7 +232,47 @@ export class ProductService {
       }
     }
 
+    // Sync updates to Polar if linked
+    if (this.polarService.isGatewayConfigured() && product.polarProductId) {
+      try {
+        await this.polarService.updatePolarProduct(product.polarProductId, {
+          name: dto.name,
+          description: dto.description,
+          price: dto.price,
+          currency: dto.currency || product.currency,
+          isFree: dto.isFree,
+          isArchived: dto.isActive !== undefined ? !dto.isActive : undefined,
+          visibility: dto.visibility,
+          metadata: {
+            ...product.metadata,
+            ...dto.metadata,
+            planSlug: targetSlug,
+            badge: dto.badge !== undefined ? dto.badge : product.badge,
+            ctaText: dto.ctaText !== undefined ? dto.ctaText : product.ctaText,
+            sortOrder:
+              dto.sortOrder !== undefined ? dto.sortOrder : product.sortOrder,
+          },
+        });
+
+        if (dto.benefits !== undefined) {
+          await this.polarService.updateProductBenefits(
+            product.polarProductId,
+            dto.benefits,
+          );
+        }
+      } catch (err: any) {
+        this.logger.error(
+          `Failed to sync product update to Polar (${product.polarProductId}): ${err.message}`,
+          err.stack,
+        );
+        throw err;
+      }
+    }
+
     Object.assign(product, dto);
+    if (dto.benefits !== undefined) {
+      product.benefits = dto.benefits.map((b) => ({ id: b }));
+    }
     if (dto.price !== undefined && !dto.prices) {
       product.prices = [
         {
@@ -201,18 +290,71 @@ export class ProductService {
   }
 
   /**
-   * Deletes a pricing product
+   * Deletes or archives a pricing product based on whether it has existing orders.
+   * As specified by Polar Docs: products with orders cannot be deleted; they must be archived.
    */
-  async deleteProduct(id: AutoIncrementID): Promise<void> {
+  async deleteProduct(
+    id: AutoIncrementID,
+  ): Promise<{ archived: boolean; deleted: boolean }> {
     const product = await this.productRepo.findOne({ where: { id } });
     if (!product) {
       throw new NotFoundException(`Product with ID #${id} not found.`);
     }
 
+    // Check if this product has existing orders
+    const orderCount = await this.orderRepo.count({
+      where: [
+        { productId: product.polarProductId },
+        { productId: String(product.id) },
+      ],
+    });
+
+    if (orderCount > 0) {
+      // Product in use: archive on Polar and deactivate in local DB
+      if (this.polarService.isGatewayConfigured() && product.polarProductId) {
+        try {
+          await this.polarService.archivePolarProduct(product.polarProductId);
+        } catch (err: any) {
+          this.logger.warn(
+            `Could not archive product on Polar: ${err.message}`,
+          );
+        }
+      }
+
+      product.isActive = false;
+      await this.productRepo.save(product);
+      this.logger.log(
+        `Product #${id} (${product.planSlug} ${product.interval}) has ${orderCount} orders. Archived instead of hard deletion.`,
+      );
+      return { archived: true, deleted: false };
+    }
+
+    // Product has no orders: delete permanently
+    if (this.polarService.isGatewayConfigured() && product.polarProductId) {
+      try {
+        await this.polarService.deletePolarProduct(product.polarProductId);
+      } catch (err: any) {
+        this.logger.warn(
+          `Could not delete/archive product on Polar: ${err.message}`,
+        );
+      }
+    }
+
     await this.productRepo.remove(product);
     this.logger.log(
-      `Product #${id} (${product.planSlug} ${product.interval}) deleted.`,
+      `Product #${id} (${product.planSlug} ${product.interval}) deleted permanently.`,
     );
+    return { archived: false, deleted: true };
+  }
+
+  /**
+   * Retrieves available benefits from Polar
+   */
+  async getPolarBenefits(): Promise<any[]> {
+    if (!this.polarService.isGatewayConfigured()) {
+      return [];
+    }
+    return await this.polarService.listBenefits();
   }
 
   /**

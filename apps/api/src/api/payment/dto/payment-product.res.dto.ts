@@ -85,6 +85,9 @@ export class PaymentProductResDto {
   @ApiProperty({ example: true })
   isActive!: boolean;
 
+  @ApiProperty({ example: 'public', enum: ['public', 'private'] })
+  visibility!: string;
+
   @ApiProperty({ example: 1 })
   sortOrder!: number;
 

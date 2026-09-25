@@ -15,6 +15,18 @@ export const ColumnKey = {
   updatedAt: 'updatedAt',
 } as const
 
+export const polarBenefitSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  description: z.string(),
+  selectable: z.boolean().optional(),
+  deletable: z.boolean().optional(),
+  organizationId: z.string().optional(),
+  properties: z.record(z.string(), z.any()).optional(),
+})
+
+export type PolarBenefitSchema = z.infer<typeof polarBenefitSchema>
+
 export const paymentProductSchema = z.object({
   id: z.coerce.string(),
   planSlug: z.string(),
@@ -23,6 +35,7 @@ export const paymentProductSchema = z.object({
   interval: z.enum(['monthly', 'yearly', 'one_time']),
   price: z.number(),
   currency: z.string().default('usd'),
+  visibility: z.enum(['public', 'private']).default('public'),
   prices: z
     .array(
       z.object({
@@ -60,9 +73,12 @@ export const paymentProductFormSchema = z.object({
     .min(1, 'Plan slug is required (e.g. pro, enterprise)'),
   name: z.string().trim().min(1, 'Display name is required'),
   description: z.string().optional(),
+  billingType: z.enum(['recurring', 'one_time']),
   interval: z.enum(['monthly', 'yearly', 'one_time']),
   price: z.number().min(0, 'Price must be >= 0'),
   currency: z.string(),
+  visibility: z.enum(['public', 'private']),
+  benefits: z.array(z.string()),
   polarProductId: z.string().optional(),
   featuresText: z.string().optional(),
   badge: z.string().optional(),

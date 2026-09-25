@@ -97,9 +97,153 @@ export class PolarService {
     return session;
   }
 
+  isGatewayConfigured(): boolean {
+    return this.isConfigured;
+  }
+
   async listProducts() {
     const polar = this.ensureConfigured();
     return await polar.products.list({});
+  }
+
+  async createPolarProduct(params: {
+    name: string;
+    description?: string;
+    interval: 'monthly' | 'yearly' | 'one_time';
+    price: number;
+    currency: string;
+    isFree?: boolean;
+    metadata?: Record<string, any>;
+    visibility?: 'public' | 'private';
+  }) {
+    const polar = this.ensureConfigured();
+    const currency = (params.currency || 'usd').toLowerCase();
+    const isZeroDecimal = currency === 'vnd' || currency === 'jpy';
+    const isFree = Boolean(params.isFree || params.price === 0);
+    const priceAmount = isFree
+      ? 0
+      : isZeroDecimal
+        ? params.price
+        : Math.round(params.price * 100);
+
+    const priceObj: any = {
+      amountType: 'fixed',
+      priceAmount,
+      priceCurrency: currency,
+    };
+
+    let createPayload: any;
+    if (params.interval === 'one_time') {
+      createPayload = {
+        name: params.name,
+        description: params.description || undefined,
+        prices: [priceObj],
+        metadata: params.metadata,
+        visibility: params.visibility || 'public',
+      };
+    } else {
+      createPayload = {
+        name: params.name,
+        description: params.description || undefined,
+        recurringInterval: params.interval === 'monthly' ? 'month' : 'year',
+        prices: [priceObj],
+        metadata: params.metadata,
+        visibility: params.visibility || 'public',
+      };
+    }
+
+    this.logger.log(
+      `Creating product "${params.name}" (${params.interval}) on Polar...`,
+    );
+    return await polar.products.create(createPayload);
+  }
+
+  async updatePolarProduct(
+    polarProductId: string,
+    params: {
+      name?: string;
+      description?: string;
+      metadata?: Record<string, any>;
+      visibility?: 'public' | 'private';
+      isArchived?: boolean;
+      price?: number;
+      currency?: string;
+      isFree?: boolean;
+    },
+  ) {
+    const polar = this.ensureConfigured();
+    const productUpdate: any = {};
+
+    if (params.name !== undefined) productUpdate.name = params.name;
+    if (params.description !== undefined) {
+      productUpdate.description = params.description;
+    }
+    if (params.metadata !== undefined) productUpdate.metadata = params.metadata;
+    if (params.visibility !== undefined) {
+      productUpdate.visibility = params.visibility;
+    }
+    if (params.isArchived !== undefined) {
+      productUpdate.isArchived = params.isArchived;
+    }
+
+    if (params.price !== undefined) {
+      const currency = (params.currency || 'usd').toLowerCase();
+      const isZeroDecimal = currency === 'vnd' || currency === 'jpy';
+      const isFree = Boolean(params.isFree || params.price === 0);
+      const priceAmount = isFree
+        ? 0
+        : isZeroDecimal
+          ? params.price
+          : Math.round(params.price * 100);
+
+      productUpdate.prices = [
+        {
+          amountType: 'fixed',
+          priceAmount,
+          priceCurrency: currency,
+        },
+      ];
+    }
+
+    this.logger.log(`Updating Polar product ${polarProductId}...`);
+    return await polar.products.update({
+      id: polarProductId,
+      productUpdate,
+    });
+  }
+
+  async updateProductBenefits(polarProductId: string, benefitIds: string[]) {
+    const polar = this.ensureConfigured();
+    this.logger.log(
+      `Updating benefits for Polar product ${polarProductId}: ${benefitIds.join(', ')}`,
+    );
+    return await polar.products.updateBenefits({
+      id: polarProductId,
+      productBenefitsUpdate: {
+        benefits: benefitIds,
+      },
+    });
+  }
+
+  async archivePolarProduct(polarProductId: string) {
+    const polar = this.ensureConfigured();
+    this.logger.log(`Archiving Polar product ${polarProductId}...`);
+    return await polar.products.update({
+      id: polarProductId,
+      productUpdate: {
+        isArchived: true,
+      },
+    });
+  }
+
+  async deletePolarProduct(polarProductId: string) {
+    return await this.archivePolarProduct(polarProductId);
+  }
+
+  async listBenefits() {
+    const polar = this.ensureConfigured();
+    const response = await polar.benefits.list({ limit: 100 });
+    return (response as any)?.result?.items ?? (response as any)?.items ?? [];
   }
 
   async createRefund(params: {
