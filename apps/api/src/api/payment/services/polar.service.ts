@@ -25,6 +25,29 @@ export type CreateCustomerSessionParams = {
   externalCustomerId?: string;
 };
 
+export function sanitizePolarMetadata(
+  meta?: Record<string, any>,
+): Record<string, string | number | boolean> {
+  if (!meta || typeof meta !== 'object') return {};
+  const cleaned: Record<string, string | number | boolean> = {};
+  for (const [key, value] of Object.entries(meta)) {
+    if (value === null || value === undefined) {
+      continue;
+    }
+    if (typeof value === 'boolean') {
+      cleaned[key] = value;
+    } else if (typeof value === 'number' && !Number.isNaN(value)) {
+      cleaned[key] = value;
+    } else if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed.length > 0) {
+        cleaned[key] = trimmed;
+      }
+    }
+  }
+  return cleaned;
+}
+
 @Injectable()
 export class PolarService {
   private readonly logger = new Logger(PolarService.name);
@@ -109,47 +132,95 @@ export class PolarService {
   async createPolarProduct(params: {
     name: string;
     description?: string;
-    interval: 'monthly' | 'yearly' | 'one_time';
+    interval: string;
+    intervalCount?: number;
     price: number;
     currency: string;
+    prices?: Array<{ amount: number; currency: string }>;
     isFree?: boolean;
     metadata?: Record<string, any>;
     visibility?: 'public' | 'private';
+    trialInterval?: string;
+    trialIntervalCount?: number;
   }) {
     const polar = this.ensureConfigured();
-    const currency = (params.currency || 'usd').toLowerCase();
-    const isZeroDecimal = currency === 'vnd' || currency === 'jpy';
-    const isFree = Boolean(params.isFree || params.price === 0);
-    const priceAmount = isFree
-      ? 0
-      : isZeroDecimal
-        ? params.price
-        : Math.round(params.price * 100);
 
-    const priceObj: any = {
-      amountType: 'fixed',
-      priceAmount,
-      priceCurrency: currency,
+    let pricesList: any[] = [];
+    if (params.prices && params.prices.length > 0) {
+      pricesList = params.prices.map((p) => {
+        const curr = (p.currency || 'usd').toLowerCase();
+        const isZeroDecimal = curr === 'vnd' || curr === 'jpy';
+        const isFree = Boolean(params.isFree || p.amount === 0);
+        return {
+          amountType: 'fixed',
+          priceCurrency: curr,
+          priceAmount: isFree
+            ? 0
+            : isZeroDecimal
+              ? p.amount
+              : Math.round(p.amount * 100),
+        };
+      });
+    } else {
+      const currency = (params.currency || 'usd').toLowerCase();
+      const isZeroDecimal = currency === 'vnd' || currency === 'jpy';
+      const isFree = Boolean(params.isFree || params.price === 0);
+      const priceAmount = isFree
+        ? 0
+        : isZeroDecimal
+          ? params.price
+          : Math.round(params.price * 100);
+
+      pricesList = [
+        {
+          amountType: 'fixed',
+          priceAmount,
+          priceCurrency: currency,
+        },
+      ];
+    }
+
+    let recurringInterval: 'day' | 'week' | 'month' | 'year' | undefined;
+    if (params.interval !== 'one_time') {
+      const intervalMap: Record<string, 'day' | 'week' | 'month' | 'year'> = {
+        daily: 'day',
+        day: 'day',
+        weekly: 'week',
+        week: 'week',
+        monthly: 'month',
+        month: 'month',
+        yearly: 'year',
+        year: 'year',
+      };
+      recurringInterval = intervalMap[params.interval] || 'month';
+    }
+
+    const createPayload: any = {
+      name: params.name,
+      description: params.description || undefined,
+      prices: pricesList,
+      metadata: sanitizePolarMetadata(params.metadata),
+      visibility: params.visibility || 'public',
     };
 
-    let createPayload: any;
-    if (params.interval === 'one_time') {
-      createPayload = {
-        name: params.name,
-        description: params.description || undefined,
-        prices: [priceObj],
-        metadata: params.metadata,
-        visibility: params.visibility || 'public',
+    if (recurringInterval) {
+      createPayload.recurringInterval = recurringInterval;
+      createPayload.recurringIntervalCount = params.intervalCount || 1;
+    }
+
+    if (params.trialInterval) {
+      const trialMap: Record<string, 'day' | 'week' | 'month' | 'year'> = {
+        daily: 'day',
+        day: 'day',
+        weekly: 'week',
+        week: 'week',
+        monthly: 'month',
+        month: 'month',
+        yearly: 'year',
+        year: 'year',
       };
-    } else {
-      createPayload = {
-        name: params.name,
-        description: params.description || undefined,
-        recurringInterval: params.interval === 'monthly' ? 'month' : 'year',
-        prices: [priceObj],
-        metadata: params.metadata,
-        visibility: params.visibility || 'public',
-      };
+      createPayload.trialInterval = trialMap[params.trialInterval] || 'day';
+      createPayload.trialIntervalCount = params.trialIntervalCount || 1;
     }
 
     this.logger.log(
@@ -168,7 +239,10 @@ export class PolarService {
       isArchived?: boolean;
       price?: number;
       currency?: string;
+      prices?: Array<{ amount: number; currency: string }>;
       isFree?: boolean;
+      trialInterval?: string;
+      trialIntervalCount?: number;
     },
   ) {
     const polar = this.ensureConfigured();
@@ -178,15 +252,52 @@ export class PolarService {
     if (params.description !== undefined) {
       productUpdate.description = params.description;
     }
-    if (params.metadata !== undefined) productUpdate.metadata = params.metadata;
+    if (params.metadata !== undefined) {
+      productUpdate.metadata = sanitizePolarMetadata(params.metadata);
+    }
     if (params.visibility !== undefined) {
       productUpdate.visibility = params.visibility;
     }
     if (params.isArchived !== undefined) {
       productUpdate.isArchived = params.isArchived;
     }
+    if (params.trialInterval !== undefined) {
+      if (params.trialInterval) {
+        const trialMap: Record<string, 'day' | 'week' | 'month' | 'year'> = {
+          daily: 'day',
+          day: 'day',
+          weekly: 'week',
+          week: 'week',
+          monthly: 'month',
+          month: 'month',
+          yearly: 'year',
+          year: 'year',
+        };
+        productUpdate.trialInterval = trialMap[params.trialInterval] || null;
+      } else {
+        productUpdate.trialInterval = null;
+      }
+    }
+    if (params.trialIntervalCount !== undefined) {
+      productUpdate.trialIntervalCount = params.trialIntervalCount;
+    }
 
-    if (params.price !== undefined) {
+    if (params.prices && params.prices.length > 0) {
+      productUpdate.prices = params.prices.map((p) => {
+        const curr = (p.currency || 'usd').toLowerCase();
+        const isZeroDecimal = curr === 'vnd' || curr === 'jpy';
+        const isFree = Boolean(params.isFree || p.amount === 0);
+        return {
+          amountType: 'fixed',
+          priceCurrency: curr,
+          priceAmount: isFree
+            ? 0
+            : isZeroDecimal
+              ? p.amount
+              : Math.round(p.amount * 100),
+        };
+      });
+    } else if (params.price !== undefined) {
       const currency = (params.currency || 'usd').toLowerCase();
       const isZeroDecimal = currency === 'vnd' || currency === 'jpy';
       const isFree = Boolean(params.isFree || params.price === 0);
@@ -244,6 +355,29 @@ export class PolarService {
     const polar = this.ensureConfigured();
     const response = await polar.benefits.list({ limit: 100 });
     return (response as any)?.result?.items ?? (response as any)?.items ?? [];
+  }
+
+  async createBenefit(params: {
+    type: string;
+    description: string;
+    properties?: { note?: string };
+  }) {
+    const polar = this.ensureConfigured();
+    const payload: any = {
+      type: params.type || 'custom',
+      description: params.description,
+      properties: params.properties || {},
+    };
+    this.logger.log(
+      `Creating benefit "${params.description}" (${payload.type}) on Polar...`,
+    );
+    return await polar.benefits.create(payload);
+  }
+
+  async deleteBenefit(id: string) {
+    const polar = this.ensureConfigured();
+    this.logger.log(`Deleting benefit "${id}" on Polar...`);
+    return await polar.benefits.delete({ id });
   }
 
   async createRefund(params: {

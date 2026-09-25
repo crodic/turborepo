@@ -45,6 +45,90 @@ export default {
   'paymentProducts.syncFromPolar': 'Đồng bộ từ Polar',
   'paymentProducts.syncing': 'Đang đồng bộ...',
   'paymentProducts.addPlan': 'Thêm gói tùy chỉnh',
+  'paymentProducts.polarSynced': 'Đã đồng bộ với Polar (ID: {{id}})',
+  'paymentProducts.polarImmutableNote':
+    'Chu kỳ thanh toán và mô hình giá không thể thay đổi sau khi tạo. Thay đổi giá chỉ áp dụng cho người đăng ký mới.',
+  'paymentProducts.basicInfo': 'Thông tin cơ bản',
+  'paymentProducts.basicInfoDesc':
+    'Xác định mã định danh công khai và chi tiết của gói sản phẩm này.',
+  'paymentProducts.productName': 'Tên sản phẩm',
+  'paymentProducts.planSlug': 'Mã gói (Slug)',
+  'paymentProducts.planSlugDesc':
+    'Mã định danh duy nhất dùng cho các ứng dụng client và metadata mapping.',
+  'paymentProducts.pricingBilling': 'Giá & Chu kỳ thanh toán',
+  'paymentProducts.pricingBillingDesc':
+    'Thiết lập hình thức thanh toán định kỳ hoặc trả một lần.',
+  'paymentProducts.billingType': 'Loại thanh toán',
+  'paymentProducts.subscription': 'Đăng ký định kỳ',
+  'paymentProducts.subscriptionDesc': 'Chu kỳ thanh toán lặp lại.',
+  'paymentProducts.oneTime': 'Trả một lần',
+  'paymentProducts.oneTimeDesc':
+    'Khách hàng thanh toán một lần để dùng trọn đời.',
+  'paymentProducts.interval': 'Chu kỳ',
+  'paymentProducts.billingInterval': 'Chu kỳ thanh toán',
+  'paymentProducts.intervalCount': 'Tần suất (Mỗi N)',
+  'paymentProducts.intervalCountDesc': 'Ví dụ: 2 = mỗi 2 chu kỳ',
+  'paymentProducts.trialDuration': 'Thời lượng dùng thử',
+  'paymentProducts.prices': 'Bảng giá',
+  'paymentProducts.addCurrency': 'Thêm tiền tệ',
+  'paymentProducts.freeTier': 'Gói miễn phí',
+  'paymentProducts.freeTierDesc': 'Không tính phí. Bỏ qua cổng thanh toán.',
+  'paymentProducts.trialPeriod': 'Dùng thử miễn phí',
+  'paymentProducts.trialPeriodDesc':
+    'Cho phép khách hàng trải nghiệm trước khi thanh toán.',
+  'paymentProducts.trialInterval': 'Đơn vị dùng thử',
+  'paymentProducts.trialCount': 'Thời lượng',
+  'paymentProducts.benefits': 'Quyền lợi tự động (Benefits)',
+  'paymentProducts.benefitsDesc':
+    'Chọn các quyền lợi tự động cấp phát khi người dùng mua gói.',
+  'paymentProducts.createBenefit': 'Tạo quyền lợi mới',
+  'paymentProducts.createBenefitDesc':
+    'Tạo quyền lợi mới trên Polar để gắn vào gói sản phẩm.',
+  'paymentProducts.benefitType': 'Loại quyền lợi',
+  'paymentProducts.benefitTypeDesc':
+    'Quyền lợi tùy chỉnh (Custom) hiển thị ghi chú cho khách hàng. License keys tự tạo mã kích hoạt.',
+  'paymentProducts.benefitDescription': 'Mô tả quyền lợi',
+  'paymentProducts.benefitDescriptionHelp':
+    'Hiển thị cho khách hàng khi xem quyền lợi này.',
+  'paymentProducts.benefitNote': 'Ghi chú (Markdown)',
+  'paymentProducts.benefitNoteHelp':
+    'Ghi chú định dạng Markdown hiển thị sau khi mua.',
+  'paymentProducts.loadingBenefits': 'Đang tải quyền lợi từ Polar...',
+  'paymentProducts.noBenefits':
+    'Không tìm thấy quyền lợi nào trên tài khoản Polar.',
+  'paymentProducts.noBenefitsHint':
+    'Bấm "Tạo quyền lợi mới" để thêm hoặc cấu hình trên trang quản trị Polar.',
+  'paymentProducts.metadata': 'Metadata',
+  'paymentProducts.metadataDesc':
+    'Các cặp key-value tùy chỉnh đồng bộ với metadata sản phẩm Polar.',
+  'paymentProducts.addMetadata': 'Thêm Metadata',
+  'paymentProducts.noMetadata': 'Chưa có trường metadata nào.',
+  'paymentProducts.noMetadataHint':
+    'Bấm "Thêm Metadata" để thêm cặp key-value.',
+  'paymentProducts.visibility': 'Hiển thị & Cổng khách hàng',
+  'paymentProducts.visibilityDesc':
+    'Kiểm soát hiển thị sản phẩm công khai hay giới hạn liên kết trực tiếp.',
+  'paymentProducts.public': 'Công khai (Storefront)',
+  'paymentProducts.publicDesc':
+    'Hiển thị trên Cổng khách hàng và bảng giá công khai.',
+  'paymentProducts.private': 'Riêng tư (Không niêm yết)',
+  'paymentProducts.privateDesc':
+    'Ẩn khỏi danh mục. Khách hàng chỉ có thể mua qua liên kết trực tiếp.',
+  'paymentProducts.marketing': 'Trang đích & Tiếp thị',
+  'paymentProducts.marketingDesc':
+    'Cấu hình các điểm tính năng nổi bật, nhãn (badge) và thông tin trình bày.',
+  'paymentProducts.badge': 'Huy hiệu nổi bật',
+  'paymentProducts.ctaText': 'Nhãn nút bấm (CTA)',
+  'paymentProducts.sortOrder': 'Thứ tự hiển thị',
+  'paymentProducts.popular': 'Nổi bật / Phổ biến',
+  'paymentProducts.popularDesc':
+    'Thêm viền nhấn và huy hiệu nổi bật trên bảng giá.',
+  'paymentProducts.activeStatus': 'Trạng thái kích hoạt',
+  'paymentProducts.activeStatusDesc':
+    'Cho phép khách hàng mua gói trên trang công khai.',
+  'paymentProducts.features': 'Danh sách tính năng nổi bật',
+  'paymentProducts.featuresDesc':
+    'Nhập mỗi tính năng trên một dòng để hiển thị dưới dạng danh sách gạch đầu dòng.',
   'navigation.orders.title': 'Đơn hàng',
   'navigation.other.title': 'Khác',
   'navigation.other.settings': 'Cài đặt',

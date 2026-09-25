@@ -25,6 +25,14 @@ export class PaymentProductEntity extends AbstractEntity {
   @Index('IDX_payment_products_interval')
   interval!: string;
 
+  @Column({
+    name: 'interval_count',
+    type: 'integer',
+    nullable: true,
+    default: 1,
+  })
+  intervalCount?: number | null;
+
   @Column({ type: 'integer', default: 0 })
   price!: number;
 

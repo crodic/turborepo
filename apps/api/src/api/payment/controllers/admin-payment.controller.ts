@@ -25,6 +25,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Paginate, Paginated, PaginateQuery } from 'nestjs-paginate';
+import { CreateBenefitReqDto } from '../dto/create-benefit.req.dto';
 import { CreateProductReqDto } from '../dto/create-product.req.dto';
 import { DirectRefundReqDto } from '../dto/direct-refund.req.dto';
 import { PaymentOrderResDto } from '../dto/payment-order.res.dto';
@@ -125,6 +126,42 @@ export class AdminPaymentController {
   )
   async getBenefits() {
     return await this.productService.getPolarBenefits();
+  }
+
+  @Post('benefits')
+  @ApiOperation({
+    summary: 'Create a new Polar benefit (Admin)',
+    description:
+      'Creates a new benefit on Polar that can be attached to products.',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Benefit created successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Create, AppSubjects.PaymentProduct),
+  )
+  async createBenefit(@Body() dto: CreateBenefitReqDto) {
+    return await this.productService.createBenefit(dto);
+  }
+
+  @Delete('benefits/:id')
+  @ApiOperation({
+    summary: 'Delete a Polar benefit (Admin)',
+    description:
+      'Deletes a benefit from Polar. WARNING: This will revoke all grants associated with this benefit.',
+  })
+  @ApiParam({ name: 'id', description: 'Polar Benefit ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Benefit deleted successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Delete, AppSubjects.PaymentProduct),
+  )
+  async deleteBenefit(@Param('id') id: string): Promise<{ success: boolean }> {
+    await this.productService.deleteBenefit(id);
+    return { success: true };
   }
 
   @Post('products')

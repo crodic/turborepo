@@ -29,11 +29,33 @@ export class CreateProductReqDto {
   description?: string;
 
   @StringField({
-    description: 'Billing interval',
+    description:
+      'Billing interval (daily, weekly, monthly, yearly, or one_time)',
     example: 'monthly',
   })
-  @IsIn(['monthly', 'yearly', 'one_time'])
+  @IsIn(['daily', 'weekly', 'monthly', 'yearly', 'one_time'])
   interval!: string;
+
+  @NumberFieldOptional({
+    description: 'Interval count (e.g. 1 for every month, 2 for every 2 weeks)',
+    example: 1,
+    min: 1,
+  })
+  intervalCount?: number;
+
+  @StringFieldOptional({
+    description: 'Trial interval unit (daily, weekly, monthly, yearly)',
+    example: 'daily',
+  })
+  @IsIn(['daily', 'weekly', 'monthly', 'yearly'])
+  trialInterval?: string;
+
+  @NumberFieldOptional({
+    description: 'Number of trial interval units (e.g. 7 for 7 days)',
+    example: 7,
+    min: 1,
+  })
+  trialIntervalCount?: number;
 
   @NumberField({
     description: 'Price in dollars (e.g. 19 for $19)',

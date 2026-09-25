@@ -45,6 +45,85 @@ export default {
   'paymentProducts.syncFromPolar': 'Sync from Polar',
   'paymentProducts.syncing': 'Syncing...',
   'paymentProducts.addPlan': 'Add Custom Plan',
+  'paymentProducts.polarSynced': 'Synchronized with Polar (ID: {{id}})',
+  'paymentProducts.polarImmutableNote':
+    'Billing interval and model are immutable after creation. Price changes only apply to new subscribers.',
+  'paymentProducts.basicInfo': 'Basic Information',
+  'paymentProducts.basicInfoDesc':
+    'Define the public identifiers and details of this product.',
+  'paymentProducts.productName': 'Product Name',
+  'paymentProducts.planSlug': 'Plan Slug',
+  'paymentProducts.planSlugDesc':
+    'Unique slug key used by client apps and metadata mapping.',
+  'paymentProducts.pricingBilling': 'Pricing & Billing Cycle',
+  'paymentProducts.pricingBillingDesc':
+    'Set whether this product is a recurring subscription or one-time purchase.',
+  'paymentProducts.billingType': 'Billing Type',
+  'paymentProducts.subscription': 'Subscription',
+  'paymentProducts.subscriptionDesc': 'Recurring payment cycle.',
+  'paymentProducts.oneTime': 'One-time',
+  'paymentProducts.oneTimeDesc': 'Customer pays once for lifetime access.',
+  'paymentProducts.interval': 'Interval',
+  'paymentProducts.billingInterval': 'Billing Interval',
+  'paymentProducts.intervalCount': 'Every N',
+  'paymentProducts.intervalCountDesc': 'e.g. 2 = every 2 intervals',
+  'paymentProducts.trialDuration': 'Trial Duration',
+  'paymentProducts.prices': 'Prices',
+  'paymentProducts.addCurrency': 'Add Currency',
+  'paymentProducts.freeTier': 'Free Tier',
+  'paymentProducts.freeTierDesc': 'No charge. Skips payment gateway.',
+  'paymentProducts.trialPeriod': 'Free Trial Period',
+  'paymentProducts.trialPeriodDesc': 'Allow customers to try before they pay.',
+  'paymentProducts.trialInterval': 'Trial Unit',
+  'paymentProducts.trialCount': 'Duration',
+  'paymentProducts.benefits': 'Automated Benefits',
+  'paymentProducts.benefitsDesc':
+    'Select entitlements to automatically grant upon purchase.',
+  'paymentProducts.createBenefit': 'Create Benefit',
+  'paymentProducts.createBenefitDesc':
+    'Create a new benefit on Polar to attach to products.',
+  'paymentProducts.benefitType': 'Benefit Type',
+  'paymentProducts.benefitTypeDesc':
+    'Custom benefits show a note to customers. License keys generate activation keys.',
+  'paymentProducts.benefitDescription': 'Description',
+  'paymentProducts.benefitDescriptionHelp':
+    'Displayed to customers when viewing this benefit.',
+  'paymentProducts.benefitNote': 'Note (Markdown)',
+  'paymentProducts.benefitNoteHelp':
+    'Markdown note shown to customers after purchase.',
+  'paymentProducts.loadingBenefits': 'Loading benefits from Polar...',
+  'paymentProducts.noBenefits': 'No benefits found on your Polar account.',
+  'paymentProducts.noBenefitsHint':
+    'Click "Create Benefit" to add one, or configure them on Polar.',
+  'paymentProducts.metadata': 'Metadata',
+  'paymentProducts.metadataDesc':
+    'Custom key-value pairs synced with Polar product metadata.',
+  'paymentProducts.addMetadata': 'Add Metadata',
+  'paymentProducts.noMetadata': 'No metadata entries.',
+  'paymentProducts.noMetadataHint':
+    'Click "Add Metadata" to add key-value pairs.',
+  'paymentProducts.visibility': 'Customer Portal & Visibility',
+  'paymentProducts.visibilityDesc':
+    'Control whether this product is listed publicly.',
+  'paymentProducts.public': 'Public Storefront',
+  'paymentProducts.publicDesc':
+    'Listed in Customer Portal and pricing catalog.',
+  'paymentProducts.private': 'Private (Unlisted)',
+  'paymentProducts.privateDesc':
+    'Hidden from catalog. Buy via direct link only.',
+  'paymentProducts.marketing': 'Landing Page & Marketing',
+  'paymentProducts.marketingDesc':
+    'Feature bullets, badges, and presentation details.',
+  'paymentProducts.badge': 'Highlight Badge',
+  'paymentProducts.ctaText': 'Button Label (CTA)',
+  'paymentProducts.sortOrder': 'Display Order',
+  'paymentProducts.popular': 'Highlighted / Popular',
+  'paymentProducts.popularDesc': 'Add accent border & badge.',
+  'paymentProducts.activeStatus': 'Active Status',
+  'paymentProducts.activeStatusDesc': 'Allow purchases on the frontend.',
+  'paymentProducts.features': 'Feature Bullet Points',
+  'paymentProducts.featuresDesc':
+    'Enter one feature per line. Renders as checklist bullets.',
   'navigation.orders.title': 'Orders',
   'navigation.other.title': 'Other',
   'navigation.other.settings': 'Settings',

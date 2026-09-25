@@ -34,6 +34,55 @@ export const useDataPolarBenefits = () =>
     staleTime: 60 * 1000,
   })
 
+// --- Benefit CRUD ---
+
+export async function apiCreateBenefit(data: {
+  type: string
+  description: string
+  properties?: { note?: string }
+}) {
+  const response = await http.post('/admin/payments/benefits', data)
+  return response.data
+}
+
+export async function apiDeleteBenefit(id: string) {
+  return http.delete(`/admin/payments/benefits/${id}`)
+}
+
+export const useMutationCreateBenefit = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: apiCreateBenefit,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: paymentProductQueryKeys.benefits,
+      })
+      toast.success('Benefit created successfully')
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Failed to create benefit.')
+    },
+  })
+}
+
+export const useMutationDeleteBenefit = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: apiDeleteBenefit,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: paymentProductQueryKeys.benefits,
+      })
+      toast.success('Benefit deleted successfully')
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Failed to delete benefit.')
+    },
+  })
+}
+
+// --- Products Listing ---
+
 export async function apiGetPaymentProductsListing(
   params: PaginateQueryParams
 ): Promise<ApiMetadata & { data: PaymentProductSchema[] }> {
@@ -53,6 +102,8 @@ export async function apiGetPaymentProductById(
   return paymentProductSchema.parse(response.data)
 }
 
+// --- Payload Preparation ---
+
 function preparePayload(data: PaymentProductFormSchema) {
   const features = data.featuresText
     ? data.featuresText
@@ -68,13 +119,36 @@ function preparePayload(data: PaymentProductFormSchema) {
         ? 'monthly'
         : data.interval
 
-  const { featuresText, billingType, ...rest } = data
+  // Convert metadata array [{key, value}] to object {key: value}
+  const metadata: Record<string, string> = {}
+  for (const entry of data.metadata) {
+    if (entry.key.trim()) {
+      metadata[entry.key.trim()] = entry.value
+    }
+  }
+
+  // Use the first price as primary price/currency for backward compatibility
+  const primaryPrice = data.prices[0] || { amount: 0, currency: 'usd' }
+
+  const { featuresText, billingType, trialEnabled, ...rest } = data
+
   return {
     ...rest,
     interval,
+    intervalCount:
+      data.billingType === 'recurring' ? data.intervalCount : undefined,
+    price: primaryPrice.amount,
+    currency: primaryPrice.currency,
+    prices: data.prices,
     features,
+    metadata,
+    // Only send trial fields when enabled
+    trialInterval: trialEnabled ? data.trialInterval : null,
+    trialIntervalCount: trialEnabled ? data.trialIntervalCount : null,
   }
 }
+
+// --- Products CRUD ---
 
 export async function apiCreatePaymentProduct(data: PaymentProductFormSchema) {
   const payload = preparePayload(data)

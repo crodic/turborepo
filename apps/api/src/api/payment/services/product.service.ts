@@ -138,15 +138,19 @@ export class ProductService {
         const polarProduct = await this.polarService.createPolarProduct({
           name: dto.name,
           description: dto.description,
-          interval: dto.interval as 'monthly' | 'yearly' | 'one_time',
+          interval: dto.interval,
+          intervalCount: dto.intervalCount,
           price: dto.price,
           currency: dto.currency || 'usd',
+          prices: dto.prices,
           isFree: dto.isFree,
+          trialInterval: dto.trialInterval,
+          trialIntervalCount: dto.trialIntervalCount,
           metadata: {
             ...polarMetadata,
             planSlug: dto.planSlug,
-            badge: dto.badge,
-            ctaText: dto.ctaText,
+            badge: dto.badge || undefined,
+            ctaText: dto.ctaText || undefined,
             sortOrder: dto.sortOrder,
           },
           visibility: dto.visibility || 'public',
@@ -240,15 +244,22 @@ export class ProductService {
           description: dto.description,
           price: dto.price,
           currency: dto.currency || product.currency,
+          prices: dto.prices,
           isFree: dto.isFree,
           isArchived: dto.isActive !== undefined ? !dto.isActive : undefined,
           visibility: dto.visibility,
+          trialInterval: dto.trialInterval,
+          trialIntervalCount: dto.trialIntervalCount,
           metadata: {
             ...product.metadata,
             ...dto.metadata,
             planSlug: targetSlug,
-            badge: dto.badge !== undefined ? dto.badge : product.badge,
-            ctaText: dto.ctaText !== undefined ? dto.ctaText : product.ctaText,
+            badge:
+              (dto.badge !== undefined ? dto.badge : product.badge) ||
+              undefined,
+            ctaText:
+              (dto.ctaText !== undefined ? dto.ctaText : product.ctaText) ||
+              undefined,
             sortOrder:
               dto.sortOrder !== undefined ? dto.sortOrder : product.sortOrder,
           },
@@ -358,6 +369,24 @@ export class ProductService {
   }
 
   /**
+   * Creates a new benefit on Polar
+   */
+  async createBenefit(params: {
+    type: string;
+    description: string;
+    properties?: { note?: string };
+  }): Promise<any> {
+    return await this.polarService.createBenefit(params);
+  }
+
+  /**
+   * Deletes a benefit on Polar
+   */
+  async deleteBenefit(id: string): Promise<void> {
+    await this.polarService.deleteBenefit(id);
+  }
+
+  /**
    * Synchronizes product definition from Polar webhook (product.created / product.updated)
    */
   async syncProductFromPolar(
@@ -374,10 +403,14 @@ export class ProductService {
       polarProduct.recurring_interval || polarProduct.recurringInterval;
 
     let interval = 'one_time';
-    if (recurringInterval === 'month') {
-      interval = 'monthly';
-    } else if (recurringInterval === 'year') {
-      interval = 'yearly';
+    if (recurringInterval) {
+      const reverseIntervalMap: Record<string, string> = {
+        day: 'daily',
+        week: 'weekly',
+        month: 'monthly',
+        year: 'yearly',
+      };
+      interval = reverseIntervalMap[recurringInterval] || 'one_time';
     }
 
     // Extract price and currency
@@ -427,8 +460,32 @@ export class ProductService {
     const rawMetadata = polarProduct.metadata || {};
     const benefits = polarProduct.benefits || [];
     const medias = polarProduct.medias || [];
-    const trialInterval =
+    const rawRecurringIntervalCount =
+      polarProduct.recurring_interval_count ??
+      polarProduct.recurringIntervalCount ??
+      1;
+    const intervalCount =
+      typeof rawRecurringIntervalCount === 'number' &&
+      rawRecurringIntervalCount > 0
+        ? rawRecurringIntervalCount
+        : 1;
+
+    const rawTrialInterval =
       polarProduct.trial_interval ?? polarProduct.trialInterval ?? null;
+    let trialInterval: string | null = null;
+    if (rawTrialInterval) {
+      const reverseTrialMap: Record<string, string> = {
+        day: 'daily',
+        daily: 'daily',
+        week: 'weekly',
+        weekly: 'weekly',
+        month: 'monthly',
+        monthly: 'monthly',
+        year: 'yearly',
+        yearly: 'yearly',
+      };
+      trialInterval = reverseTrialMap[rawTrialInterval] || rawTrialInterval;
+    }
     const trialIntervalCount =
       polarProduct.trial_interval_count ??
       polarProduct.trialIntervalCount ??
@@ -493,6 +550,7 @@ export class ProductService {
       product.currency = currency;
       product.prices = parsedPrices;
       product.interval = interval;
+      product.intervalCount = intervalCount;
       product.isFree = isFree;
       product.isActive = !isArchived;
       product.metadata = rawMetadata;
@@ -536,6 +594,7 @@ export class ProductService {
         existingWithSlug.price = price;
         existingWithSlug.currency = currency;
         existingWithSlug.prices = parsedPrices;
+        existingWithSlug.intervalCount = intervalCount;
         existingWithSlug.isFree = isFree;
         existingWithSlug.isActive = !isArchived;
         existingWithSlug.metadata = rawMetadata;
@@ -569,6 +628,7 @@ export class ProductService {
       name,
       description,
       interval,
+      intervalCount,
       price,
       currency,
       prices: parsedPrices,
