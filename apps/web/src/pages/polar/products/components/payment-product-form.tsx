@@ -2,15 +2,17 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
+  ArrowUpDown,
   CalendarSync,
   ChevronDown,
   ChevronUp,
-  Gift,
   Globe,
+  GripVertical,
   ImagePlus,
   Info,
   Loader2,
   Lock,
+  MoreVertical,
   Plus,
   Sparkles,
   Tags,
@@ -20,6 +22,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,6 +32,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Form,
   FormControl,
@@ -49,7 +58,11 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { apiUploadProductMedia, useDataPolarBenefits } from '../queries'
+import {
+  apiUploadProductMedia,
+  useDataPolarBenefits,
+  useMutationDeleteBenefit,
+} from '../queries'
 import {
   paymentProductFormSchema,
   type PaymentProductFormSchema,
@@ -330,6 +343,72 @@ export function PaymentProductForm({
     [appendPrice]
   )
 
+  const deleteBenefitMutation = useMutationDeleteBenefit()
+
+  // Benefits Reorder State & Handlers
+  const [isReorderingBenefits, setIsReorderingBenefits] = useState(false)
+  const [reorderedBenefitIds, setReorderedBenefitIds] = useState<string[]>([])
+  const [draggedBenefitIndex, setDraggedBenefitIndex] = useState<number | null>(
+    null
+  )
+  const [dragOverBenefitIndex, setDragOverBenefitIndex] = useState<
+    number | null
+  >(null)
+
+  const handleStartReorder = useCallback(() => {
+    setReorderedBenefitIds([...watchedBenefits])
+    setIsReorderingBenefits(true)
+  }, [watchedBenefits])
+
+  const handleDoneReorder = useCallback(() => {
+    form.setValue('benefits', reorderedBenefitIds, {
+      shouldValidate: true,
+      shouldDirty: true,
+    })
+    setIsReorderingBenefits(false)
+    toast.success('Benefit order saved')
+  }, [form, reorderedBenefitIds])
+
+  const handleCancelReorder = useCallback(() => {
+    setIsReorderingBenefits(false)
+    setReorderedBenefitIds([])
+  }, [])
+
+  const handleRemoveFromReorder = useCallback((id: string) => {
+    setReorderedBenefitIds((prev) => prev.filter((item) => item !== id))
+  }, [])
+
+  const handleDragStartBenefit = (e: React.DragEvent, index: number) => {
+    setDraggedBenefitIndex(index)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOverBenefit = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverBenefitIndex(index)
+  }
+
+  const handleDropBenefit = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault()
+    if (draggedBenefitIndex === null || draggedBenefitIndex === targetIndex) {
+      setDraggedBenefitIndex(null)
+      setDragOverBenefitIndex(null)
+      return
+    }
+    const updated = [...reorderedBenefitIds]
+    const [removed] = updated.splice(draggedBenefitIndex, 1)
+    updated.splice(targetIndex, 0, removed)
+    setReorderedBenefitIds(updated)
+    setDraggedBenefitIndex(null)
+    setDragOverBenefitIndex(null)
+  }
+
+  const handleDragEndBenefit = () => {
+    setDraggedBenefitIndex(null)
+    setDragOverBenefitIndex(null)
+  }
+
   return (
     <>
       <Form {...form}>
@@ -354,7 +433,7 @@ export function PaymentProductForm({
             </div>
           )}
 
-          <div className='grid grid-cols-1 gap-6 md:grid-cols-2'>
+          <div className='space-y-6'>
             {/* ====== Card 1: Basic Information ====== */}
             <Card>
               <CardHeader>
@@ -999,493 +1078,645 @@ export function PaymentProductForm({
                 )}
               </CardContent>
             </Card>
-          </div>
 
-          {/* ====== Card 3: Benefits ====== */}
-          <Card>
-            <CardHeader>
-              <div className='flex items-center justify-between'>
-                <div>
-                  <CardTitle className='flex items-center gap-2'>
-                    <Gift className='size-5 text-indigo-500' />
-                    <span>
+            {/* ====== Card 3: Automated Benefits ====== */}
+            <Card>
+              <CardHeader>
+                <div className='flex items-center justify-between'>
+                  <div>
+                    <CardTitle className='text-lg font-semibold tracking-tight'>
                       {t('paymentProducts.benefits', {
                         defaultValue: 'Automated Benefits',
                       })}
-                    </span>
-                  </CardTitle>
-                  <CardDescription>
-                    {t('paymentProducts.benefitsDesc', {
-                      defaultValue:
-                        'Select entitlements to automatically grant upon purchase.',
-                    })}
-                  </CardDescription>
+                    </CardTitle>
+                    <CardDescription className='mt-1 text-xs sm:text-sm'>
+                      {t('paymentProducts.benefitsDesc', {
+                        defaultValue:
+                          'Configure which benefits you want to grant to your customers when they purchase the product',
+                      })}
+                    </CardDescription>
+                  </div>
                 </div>
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  onClick={() => setCreateBenefitOpen(true)}
-                >
-                  <Plus className='mr-1.5 size-4' />
-                  {t('paymentProducts.createBenefit', {
-                    defaultValue: 'Create Benefit',
-                  })}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLoadingBenefits ? (
-                <div className='text-muted-foreground flex items-center gap-2 py-4 text-sm'>
-                  <Loader2 className='size-4 animate-spin' />
-                  <span>
-                    {t('paymentProducts.loadingBenefits', {
-                      defaultValue: 'Loading benefits from Polar...',
-                    })}
-                  </span>
-                </div>
-              ) : polarBenefits.length === 0 ? (
-                <div className='text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm'>
-                  <p>
-                    {t('paymentProducts.noBenefits', {
-                      defaultValue: 'No benefits found on your Polar account.',
-                    })}
-                  </p>
-                  <p className='mt-1 text-xs'>
-                    {t('paymentProducts.noBenefitsHint', {
-                      defaultValue:
-                        'Click "Create Benefit" to add one, or configure them on Polar.',
-                    })}
-                  </p>
-                </div>
-              ) : (
-                <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
-                  {polarBenefits.map((benefit) => {
-                    const isChecked = watchedBenefits.includes(benefit.id)
-                    return (
-                      <div
-                        key={benefit.id}
-                        className={`flex items-start justify-between rounded-lg border p-3.5 transition-colors ${
-                          isChecked
-                            ? 'border-indigo-500/50 bg-indigo-50/40 dark:bg-indigo-950/20'
-                            : 'hover:bg-muted/40'
-                        }`}
-                      >
-                        <div className='space-y-1 pr-3'>
-                          <div className='flex items-center gap-2'>
-                            <Badge
-                              variant='outline'
-                              className='text-xs uppercase'
-                            >
-                              {benefit.type.replace('_', ' ')}
-                            </Badge>
-                          </div>
-                          <p className='text-sm leading-snug font-medium'>
-                            {benefit.description}
-                          </p>
-                        </div>
-                        <Switch
-                          checked={isChecked}
-                          onCheckedChange={() =>
-                            handleToggleBenefit(benefit.id)
-                          }
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* ====== Card 4: Metadata ====== */}
-          <Card>
-            <CardHeader>
-              <div className='flex items-center justify-between'>
-                <div>
-                  <CardTitle className='flex items-center gap-2'>
-                    <Tags className='size-5 text-teal-500' />
+              </CardHeader>
+              <CardContent className='space-y-4'>
+                {isLoadingBenefits ? (
+                  <div className='text-muted-foreground flex items-center gap-2 py-4 text-sm'>
+                    <Loader2 className='size-4 animate-spin' />
                     <span>
-                      {t('paymentProducts.metadata', {
-                        defaultValue: 'Metadata',
+                      {t('paymentProducts.loadingBenefits', {
+                        defaultValue: 'Loading benefits from Polar...',
                       })}
                     </span>
-                  </CardTitle>
-                  <CardDescription>
-                    {t('paymentProducts.metadataDesc', {
-                      defaultValue:
-                        'Custom key-value pairs synced with Polar product metadata.',
-                    })}
-                  </CardDescription>
-                </div>
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  onClick={() => appendMetadata({ key: '', value: '' })}
-                >
-                  <Plus className='mr-1.5 size-4' />
-                  {t('paymentProducts.addMetadata', {
-                    defaultValue: 'Add Metadata',
-                  })}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {metadataFields.length === 0 ? (
-                <div className='text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm'>
-                  <p>
-                    {t('paymentProducts.noMetadata', {
-                      defaultValue: 'No metadata entries.',
-                    })}
-                  </p>
-                  <p className='mt-1 text-xs'>
-                    {t('paymentProducts.noMetadataHint', {
-                      defaultValue:
-                        'Click "Add Metadata" to add key-value pairs.',
-                    })}
-                  </p>
-                </div>
-              ) : (
-                <div className='space-y-2'>
-                  {/* Header */}
-                  <div className='text-muted-foreground grid grid-cols-[1fr_1fr_36px] gap-2 px-1 text-xs font-medium'>
-                    <span>Key</span>
-                    <span>Value</span>
-                    <span />
                   </div>
-                  {metadataFields.map((field, index) => (
-                    <div
-                      key={field.id}
-                      className='grid grid-cols-[1fr_1fr_36px] gap-2'
-                    >
-                      <FormField
-                        control={form.control}
-                        name={`metadata.${index}.key`}
-                        render={({ field: keyField }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input
-                                placeholder='key'
-                                className='text-sm'
-                                {...keyField}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`metadata.${index}.value`}
-                        render={({ field: valueField }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input
-                                placeholder='value'
-                                className='text-sm'
-                                {...valueField}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                ) : polarBenefits.length === 0 ? (
+                  <div className='text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm'>
+                    <p>
+                      {t('paymentProducts.noBenefits', {
+                        defaultValue:
+                          'No benefits found on your Polar account.',
+                      })}
+                    </p>
+                    <p className='mt-1 text-xs'>
+                      {t('paymentProducts.noBenefitsHint', {
+                        defaultValue:
+                          'Click "Create Benefit" to add one, or configure them on Polar.',
+                      })}
+                    </p>
+                  </div>
+                ) : isReorderingBenefits ? (
+                  /* Reorder UI (Matches Image 4) */
+                  <div className='space-y-3'>
+                    {reorderedBenefitIds.length === 0 ? (
+                      <div className='text-muted-foreground rounded-lg border border-dashed p-4 text-center text-xs'>
+                        No benefits selected. Add benefits to reorder them.
+                      </div>
+                    ) : (
+                      <div className='divide-border/60 border-border/80 bg-card divide-y overflow-hidden rounded-xl border'>
+                        {reorderedBenefitIds.map((id, index) => {
+                          const benefit = polarBenefits.find((b) => b.id === id)
+                          if (!benefit) return null
+                          const isBeingDragged = draggedBenefitIndex === index
+                          const isDragOver = dragOverBenefitIndex === index
+
+                          return (
+                            <div
+                              key={benefit.id}
+                              draggable
+                              onDragStart={(e) =>
+                                handleDragStartBenefit(e, index)
+                              }
+                              onDragOver={(e) =>
+                                handleDragOverBenefit(e, index)
+                              }
+                              onDrop={(e) => handleDropBenefit(e, index)}
+                              onDragEnd={handleDragEndBenefit}
+                              className={cn(
+                                'flex items-center justify-between p-3 transition-all select-none',
+                                isBeingDragged && 'bg-muted/40 opacity-40',
+                                isDragOver &&
+                                  'border-primary bg-primary/5 border-t-2',
+                                !isBeingDragged &&
+                                  !isDragOver &&
+                                  'hover:bg-muted/30'
+                              )}
+                            >
+                              <div className='flex min-w-0 items-center gap-3'>
+                                <GripVertical className='text-muted-foreground hover:text-foreground h-4 w-4 shrink-0 cursor-grab active:cursor-grabbing' />
+                                <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400'>
+                                  <Sparkles className='h-4 w-4' />
+                                </div>
+                                <div className='min-w-0'>
+                                  <p className='text-foreground truncate text-sm font-medium'>
+                                    {benefit.description}
+                                  </p>
+                                  <p className='text-muted-foreground text-xs capitalize'>
+                                    {benefit.type.replace('_', ' ')}
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                type='button'
+                                variant='ghost'
+                                size='icon'
+                                onClick={() =>
+                                  handleRemoveFromReorder(benefit.id)
+                                }
+                                className='text-muted-foreground hover:bg-muted hover:text-foreground h-8 w-8 shrink-0 rounded-full'
+                              >
+                                <X className='h-4 w-4' />
+                              </Button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    <div className='flex items-center gap-2 pt-1'>
+                      <Button
+                        type='button'
+                        size='sm'
+                        onClick={handleDoneReorder}
+                        className='h-8 px-4 text-xs font-medium'
+                      >
+                        Done
+                      </Button>
                       <Button
                         type='button'
                         variant='ghost'
-                        size='icon'
-                        className='text-destructive size-9'
-                        onClick={() => removeMetadata(index)}
+                        size='sm'
+                        onClick={handleCancelReorder}
+                        className='h-8 px-3 text-xs'
                       >
-                        <Trash2 className='size-4' />
+                        Cancel
                       </Button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  </div>
+                ) : (
+                  /* Standard Mode (Matches Image 3) */
+                  <div className='space-y-4'>
+                    <div className='divide-border/60 border-border/80 bg-card divide-y overflow-hidden rounded-xl border'>
+                      {polarBenefits.map((benefit) => {
+                        const isChecked = watchedBenefits.includes(benefit.id)
+                        return (
+                          <div
+                            key={benefit.id}
+                            className={cn(
+                              'flex items-center justify-between p-3.5 transition-colors',
+                              isChecked
+                                ? 'bg-card'
+                                : 'hover:bg-muted/20 opacity-85 hover:opacity-100'
+                            )}
+                          >
+                            <div className='flex min-w-0 items-center gap-3.5 pr-3'>
+                              <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400'>
+                                <Sparkles className='h-4 w-4' />
+                              </div>
+                              <div className='min-w-0'>
+                                <p className='text-foreground truncate text-sm font-medium'>
+                                  {benefit.description}
+                                </p>
+                                <p className='text-muted-foreground text-xs capitalize'>
+                                  {benefit.type.replace('_', ' ')}
+                                </p>
+                              </div>
+                            </div>
 
-          {/* ====== Card 5: Visibility ====== */}
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {t('paymentProducts.visibility', {
-                  defaultValue: 'Customer Portal & Visibility',
-                })}
-              </CardTitle>
-              <CardDescription>
-                {t('paymentProducts.visibilityDesc', {
-                  defaultValue:
-                    'Control whether this product is listed publicly.',
-                })}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                control={form.control}
-                name='visibility'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        className='grid grid-cols-1 gap-3 sm:grid-cols-2'
+                            <div className='flex shrink-0 items-center gap-2'>
+                              <Switch
+                                checked={isChecked}
+                                onCheckedChange={() =>
+                                  handleToggleBenefit(benefit.id)
+                                }
+                              />
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant='ghost'
+                                    size='icon'
+                                    className='text-muted-foreground hover:text-foreground h-8 w-8'
+                                  >
+                                    <MoreVertical className='h-4 w-4' />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align='end'
+                                  className='w-32'
+                                >
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      toast.info(
+                                        'Benefits can be edited on your Polar dashboard.'
+                                      )
+                                    }}
+                                  >
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className='text-destructive focus:text-destructive'
+                                    onClick={() => {
+                                      if (
+                                        confirm(
+                                          'Are you sure you want to delete this benefit?'
+                                        )
+                                      ) {
+                                        deleteBenefitMutation.mutate(benefit.id)
+                                        if (isChecked) {
+                                          handleToggleBenefit(benefit.id)
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    <div className='flex items-center gap-2'>
+                      <Button
+                        type='button'
+                        variant='secondary'
+                        size='sm'
+                        onClick={() => setCreateBenefitOpen(true)}
+                        className='h-8 gap-1.5 text-xs font-medium'
                       >
-                        <label
-                          htmlFor='vis-public'
-                          className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 text-sm transition-colors ${
-                            field.value === 'public'
-                              ? 'border-primary bg-primary/5 ring-primary ring-1'
-                              : 'hover:bg-muted/50'
-                          }`}
-                        >
-                          <RadioGroupItem
-                            value='public'
-                            id='vis-public'
-                            className='mt-1'
-                          />
-                          <div>
-                            <div className='flex items-center gap-1.5 font-medium'>
-                              <Globe className='size-4 text-emerald-500' />
-                              <span>
-                                {t('paymentProducts.public', {
-                                  defaultValue: 'Public Storefront',
-                                })}
-                              </span>
-                            </div>
-                            <p className='text-muted-foreground mt-0.5 text-xs'>
-                              {t('paymentProducts.publicDesc', {
-                                defaultValue:
-                                  'Listed in Customer Portal and pricing catalog.',
-                              })}
-                            </p>
-                          </div>
-                        </label>
-
-                        <label
-                          htmlFor='vis-private'
-                          className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 text-sm transition-colors ${
-                            field.value === 'private'
-                              ? 'border-primary bg-primary/5 ring-primary ring-1'
-                              : 'hover:bg-muted/50'
-                          }`}
-                        >
-                          <RadioGroupItem
-                            value='private'
-                            id='vis-private'
-                            className='mt-1'
-                          />
-                          <div>
-                            <div className='flex items-center gap-1.5 font-medium'>
-                              <Lock className='size-4 text-amber-500' />
-                              <span>
-                                {t('paymentProducts.private', {
-                                  defaultValue: 'Private (Unlisted)',
-                                })}
-                              </span>
-                            </div>
-                            <p className='text-muted-foreground mt-0.5 text-xs'>
-                              {t('paymentProducts.privateDesc', {
-                                defaultValue:
-                                  'Hidden from catalog. Buy via direct link only.',
-                              })}
-                            </p>
-                          </div>
-                        </label>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                        <Plus className='h-3.5 w-3.5' />
+                        {t('paymentProducts.createBenefit', {
+                          defaultValue: 'Create Benefit',
+                        })}
+                      </Button>
+                      <Button
+                        type='button'
+                        variant='secondary'
+                        size='sm'
+                        onClick={handleStartReorder}
+                        disabled={watchedBenefits.length < 2}
+                        className='h-8 gap-1.5 text-xs font-medium'
+                      >
+                        <ArrowUpDown className='h-3.5 w-3.5' />
+                        Reorder
+                      </Button>
+                    </div>
+                  </div>
                 )}
-              />
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* ====== Card 6: Marketing ====== */}
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {t('paymentProducts.marketing', {
-                  defaultValue: 'Landing Page & Marketing',
-                })}
-              </CardTitle>
-              <CardDescription>
-                {t('paymentProducts.marketingDesc', {
-                  defaultValue:
-                    'Feature bullets, badges, and presentation details.',
-                })}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className='space-y-4'>
-              <div className='grid grid-cols-1 gap-4 sm:grid-cols-3'>
+            {/* ====== Card 4: Metadata ====== */}
+            <Card>
+              <CardHeader>
+                <div className='flex items-center justify-between'>
+                  <div>
+                    <CardTitle className='flex items-center gap-2'>
+                      <Tags className='size-5 text-teal-500' />
+                      <span>
+                        {t('paymentProducts.metadata', {
+                          defaultValue: 'Metadata',
+                        })}
+                      </span>
+                    </CardTitle>
+                    <CardDescription>
+                      {t('paymentProducts.metadataDesc', {
+                        defaultValue:
+                          'Custom key-value pairs synced with Polar product metadata.',
+                      })}
+                    </CardDescription>
+                  </div>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    onClick={() => appendMetadata({ key: '', value: '' })}
+                  >
+                    <Plus className='mr-1.5 size-4' />
+                    {t('paymentProducts.addMetadata', {
+                      defaultValue: 'Add Metadata',
+                    })}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {metadataFields.length === 0 ? (
+                  <div className='text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm'>
+                    <p>
+                      {t('paymentProducts.noMetadata', {
+                        defaultValue: 'No metadata entries.',
+                      })}
+                    </p>
+                    <p className='mt-1 text-xs'>
+                      {t('paymentProducts.noMetadataHint', {
+                        defaultValue:
+                          'Click "Add Metadata" to add key-value pairs.',
+                      })}
+                    </p>
+                  </div>
+                ) : (
+                  <div className='space-y-2'>
+                    {/* Header */}
+                    <div className='text-muted-foreground grid grid-cols-[1fr_1fr_36px] gap-2 px-1 text-xs font-medium'>
+                      <span>Key</span>
+                      <span>Value</span>
+                      <span />
+                    </div>
+                    {metadataFields.map((field, index) => (
+                      <div
+                        key={field.id}
+                        className='grid grid-cols-[1fr_1fr_36px] gap-2'
+                      >
+                        <FormField
+                          control={form.control}
+                          name={`metadata.${index}.key`}
+                          render={({ field: keyField }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input
+                                  placeholder='key'
+                                  className='text-sm'
+                                  {...keyField}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`metadata.${index}.value`}
+                          render={({ field: valueField }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input
+                                  placeholder='value'
+                                  className='text-sm'
+                                  {...valueField}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <Button
+                          type='button'
+                          variant='ghost'
+                          size='icon'
+                          className='text-destructive size-9'
+                          onClick={() => removeMetadata(index)}
+                        >
+                          <Trash2 className='size-4' />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* ====== Card 5: Visibility ====== */}
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  {t('paymentProducts.visibility', {
+                    defaultValue: 'Customer Portal & Visibility',
+                  })}
+                </CardTitle>
+                <CardDescription>
+                  {t('paymentProducts.visibilityDesc', {
+                    defaultValue:
+                      'Control whether this product is listed publicly.',
+                  })}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <FormField
                   control={form.control}
-                  name='badge'
+                  name='visibility'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          className='grid grid-cols-1 gap-3 sm:grid-cols-2'
+                        >
+                          <label
+                            htmlFor='vis-public'
+                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 text-sm transition-colors ${
+                              field.value === 'public'
+                                ? 'border-primary bg-primary/5 ring-primary ring-1'
+                                : 'hover:bg-muted/50'
+                            }`}
+                          >
+                            <RadioGroupItem
+                              value='public'
+                              id='vis-public'
+                              className='mt-1'
+                            />
+                            <div>
+                              <div className='flex items-center gap-1.5 font-medium'>
+                                <Globe className='size-4 text-emerald-500' />
+                                <span>
+                                  {t('paymentProducts.public', {
+                                    defaultValue: 'Public Storefront',
+                                  })}
+                                </span>
+                              </div>
+                              <p className='text-muted-foreground mt-0.5 text-xs'>
+                                {t('paymentProducts.publicDesc', {
+                                  defaultValue:
+                                    'Listed in Customer Portal and pricing catalog.',
+                                })}
+                              </p>
+                            </div>
+                          </label>
+
+                          <label
+                            htmlFor='vis-private'
+                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 text-sm transition-colors ${
+                              field.value === 'private'
+                                ? 'border-primary bg-primary/5 ring-primary ring-1'
+                                : 'hover:bg-muted/50'
+                            }`}
+                          >
+                            <RadioGroupItem
+                              value='private'
+                              id='vis-private'
+                              className='mt-1'
+                            />
+                            <div>
+                              <div className='flex items-center gap-1.5 font-medium'>
+                                <Lock className='size-4 text-amber-500' />
+                                <span>
+                                  {t('paymentProducts.private', {
+                                    defaultValue: 'Private (Unlisted)',
+                                  })}
+                                </span>
+                              </div>
+                              <p className='text-muted-foreground mt-0.5 text-xs'>
+                                {t('paymentProducts.privateDesc', {
+                                  defaultValue:
+                                    'Hidden from catalog. Buy via direct link only.',
+                                })}
+                              </p>
+                            </div>
+                          </label>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            {/* ====== Card 6: Marketing ====== */}
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  {t('paymentProducts.marketing', {
+                    defaultValue: 'Landing Page & Marketing',
+                  })}
+                </CardTitle>
+                <CardDescription>
+                  {t('paymentProducts.marketingDesc', {
+                    defaultValue:
+                      'Feature bullets, badges, and presentation details.',
+                  })}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className='space-y-4'>
+                <div className='grid grid-cols-1 gap-4 sm:grid-cols-3'>
+                  <FormField
+                    control={form.control}
+                    name='badge'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {t('paymentProducts.badge', {
+                            defaultValue: 'Highlight Badge',
+                          })}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder='e.g. Most Popular'
+                            {...field}
+                            value={field.value || ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name='ctaText'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {t('paymentProducts.ctaText', {
+                            defaultValue: 'Button Label (CTA)',
+                          })}{' '}
+                          *
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder='e.g. Upgrade to Pro' {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name='sortOrder'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {t('paymentProducts.sortOrder', {
+                            defaultValue: 'Display Order',
+                          })}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type='number'
+                            min='0'
+                            step='1'
+                            value={field.value}
+                            onChange={(e) =>
+                              field.onChange(
+                                e.target.value === ''
+                                  ? 0
+                                  : Number(e.target.value)
+                              )
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+                  <FormField
+                    control={form.control}
+                    name='isPopular'
+                    render={({ field }) => (
+                      <FormItem className='flex items-center justify-between rounded-lg border p-3'>
+                        <div>
+                          <div className='flex items-center gap-1.5 text-sm font-medium'>
+                            <Sparkles className='size-4 text-amber-500' />
+                            <span>
+                              {t('paymentProducts.popular', {
+                                defaultValue: 'Highlighted / Popular',
+                              })}
+                            </span>
+                          </div>
+                          <FormDescription className='text-xs'>
+                            {t('paymentProducts.popularDesc', {
+                              defaultValue: 'Add accent border & badge.',
+                            })}
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name='isActive'
+                    render={({ field }) => (
+                      <FormItem className='flex items-center justify-between rounded-lg border p-3'>
+                        <div>
+                          <FormLabel className='text-sm font-medium'>
+                            {t('paymentProducts.activeStatus', {
+                              defaultValue: 'Active Status',
+                            })}
+                          </FormLabel>
+                          <FormDescription className='text-xs'>
+                            {t('paymentProducts.activeStatusDesc', {
+                              defaultValue: 'Allow purchases on the frontend.',
+                            })}
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name='featuresText'
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        {t('paymentProducts.badge', {
-                          defaultValue: 'Highlight Badge',
+                        {t('paymentProducts.features', {
+                          defaultValue: 'Feature Bullet Points',
                         })}
                       </FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder='e.g. Most Popular'
+                        <Textarea
+                          placeholder={
+                            'Unlimited workspaces\nPriority 24/7 support\nHigh-speed API limits'
+                          }
+                          rows={5}
+                          className='font-mono text-sm'
                           {...field}
                           value={field.value || ''}
                         />
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name='ctaText'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {t('paymentProducts.ctaText', {
-                          defaultValue: 'Button Label (CTA)',
-                        })}{' '}
-                        *
-                      </FormLabel>
-                      <FormControl>
-                        <Input placeholder='e.g. Upgrade to Pro' {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name='sortOrder'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {t('paymentProducts.sortOrder', {
-                          defaultValue: 'Display Order',
+                      <FormDescription className='text-xs'>
+                        {t('paymentProducts.featuresDesc', {
+                          defaultValue:
+                            'Enter one feature per line. Renders as checklist bullets.',
                         })}
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type='number'
-                          min='0'
-                          step='1'
-                          value={field.value}
-                          onChange={(e) =>
-                            field.onChange(
-                              e.target.value === '' ? 0 : Number(e.target.value)
-                            )
-                          }
-                        />
-                      </FormControl>
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
-
-              <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
-                <FormField
-                  control={form.control}
-                  name='isPopular'
-                  render={({ field }) => (
-                    <FormItem className='flex items-center justify-between rounded-lg border p-3'>
-                      <div>
-                        <div className='flex items-center gap-1.5 text-sm font-medium'>
-                          <Sparkles className='size-4 text-amber-500' />
-                          <span>
-                            {t('paymentProducts.popular', {
-                              defaultValue: 'Highlighted / Popular',
-                            })}
-                          </span>
-                        </div>
-                        <FormDescription className='text-xs'>
-                          {t('paymentProducts.popularDesc', {
-                            defaultValue: 'Add accent border & badge.',
-                          })}
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name='isActive'
-                  render={({ field }) => (
-                    <FormItem className='flex items-center justify-between rounded-lg border p-3'>
-                      <div>
-                        <FormLabel className='text-sm font-medium'>
-                          {t('paymentProducts.activeStatus', {
-                            defaultValue: 'Active Status',
-                          })}
-                        </FormLabel>
-                        <FormDescription className='text-xs'>
-                          {t('paymentProducts.activeStatusDesc', {
-                            defaultValue: 'Allow purchases on the frontend.',
-                          })}
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name='featuresText'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('paymentProducts.features', {
-                        defaultValue: 'Feature Bullet Points',
-                      })}
-                    </FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder={
-                          'Unlimited workspaces\nPriority 24/7 support\nHigh-speed API limits'
-                        }
-                        rows={5}
-                        className='font-mono text-sm'
-                        {...field}
-                        value={field.value || ''}
-                      />
-                    </FormControl>
-                    <FormDescription className='text-xs'>
-                      {t('paymentProducts.featuresDesc', {
-                        defaultValue:
-                          'Enter one feature per line. Renders as checklist bullets.',
-                      })}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Action Buttons */}
-          <div className='flex items-center justify-end gap-3'>
+          <div className='border-border flex items-center justify-end gap-3 border-t pt-4'>
             <Button
               type='button'
               variant='outline'

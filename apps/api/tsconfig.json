@@ -24,9 +24,6 @@
       "@/shared/*": ["src/shared/*"],
       "@/utils/*": ["src/utils/*"],
       "@/pipes/*": ["src/pipes/*"],
-      "@polar-sh/sdk/webhooks": [
-        "node_modules/@polar-sh/sdk/dist/commonjs/webhooks.d.ts"
-      ],
       "@/*": ["src/*"]
     },
     "types": ["jest", "node"]

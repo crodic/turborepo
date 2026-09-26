@@ -6,28 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Polar } from '@polar-sh/sdk';
-import {
-  validateEvent,
-  WebhookVerificationError,
-} from '@polar-sh/sdk/webhooks';
-import {
-  WebhookVerificationError as StandardWebhookVerificationError,
-  Webhook,
-} from 'standardwebhooks';
-
-export class RFCDate {
-  private serialized: string;
-  constructor(date: Date | string) {
-    const value = typeof date === 'string' ? new Date(date) : date;
-    this.serialized = value.toISOString().slice(0, 10);
-  }
-  toJSON() {
-    return this.serialized;
-  }
-  toString() {
-    return this.serialized;
-  }
-}
+import { Webhook, WebhookVerificationError } from 'standardwebhooks';
 
 export type CreateCheckoutParams = {
   productId: string;
@@ -949,16 +928,59 @@ export class PolarService {
     customerId?: string;
     metrics?: string[];
   }) {
-    const polar = this.ensureConfigured();
-    return await polar.metrics.get({
-      startDate: new RFCDate(params.startDate) as any,
-      endDate: new RFCDate(params.endDate) as any,
-      interval: params.interval as any,
-      organizationId: params.organizationId || undefined,
-      productId: params.productId || undefined,
-      customerId: params.customerId || undefined,
-      metrics: params.metrics || undefined,
+    this.ensureConfigured();
+    const paymentConfig = this.configService.get('payment', { infer: true });
+    const accessToken = paymentConfig?.accessToken;
+    const server = paymentConfig?.server || 'sandbox';
+    const baseUrl =
+      server === 'production'
+        ? 'https://api.polar.sh'
+        : 'https://sandbox-api.polar.sh';
+
+    const formatDate = (d: Date | string) => {
+      if (typeof d === 'string') {
+        return d.includes('T') ? d.split('T')[0] : d;
+      }
+      return d.toISOString().slice(0, 10);
+    };
+
+    const query = new URLSearchParams();
+    query.set('start_date', formatDate(params.startDate));
+    query.set('end_date', formatDate(params.endDate));
+    query.set('interval', params.interval);
+
+    if (params.organizationId) {
+      query.set('organization_id', params.organizationId);
+    }
+    if (params.productId) {
+      query.set('product_id', params.productId);
+    }
+    if (params.customerId) {
+      query.set('customer_id', params.customerId);
+    }
+    if (params.metrics && params.metrics.length > 0) {
+      params.metrics.forEach((m) => query.append('metrics', m));
+    }
+
+    const response = await fetch(`${baseUrl}/v1/metrics/?${query.toString()}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/json',
+      },
     });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      this.logger.error(
+        `Polar metrics request failed (${response.status}): ${errText}`,
+      );
+      throw new ServiceUnavailableException(
+        `Polar metrics request failed: ${errText}`,
+      );
+    }
+
+    return await response.json();
   }
 
   async getMetricsLimits() {
@@ -1008,39 +1030,21 @@ export class PolarService {
     }
 
     try {
-      return validateEvent(
-        rawBody,
-        normalizedHeaders,
-        this.webhookSecret,
-      ) as Record<string, any>;
+      const base64Secret = Buffer.from(this.webhookSecret, 'utf-8').toString(
+        'base64',
+      );
+      const webhook = new Webhook(base64Secret);
+      const parsed = webhook.verify(rawBody, normalizedHeaders) as Record<
+        string,
+        any
+      >;
+      return parsed;
     } catch (err: any) {
       if (err instanceof WebhookVerificationError) {
         this.logger.warn('Polar webhook signature verification failed.');
         throw err;
       }
-
-      // If SDKValidationError occurred (e.g. unknown event type like discount.created, custom_field.created),
-      // verify cryptographic signature using standardwebhooks and return the validated JSON payload directly.
-      try {
-        const base64Secret = Buffer.from(this.webhookSecret, 'utf-8').toString(
-          'base64',
-        );
-        const webhook = new Webhook(base64Secret);
-        const parsed = webhook.verify(rawBody, normalizedHeaders) as Record<
-          string,
-          any
-        >;
-        this.logger.log(
-          `Verified Polar webhook event with payload type "${parsed?.type}" (unparsed by SDK schema).`,
-        );
-        return parsed;
-      } catch (verifyErr) {
-        if (verifyErr instanceof StandardWebhookVerificationError) {
-          this.logger.warn('Polar webhook signature verification failed.');
-          throw new WebhookVerificationError(verifyErr.message);
-        }
-        throw err;
-      }
+      throw err;
     }
   }
 }

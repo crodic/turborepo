@@ -394,8 +394,9 @@ export class PaymentService {
           break;
 
         case 'customer.created':
-        case 'customer.updated': {
-          const cId = data.id;
+        case 'customer.updated':
+        case 'customer.state_changed': {
+          const cId = data.id || data.customer_id;
           const cEmail = data.email;
           const cUserId =
             data.external_id || (await this.resolveUserIdByEmail(cEmail));

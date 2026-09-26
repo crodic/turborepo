@@ -584,7 +584,7 @@ A browser window will open to authenticate and authorize the CLI.
 Run the listener pointing to your NestJS payment webhook endpoint:
 
 ```bash
-polar listen http://localhost:3000/api/v1/payments/webhook
+polar listen http://localhost:8000/api/v1/payments/webhook
 ```
 
 When prompted, select your **Organization**.

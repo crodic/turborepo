@@ -25,6 +25,7 @@ export function PagePaymentProductCreate() {
       queryClient.invalidateQueries({ queryKey: paymentProductQueryKeys.all })
       toast.success(
         t('paymentProducts.createSuccess', {
+          name: data.name,
           defaultValue: `Plan "${data.name}" created successfully`,
         })
       )

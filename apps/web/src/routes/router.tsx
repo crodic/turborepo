@@ -41,6 +41,7 @@ import { PagePolarDiscounts } from '@/pages/polar/discounts'
 import { PagePolarOrders } from '@/pages/polar/orders'
 import { PagePaymentProductsOverview } from '@/pages/polar/products'
 import { PagePaymentProductCreate } from '@/pages/polar/products/create'
+import { PagePaymentProductDetail } from '@/pages/polar/products/detail'
 import { PagePaymentProductEdit } from '@/pages/polar/products/edit'
 import { PagePolarSubscriptions } from '@/pages/polar/subscriptions'
 import { PageRoleOverview } from '@/pages/roles'
@@ -409,6 +410,14 @@ const appRoutes: RouteObject[] = [
                 element: (
                   <RouteAuthorize action='create' subject='PAYMENT_PRODUCT'>
                     <PagePaymentProductCreate />
+                  </RouteAuthorize>
+                ),
+              },
+              {
+                path: ':id',
+                element: (
+                  <RouteAuthorize action='read' subject='PAYMENT_PRODUCT'>
+                    <PagePaymentProductDetail />
                   </RouteAuthorize>
                 ),
               },

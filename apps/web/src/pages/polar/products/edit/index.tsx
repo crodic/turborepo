@@ -35,6 +35,7 @@ export function PagePaymentProductEdit() {
       })
       toast.success(
         t('paymentProducts.updateSuccess', {
+          name: data.name,
           defaultValue: `Plan "${data.name}" updated successfully`,
         })
       )

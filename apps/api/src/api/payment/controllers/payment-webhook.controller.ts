@@ -10,8 +10,8 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { WebhookVerificationError } from '@polar-sh/sdk/webhooks';
 import type { Request } from 'express';
+import { WebhookVerificationError } from 'standardwebhooks';
 import { PaymentGatewayFactory } from '../factories/payment-gateway.factory';
 import { PaymentService } from '../services/payment.service';
 

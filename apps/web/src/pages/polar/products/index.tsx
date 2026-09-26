@@ -130,13 +130,12 @@ export function PagePaymentProductsOverview() {
             )}
           </div>
         </div>
+
         <DataTable
           table={table}
           isFetching={isFetching}
           onClickRowAction={(row) => {
-            if (canUpdate) {
-              navigate(`/polar/products/${row.id}/edit`)
-            }
+            navigate(`/polar/products/${row.id}`)
           }}
         >
           <DataTableToolbar table={table}>

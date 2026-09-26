@@ -20,6 +20,7 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { downloadCsv, useDataPolarOrders } from '../queries'
 import type { PolarOrderSchema } from '../schema'
 import { getOrdersTableColumns } from './columns'
+import { OrderDetailSheet } from './components/order-detail-sheet'
 import { DirectRefundDialog } from './direct-refund-dialog'
 
 const orderFilterParsers = {
@@ -36,6 +37,8 @@ export function PagePolarOrders() {
     null
   )
   const [refundOpen, setRefundOpen] = useState(false)
+  const [sheetOrder, setSheetOrder] = useState<PolarOrderSchema | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   const {
     page,
@@ -118,11 +121,26 @@ export function PagePolarOrders() {
           </div>
         </div>
 
-        <DataTable table={table} isFetching={isFetching}>
+        <DataTable
+          table={table}
+          isFetching={isFetching}
+          onClickRowAction={(row) => {
+            setSheetOrder(row)
+            setSheetOpen(true)
+          }}
+        >
           <DataTableToolbar table={table}>
             <DataTableSortList table={table} />
           </DataTableToolbar>
         </DataTable>
+
+        <OrderDetailSheet
+          order={sheetOrder}
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          canManageRefund={canManageRefund}
+          onRefund={handleRefund}
+        />
 
         <DirectRefundDialog
           order={selectedOrder}

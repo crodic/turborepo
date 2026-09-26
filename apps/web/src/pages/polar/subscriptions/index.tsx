@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Download } from 'lucide-react'
 import { parseAsString } from 'nuqs'
 import { useTranslation } from 'react-i18next'
@@ -20,6 +20,7 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { downloadCsv, useDataPolarSubscriptions } from '../queries'
 import type { PolarSubscriptionSchema } from '../schema'
 import { getSubscriptionsTableColumns } from './columns'
+import { SubscriptionDetailSheet } from './components/subscription-detail-sheet'
 
 const subscriptionFilterParsers = {
   customerEmail: parseAsString,
@@ -31,6 +32,10 @@ export function PagePolarSubscriptions() {
   const { t } = useTranslation()
   const { ability } = useAuthStore()
   const canManage = ability.can('update', 'PAYMENT')
+
+  const [selectedSub, setSelectedSub] =
+    useState<PolarSubscriptionSchema | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   const {
     page,
@@ -119,11 +124,25 @@ export function PagePolarSubscriptions() {
           </div>
         </div>
 
-        <DataTable table={table} isFetching={isFetching}>
+        <DataTable
+          table={table}
+          isFetching={isFetching}
+          onClickRowAction={(row) => {
+            setSelectedSub(row)
+            setSheetOpen(true)
+          }}
+        >
           <DataTableToolbar table={table}>
             <DataTableSortList table={table} />
           </DataTableToolbar>
         </DataTable>
+
+        <SubscriptionDetailSheet
+          subscription={selectedSub}
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          canManage={canManage}
+        />
       </Main>
     </>
   )
