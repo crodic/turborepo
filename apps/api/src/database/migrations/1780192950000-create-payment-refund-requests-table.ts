@@ -5,13 +5,17 @@ export class CreatePaymentRefundRequestsTable1780192950000 implements MigrationI
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TYPE "public"."polar_refund_requests_status_enum" AS ENUM(
-        'pending', 'approved', 'rejected', 'processed'
-      )
+      DO $$ BEGIN
+        CREATE TYPE "public"."polar_refund_requests_status_enum" AS ENUM(
+          'pending', 'approved', 'rejected', 'processed'
+        );
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     await queryRunner.query(`
-      CREATE TABLE "polar_refund_requests" (
+      CREATE TABLE IF NOT EXISTS "polar_refund_requests" (
         "id" BIGSERIAL NOT NULL,
         "order_id" bigint NOT NULL,
         "user_id" bigint,
@@ -31,50 +35,63 @@ export class CreatePaymentRefundRequestsTable1780192950000 implements MigrationI
     `);
 
     await queryRunner.query(
-      `CREATE INDEX "IDX_polar_refund_requests_order_id" ON "polar_refund_requests" ("order_id")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_polar_refund_requests_order_id" ON "polar_refund_requests" ("order_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_polar_refund_requests_user_id" ON "polar_refund_requests" ("user_id")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_polar_refund_requests_user_id" ON "polar_refund_requests" ("user_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_polar_refund_requests_status" ON "polar_refund_requests" ("status")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_polar_refund_requests_status" ON "polar_refund_requests" ("status")`,
     );
 
+    // Add foreign keys safely if not exists
     await queryRunner.query(`
-      ALTER TABLE "polar_refund_requests" 
-      ADD CONSTRAINT "FK_polar_refund_requests_order_id" 
-      FOREIGN KEY ("order_id") REFERENCES "polar_orders"("id") 
-      ON DELETE CASCADE ON UPDATE NO ACTION
+      DO $$ BEGIN
+        ALTER TABLE "polar_refund_requests" 
+        ADD CONSTRAINT "FK_polar_refund_requests_order_id" 
+        FOREIGN KEY ("order_id") REFERENCES "polar_orders"("id") 
+        ON DELETE CASCADE ON UPDATE NO ACTION;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     await queryRunner.query(`
-      ALTER TABLE "polar_refund_requests" 
-      ADD CONSTRAINT "FK_polar_refund_requests_user_id" 
-      FOREIGN KEY ("user_id") REFERENCES "users"("id") 
-      ON DELETE SET NULL ON UPDATE NO ACTION
+      DO $$ BEGIN
+        ALTER TABLE "polar_refund_requests" 
+        ADD CONSTRAINT "FK_polar_refund_requests_user_id" 
+        FOREIGN KEY ("user_id") REFERENCES "users"("id") 
+        ON DELETE SET NULL ON UPDATE NO ACTION;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     await queryRunner.query(`
-      ALTER TABLE "polar_refund_requests" 
-      ADD CONSTRAINT "FK_polar_refund_requests_reviewed_by" 
-      FOREIGN KEY ("reviewed_by") REFERENCES "admin_users"("id") 
-      ON DELETE SET NULL ON UPDATE NO ACTION
+      DO $$ BEGIN
+        ALTER TABLE "polar_refund_requests" 
+        ADD CONSTRAINT "FK_polar_refund_requests_reviewed_by" 
+        FOREIGN KEY ("reviewed_by") REFERENCES "admin_users"("id") 
+        ON DELETE SET NULL ON UPDATE NO ACTION;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "polar_refund_requests" DROP CONSTRAINT "FK_polar_refund_requests_reviewed_by"`,
+      `ALTER TABLE "polar_refund_requests" DROP CONSTRAINT IF EXISTS "FK_polar_refund_requests_reviewed_by"`,
     );
     await queryRunner.query(
-      `ALTER TABLE "polar_refund_requests" DROP CONSTRAINT "FK_polar_refund_requests_user_id"`,
+      `ALTER TABLE "polar_refund_requests" DROP CONSTRAINT IF EXISTS "FK_polar_refund_requests_user_id"`,
     );
     await queryRunner.query(
-      `ALTER TABLE "polar_refund_requests" DROP CONSTRAINT "FK_polar_refund_requests_order_id"`,
+      `ALTER TABLE "polar_refund_requests" DROP CONSTRAINT IF EXISTS "FK_polar_refund_requests_order_id"`,
     );
-    await queryRunner.query(`DROP TABLE "polar_refund_requests"`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "polar_refund_requests"`);
     await queryRunner.query(
-      `DROP TYPE "public"."polar_refund_requests_status_enum"`,
+      `DROP TYPE IF EXISTS "public"."polar_refund_requests_status_enum"`,
     );
   }
 }

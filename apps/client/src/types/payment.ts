@@ -1,30 +1,41 @@
+export interface PolarProductPrice {
+  id: string;
+  priceAmount?: number;
+  price_amount?: number;
+  priceCurrency?: string;
+  price_currency?: string;
+  recurringInterval?: string | null;
+  recurring_interval?: string | null;
+  amountType?: string;
+  isArchived?: boolean;
+  amount?: number;
+  currency?: string;
+}
+
 export interface PaymentProduct {
-  id: string | number;
-  planSlug: string;
+  id: string;
   name: string;
   description?: string | null;
-  interval: "monthly" | "yearly" | "one_time";
-  price: number;
-  currency: string;
-  prices?: Array<{
-    id?: string;
-    amount: number;
-    currency: string;
-    isArchived?: boolean;
-  }>;
-  polarProductId?: string;
-  features: string[];
+  recurringInterval?: "month" | "year" | null;
+  recurring_interval?: "month" | "year" | null;
+  isRecurring?: boolean;
+  is_recurring?: boolean;
+  isArchived?: boolean;
+  prices?: PolarProductPrice[];
+  benefits?: Array<{ id: string; description: string; type?: string }>;
+  medias?: Array<{ id: string; publicUrl?: string }>;
   metadata?: Record<string, any>;
-  benefits?: Array<Record<string, any>>;
-  medias?: Array<Record<string, any>>;
-  trialInterval?: string | null;
-  trialIntervalCount?: number | null;
+  planSlug?: string;
+  interval?: "monthly" | "yearly" | "one_time";
+  price?: number;
+  currency?: string;
+  features?: string[];
   badge?: string | null;
-  ctaText: string;
-  isPopular: boolean;
-  isFree: boolean;
-  isActive: boolean;
-  sortOrder: number;
+  ctaText?: string;
+  isPopular?: boolean;
+  isFree?: boolean;
+  sortOrder?: number;
+  [key: string]: any;
 }
 
 export interface PaymentOrder {
@@ -86,13 +97,14 @@ export interface PaymentSubscription {
 }
 
 export interface CreateCheckoutPayload {
-  planSlug: string;
-  interval: "monthly" | "yearly" | "one_time";
-  productId?: string;
+  productId: string;
   successUrl: string;
   customerEmail?: string;
   customerName?: string;
+  planSlug?: string;
+  interval?: "monthly" | "yearly" | "one_time";
   userId?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface CheckoutResponse {

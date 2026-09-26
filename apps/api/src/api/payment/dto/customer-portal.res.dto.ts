@@ -2,9 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class CustomerPortalResDto {
   @ApiProperty({
-    description: 'Pre-authenticated direct URL to the Polar Customer Portal',
-    example:
-      'https://sandbox.polar.sh/your-org/portal?customer_session_token=token_123',
+    description: 'Polar Customer Portal authenticated URL',
+    example: 'https://sandbox.polar.sh/portal/xxx',
   })
   portalUrl!: string;
 }

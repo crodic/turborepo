@@ -8,7 +8,6 @@ import {
   Get,
   HttpStatus,
   Param,
-  ParseIntPipe,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -24,11 +23,10 @@ import { CreateRefundRequestReqDto } from '../dto/create-refund-request.req.dto'
 import { CustomerPortalReqDto } from '../dto/customer-portal.req.dto';
 import { CustomerPortalResDto } from '../dto/customer-portal.res.dto';
 import { PaymentOrderResDto } from '../dto/payment-order.res.dto';
-import { PaymentProductResDto } from '../dto/payment-product.res.dto';
 import { PaymentRefundRequestResDto } from '../dto/payment-refund-request.res.dto';
 import { PaymentSubscriptionResDto } from '../dto/payment-subscription.res.dto';
 import { PaymentService } from '../services/payment.service';
-import { ProductService } from '../services/product.service';
+import { PolarService } from '../services/polar.service';
 
 @ApiTags('Payments')
 @Controller({
@@ -38,23 +36,22 @@ import { ProductService } from '../services/product.service';
 export class PaymentController {
   constructor(
     private readonly paymentService: PaymentService,
-    private readonly productService: ProductService,
+    private readonly polarService: PolarService,
   ) {}
 
   @Get('products')
   @Public()
   @ApiOperation({
-    summary: 'Get active pricing products',
+    summary: 'Get active pricing products from Polar',
     description:
-      'Retrieves the list of all active pricing tiers and products for client checkout and pricing table display.',
+      'Retrieves the list of all active pricing tiers and products directly from Polar for client checkout and pricing table display.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'List of active pricing products',
-    type: [PaymentProductResDto],
+    description: 'List of active pricing products from Polar',
   })
-  async getProducts(): Promise<PaymentProductResDto[]> {
-    return await this.productService.getActiveProducts();
+  async getProducts() {
+    return await this.polarService.listProducts();
   }
 
   @Post('checkout')
@@ -62,7 +59,7 @@ export class PaymentController {
   @ApiOperation({
     summary: 'Create a Polar checkout session',
     description:
-      'Initiates a checkout session on Polar for one-time purchases or subscriptions. Returns a checkout URL to redirect the user to.',
+      'Initiates a checkout session on Polar. Returns a checkout URL to redirect the user to.',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -105,13 +102,13 @@ export class PaymentController {
   @UseGuards(UserAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Get current user payment orders',
+    summary: 'Get current user orders',
     description:
-      'Retrieves the list of payment orders belonging to the authenticated user.',
+      'Retrieves completed and pending orders associated with the authenticated user account.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'List of user payment orders',
+    description: 'List of user orders',
     type: [PaymentOrderResDto],
   })
   async getMyOrders(
@@ -158,7 +155,7 @@ export class PaymentController {
     type: PaymentRefundRequestResDto,
   })
   async createRefundRequest(
-    @Param('id', ParseIntPipe) orderId: AutoIncrementID,
+    @Param('id') orderId: AutoIncrementID,
     @Body() dto: CreateRefundRequestReqDto,
     @CurrentUser('id') userId: AutoIncrementID,
   ): Promise<PaymentRefundRequestResDto> {

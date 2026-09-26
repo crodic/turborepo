@@ -29,13 +29,13 @@ export class PolarSubscriptionEntity extends AbstractEntity {
   })
   id!: AutoIncrementID;
 
-  @Column({ name: 'user_id', type: 'bigint', nullable: true })
   @Index('IDX_polar_subscriptions_user_id')
+  @Column({ type: 'bigint', name: 'user_id', nullable: true })
   userId?: AutoIncrementID | null;
 
   @ManyToOne(() => UserEntity, (user) => user.subscriptions, {
-    nullable: true,
     onDelete: 'SET NULL',
+    nullable: true,
   })
   @JoinColumn({
     name: 'user_id',
@@ -43,87 +43,67 @@ export class PolarSubscriptionEntity extends AbstractEntity {
   })
   user?: Relation<UserEntity> | null;
 
-  @Column({ name: 'customer_id', type: 'bigint', nullable: true })
-  @Index('IDX_polar_subscriptions_customer_id')
-  customerId?: AutoIncrementID | null;
-
-  @Column({ name: 'customer_email', type: 'varchar', length: 255 })
-  @Index('IDX_polar_subscriptions_customer_email')
-  customerEmail!: string;
-
-  @Column({ name: 'polar_subscription_id', type: 'varchar', length: 150 })
-  @Index('UQ_polar_subscriptions_polar_subscription_id', { unique: true })
+  @Index('IDX_polar_subscriptions_polar_subscription_id', { unique: true })
+  @Column({ type: 'varchar', length: 150, name: 'polar_subscription_id' })
   polarSubscriptionId!: string;
 
+  @Index('IDX_polar_subscriptions_polar_customer_id')
   @Column({
-    name: 'polar_customer_id',
     type: 'varchar',
     length: 150,
+    name: 'polar_customer_id',
     nullable: true,
   })
-  @Index('IDX_polar_subscriptions_polar_customer_id')
   polarCustomerId?: string | null;
 
-  @Column({ name: 'product_id', type: 'varchar', length: 150 })
+  @Column({ type: 'varchar', length: 150, name: 'product_id' })
   productId!: string;
+
+  @Column({
+    type: 'varchar',
+    length: 255,
+    name: 'customer_email',
+    nullable: true,
+  })
+  customerEmail?: string | null;
 
   @Column({ type: 'integer', nullable: true })
   amount?: number | null;
 
-  @Column({ type: 'varchar', length: 10, nullable: true })
-  currency?: string | null;
+  @Column({ type: 'varchar', length: 10, default: 'usd' })
+  currency!: string;
 
   @Column({
-    name: 'recurring_interval',
     type: 'varchar',
     length: 20,
+    name: 'recurring_interval',
     nullable: true,
   })
   recurringInterval?: string | null;
 
+  @Index('IDX_polar_subscriptions_status')
   @Column({
     type: 'enum',
     enum: PolarSubscriptionStatus,
-    enumName: 'polar_subscriptions_status_enum',
     default: PolarSubscriptionStatus.INCOMPLETE,
   })
-  @Index('IDX_polar_subscriptions_status')
   status!: PolarSubscriptionStatus;
 
-  @Column({ name: 'current_period_start', type: 'timestamptz', nullable: true })
+  @Column({ type: 'timestamptz', name: 'current_period_start', nullable: true })
   currentPeriodStart?: Date | null;
 
-  @Column({ name: 'current_period_end', type: 'timestamptz', nullable: true })
+  @Column({ type: 'timestamptz', name: 'current_period_end', nullable: true })
   currentPeriodEnd?: Date | null;
 
-  @Column({ name: 'cancel_at_period_end', type: 'boolean', default: false })
+  @Column({ type: 'boolean', name: 'cancel_at_period_end', default: false })
   cancelAtPeriodEnd!: boolean;
 
-  @Column({ name: 'started_at', type: 'timestamptz', nullable: true })
+  @Column({ type: 'timestamptz', name: 'started_at', nullable: true })
   startedAt?: Date | null;
 
-  @Column({ name: 'ended_at', type: 'timestamptz', nullable: true })
+  @Column({ type: 'timestamptz', name: 'ended_at', nullable: true })
   endedAt?: Date | null;
-
-  @Column({ name: 'discount_id', type: 'varchar', length: 150, nullable: true })
-  discountId?: string | null;
-
-  @Column({ name: 'custom_field_data', type: 'jsonb', nullable: true })
-  customFieldData?: Record<string, any> | null;
 
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, any> | null;
-
-  constructor(data?: Partial<PolarSubscriptionEntity>) {
-    super();
-    if (data) {
-      Object.assign(this, data);
-    }
-  }
 }
-
-// Backward-compatible aliases
-export {
-  PolarSubscriptionEntity as PaymentSubscriptionEntity,
-  PolarSubscriptionStatus as PaymentSubscriptionStatus,
-};

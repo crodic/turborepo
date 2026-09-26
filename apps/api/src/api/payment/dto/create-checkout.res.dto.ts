@@ -1,21 +1,33 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCheckoutResDto {
   @ApiProperty({
-    description: 'URL to redirect the customer to complete payment on Polar',
-    example: 'https://sandbox.polar.sh/checkout/chk_123456789',
+    description: 'Polar hosted checkout URL to redirect customer to',
+    example: 'https://sandbox.polar.sh/checkout/xxx',
   })
   checkoutUrl!: string;
 
   @ApiProperty({
-    description: 'Polar Checkout Session ID',
-    example: 'chk_123456789',
+    description: 'Polar checkout session ID',
+    example: 'checkout_123',
   })
   checkoutId!: string;
 
   @ApiProperty({
-    description: 'Internal unique order number created in your system',
-    example: 'ORD-20260923-A1B2C3D4',
+    description: 'Internal order reference number',
+    example: 'ORD-LXYZ-ABC123',
   })
   orderNumber!: string;
+
+  @ApiPropertyOptional({
+    description: 'Total order amount in cents',
+    example: 2900,
+  })
+  amount?: number;
+
+  @ApiPropertyOptional({
+    description: 'Currency code',
+    example: 'usd',
+  })
+  currency?: string;
 }

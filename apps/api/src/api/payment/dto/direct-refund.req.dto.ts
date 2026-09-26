@@ -16,13 +16,13 @@ export class DirectRefundReqDto {
 
   @StringFieldOptional({
     description: 'Internal admin comment or note',
-    example: 'Direct refund requested via support ticket #1234.',
+    example: 'Direct refund requested via support ticket.',
   })
   comment?: string;
 
   @NumberFieldOptional({
     description:
-      'Amount to refund in cents (optional, defaults to full order amount)',
+      'Amount to refund in cents / currency base unit (optional, defaults to full order amount)',
     example: 1900,
     min: 1,
   })

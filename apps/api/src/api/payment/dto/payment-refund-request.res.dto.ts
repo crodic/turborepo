@@ -1,6 +1,6 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { PaymentRefundRequestStatus } from '../entities/polar-refund-request.entity';
+import { PolarRefundRequestStatus } from '../entities/polar-refund-request.entity';
 
 export class PaymentRefundRequestResDto {
   @ApiProperty({ example: 1 })
@@ -31,10 +31,10 @@ export class PaymentRefundRequestResDto {
   customerNote?: string | null;
 
   @ApiProperty({
-    enum: PaymentRefundRequestStatus,
-    example: PaymentRefundRequestStatus.PENDING,
+    enum: PolarRefundRequestStatus,
+    example: PolarRefundRequestStatus.PENDING,
   })
-  status!: PaymentRefundRequestStatus;
+  status!: PolarRefundRequestStatus;
 
   @ApiPropertyOptional({ example: 'Approved by admin' })
   adminNote?: string | null;

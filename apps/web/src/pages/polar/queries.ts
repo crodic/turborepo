@@ -311,7 +311,7 @@ export function useMutationSyncCustomers() {
 export async function apiGetPolarSubscriptions(
   params: PaginateQueryParams
 ): Promise<ApiMetadata & { data: PolarSubscriptionSchema[] }> {
-  const response = await http.get('/admin/polar/subscriptions', { params })
+  const response = await http.get('/admin/payments/subscriptions', { params })
   const result = apiMetadataSchema
     .extend({ data: z.array(polarSubscriptionSchema) })
     .safeParse(response.data)
@@ -334,7 +334,7 @@ export function useMutationCancelSubscription() {
   return useMutation({
     mutationFn: async (id: number) => {
       const response = await http.post(
-        `/admin/polar/subscriptions/${id}/cancel`
+        `/admin/payments/subscriptions/${id}/cancel`
       )
       return response.data
     },
@@ -355,7 +355,7 @@ export function useMutationRevokeSubscription() {
   return useMutation({
     mutationFn: async (id: number) => {
       const response = await http.post(
-        `/admin/polar/subscriptions/${id}/revoke`
+        `/admin/payments/subscriptions/${id}/revoke`
       )
       return response.data
     },
@@ -378,7 +378,7 @@ export function useMutationRevokeSubscription() {
 export async function apiGetPolarOrders(
   params: PaginateQueryParams
 ): Promise<ApiMetadata & { data: PolarOrderSchema[] }> {
-  const response = await http.get('/admin/polar/orders', { params })
+  const response = await http.get('/admin/payments/orders', { params })
   const result = apiMetadataSchema
     .extend({ data: z.array(polarOrderSchema) })
     .safeParse(response.data)
@@ -623,5 +623,36 @@ export function useDataPolarOrganizations() {
       const response = await http.get('/admin/polar/organizations')
       return response.data?.items ?? response.data?.result?.items ?? []
     },
+  })
+}
+
+// ==========================================
+// PRODUCTS (Read-only from Polar SDK)
+// ==========================================
+
+export async function apiGetPolarProducts() {
+  const response = await http.get('/admin/payments/products')
+  return (
+    response.data?.items ?? response.data?.result?.items ?? response.data ?? []
+  )
+}
+
+export function useDataPolarProducts() {
+  return useQuery({
+    queryKey: ['polar-admin-products'],
+    queryFn: () => apiGetPolarProducts(),
+  })
+}
+
+export async function apiGetPolarProduct(id: string) {
+  const response = await http.get(`/admin/payments/products/${id}`)
+  return response.data
+}
+
+export function useDataPolarProduct(id?: string) {
+  return useQuery({
+    queryKey: ['polar-admin-product', id],
+    queryFn: () => apiGetPolarProduct(id!),
+    enabled: Boolean(id),
   })
 }

@@ -1,71 +1,56 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { PaymentSubscriptionStatus } from '../entities/polar-subscription.entity';
+import { PolarSubscriptionStatus } from '../entities/polar-subscription.entity';
 
 export class PaymentSubscriptionResDto {
-  @ApiProperty({ example: 1 })
+  @ApiProperty({ example: '1' })
   id!: AutoIncrementID;
 
-  @ApiPropertyOptional({ example: 'usr_123' })
-  userId?: string | null;
+  @ApiPropertyOptional({ example: '1' })
+  userId?: AutoIncrementID | null;
 
-  @ApiPropertyOptional({ example: 2 })
-  customerId?: AutoIncrementID | null;
-
-  @ApiProperty({ example: 'customer@example.com' })
-  customerEmail!: string;
-
-  @ApiProperty({ example: 'sub_123456789' })
+  @ApiProperty({ example: 'sub_123' })
   polarSubscriptionId!: string;
 
-  @ApiPropertyOptional({ example: 'cus_123456789' })
+  @ApiPropertyOptional({ example: 'cus_123' })
   polarCustomerId?: string | null;
 
-  @ApiProperty({ example: 'prod_123456789' })
+  @ApiProperty({ example: 'prod_123' })
   productId!: string;
 
-  @ApiPropertyOptional({ example: 1900 })
+  @ApiPropertyOptional({ example: 'customer@example.com' })
+  customerEmail?: string | null;
+
+  @ApiPropertyOptional({ example: 2900 })
   amount?: number | null;
 
-  @ApiPropertyOptional({ example: 'usd' })
-  currency?: string | null;
+  @ApiProperty({ example: 'usd' })
+  currency!: string;
 
   @ApiPropertyOptional({ example: 'month' })
   recurringInterval?: string | null;
 
   @ApiProperty({
-    enum: PaymentSubscriptionStatus,
-    example: PaymentSubscriptionStatus.ACTIVE,
+    enum: PolarSubscriptionStatus,
+    example: PolarSubscriptionStatus.ACTIVE,
   })
-  status!: PaymentSubscriptionStatus;
+  status!: PolarSubscriptionStatus;
 
-  @ApiPropertyOptional({ example: '2026-09-01T00:00:00.000Z' })
+  @ApiPropertyOptional()
   currentPeriodStart?: Date | null;
 
-  @ApiPropertyOptional({ example: '2026-10-01T00:00:00.000Z' })
+  @ApiPropertyOptional()
   currentPeriodEnd?: Date | null;
 
   @ApiProperty({ example: false })
   cancelAtPeriodEnd!: boolean;
 
-  @ApiPropertyOptional({ example: '2026-09-01T00:00:00.000Z' })
+  @ApiPropertyOptional()
   startedAt?: Date | null;
 
-  @ApiPropertyOptional({ example: null })
+  @ApiPropertyOptional()
   endedAt?: Date | null;
-
-  @ApiPropertyOptional({ example: 'dsc_123' })
-  discountId?: string | null;
-
-  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
-  customFieldData?: Record<string, any> | null;
-
-  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
-  metadata?: Record<string, any> | null;
 
   @ApiProperty()
   createdAt!: Date;
-
-  @ApiProperty()
-  updatedAt!: Date;
 }

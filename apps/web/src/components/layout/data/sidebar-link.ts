@@ -15,14 +15,8 @@ import {
   Send,
   MapPin,
   Receipt,
-  BarChart3,
-  Package,
-  Percent,
-  Sliders,
-  Users,
   Repeat,
-  Link2,
-  Gift,
+  Package,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -113,34 +107,10 @@ export const sidebarLink: SidebarData = {
       title: 'navigation.polar.title',
       items: [
         {
-          title: 'navigation.polar.analytics',
-          url: '/polar/analytics',
-          icon: BarChart3,
-          permission: 'PAYMENT',
-        },
-        {
           title: 'navigation.polar.products',
           url: '/polar/products',
           icon: Package,
-          permission: 'PAYMENT_PRODUCT',
-        },
-        {
-          title: 'navigation.polar.discounts',
-          url: '/polar/discounts',
-          icon: Percent,
-          permission: 'POLAR_DISCOUNT',
-        },
-        {
-          title: 'navigation.polar.customFields',
-          url: '/polar/custom-fields',
-          icon: Sliders,
-          permission: 'POLAR_CUSTOM_FIELD',
-        },
-        {
-          title: 'navigation.polar.customers',
-          url: '/polar/customers',
-          icon: Users,
-          permission: 'POLAR_CUSTOMER',
+          permission: 'PAYMENT',
         },
         {
           title: 'navigation.polar.subscriptions',
@@ -153,18 +123,6 @@ export const sidebarLink: SidebarData = {
           url: '/polar/orders',
           icon: Receipt,
           permission: 'PAYMENT',
-        },
-        {
-          title: 'navigation.polar.checkoutLinks',
-          url: '/polar/checkout-links',
-          icon: Link2,
-          permission: 'PAYMENT_PRODUCT',
-        },
-        {
-          title: 'navigation.polar.benefits',
-          url: '/polar/benefits',
-          icon: Gift,
-          permission: 'PAYMENT_PRODUCT',
         },
       ],
     },

@@ -63,44 +63,48 @@ const formatPrice = (price: number, currency = "USD") => {
 };
 
 const getProductDisplayPrice = (product: PaymentProduct, locale: string) => {
-  if (product.isFree) {
-    return { price: 0, currency: product.currency || "USD", isFree: true };
-  }
-
   const targetCurrency = locale === "vi" ? "vnd" : "usd";
-  if (product.prices && product.prices.length > 0) {
-    const activePrices = product.prices.filter((p) => !p.isArchived);
+  const prices = product.prices || [];
+  const activePrices = prices.filter((p: any) => !p.isArchived);
 
-    // 1. Try to find active price matching target currency with amount > 0
-    const matchedPaid = activePrices.find(
-      (p) => p.currency.toLowerCase() === targetCurrency && p.amount > 0
-    );
-    if (matchedPaid) {
-      return {
-        price: matchedPaid.amount,
-        currency: matchedPaid.currency,
-        isFree: false,
-      };
-    }
+  const parsePrice = (p: any) => {
+    const raw = p.priceAmount ?? p.price_amount ?? p.amount ?? 0;
+    const curr = (
+      p.priceCurrency ??
+      p.price_currency ??
+      p.currency ??
+      "USD"
+    ).toLowerCase();
+    const isZeroDecimal = ["vnd", "jpy", "krw"].includes(curr);
+    return {
+      price: isZeroDecimal ? raw : raw / 100,
+      currency: curr.toUpperCase(),
+      isFree: raw === 0,
+    };
+  };
 
-    // 2. Try to find any active paid price
-    const anyPaid = activePrices.find((p) => p.amount > 0);
-    if (anyPaid) {
-      return {
-        price: anyPaid.amount,
-        currency: anyPaid.currency,
-        isFree: false,
-      };
+  if (activePrices.length > 0) {
+    const matched = activePrices.find((p: any) => {
+      const curr = (
+        p.priceCurrency ??
+        p.price_currency ??
+        p.currency ??
+        ""
+      ).toLowerCase();
+      return curr === targetCurrency;
+    });
+    if (matched) {
+      return parsePrice(matched);
     }
-
-    // 3. If all active prices are 0
-    if (activePrices.length > 0 && activePrices.every((p) => p.amount === 0)) {
-      return { price: 0, currency: activePrices[0].currency, isFree: true };
-    }
+    return parsePrice(activePrices[0]);
   }
 
-  const isFree = product.isFree || product.price === 0;
-  return { price: product.price, currency: product.currency || "USD", isFree };
+  const rawPrice = product.price ?? 0;
+  return {
+    price: rawPrice,
+    currency: (product.currency || "USD").toUpperCase(),
+    isFree: product.isFree || rawPrice === 0,
+  };
 };
 
 export function PricingView() {
@@ -121,8 +125,60 @@ export function PricingView() {
 
   // Filter products for currently selected interval
   const currentProducts = useMemo(() => {
-    if (!products) return [];
-    return products.filter((p) => p.interval === interval);
+    if (!products || !Array.isArray(products)) return [];
+
+    return products
+      .filter((p: any) => {
+        if (p.isArchived) return false;
+
+        const recurring = p.recurringInterval ?? p.recurring_interval;
+        const prices = p.prices || [];
+        const nameLower = (p.name || "").toLowerCase();
+
+        if (interval === "monthly") {
+          return (
+            recurring === "month" ||
+            prices.some(
+              (pr: any) =>
+                pr.recurringInterval === "month" ||
+                pr.recurring_interval === "month"
+            ) ||
+            p.interval === "monthly" ||
+            nameLower.includes("monthly")
+          );
+        }
+
+        if (interval === "yearly") {
+          return (
+            recurring === "year" ||
+            prices.some(
+              (pr: any) =>
+                pr.recurringInterval === "year" ||
+                pr.recurring_interval === "year"
+            ) ||
+            p.interval === "yearly" ||
+            nameLower.includes("yearly")
+          );
+        }
+
+        if (interval === "one_time") {
+          return (
+            !p.isRecurring ||
+            recurring === null ||
+            prices.some((pr: any) => pr.type === "one_time") ||
+            p.interval === "one_time" ||
+            nameLower.includes("lifetime") ||
+            nameLower.includes("one-time")
+          );
+        }
+
+        return true;
+      })
+      .sort((a: any, b: any) => {
+        const orderA = Number(a.metadata?.sortOrder ?? a.sortOrder ?? 99);
+        const orderB = Number(b.metadata?.sortOrder ?? b.sortOrder ?? 99);
+        return orderA - orderB;
+      });
   }, [products, interval]);
 
   const handleSelectPlan = (product: PaymentProduct) => {
@@ -146,12 +202,13 @@ export function PricingView() {
 
     createCheckoutMutation.mutate(
       {
-        planSlug: product.planSlug,
-        interval,
+        productId: String(product.id),
         successUrl,
         customerEmail: profile?.email,
         customerName: profile?.fullName,
-        userId: profile?.id ? String(profile.id) : undefined,
+        metadata: {
+          userId: profile?.id ? String(profile.id) : undefined,
+        },
       },
       {
         onSettled: () => {
@@ -278,50 +335,65 @@ export function PricingView() {
               .replace(/\s*\((Monthly|Yearly|Lifetime|One-time)\)/i, "")
               .trim();
 
-            const isPopular = product.isPopular || product.planSlug === "pro";
+            const planSlug =
+              product.metadata?.planSlug ||
+              (product.name?.toLowerCase().includes("enterprise")
+                ? "enterprise"
+                : product.name?.toLowerCase().includes("pro")
+                  ? "pro"
+                  : "starter");
+
+            const isPopular =
+              product.metadata?.badge === "Most Popular" ||
+              product.isPopular ||
+              planSlug === "pro";
             const badgeText =
-              product.badge || (isPopular ? t("tiers.pro.badge") : null);
+              product.metadata?.badge ||
+              (isPopular ? t("tiers.pro.badge") : null);
 
             const fallbackDescription =
               product.description ||
-              (product.isFree
+              (displayPrice.isFree
                 ? t("tiers.starter.description")
-                : product.planSlug === "enterprise"
+                : planSlug === "enterprise"
                   ? t("tiers.enterprise.description")
                   : t("tiers.pro.description"));
 
             const fallbackFeatures =
-              product.features && product.features.length > 0
-                ? product.features
-                : product.isFree
-                  ? [
-                      t("tiers.starter.features.item1"),
-                      t("tiers.starter.features.item2"),
-                      t("tiers.starter.features.item3"),
-                      t("tiers.starter.features.item4"),
-                    ]
-                  : product.planSlug === "enterprise"
+              product.benefits && product.benefits.length > 0
+                ? product.benefits.map((b: any) => b.description)
+                : product.features && product.features.length > 0
+                  ? product.features
+                  : displayPrice.isFree
                     ? [
-                        t("tiers.enterprise.features.item1"),
-                        t("tiers.enterprise.features.item2"),
-                        t("tiers.enterprise.features.item3"),
-                        t("tiers.enterprise.features.item4"),
-                        t("tiers.enterprise.features.item5"),
-                        t("tiers.enterprise.features.item6"),
+                        t("tiers.starter.features.item1"),
+                        t("tiers.starter.features.item2"),
+                        t("tiers.starter.features.item3"),
+                        t("tiers.starter.features.item4"),
                       ]
-                    : [
-                        t("tiers.pro.features.item1"),
-                        t("tiers.pro.features.item2"),
-                        t("tiers.pro.features.item3"),
-                        t("tiers.pro.features.item4"),
-                        t("tiers.pro.features.item5"),
-                      ];
+                    : planSlug === "enterprise"
+                      ? [
+                          t("tiers.enterprise.features.item1"),
+                          t("tiers.enterprise.features.item2"),
+                          t("tiers.enterprise.features.item3"),
+                          t("tiers.enterprise.features.item4"),
+                          t("tiers.enterprise.features.item5"),
+                          t("tiers.enterprise.features.item6"),
+                        ]
+                      : [
+                          t("tiers.pro.features.item1"),
+                          t("tiers.pro.features.item2"),
+                          t("tiers.pro.features.item3"),
+                          t("tiers.pro.features.item4"),
+                          t("tiers.pro.features.item5"),
+                        ];
 
             const ctaLabel =
+              product.metadata?.ctaText ||
               product.ctaText ||
-              (product.isFree
+              (displayPrice.isFree
                 ? t("tiers.starter.cta")
-                : product.planSlug === "enterprise"
+                : planSlug === "enterprise"
                   ? t("tiers.enterprise.cta")
                   : t("tiers.pro.cta"));
 

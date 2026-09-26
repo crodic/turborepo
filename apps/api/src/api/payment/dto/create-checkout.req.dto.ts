@@ -4,27 +4,14 @@ import {
   StringFieldOptional,
 } from '@/decorators/field.decorators';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsObject, IsOptional, IsUrl } from 'class-validator';
+import { IsObject, IsOptional, IsUrl } from 'class-validator';
 
 export class CreateCheckoutReqDto {
   @StringField({
-    description: 'Plan slug identifier (e.g. pro, enterprise)',
-    example: 'pro',
-  })
-  planSlug!: string;
-
-  @StringField({
-    description: 'Billing interval: monthly, yearly, or one_time',
-    example: 'monthly',
-  })
-  @IsIn(['monthly', 'yearly', 'one_time'])
-  interval!: string;
-
-  @StringFieldOptional({
-    description: 'Optional Polar Product ID fallback',
+    description: 'Polar Product ID to purchase',
     example: 'f6387289-7bfc-42cc-8e85-00d4a922dc9f',
   })
-  productId?: string;
+  productId!: string;
 
   @ApiProperty({
     description: 'URL to redirect the customer to after successful payment',
@@ -45,24 +32,11 @@ export class CreateCheckoutReqDto {
   })
   customerName?: string;
 
-  @StringFieldOptional({
-    description: 'Internal User ID if the user is authenticated in your system',
-    example: 'usr_123',
-  })
-  userId?: string;
-
   @ApiPropertyOptional({
-    description:
-      'Custom key-value metadata to attach to the checkout and order',
+    description: 'Custom key-value metadata to attach to checkout and order',
     example: { plan: 'pro', source: 'pricing_page' },
   })
   @IsObject()
   @IsOptional()
   metadata?: Record<string, any>;
-
-  @StringFieldOptional({
-    description: 'Payment gateway provider (default: polar)',
-    example: 'polar',
-  })
-  gateway?: string;
 }
