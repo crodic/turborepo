@@ -11,7 +11,7 @@ import {
 } from 'typeorm';
 import { UserEntity } from '../../user/entities/user.entity';
 
-export enum PaymentOrderStatus {
+export enum PolarOrderStatus {
   PENDING = 'pending',
   PAID = 'paid',
   FAILED = 'failed',
@@ -19,20 +19,20 @@ export enum PaymentOrderStatus {
   REFUNDED = 'refunded',
 }
 
-@Entity('payment_orders')
-export class PaymentOrderEntity extends AbstractEntity {
+@Entity('polar_orders')
+export class PolarOrderEntity extends AbstractEntity {
   @PrimaryGeneratedColumn('increment', {
-    primaryKeyConstraintName: 'PK_payment_order_id',
+    primaryKeyConstraintName: 'PK_polar_order_id',
     type: 'bigint',
   })
   id!: AutoIncrementID;
 
   @Column({ name: 'order_number', type: 'varchar', length: 64 })
-  @Index('UQ_payment_orders_order_number', { unique: true })
+  @Index('UQ_polar_orders_order_number', { unique: true })
   orderNumber!: string;
 
   @Column({ name: 'user_id', type: 'bigint', nullable: true })
-  @Index('IDX_payment_orders_user_id')
+  @Index('IDX_polar_orders_user_id')
   userId?: AutoIncrementID | null;
 
   @ManyToOne(() => UserEntity, (user) => user.orders, {
@@ -41,16 +41,16 @@ export class PaymentOrderEntity extends AbstractEntity {
   })
   @JoinColumn({
     name: 'user_id',
-    foreignKeyConstraintName: 'FK_payment_orders_user_id',
+    foreignKeyConstraintName: 'FK_polar_orders_user_id',
   })
   user?: Relation<UserEntity> | null;
 
   @Column({ name: 'customer_id', type: 'bigint', nullable: true })
-  @Index('IDX_payment_orders_customer_id')
+  @Index('IDX_polar_orders_customer_id')
   customerId?: AutoIncrementID | null;
 
   @Column({ name: 'customer_email', type: 'varchar', length: 255 })
-  @Index('IDX_payment_orders_customer_email')
+  @Index('IDX_polar_orders_customer_email')
   customerEmail!: string;
 
   @Column({
@@ -67,7 +67,7 @@ export class PaymentOrderEntity extends AbstractEntity {
     length: 150,
     nullable: true,
   })
-  @Index('IDX_payment_orders_polar_checkout_id')
+  @Index('IDX_polar_orders_polar_checkout_id')
   polarCheckoutId?: string | null;
 
   @Column({
@@ -76,7 +76,7 @@ export class PaymentOrderEntity extends AbstractEntity {
     length: 150,
     nullable: true,
   })
-  @Index('IDX_payment_orders_polar_order_id')
+  @Index('IDX_polar_orders_polar_order_id')
   polarOrderId?: string | null;
 
   @Column({ name: 'product_id', type: 'varchar', length: 150 })
@@ -119,19 +119,26 @@ export class PaymentOrderEntity extends AbstractEntity {
 
   @Column({
     type: 'enum',
-    enum: PaymentOrderStatus,
-    default: PaymentOrderStatus.PENDING,
+    enum: PolarOrderStatus,
+    enumName: 'polar_orders_status_enum',
+    default: PolarOrderStatus.PENDING,
   })
-  @Index('IDX_payment_orders_status')
-  status!: PaymentOrderStatus;
+  @Index('IDX_polar_orders_status')
+  status!: PolarOrderStatus;
 
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, any> | null;
 
-  constructor(data?: Partial<PaymentOrderEntity>) {
+  constructor(data?: Partial<PolarOrderEntity>) {
     super();
     if (data) {
       Object.assign(this, data);
     }
   }
 }
+
+// Backward-compatible aliases
+export {
+  PolarOrderEntity as PaymentOrderEntity,
+  PolarOrderStatus as PaymentOrderStatus,
+};

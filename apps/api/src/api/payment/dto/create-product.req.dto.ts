@@ -138,6 +138,16 @@ export class CreateProductReqDto {
   @IsOptional()
   benefits?: string[];
 
+  @ApiPropertyOptional({
+    description: 'Polar product media file IDs for checkout presentation',
+    example: ['med_123', 'med_456'],
+    type: [String],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  medias?: string[];
+
   @StringFieldOptional({
     description: 'Product visibility (public or private)',
     example: 'public',

@@ -1,6 +1,6 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { PaymentOrderStatus } from '../entities/payment-order.entity';
+import { PaymentOrderStatus } from '../entities/polar-order.entity';
 
 export class PaymentOrderResDto {
   @ApiProperty({ example: 1 })

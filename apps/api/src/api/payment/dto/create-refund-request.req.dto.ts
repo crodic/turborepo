@@ -3,7 +3,7 @@ import {
   StringFieldOptional,
 } from '@/decorators/field.decorators';
 import { IsIn } from 'class-validator';
-import { RefundReason } from '../entities/payment-refund-request.entity';
+import { RefundReason } from '../entities/polar-refund-request.entity';
 
 export class CreateRefundRequestReqDto {
   @StringField({

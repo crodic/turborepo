@@ -18,7 +18,7 @@ import { UserEntity } from '../../user/entities/user.entity';
 import { CreateCustomerReqDto } from '../dto/create-customer.req.dto';
 import { PaymentCustomerResDto } from '../dto/payment-customer.res.dto';
 import { UpdateCustomerReqDto } from '../dto/update-customer.req.dto';
-import { PaymentCustomerEntity } from '../entities/payment-customer.entity';
+import { PolarCustomerEntity } from '../entities/polar-customer.entity';
 import { PolarService } from './polar.service';
 
 @Injectable()
@@ -26,8 +26,8 @@ export class CustomerPaymentService {
   private readonly logger = new Logger(CustomerPaymentService.name);
 
   constructor(
-    @InjectRepository(PaymentCustomerEntity)
-    private readonly customerRepo: Repository<PaymentCustomerEntity>,
+    @InjectRepository(PolarCustomerEntity)
+    private readonly customerRepo: Repository<PolarCustomerEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
     private readonly polarService: PolarService,

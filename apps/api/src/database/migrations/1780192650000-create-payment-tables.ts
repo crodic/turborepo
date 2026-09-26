@@ -4,9 +4,9 @@ export class CreatePaymentTables1780192650000 implements MigrationInterface {
   name = 'CreatePaymentTables1780192650000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // 1. payment_customers
+    // 1. polar_customers
     await queryRunner.query(`
-      CREATE TABLE "payment_customers" (
+      CREATE TABLE "polar_customers" (
         "id" BIGSERIAL NOT NULL,
         "user_id" character varying(100),
         "polar_customer_id" character varying(150) NOT NULL,
@@ -18,27 +18,27 @@ export class CreatePaymentTables1780192650000 implements MigrationInterface {
         "metadata" jsonb,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_payment_customer_id" PRIMARY KEY ("id")
+        CONSTRAINT "PK_polar_customer_id" PRIMARY KEY ("id")
       )
     `);
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_customers_user_id" ON "payment_customers" ("user_id")`,
+      `CREATE INDEX "IDX_polar_customers_user_id" ON "polar_customers" ("user_id")`,
     );
     await queryRunner.query(
-      `CREATE UNIQUE INDEX "UQ_payment_customers_polar_customer_id" ON "payment_customers" ("polar_customer_id")`,
+      `CREATE UNIQUE INDEX "UQ_polar_customers_polar_customer_id" ON "polar_customers" ("polar_customer_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_customers_email" ON "payment_customers" ("email")`,
+      `CREATE INDEX "IDX_polar_customers_email" ON "polar_customers" ("email")`,
     );
 
-    // 2. payment_orders
+    // 2. polar_orders
     await queryRunner.query(`
-      CREATE TYPE "public"."payment_orders_status_enum" AS ENUM(
+      CREATE TYPE "public"."polar_orders_status_enum" AS ENUM(
         'pending', 'paid', 'failed', 'canceled', 'refunded'
       )
     `);
     await queryRunner.query(`
-      CREATE TABLE "payment_orders" (
+      CREATE TABLE "polar_orders" (
         "id" BIGSERIAL NOT NULL,
         "order_number" character varying(64) NOT NULL,
         "user_id" character varying(100),
@@ -58,55 +58,55 @@ export class CreatePaymentTables1780192650000 implements MigrationInterface {
         "custom_field_data" jsonb,
         "invoice_url" character varying(500),
         "receipt_url" character varying(500),
-        "status" "public"."payment_orders_status_enum" NOT NULL DEFAULT 'pending',
+        "status" "public"."polar_orders_status_enum" NOT NULL DEFAULT 'pending',
         "metadata" jsonb,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_payment_order_id" PRIMARY KEY ("id")
+        CONSTRAINT "PK_polar_order_id" PRIMARY KEY ("id")
       )
     `);
     await queryRunner.query(
-      `CREATE UNIQUE INDEX "UQ_payment_orders_order_number" ON "payment_orders" ("order_number")`,
+      `CREATE UNIQUE INDEX "UQ_polar_orders_order_number" ON "polar_orders" ("order_number")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_orders_user_id" ON "payment_orders" ("user_id")`,
+      `CREATE INDEX "IDX_polar_orders_user_id" ON "polar_orders" ("user_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_orders_customer_id" ON "payment_orders" ("customer_id")`,
+      `CREATE INDEX "IDX_polar_orders_customer_id" ON "polar_orders" ("customer_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_orders_customer_email" ON "payment_orders" ("customer_email")`,
+      `CREATE INDEX "IDX_polar_orders_customer_email" ON "polar_orders" ("customer_email")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_orders_polar_checkout_id" ON "payment_orders" ("polar_checkout_id")`,
+      `CREATE INDEX "IDX_polar_orders_polar_checkout_id" ON "polar_orders" ("polar_checkout_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_orders_polar_order_id" ON "payment_orders" ("polar_order_id")`,
+      `CREATE INDEX "IDX_polar_orders_polar_order_id" ON "polar_orders" ("polar_order_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_orders_status" ON "payment_orders" ("status")`,
+      `CREATE INDEX "IDX_polar_orders_status" ON "polar_orders" ("status")`,
     );
 
-    // 3. payment_transactions
+    // 3. polar_transactions
     await queryRunner.query(`
-      CREATE TYPE "public"."payment_transactions_type_enum" AS ENUM(
+      CREATE TYPE "public"."polar_transactions_type_enum" AS ENUM(
         'charge', 'refund', 'dispute'
       )
     `);
     await queryRunner.query(`
-      CREATE TYPE "public"."payment_transactions_status_enum" AS ENUM(
+      CREATE TYPE "public"."polar_transactions_status_enum" AS ENUM(
         'pending', 'success', 'failed'
       )
     `);
     await queryRunner.query(`
-      CREATE TABLE "payment_transactions" (
+      CREATE TABLE "polar_transactions" (
         "id" BIGSERIAL NOT NULL,
         "user_id" character varying(100),
         "order_id" bigint,
         "subscription_id" bigint,
         "polar_payment_id" character varying(150),
-        "type" "public"."payment_transactions_type_enum" NOT NULL DEFAULT 'charge',
-        "status" "public"."payment_transactions_status_enum" NOT NULL DEFAULT 'pending',
+        "type" "public"."polar_transactions_type_enum" NOT NULL DEFAULT 'charge',
+        "status" "public"."polar_transactions_status_enum" NOT NULL DEFAULT 'pending',
         "amount" integer NOT NULL,
         "fee_amount" integer NOT NULL DEFAULT 0,
         "net_amount" integer NOT NULL DEFAULT 0,
@@ -118,33 +118,33 @@ export class CreatePaymentTables1780192650000 implements MigrationInterface {
         "metadata" jsonb,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_payment_transaction_id" PRIMARY KEY ("id")
+        CONSTRAINT "PK_polar_transaction_id" PRIMARY KEY ("id")
       )
     `);
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_transactions_user_id" ON "payment_transactions" ("user_id")`,
+      `CREATE INDEX "IDX_polar_transactions_user_id" ON "polar_transactions" ("user_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_transactions_order_id" ON "payment_transactions" ("order_id")`,
+      `CREATE INDEX "IDX_polar_transactions_order_id" ON "polar_transactions" ("order_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_transactions_subscription_id" ON "payment_transactions" ("subscription_id")`,
+      `CREATE INDEX "IDX_polar_transactions_subscription_id" ON "polar_transactions" ("subscription_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_transactions_polar_payment_id" ON "payment_transactions" ("polar_payment_id")`,
+      `CREATE INDEX "IDX_polar_transactions_polar_payment_id" ON "polar_transactions" ("polar_payment_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_transactions_status" ON "payment_transactions" ("status")`,
+      `CREATE INDEX "IDX_polar_transactions_status" ON "polar_transactions" ("status")`,
     );
 
-    // 4. payment_subscriptions
+    // 4. polar_subscriptions
     await queryRunner.query(`
-      CREATE TYPE "public"."payment_subscriptions_status_enum" AS ENUM(
+      CREATE TYPE "public"."polar_subscriptions_status_enum" AS ENUM(
         'active', 'canceled', 'past_due', 'incomplete', 'trialing', 'unpaid', 'paused'
       )
     `);
     await queryRunner.query(`
-      CREATE TABLE "payment_subscriptions" (
+      CREATE TABLE "polar_subscriptions" (
         "id" BIGSERIAL NOT NULL,
         "user_id" character varying(100),
         "customer_id" bigint,
@@ -155,7 +155,7 @@ export class CreatePaymentTables1780192650000 implements MigrationInterface {
         "amount" integer,
         "currency" character varying(10),
         "recurring_interval" character varying(20),
-        "status" "public"."payment_subscriptions_status_enum" NOT NULL DEFAULT 'incomplete',
+        "status" "public"."polar_subscriptions_status_enum" NOT NULL DEFAULT 'incomplete',
         "current_period_start" TIMESTAMP WITH TIME ZONE,
         "current_period_end" TIMESTAMP WITH TIME ZONE,
         "cancel_at_period_end" boolean NOT NULL DEFAULT false,
@@ -166,56 +166,56 @@ export class CreatePaymentTables1780192650000 implements MigrationInterface {
         "metadata" jsonb,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_payment_subscription_id" PRIMARY KEY ("id")
+        CONSTRAINT "PK_polar_subscription_id" PRIMARY KEY ("id")
       )
     `);
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_subscriptions_user_id" ON "payment_subscriptions" ("user_id")`,
+      `CREATE INDEX "IDX_polar_subscriptions_user_id" ON "polar_subscriptions" ("user_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_subscriptions_customer_id" ON "payment_subscriptions" ("customer_id")`,
+      `CREATE INDEX "IDX_polar_subscriptions_customer_id" ON "polar_subscriptions" ("customer_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_subscriptions_customer_email" ON "payment_subscriptions" ("customer_email")`,
+      `CREATE INDEX "IDX_polar_subscriptions_customer_email" ON "polar_subscriptions" ("customer_email")`,
     );
     await queryRunner.query(
-      `CREATE UNIQUE INDEX "UQ_payment_subscriptions_polar_subscription_id" ON "payment_subscriptions" ("polar_subscription_id")`,
+      `CREATE UNIQUE INDEX "UQ_polar_subscriptions_polar_subscription_id" ON "polar_subscriptions" ("polar_subscription_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_subscriptions_polar_customer_id" ON "payment_subscriptions" ("polar_customer_id")`,
+      `CREATE INDEX "IDX_polar_subscriptions_polar_customer_id" ON "polar_subscriptions" ("polar_customer_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_subscriptions_status" ON "payment_subscriptions" ("status")`,
+      `CREATE INDEX "IDX_polar_subscriptions_status" ON "polar_subscriptions" ("status")`,
     );
 
-    // 5. payment_webhook_events
+    // 5. polar_webhook_events
     await queryRunner.query(`
-      CREATE TYPE "public"."payment_webhook_events_status_enum" AS ENUM(
+      CREATE TYPE "public"."polar_webhook_events_status_enum" AS ENUM(
         'pending', 'processed', 'failed'
       )
     `);
     await queryRunner.query(`
-      CREATE TABLE "payment_webhook_events" (
+      CREATE TABLE "polar_webhook_events" (
         "id" BIGSERIAL NOT NULL,
         "event_id" character varying(150) NOT NULL,
         "event_type" character varying(100) NOT NULL,
         "payload" jsonb NOT NULL,
-        "status" "public"."payment_webhook_events_status_enum" NOT NULL DEFAULT 'pending',
+        "status" "public"."polar_webhook_events_status_enum" NOT NULL DEFAULT 'pending',
         "error_message" text,
         "processed_at" TIMESTAMP WITH TIME ZONE,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_payment_webhook_event_id" PRIMARY KEY ("id")
+        CONSTRAINT "PK_polar_webhook_event_id" PRIMARY KEY ("id")
       )
     `);
     await queryRunner.query(
-      `CREATE UNIQUE INDEX "UQ_payment_webhook_events_event_id" ON "payment_webhook_events" ("event_id")`,
+      `CREATE UNIQUE INDEX "UQ_polar_webhook_events_event_id" ON "polar_webhook_events" ("event_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_webhook_events_event_type" ON "payment_webhook_events" ("event_type")`,
+      `CREATE INDEX "IDX_polar_webhook_events_event_type" ON "polar_webhook_events" ("event_type")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_webhook_events_status" ON "payment_webhook_events" ("status")`,
+      `CREATE INDEX "IDX_polar_webhook_events_status" ON "polar_webhook_events" ("status")`,
     );
 
     // 6. polar_discounts
@@ -289,100 +289,99 @@ export class CreatePaymentTables1780192650000 implements MigrationInterface {
       `DROP INDEX "public"."UQ_polar_discounts_polar_discount_id"`,
     );
     await queryRunner.query(`DROP TABLE "polar_discounts"`);
-    // Drop payment_webhook_events
+
+    // Drop polar_webhook_events
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_webhook_events_status"`,
+      `DROP INDEX "public"."IDX_polar_webhook_events_status"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_webhook_events_event_type"`,
+      `DROP INDEX "public"."IDX_polar_webhook_events_event_type"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."UQ_payment_webhook_events_event_id"`,
+      `DROP INDEX "public"."UQ_polar_webhook_events_event_id"`,
     );
-    await queryRunner.query(`DROP TABLE "payment_webhook_events"`);
+    await queryRunner.query(`DROP TABLE "polar_webhook_events"`);
     await queryRunner.query(
-      `DROP TYPE "public"."payment_webhook_events_status_enum"`,
+      `DROP TYPE "public"."polar_webhook_events_status_enum"`,
     );
 
-    // Drop payment_subscriptions
+    // Drop polar_subscriptions
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_subscriptions_status"`,
+      `DROP INDEX "public"."IDX_polar_subscriptions_status"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_subscriptions_polar_customer_id"`,
+      `DROP INDEX "public"."IDX_polar_subscriptions_polar_customer_id"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."UQ_payment_subscriptions_polar_subscription_id"`,
+      `DROP INDEX "public"."UQ_polar_subscriptions_polar_subscription_id"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_subscriptions_customer_email"`,
+      `DROP INDEX "public"."IDX_polar_subscriptions_customer_email"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_subscriptions_customer_id"`,
+      `DROP INDEX "public"."IDX_polar_subscriptions_customer_id"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_subscriptions_user_id"`,
+      `DROP INDEX "public"."IDX_polar_subscriptions_user_id"`,
     );
-    await queryRunner.query(`DROP TABLE "payment_subscriptions"`);
+    await queryRunner.query(`DROP TABLE "polar_subscriptions"`);
     await queryRunner.query(
-      `DROP TYPE "public"."payment_subscriptions_status_enum"`,
-    );
-
-    // Drop payment_transactions
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_transactions_status"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_transactions_polar_payment_id"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_transactions_subscription_id"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_transactions_order_id"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_transactions_user_id"`,
-    );
-    await queryRunner.query(`DROP TABLE "payment_transactions"`);
-    await queryRunner.query(
-      `DROP TYPE "public"."payment_transactions_status_enum"`,
-    );
-    await queryRunner.query(
-      `DROP TYPE "public"."payment_transactions_type_enum"`,
+      `DROP TYPE "public"."polar_subscriptions_status_enum"`,
     );
 
-    // Drop payment_orders
-    await queryRunner.query(`DROP INDEX "public"."IDX_payment_orders_status"`);
+    // Drop polar_transactions
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_orders_polar_order_id"`,
+      `DROP INDEX "public"."IDX_polar_transactions_status"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_orders_polar_checkout_id"`,
+      `DROP INDEX "public"."IDX_polar_transactions_polar_payment_id"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_orders_customer_email"`,
+      `DROP INDEX "public"."IDX_polar_transactions_subscription_id"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_orders_customer_id"`,
+      `DROP INDEX "public"."IDX_polar_transactions_order_id"`,
     );
-    await queryRunner.query(`DROP INDEX "public"."IDX_payment_orders_user_id"`);
     await queryRunner.query(
-      `DROP INDEX "public"."UQ_payment_orders_order_number"`,
+      `DROP INDEX "public"."IDX_polar_transactions_user_id"`,
     );
-    await queryRunner.query(`DROP TABLE "payment_orders"`);
-    await queryRunner.query(`DROP TYPE "public"."payment_orders_status_enum"`);
+    await queryRunner.query(`DROP TABLE "polar_transactions"`);
+    await queryRunner.query(
+      `DROP TYPE "public"."polar_transactions_status_enum"`,
+    );
+    await queryRunner.query(
+      `DROP TYPE "public"."polar_transactions_type_enum"`,
+    );
 
-    // Drop payment_customers
+    // Drop polar_orders
+    await queryRunner.query(`DROP INDEX "public"."IDX_polar_orders_status"`);
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_customers_email"`,
+      `DROP INDEX "public"."IDX_polar_orders_polar_order_id"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."UQ_payment_customers_polar_customer_id"`,
+      `DROP INDEX "public"."IDX_polar_orders_polar_checkout_id"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_customers_user_id"`,
+      `DROP INDEX "public"."IDX_polar_orders_customer_email"`,
     );
-    await queryRunner.query(`DROP TABLE "payment_customers"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_polar_orders_customer_id"`,
+    );
+    await queryRunner.query(`DROP INDEX "public"."IDX_polar_orders_user_id"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."UQ_polar_orders_order_number"`,
+    );
+    await queryRunner.query(`DROP TABLE "polar_orders"`);
+    await queryRunner.query(`DROP TYPE "public"."polar_orders_status_enum"`);
+
+    // Drop polar_customers
+    await queryRunner.query(`DROP INDEX "public"."IDX_polar_customers_email"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."UQ_polar_customers_polar_customer_id"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_polar_customers_user_id"`,
+    );
+    await queryRunner.query(`DROP TABLE "polar_customers"`);
   }
 }

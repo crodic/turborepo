@@ -29,9 +29,6 @@ import { UnauthorizedError } from '@/pages/errors/unauthorized-error'
 import { PageFileOverview } from '@/pages/files'
 import { PageHelpCenter } from '@/pages/help-center'
 import { PageLocationOverview } from '@/pages/locations'
-import { PagePaymentProductsOverview } from '@/pages/payment-products'
-import { PagePaymentProductCreate } from '@/pages/payment-products/create'
-import { PagePaymentProductEdit } from '@/pages/payment-products/edit'
 import { PagePermissionOverview } from '@/pages/permissions'
 import { PagePermissionEdit } from '@/pages/permissions/edit'
 import PagePermissionShow from '@/pages/permissions/show'
@@ -42,6 +39,9 @@ import { PagePolarCustomFields } from '@/pages/polar/custom-fields'
 import { PagePolarCustomers } from '@/pages/polar/customers'
 import { PagePolarDiscounts } from '@/pages/polar/discounts'
 import { PagePolarOrders } from '@/pages/polar/orders'
+import { PagePaymentProductsOverview } from '@/pages/polar/products'
+import { PagePaymentProductCreate } from '@/pages/polar/products/create'
+import { PagePaymentProductEdit } from '@/pages/polar/products/edit'
 import { PagePolarSubscriptions } from '@/pages/polar/subscriptions'
 import { PageRoleOverview } from '@/pages/roles'
 import PageRoleCreate from '@/pages/roles/create'
@@ -368,28 +368,11 @@ const appRoutes: RouteObject[] = [
       },
       {
         path: '/payment-products',
-        children: [
-          {
-            index: true,
-            element: <Navigate to='/polar/products' replace />,
-          },
-          {
-            path: 'create',
-            element: (
-              <RouteAuthorize action='create' subject='PAYMENT_PRODUCT'>
-                <PagePaymentProductCreate />
-              </RouteAuthorize>
-            ),
-          },
-          {
-            path: ':id/edit',
-            element: (
-              <RouteAuthorize action='update' subject='PAYMENT_PRODUCT'>
-                <PagePaymentProductEdit />
-              </RouteAuthorize>
-            ),
-          },
-        ],
+        element: <Navigate to='/polar/products' replace />,
+      },
+      {
+        path: '/payment-products/*',
+        element: <Navigate to='/polar/products' replace />,
       },
       {
         path: '/payments',

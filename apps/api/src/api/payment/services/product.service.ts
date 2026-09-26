@@ -17,8 +17,8 @@ import { Repository } from 'typeorm';
 import { CreateProductReqDto } from '../dto/create-product.req.dto';
 import { PaymentProductResDto } from '../dto/payment-product.res.dto';
 import { UpdateProductReqDto } from '../dto/update-product.req.dto';
-import { PaymentOrderEntity } from '../entities/payment-order.entity';
-import { PaymentProductEntity } from '../entities/payment-product.entity';
+import { PolarOrderEntity } from '../entities/polar-order.entity';
+import { PolarProductEntity } from '../entities/polar-product.entity';
 import { PolarService } from './polar.service';
 
 @Injectable()
@@ -26,10 +26,10 @@ export class ProductService {
   private readonly logger = new Logger(ProductService.name);
 
   constructor(
-    @InjectRepository(PaymentProductEntity)
-    private readonly productRepo: Repository<PaymentProductEntity>,
-    @InjectRepository(PaymentOrderEntity)
-    private readonly orderRepo: Repository<PaymentOrderEntity>,
+    @InjectRepository(PolarProductEntity)
+    private readonly productRepo: Repository<PolarProductEntity>,
+    @InjectRepository(PolarOrderEntity)
+    private readonly orderRepo: Repository<PolarOrderEntity>,
     private readonly polarService: PolarService,
   ) {}
 
@@ -50,7 +50,7 @@ export class ProductService {
   async getProductBySlugAndInterval(
     planSlug: string,
     interval: string,
-  ): Promise<PaymentProductEntity> {
+  ): Promise<PolarProductEntity> {
     const product = await this.productRepo.findOne({
       where: { planSlug, interval, isActive: true },
     });
@@ -131,6 +131,7 @@ export class ProductService {
 
     let polarProductId = dto.polarProductId || '';
     let polarMetadata = dto.metadata || {};
+    let polarMedias: any[] = [];
 
     // 1. Sync product to Polar if Polar Gateway is configured and polarProductId was not manually provided
     if (this.polarService.isGatewayConfigured() && !polarProductId) {
@@ -146,6 +147,7 @@ export class ProductService {
           isFree: dto.isFree,
           trialInterval: dto.trialInterval,
           trialIntervalCount: dto.trialIntervalCount,
+          medias: dto.medias,
           metadata: {
             ...polarMetadata,
             planSlug: dto.planSlug,
@@ -159,6 +161,7 @@ export class ProductService {
         polarProductId = polarProduct.id;
         polarMetadata =
           (polarProduct.metadata as Record<string, any>) || polarMetadata;
+        polarMedias = (polarProduct as any).medias || [];
 
         // Grant benefits if provided
         if (dto.benefits && dto.benefits.length > 0) {
@@ -189,7 +192,12 @@ export class ProductService {
       features: dto.features || [],
       metadata: polarMetadata,
       benefits: dto.benefits ? dto.benefits.map((b) => ({ id: b })) : [],
-      medias: [],
+      medias:
+        polarMedias.length > 0
+          ? polarMedias
+          : dto.medias
+            ? dto.medias.map((m) => (typeof m === 'string' ? { id: m } : m))
+            : [],
       visibility: dto.visibility || 'public',
       ctaText: dto.ctaText || 'Get Started',
       isPopular: dto.isPopular ?? false,
@@ -250,6 +258,7 @@ export class ProductService {
           visibility: dto.visibility,
           trialInterval: dto.trialInterval,
           trialIntervalCount: dto.trialIntervalCount,
+          medias: dto.medias,
           metadata: {
             ...product.metadata,
             ...dto.metadata,
@@ -284,6 +293,11 @@ export class ProductService {
     if (dto.benefits !== undefined) {
       product.benefits = dto.benefits.map((b) => ({ id: b }));
     }
+    if (dto.medias !== undefined) {
+      product.medias = dto.medias.map((m) =>
+        typeof m === 'string' ? { id: m } : m,
+      );
+    }
     if (dto.price !== undefined && !dto.prices) {
       product.prices = [
         {
@@ -298,6 +312,13 @@ export class ProductService {
     );
 
     return plainToInstance(PaymentProductResDto, updated);
+  }
+
+  /**
+   * Uploads product media to Polar
+   */
+  async uploadMedia(file: Express.Multer.File) {
+    return await this.polarService.uploadProductMedia(file);
   }
 
   /**
@@ -407,7 +428,7 @@ export class ProductService {
    */
   async syncProductFromPolar(
     polarProduct: Record<string, any>,
-  ): Promise<PaymentProductEntity> {
+  ): Promise<PolarProductEntity> {
     const polarProductId = polarProduct.id;
     if (!polarProductId) {
       throw new Error('Missing product ID in Polar webhook data');
@@ -684,7 +705,7 @@ export class ProductService {
       (response as any)?.items ??
       (Array.isArray(response) ? response : []);
 
-    const syncedEntities: PaymentProductEntity[] = [];
+    const syncedEntities: PolarProductEntity[] = [];
     for (const item of items) {
       try {
         const entity = await this.syncProductFromPolar(item);

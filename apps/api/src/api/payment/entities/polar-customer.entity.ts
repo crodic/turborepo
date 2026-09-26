@@ -11,16 +11,16 @@ import {
 } from 'typeorm';
 import { UserEntity } from '../../user/entities/user.entity';
 
-@Entity('payment_customers')
-export class PaymentCustomerEntity extends AbstractEntity {
+@Entity('polar_customers')
+export class PolarCustomerEntity extends AbstractEntity {
   @PrimaryGeneratedColumn('increment', {
-    primaryKeyConstraintName: 'PK_payment_customer_id',
+    primaryKeyConstraintName: 'PK_polar_customer_id',
     type: 'bigint',
   })
   id!: AutoIncrementID;
 
   @Column({ name: 'user_id', type: 'bigint', nullable: true })
-  @Index('IDX_payment_customers_user_id')
+  @Index('IDX_polar_customers_user_id')
   userId?: AutoIncrementID | null;
 
   @ManyToOne(() => UserEntity, {
@@ -29,16 +29,16 @@ export class PaymentCustomerEntity extends AbstractEntity {
   })
   @JoinColumn({
     name: 'user_id',
-    foreignKeyConstraintName: 'FK_payment_customers_user_id',
+    foreignKeyConstraintName: 'FK_polar_customers_user_id',
   })
   user?: Relation<UserEntity> | null;
 
   @Column({ name: 'polar_customer_id', type: 'varchar', length: 150 })
-  @Index('UQ_payment_customers_polar_customer_id', { unique: true })
+  @Index('UQ_polar_customers_polar_customer_id', { unique: true })
   polarCustomerId!: string;
 
   @Column({ type: 'varchar', length: 255 })
-  @Index('IDX_payment_customers_email')
+  @Index('IDX_polar_customers_email')
   email!: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
@@ -56,10 +56,13 @@ export class PaymentCustomerEntity extends AbstractEntity {
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, any> | null;
 
-  constructor(data?: Partial<PaymentCustomerEntity>) {
+  constructor(data?: Partial<PolarCustomerEntity>) {
     super();
     if (data) {
       Object.assign(this, data);
     }
   }
 }
+
+// Backward-compatible alias
+export { PolarCustomerEntity as PaymentCustomerEntity };

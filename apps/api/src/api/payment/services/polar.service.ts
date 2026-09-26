@@ -215,6 +215,86 @@ export class PolarService {
     return await polar.products.list({});
   }
 
+  async uploadProductMedia(file: Express.Multer.File): Promise<{
+    id: string;
+    publicUrl: string;
+    name: string;
+    size: number;
+    mimeType: string;
+  }> {
+    if (!this.isGatewayConfigured()) {
+      return {
+        id: `mock_media_${Date.now()}`,
+        name: file.originalname,
+        publicUrl: `https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=600`,
+        mimeType: file.mimetype,
+        size: file.size,
+      };
+    }
+
+    const polar = this.ensureConfigured();
+    const fileUpload = await polar.files.create({
+      name: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      service: 'product_media',
+      upload: {
+        parts: [
+          {
+            number: 1,
+            chunkStart: 0,
+            chunkEnd: file.size,
+          },
+        ],
+      },
+    });
+
+    let etag = '';
+    const part = fileUpload.upload.parts[0];
+    if (part && part.url) {
+      const response = await fetch(part.url, {
+        method: 'PUT',
+        body: file.buffer,
+        headers: {
+          'Content-Type': file.mimetype,
+        },
+      });
+      if (!response.ok) {
+        throw new Error(
+          `Failed to upload product media chunk to storage: ${response.statusText}`,
+        );
+      }
+      etag = response.headers.get('etag')?.replace(/"/g, '') || '';
+    }
+
+    const uploaded = await polar.files.uploaded({
+      id: fileUpload.id,
+      fileUploadCompleted: {
+        id: fileUpload.upload.id,
+        path: fileUpload.upload.path,
+        parts: [
+          {
+            number: 1,
+            checksumEtag: etag,
+            checksumSha256Base64: null,
+          },
+        ],
+      },
+    });
+
+    return {
+      id: uploaded.id,
+      publicUrl:
+        (uploaded as any).publicUrl || (uploaded as any).public_url || '',
+      name: uploaded.name,
+      size: uploaded.size,
+      mimeType:
+        (uploaded as any).mimeType ||
+        (uploaded as any).mime_type ||
+        file.mimetype,
+    };
+  }
+
   async createPolarProduct(params: {
     name: string;
     description?: string;
@@ -228,6 +308,7 @@ export class PolarService {
     visibility?: 'public' | 'private';
     trialInterval?: string;
     trialIntervalCount?: number;
+    medias?: string[];
   }) {
     const polar = this.ensureConfigured();
 
@@ -289,6 +370,10 @@ export class PolarService {
       visibility: params.visibility || 'public',
     };
 
+    if (params.medias && params.medias.length > 0) {
+      createPayload.medias = params.medias;
+    }
+
     if (recurringInterval) {
       createPayload.recurringInterval = recurringInterval;
       createPayload.recurringIntervalCount = params.intervalCount || 1;
@@ -329,10 +414,15 @@ export class PolarService {
       isFree?: boolean;
       trialInterval?: string;
       trialIntervalCount?: number;
+      medias?: string[];
     },
   ) {
     const polar = this.ensureConfigured();
     const productUpdate: any = {};
+
+    if (params.medias !== undefined) {
+      productUpdate.medias = params.medias;
+    }
 
     if (params.name !== undefined) productUpdate.name = params.name;
     if (params.description !== undefined) {

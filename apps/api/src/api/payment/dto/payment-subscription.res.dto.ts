@@ -1,6 +1,6 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { PaymentSubscriptionStatus } from '../entities/payment-subscription.entity';
+import { PaymentSubscriptionStatus } from '../entities/polar-subscription.entity';
 
 export class PaymentSubscriptionResDto {
   @ApiProperty({ example: 1 })

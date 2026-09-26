@@ -5,25 +5,25 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { PaymentCustomerEntity } from '../entities/payment-customer.entity';
+import { PaymentCustomerEntity } from '../entities/polar-customer.entity';
 import {
   PaymentOrderEntity,
   PaymentOrderStatus,
-} from '../entities/payment-order.entity';
-import { PaymentRefundRequestEntity } from '../entities/payment-refund-request.entity';
+} from '../entities/polar-order.entity';
+import { PaymentRefundRequestEntity } from '../entities/polar-refund-request.entity';
 import {
   PaymentSubscriptionEntity,
   PaymentSubscriptionStatus,
-} from '../entities/payment-subscription.entity';
+} from '../entities/polar-subscription.entity';
 import {
   PaymentTransactionEntity,
   PaymentTransactionStatus,
   PaymentTransactionType,
-} from '../entities/payment-transaction.entity';
+} from '../entities/polar-transaction.entity';
 import {
   PaymentWebhookEventEntity,
   PaymentWebhookStatus,
-} from '../entities/payment-webhook-event.entity';
+} from '../entities/polar-webhook-event.entity';
 import { PaymentGatewayFactory } from '../factories/payment-gateway.factory';
 import { CustomFieldService } from './custom-field.service';
 import { DiscountService } from './discount.service';

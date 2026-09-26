@@ -2,17 +2,17 @@ import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
 import { Column, Entity, Index, PrimaryGeneratedColumn, Unique } from 'typeorm';
 
-@Entity('payment_products')
-@Unique('UQ_payment_products_slug_interval', ['planSlug', 'interval'])
-export class PaymentProductEntity extends AbstractEntity {
+@Entity('polar_products')
+@Unique('UQ_polar_products_slug_interval', ['planSlug', 'interval'])
+export class PolarProductEntity extends AbstractEntity {
   @PrimaryGeneratedColumn('increment', {
-    primaryKeyConstraintName: 'PK_payment_product_id',
+    primaryKeyConstraintName: 'PK_polar_product_id',
     type: 'bigint',
   })
   id!: AutoIncrementID;
 
   @Column({ name: 'plan_slug', type: 'varchar', length: 50 })
-  @Index('IDX_payment_products_plan_slug')
+  @Index('IDX_polar_products_plan_slug')
   planSlug!: string;
 
   @Column({ type: 'varchar', length: 255 })
@@ -22,7 +22,7 @@ export class PaymentProductEntity extends AbstractEntity {
   description?: string | null;
 
   @Column({ type: 'varchar', length: 20 })
-  @Index('IDX_payment_products_interval')
+  @Index('IDX_polar_products_interval')
   interval!: string;
 
   @Column({
@@ -100,7 +100,7 @@ export class PaymentProductEntity extends AbstractEntity {
   isFree!: boolean;
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
-  @Index('IDX_payment_products_is_active')
+  @Index('IDX_polar_products_is_active')
   isActive!: boolean;
 
   @Column({ type: 'varchar', length: 20, default: 'public' })
@@ -109,10 +109,13 @@ export class PaymentProductEntity extends AbstractEntity {
   @Column({ name: 'sort_order', type: 'integer', default: 0 })
   sortOrder!: number;
 
-  constructor(data?: Partial<PaymentProductEntity>) {
+  constructor(data?: Partial<PolarProductEntity>) {
     super();
     if (data) {
       Object.assign(this, data);
     }
   }
 }
+
+// Backward-compatible alias
+export { PolarProductEntity as PaymentProductEntity };

@@ -1,10 +1,13 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   CalendarSync,
+  ChevronDown,
+  ChevronUp,
   Gift,
   Globe,
+  ImagePlus,
   Info,
   Loader2,
   Lock,
@@ -12,9 +15,11 @@ import {
   Sparkles,
   Tags,
   Trash2,
+  X,
   Zap,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,12 +49,13 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { useDataPolarBenefits } from '../queries'
+import { apiUploadProductMedia, useDataPolarBenefits } from '../queries'
 import {
   paymentProductFormSchema,
   type PaymentProductFormSchema,
   type PaymentProductSchema,
   type PolarBenefitSchema,
+  type ProductMediaSchema,
 } from '../schema'
 import { CreateBenefitDialog } from './create-benefit-dialog'
 
@@ -201,6 +207,7 @@ export function PaymentProductForm({
     benefits: initialBenefitIds,
     visibility: (initialData?.visibility as 'public' | 'private') || 'public',
     polarProductId: initialData?.polarProductId || '',
+    medias: (initialData?.medias as ProductMediaSchema[]) || [],
     featuresText: initialData?.features?.join('\n') || '',
     badge: initialData?.badge || '',
     ctaText: initialData?.ctaText || 'Get Started',
@@ -227,9 +234,57 @@ export function PaymentProductForm({
     remove: removeMetadata,
   } = useFieldArray({ control: form.control, name: 'metadata' })
 
+  const {
+    fields: mediaFields,
+    append: appendMedia,
+    remove: removeMedia,
+  } = useFieldArray({ control: form.control, name: 'medias' })
+
+  const [checkoutPageOpen, setCheckoutPageOpen] = useState(true)
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false)
+  const mediaFileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleMediaUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size exceeds 10MB limit')
+      return
+    }
+
+    try {
+      setIsUploadingMedia(true)
+      const res = await apiUploadProductMedia(file)
+      appendMedia({
+        id: res.id,
+        publicUrl: res.publicUrl,
+        name: res.name,
+        size: res.size,
+        mimeType: res.mimeType,
+      })
+      toast.success(`Media "${res.name}" uploaded successfully`)
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message || err?.message || 'Failed to upload media'
+      )
+    } finally {
+      setIsUploadingMedia(false)
+      if (mediaFileInputRef.current) {
+        mediaFileInputRef.current.value = ''
+      }
+    }
+  }
+
   const watchedBillingType = form.watch('billingType')
   const watchedIsFree = form.watch('isFree')
-  const watchedBenefits = form.watch('benefits') || []
+  const rawWatchedBenefits = form.watch('benefits')
+  const watchedBenefits = useMemo(
+    () => rawWatchedBenefits || [],
+    [rawWatchedBenefits]
+  )
   const watchedTrialEnabled = form.watch('trialEnabled')
   const watchedPrices = form.watch('prices')
 
@@ -366,30 +421,162 @@ export function PaymentProductForm({
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
-                  name='description'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {t('paymentProducts.description', {
-                          defaultValue: 'Description',
-                        })}
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder='Brief description of what this product grants.'
-                          rows={3}
-                          {...field}
-                          value={field.value || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </CardContent>
+            </Card>
+
+            {/* ====== Card: Checkout Page (Presentation & Images) ====== */}
+            <Card className='md:col-span-2'>
+              <CardHeader
+                className='hover:bg-muted/10 cursor-pointer transition-colors select-none'
+                onClick={() => setCheckoutPageOpen((prev) => !prev)}
+              >
+                <div className='flex items-center justify-between'>
+                  <div>
+                    <CardTitle className='text-lg font-semibold tracking-tight'>
+                      Checkout Page
+                    </CardTitle>
+                    <CardDescription className='mt-1 text-xs sm:text-sm'>
+                      Customize how this product is presented during checkout
+                    </CardDescription>
+                  </div>
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='sm'
+                    className='text-muted-foreground size-8 p-0'
+                  >
+                    {checkoutPageOpen ? (
+                      <ChevronUp className='size-5' />
+                    ) : (
+                      <ChevronDown className='size-5' />
+                    )}
+                  </Button>
+                </div>
+              </CardHeader>
+
+              {checkoutPageOpen && (
+                <CardContent className='space-y-6 pt-0'>
+                  {/* Description field with Markdown format hint */}
+                  <FormField
+                    control={form.control}
+                    name='description'
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className='flex items-center justify-between'>
+                          <FormLabel className='text-sm font-medium'>
+                            {t('paymentProducts.description', {
+                              defaultValue: 'Description',
+                            })}
+                          </FormLabel>
+                          <span className='text-muted-foreground text-xs'>
+                            Markdown format
+                          </span>
+                        </div>
+                        <FormControl>
+                          <Textarea
+                            placeholder='Write a markdown description for the checkout page...'
+                            rows={5}
+                            className='bg-muted/20 resize-y font-mono text-sm'
+                            {...field}
+                            value={field.value || ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Product Images section */}
+                  <div className='space-y-3'>
+                    <label className='text-sm font-medium'>
+                      Product images
+                    </label>
+
+                    <div className='flex flex-wrap items-center gap-4 pt-1'>
+                      {mediaFields.map((media, index) => {
+                        const mediaUrl =
+                          (media as any).publicUrl ||
+                          (media as any).public_url ||
+                          (media as any).path ||
+                          ''
+                        return (
+                          <div
+                            key={media.id || index}
+                            className='bg-muted/40 relative aspect-video w-52 overflow-visible rounded-xl border shadow-sm sm:w-60'
+                          >
+                            <div className='h-full w-full overflow-hidden rounded-xl'>
+                              {mediaUrl ? (
+                                <img
+                                  src={mediaUrl}
+                                  alt={
+                                    (media as any).name ||
+                                    `Product media ${index + 1}`
+                                  }
+                                  className='h-full w-full object-cover'
+                                />
+                              ) : (
+                                <div className='text-muted-foreground flex h-full w-full flex-col items-center justify-center p-2 text-center text-xs'>
+                                  <span>
+                                    {(media as any).name || 'Media file'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              type='button'
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                removeMedia(index)
+                              }}
+                              className='absolute -top-2 -right-2 z-10 flex size-6 cursor-pointer items-center justify-center rounded-full bg-red-600 text-white shadow-md transition-transform hover:scale-110 hover:bg-red-700'
+                              title='Remove media'
+                            >
+                              <X className='size-3.5 stroke-3' />
+                            </button>
+                          </div>
+                        )
+                      })}
+
+                      {/* Add product media card */}
+                      <div
+                        onClick={() => {
+                          if (!isUploadingMedia) {
+                            mediaFileInputRef.current?.click()
+                          }
+                        }}
+                        className='border-border/80 hover:border-primary/60 bg-muted/20 hover:bg-muted/40 group flex aspect-video w-52 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-4 text-center transition-all sm:w-60'
+                      >
+                        {isUploadingMedia ? (
+                          <div className='flex flex-col items-center gap-2'>
+                            <Loader2 className='text-primary size-6 animate-spin' />
+                            <span className='text-muted-foreground text-xs'>
+                              Uploading...
+                            </span>
+                          </div>
+                        ) : (
+                          <>
+                            <ImagePlus className='text-muted-foreground group-hover:text-primary mb-1.5 size-7 transition-colors' />
+                            <span className='text-sm font-medium'>
+                              Add product media
+                            </span>
+                            <span className='text-muted-foreground mt-1 text-[11px] leading-snug'>
+                              Up to 10MB each. 16:9 ratio recommended for
+                              optimal display.
+                            </span>
+                          </>
+                        )}
+                        <input
+                          ref={mediaFileInputRef}
+                          type='file'
+                          accept='image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml'
+                          className='hidden'
+                          onChange={handleMediaUpload}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              )}
             </Card>
 
             {/* ====== Card 2: Pricing & Billing ====== */}
@@ -600,7 +787,7 @@ export function PaymentProductForm({
                     )
                     return (
                       <div key={field.id} className='flex items-end gap-2'>
-                        <div className='min-w-[80px]'>
+                        <div className='min-w-20'>
                           <Badge variant='outline' className='text-xs'>
                             {currencyInfo?.label ||
                               field.currency.toUpperCase()}

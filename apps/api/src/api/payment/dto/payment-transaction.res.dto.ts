@@ -3,7 +3,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   PaymentTransactionStatus,
   PaymentTransactionType,
-} from '../entities/payment-transaction.entity';
+} from '../entities/polar-transaction.entity';
 
 export class PaymentTransactionResDto {
   @ApiProperty({ example: 1 })

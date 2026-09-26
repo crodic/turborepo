@@ -11,28 +11,28 @@ import {
 } from 'typeorm';
 import { UserEntity } from '../../user/entities/user.entity';
 
-export enum PaymentTransactionType {
+export enum PolarTransactionType {
   CHARGE = 'charge',
   REFUND = 'refund',
   DISPUTE = 'dispute',
 }
 
-export enum PaymentTransactionStatus {
+export enum PolarTransactionStatus {
   PENDING = 'pending',
   SUCCESS = 'success',
   FAILED = 'failed',
 }
 
-@Entity('payment_transactions')
-export class PaymentTransactionEntity extends AbstractEntity {
+@Entity('polar_transactions')
+export class PolarTransactionEntity extends AbstractEntity {
   @PrimaryGeneratedColumn('increment', {
-    primaryKeyConstraintName: 'PK_payment_transaction_id',
+    primaryKeyConstraintName: 'PK_polar_transaction_id',
     type: 'bigint',
   })
   id!: AutoIncrementID;
 
   @Column({ name: 'user_id', type: 'bigint', nullable: true })
-  @Index('IDX_payment_transactions_user_id')
+  @Index('IDX_polar_transactions_user_id')
   userId?: AutoIncrementID | null;
 
   @ManyToOne(() => UserEntity, {
@@ -41,16 +41,16 @@ export class PaymentTransactionEntity extends AbstractEntity {
   })
   @JoinColumn({
     name: 'user_id',
-    foreignKeyConstraintName: 'FK_payment_transactions_user_id',
+    foreignKeyConstraintName: 'FK_polar_transactions_user_id',
   })
   user?: Relation<UserEntity> | null;
 
   @Column({ name: 'order_id', type: 'bigint', nullable: true })
-  @Index('IDX_payment_transactions_order_id')
+  @Index('IDX_polar_transactions_order_id')
   orderId?: AutoIncrementID | null;
 
   @Column({ name: 'subscription_id', type: 'bigint', nullable: true })
-  @Index('IDX_payment_transactions_subscription_id')
+  @Index('IDX_polar_transactions_subscription_id')
   subscriptionId?: AutoIncrementID | null;
 
   @Column({
@@ -59,23 +59,25 @@ export class PaymentTransactionEntity extends AbstractEntity {
     length: 150,
     nullable: true,
   })
-  @Index('IDX_payment_transactions_polar_payment_id')
+  @Index('IDX_polar_transactions_polar_payment_id')
   polarPaymentId?: string | null;
 
   @Column({
     type: 'enum',
-    enum: PaymentTransactionType,
-    default: PaymentTransactionType.CHARGE,
+    enum: PolarTransactionType,
+    enumName: 'polar_transactions_type_enum',
+    default: PolarTransactionType.CHARGE,
   })
-  type!: PaymentTransactionType;
+  type!: PolarTransactionType;
 
   @Column({
     type: 'enum',
-    enum: PaymentTransactionStatus,
-    default: PaymentTransactionStatus.PENDING,
+    enum: PolarTransactionStatus,
+    enumName: 'polar_transactions_status_enum',
+    default: PolarTransactionStatus.PENDING,
   })
-  @Index('IDX_payment_transactions_status')
-  status!: PaymentTransactionStatus;
+  @Index('IDX_polar_transactions_status')
+  status!: PolarTransactionStatus;
 
   @Column({ type: 'integer' })
   amount!: number; // Smallest currency unit (cents)
@@ -109,10 +111,17 @@ export class PaymentTransactionEntity extends AbstractEntity {
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, any> | null;
 
-  constructor(data?: Partial<PaymentTransactionEntity>) {
+  constructor(data?: Partial<PolarTransactionEntity>) {
     super();
     if (data) {
       Object.assign(this, data);
     }
   }
 }
+
+// Backward-compatible aliases
+export {
+  PolarTransactionEntity as PaymentTransactionEntity,
+  PolarTransactionStatus as PaymentTransactionStatus,
+  PolarTransactionType as PaymentTransactionType,
+};

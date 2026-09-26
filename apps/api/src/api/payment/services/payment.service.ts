@@ -37,28 +37,33 @@ import { PaymentRefundRequestResDto } from '../dto/payment-refund-request.res.dt
 import { PaymentSubscriptionResDto } from '../dto/payment-subscription.res.dto';
 import { PaymentTransactionResDto } from '../dto/payment-transaction.res.dto';
 import { ReviewRefundRequestReqDto } from '../dto/review-refund-request.req.dto';
-import { PaymentCustomerEntity } from '../entities/payment-customer.entity';
+import {
+  PaymentCustomerEntity,
+  PolarCustomerEntity,
+} from '../entities/polar-customer.entity';
 import {
   PaymentOrderEntity,
   PaymentOrderStatus,
-} from '../entities/payment-order.entity';
+  PolarOrderEntity,
+} from '../entities/polar-order.entity';
 import {
-  PaymentRefundRequestEntity,
   PaymentRefundRequestStatus,
-} from '../entities/payment-refund-request.entity';
+  PolarRefundRequestEntity,
+} from '../entities/polar-refund-request.entity';
 import {
   PaymentSubscriptionEntity,
   PaymentSubscriptionStatus,
-} from '../entities/payment-subscription.entity';
+  PolarSubscriptionEntity,
+} from '../entities/polar-subscription.entity';
 import {
-  PaymentTransactionEntity,
   PaymentTransactionStatus,
   PaymentTransactionType,
-} from '../entities/payment-transaction.entity';
+  PolarTransactionEntity,
+} from '../entities/polar-transaction.entity';
 import {
-  PaymentWebhookEventEntity,
   PaymentWebhookStatus,
-} from '../entities/payment-webhook-event.entity';
+  PolarWebhookEventEntity,
+} from '../entities/polar-webhook-event.entity';
 import { PaymentGatewayFactory } from '../factories/payment-gateway.factory';
 import { CustomFieldService } from './custom-field.service';
 import { DiscountService } from './discount.service';
@@ -70,18 +75,18 @@ export class PaymentService {
   private readonly logger = new Logger(PaymentService.name);
 
   constructor(
-    @InjectRepository(PaymentCustomerEntity)
-    private readonly customerRepo: Repository<PaymentCustomerEntity>,
-    @InjectRepository(PaymentOrderEntity)
-    private readonly orderRepo: Repository<PaymentOrderEntity>,
-    @InjectRepository(PaymentRefundRequestEntity)
-    private readonly refundRequestRepo: Repository<PaymentRefundRequestEntity>,
-    @InjectRepository(PaymentTransactionEntity)
-    private readonly transactionRepo: Repository<PaymentTransactionEntity>,
-    @InjectRepository(PaymentSubscriptionEntity)
-    private readonly subscriptionRepo: Repository<PaymentSubscriptionEntity>,
-    @InjectRepository(PaymentWebhookEventEntity)
-    private readonly webhookEventRepo: Repository<PaymentWebhookEventEntity>,
+    @InjectRepository(PolarCustomerEntity)
+    private readonly customerRepo: Repository<PolarCustomerEntity>,
+    @InjectRepository(PolarOrderEntity)
+    private readonly orderRepo: Repository<PolarOrderEntity>,
+    @InjectRepository(PolarRefundRequestEntity)
+    private readonly refundRequestRepo: Repository<PolarRefundRequestEntity>,
+    @InjectRepository(PolarTransactionEntity)
+    private readonly transactionRepo: Repository<PolarTransactionEntity>,
+    @InjectRepository(PolarSubscriptionEntity)
+    private readonly subscriptionRepo: Repository<PolarSubscriptionEntity>,
+    @InjectRepository(PolarWebhookEventEntity)
+    private readonly webhookEventRepo: Repository<PolarWebhookEventEntity>,
     private readonly gatewayFactory: PaymentGatewayFactory,
     private readonly productService: ProductService,
     private readonly polarService: PolarService,

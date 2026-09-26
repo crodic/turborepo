@@ -13,8 +13,8 @@ import {
   PrimaryGeneratedColumn,
   Relation,
 } from 'typeorm';
-import { PaymentOrderEntity } from '../../payment/entities/payment-order.entity';
-import { PaymentSubscriptionEntity } from '../../payment/entities/payment-subscription.entity';
+import { PolarOrderEntity } from '../../payment/entities/polar-order.entity';
+import { PolarSubscriptionEntity } from '../../payment/entities/polar-subscription.entity';
 import { UserAccountEntity } from './user-account.entity';
 
 @Entity('users')
@@ -22,11 +22,11 @@ export class UserEntity extends AbstractEntity {
   @OneToMany(() => UserAccountEntity, (account) => account.user)
   accounts?: Relation<UserAccountEntity>[];
 
-  @OneToMany(() => PaymentOrderEntity, (order) => order.user)
-  orders?: Relation<PaymentOrderEntity>[];
+  @OneToMany(() => PolarOrderEntity, (order) => order.user)
+  orders?: Relation<PolarOrderEntity>[];
 
-  @OneToMany(() => PaymentSubscriptionEntity, (sub) => sub.user)
-  subscriptions?: Relation<PaymentSubscriptionEntity>[];
+  @OneToMany(() => PolarSubscriptionEntity, (sub) => sub.user)
+  subscriptions?: Relation<PolarSubscriptionEntity>[];
 
   private previousPassword?: string;
 

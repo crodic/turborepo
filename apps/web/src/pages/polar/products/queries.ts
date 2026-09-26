@@ -130,7 +130,14 @@ function preparePayload(data: PaymentProductFormSchema) {
   // Use the first price as primary price/currency for backward compatibility
   const primaryPrice = data.prices[0] || { amount: 0, currency: 'usd' }
 
-  const { featuresText, billingType, trialEnabled, ...rest } = data
+  // Map product media IDs
+  const medias = Array.isArray(data.medias)
+    ? data.medias
+        .map((m: any) => (typeof m === 'string' ? m : m?.id))
+        .filter(Boolean)
+    : []
+
+  const { featuresText, billingType, trialEnabled, medias: _m, ...rest } = data
 
   return {
     ...rest,
@@ -142,10 +149,28 @@ function preparePayload(data: PaymentProductFormSchema) {
     prices: data.prices,
     features,
     metadata,
+    medias,
     // Only send trial fields when enabled
     trialInterval: trialEnabled ? data.trialInterval : null,
     trialIntervalCount: trialEnabled ? data.trialIntervalCount : null,
   }
+}
+
+// --- Product Media Upload ---
+
+export async function apiUploadProductMedia(file: File): Promise<{
+  id: string
+  publicUrl: string
+  name: string
+  size: number
+  mimeType: string
+}> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await http.post('/admin/payments/products/media', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data
 }
 
 // --- Products CRUD ---

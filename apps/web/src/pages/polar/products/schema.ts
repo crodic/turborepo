@@ -27,6 +27,16 @@ export const polarBenefitSchema = z.object({
 
 export type PolarBenefitSchema = z.infer<typeof polarBenefitSchema>
 
+export const productMediaSchema = z.object({
+  id: z.string(),
+  publicUrl: z.string().optional(),
+  name: z.string().optional(),
+  mimeType: z.string().optional(),
+  size: z.number().optional(),
+})
+
+export type ProductMediaSchema = z.infer<typeof productMediaSchema>
+
 export const paymentProductSchema = z.object({
   id: z.coerce.string(),
   planSlug: z.string(),
@@ -52,7 +62,7 @@ export const paymentProductSchema = z.object({
   features: z.array(z.string()).default([]),
   metadata: z.record(z.string(), z.any()).optional().default({}),
   benefits: z.array(z.record(z.string(), z.any())).optional().default([]),
-  medias: z.array(z.record(z.string(), z.any())).optional().default([]),
+  medias: z.array(productMediaSchema).optional().default([]),
   trialInterval: z.string().nullish(),
   trialIntervalCount: z.number().nullish(),
   badge: z.string().nullish(),
@@ -104,6 +114,8 @@ export const paymentProductFormSchema = z
     metadata: z.array(metadataEntrySchema),
     // Benefits
     benefits: z.array(z.string()),
+    // Product media images
+    medias: z.array(productMediaSchema),
     // Visibility
     visibility: z.enum(['public', 'private']),
     // Polar

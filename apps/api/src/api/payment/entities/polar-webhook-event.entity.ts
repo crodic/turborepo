@@ -2,26 +2,26 @@ import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
-export enum PaymentWebhookStatus {
+export enum PolarWebhookStatus {
   PENDING = 'pending',
   PROCESSED = 'processed',
   FAILED = 'failed',
 }
 
-@Entity('payment_webhook_events')
-export class PaymentWebhookEventEntity extends AbstractEntity {
+@Entity('polar_webhook_events')
+export class PolarWebhookEventEntity extends AbstractEntity {
   @PrimaryGeneratedColumn('increment', {
-    primaryKeyConstraintName: 'PK_payment_webhook_event_id',
+    primaryKeyConstraintName: 'PK_polar_webhook_event_id',
     type: 'bigint',
   })
   id!: AutoIncrementID;
 
   @Column({ name: 'event_id', type: 'varchar', length: 150 })
-  @Index('UQ_payment_webhook_events_event_id', { unique: true })
+  @Index('UQ_polar_webhook_events_event_id', { unique: true })
   eventId!: string;
 
   @Column({ name: 'event_type', type: 'varchar', length: 100 })
-  @Index('IDX_payment_webhook_events_event_type')
+  @Index('IDX_polar_webhook_events_event_type')
   eventType!: string;
 
   @Column({ type: 'jsonb' })
@@ -29,11 +29,12 @@ export class PaymentWebhookEventEntity extends AbstractEntity {
 
   @Column({
     type: 'enum',
-    enum: PaymentWebhookStatus,
-    default: PaymentWebhookStatus.PENDING,
+    enum: PolarWebhookStatus,
+    enumName: 'polar_webhook_events_status_enum',
+    default: PolarWebhookStatus.PENDING,
   })
-  @Index('IDX_payment_webhook_events_status')
-  status!: PaymentWebhookStatus;
+  @Index('IDX_polar_webhook_events_status')
+  status!: PolarWebhookStatus;
 
   @Column({ name: 'error_message', type: 'text', nullable: true })
   errorMessage?: string | null;
@@ -41,10 +42,16 @@ export class PaymentWebhookEventEntity extends AbstractEntity {
   @Column({ name: 'processed_at', type: 'timestamptz', nullable: true })
   processedAt?: Date | null;
 
-  constructor(data?: Partial<PaymentWebhookEventEntity>) {
+  constructor(data?: Partial<PolarWebhookEventEntity>) {
     super();
     if (data) {
       Object.assign(this, data);
     }
   }
 }
+
+// Backward-compatible aliases
+export {
+  PolarWebhookEventEntity as PaymentWebhookEventEntity,
+  PolarWebhookStatus as PaymentWebhookStatus,
+};

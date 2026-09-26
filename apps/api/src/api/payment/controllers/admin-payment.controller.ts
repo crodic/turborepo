@@ -6,6 +6,7 @@ import { PoliciesGuard } from '@/guards/policies.guard';
 import { AppAbility } from '@/shared/casl/ability.factory';
 import { AppActions, AppSubjects } from '@/utils/permissions.constant';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -15,15 +16,21 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { memoryStorage } from 'multer';
 import { Paginate, Paginated, PaginateQuery } from 'nestjs-paginate';
 import { CreateBenefitReqDto } from '../dto/create-benefit.req.dto';
 import { CreateProductReqDto } from '../dto/create-product.req.dto';
@@ -162,6 +169,44 @@ export class AdminPaymentController {
   async deleteBenefit(@Param('id') id: string): Promise<{ success: boolean }> {
     await this.productService.deleteBenefit(id);
     return { success: true };
+  }
+
+  @Post('products/media')
+  @ApiOperation({
+    summary: 'Upload a product media image (Admin)',
+    description:
+      'Uploads an image file to Polar storage for product presentation.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Product media uploaded successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Create, AppSubjects.PaymentProduct),
+  )
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  async uploadProductMedia(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    return await this.productService.uploadMedia(file);
   }
 
   @Post('products')

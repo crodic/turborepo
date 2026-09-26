@@ -2,8 +2,8 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { PaymentOrderEntity } from '../entities/payment-order.entity';
-import { PaymentProductEntity } from '../entities/payment-product.entity';
+import { PaymentOrderEntity } from '../entities/polar-order.entity';
+import { PaymentProductEntity } from '../entities/polar-product.entity';
 import { PolarService } from './polar.service';
 import { ProductService } from './product.service';
 

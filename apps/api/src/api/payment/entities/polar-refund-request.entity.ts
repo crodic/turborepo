@@ -11,9 +11,9 @@ import {
 } from 'typeorm';
 import { AdminUserEntity } from '../../admin-user/entities/admin-user.entity';
 import { UserEntity } from '../../user/entities/user.entity';
-import { PaymentOrderEntity } from './payment-order.entity';
+import { PolarOrderEntity } from './polar-order.entity';
 
-export enum PaymentRefundRequestStatus {
+export enum PolarRefundRequestStatus {
   PENDING = 'pending',
   APPROVED = 'approved',
   REJECTED = 'rejected',
@@ -29,29 +29,29 @@ export enum RefundReason {
   OTHER = 'other',
 }
 
-@Entity('payment_refund_requests')
-export class PaymentRefundRequestEntity extends AbstractEntity {
+@Entity('polar_refund_requests')
+export class PolarRefundRequestEntity extends AbstractEntity {
   @PrimaryGeneratedColumn('increment', {
-    primaryKeyConstraintName: 'PK_payment_refund_request_id',
+    primaryKeyConstraintName: 'PK_polar_refund_request_id',
     type: 'bigint',
   })
   id!: AutoIncrementID;
 
   @Column({ name: 'order_id', type: 'bigint' })
-  @Index('IDX_payment_refund_requests_order_id')
+  @Index('IDX_polar_refund_requests_order_id')
   orderId!: AutoIncrementID;
 
-  @ManyToOne(() => PaymentOrderEntity, {
+  @ManyToOne(() => PolarOrderEntity, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({
     name: 'order_id',
-    foreignKeyConstraintName: 'FK_payment_refund_requests_order_id',
+    foreignKeyConstraintName: 'FK_polar_refund_requests_order_id',
   })
-  order!: Relation<PaymentOrderEntity>;
+  order!: Relation<PolarOrderEntity>;
 
   @Column({ name: 'user_id', type: 'bigint', nullable: true })
-  @Index('IDX_payment_refund_requests_user_id')
+  @Index('IDX_polar_refund_requests_user_id')
   userId?: AutoIncrementID | null;
 
   @ManyToOne(() => UserEntity, {
@@ -60,7 +60,7 @@ export class PaymentRefundRequestEntity extends AbstractEntity {
   })
   @JoinColumn({
     name: 'user_id',
-    foreignKeyConstraintName: 'FK_payment_refund_requests_user_id',
+    foreignKeyConstraintName: 'FK_polar_refund_requests_user_id',
   })
   user?: Relation<UserEntity> | null;
 
@@ -78,11 +78,12 @@ export class PaymentRefundRequestEntity extends AbstractEntity {
 
   @Column({
     type: 'enum',
-    enum: PaymentRefundRequestStatus,
-    default: PaymentRefundRequestStatus.PENDING,
+    enum: PolarRefundRequestStatus,
+    enumName: 'polar_refund_requests_status_enum',
+    default: PolarRefundRequestStatus.PENDING,
   })
-  @Index('IDX_payment_refund_requests_status')
-  status!: PaymentRefundRequestStatus;
+  @Index('IDX_polar_refund_requests_status')
+  status!: PolarRefundRequestStatus;
 
   @Column({ name: 'admin_note', type: 'text', nullable: true })
   adminNote?: string | null;
@@ -96,7 +97,7 @@ export class PaymentRefundRequestEntity extends AbstractEntity {
   })
   @JoinColumn({
     name: 'reviewed_by',
-    foreignKeyConstraintName: 'FK_payment_refund_requests_reviewed_by',
+    foreignKeyConstraintName: 'FK_polar_refund_requests_reviewed_by',
   })
   reviewer?: Relation<AdminUserEntity> | null;
 
@@ -115,3 +116,9 @@ export class PaymentRefundRequestEntity extends AbstractEntity {
   })
   polarRefundId?: string | null;
 }
+
+// Backward-compatible aliases
+export {
+  PolarRefundRequestEntity as PaymentRefundRequestEntity,
+  PolarRefundRequestStatus as PaymentRefundRequestStatus,
+};

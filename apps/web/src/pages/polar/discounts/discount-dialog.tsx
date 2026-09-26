@@ -41,7 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useDataPaymentProductsOverview } from '@/pages/payment-products/queries'
+import { useDataPaymentProductsOverview } from '@/pages/polar/products/queries'
 import {
   useMutationCreateDiscount,
   useMutationUpdateDiscount,

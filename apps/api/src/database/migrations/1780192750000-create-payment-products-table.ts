@@ -5,7 +5,7 @@ export class CreatePaymentProductsTable1780192750000 implements MigrationInterfa
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TABLE "payment_products" (
+      CREATE TABLE "polar_products" (
         "id" BIGSERIAL NOT NULL,
         "plan_slug" character varying(50) NOT NULL,
         "name" character varying(255) NOT NULL,
@@ -31,32 +31,32 @@ export class CreatePaymentProductsTable1780192750000 implements MigrationInterfa
         "sort_order" integer NOT NULL DEFAULT 0,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_payment_product_id" PRIMARY KEY ("id"),
-        CONSTRAINT "UQ_payment_products_slug_interval" UNIQUE ("plan_slug", "interval")
+        CONSTRAINT "PK_polar_product_id" PRIMARY KEY ("id"),
+        CONSTRAINT "UQ_polar_products_slug_interval" UNIQUE ("plan_slug", "interval")
       )
     `);
 
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_products_plan_slug" ON "payment_products" ("plan_slug")`,
+      `CREATE INDEX "IDX_polar_products_plan_slug" ON "polar_products" ("plan_slug")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_products_interval" ON "payment_products" ("interval")`,
+      `CREATE INDEX "IDX_polar_products_interval" ON "polar_products" ("interval")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_payment_products_is_active" ON "payment_products" ("is_active")`,
+      `CREATE INDEX "IDX_polar_products_is_active" ON "polar_products" ("is_active")`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_products_is_active"`,
+      `DROP INDEX "public"."IDX_polar_products_is_active"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_products_interval"`,
+      `DROP INDEX "public"."IDX_polar_products_interval"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_payment_products_plan_slug"`,
+      `DROP INDEX "public"."IDX_polar_products_plan_slug"`,
     );
-    await queryRunner.query(`DROP TABLE "payment_products"`);
+    await queryRunner.query(`DROP TABLE "polar_products"`);
   }
 }
