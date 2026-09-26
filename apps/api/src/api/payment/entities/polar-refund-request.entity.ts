@@ -79,7 +79,6 @@ export class PolarRefundRequestEntity extends AbstractEntity {
   @Column({
     type: 'enum',
     enum: PolarRefundRequestStatus,
-    enumName: 'polar_refund_requests_status_enum',
     default: PolarRefundRequestStatus.PENDING,
   })
   @Index('IDX_polar_refund_requests_status')

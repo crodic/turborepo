@@ -472,6 +472,50 @@ export class PaymentService {
     });
   }
 
+  async getAdminWebhookEvents(query: PaginateQuery) {
+    return await paginate(query, this.webhookEventRepo, {
+      sortableColumns: [
+        'id',
+        'eventId',
+        'eventType',
+        'status',
+        'createdAt',
+        'processedAt',
+      ],
+      defaultSortBy: [['createdAt', 'DESC']],
+      searchableColumns: ['eventId', 'eventType'],
+      filterableColumns: {
+        status: [FilterOperator.EQ, FilterOperator.IN],
+        eventType: [FilterOperator.EQ, FilterOperator.ILIKE],
+      },
+    });
+  }
+
+  async getAdminWebhookEvent(
+    idOrEventId: string | number,
+  ): Promise<PolarWebhookEventEntity> {
+    let event: PolarWebhookEventEntity | null = null;
+    if (!isNaN(Number(idOrEventId))) {
+      event = await this.webhookEventRepo.findOne({
+        where: [
+          { id: Number(idOrEventId) as any },
+          { eventId: String(idOrEventId) },
+        ],
+      });
+    } else {
+      event = await this.webhookEventRepo.findOne({
+        where: { eventId: String(idOrEventId) },
+      });
+    }
+
+    if (!event) {
+      throw new NotFoundException(
+        `Webhook event '${idOrEventId}' was not found.`,
+      );
+    }
+    return event;
+  }
+
   // ==========================================
   // REFUND REQUESTS
   // ==========================================

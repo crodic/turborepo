@@ -32,10 +32,13 @@ import { PageLocationOverview } from '@/pages/locations'
 import { PagePermissionOverview } from '@/pages/permissions'
 import { PagePermissionEdit } from '@/pages/permissions/edit'
 import PagePermissionShow from '@/pages/permissions/show'
+import { PagePolarCheckoutLinks } from '@/pages/polar/checkout-links'
 import { PagePolarCustomers } from '@/pages/polar/customers'
+import { PagePolarDiscounts } from '@/pages/polar/discounts'
 import { PagePolarOrders } from '@/pages/polar/orders'
 import { PagePolarProducts } from '@/pages/polar/products'
 import { PagePolarSubscriptions } from '@/pages/polar/subscriptions'
+import { PagePolarWebhookEvents } from '@/pages/polar/webhook-events'
 import { PageRoleOverview } from '@/pages/roles'
 import PageRoleCreate from '@/pages/roles/create'
 import { PageRoleEdit } from '@/pages/roles/edit'
@@ -407,6 +410,30 @@ const appRoutes: RouteObject[] = [
             element: (
               <RouteAuthorize action='read' subject='POLAR_CUSTOMER'>
                 <PagePolarCustomers />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: 'discounts',
+            element: (
+              <RouteAuthorize action='read' subject='PAYMENT'>
+                <PagePolarDiscounts />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: 'checkout-links',
+            element: (
+              <RouteAuthorize action='read' subject='PAYMENT'>
+                <PagePolarCheckoutLinks />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: 'webhook-events',
+            element: (
+              <RouteAuthorize action='read' subject='PAYMENT'>
+                <PagePolarWebhookEvents />
               </RouteAuthorize>
             ),
           },

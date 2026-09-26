@@ -1,7 +1,9 @@
 import { AllConfigType } from '@/config/config.type';
 import {
+  BadRequestException,
   Injectable,
   Logger,
+  NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -73,7 +75,105 @@ export class PolarService {
    */
   async getProduct(id: string) {
     const polar = this.ensureConfigured();
-    return await polar.products.get({ id });
+    try {
+      return await polar.products.get({ id });
+    } catch (err: any) {
+      if (
+        err.statusCode === 404 ||
+        err.status === 404 ||
+        err.name === 'ResourceNotFound'
+      ) {
+        throw new NotFoundException(`Product '${id}' was not found on Polar.`);
+      }
+      if (
+        err.statusCode === 422 ||
+        err.status === 422 ||
+        err.name === 'HTTPValidationError'
+      ) {
+        throw new BadRequestException(`Invalid product ID format: ${id}`);
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Fetches discounts directly from Polar
+   */
+  async listDiscounts(params?: {
+    query?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const polar = this.ensureConfigured();
+    const response = await polar.discounts.list(params || {});
+    return response.result?.items ?? [];
+  }
+
+  /**
+   * Fetches discount details directly from Polar
+   */
+  async getDiscount(id: string) {
+    const polar = this.ensureConfigured();
+    try {
+      return await polar.discounts.get({ id });
+    } catch (err: any) {
+      if (
+        err.statusCode === 404 ||
+        err.status === 404 ||
+        err.name === 'ResourceNotFound'
+      ) {
+        throw new NotFoundException(`Discount '${id}' was not found on Polar.`);
+      }
+      if (
+        err.statusCode === 422 ||
+        err.status === 422 ||
+        err.name === 'HTTPValidationError'
+      ) {
+        throw new BadRequestException(`Invalid discount ID format: ${id}`);
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Fetches checkout links directly from Polar
+   */
+  async listCheckoutLinks(params?: {
+    productId?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const polar = this.ensureConfigured();
+    const response = await polar.checkoutLinks.list(params || {});
+    return response.result?.items ?? [];
+  }
+
+  /**
+   * Fetches checkout link details directly from Polar
+   */
+  async getCheckoutLink(id: string) {
+    const polar = this.ensureConfigured();
+    try {
+      return await polar.checkoutLinks.get({ id });
+    } catch (err: any) {
+      if (
+        err.statusCode === 404 ||
+        err.status === 404 ||
+        err.name === 'ResourceNotFound'
+      ) {
+        throw new NotFoundException(
+          `Checkout link '${id}' was not found on Polar.`,
+        );
+      }
+      if (
+        err.statusCode === 422 ||
+        err.status === 422 ||
+        err.name === 'HTTPValidationError'
+      ) {
+        throw new BadRequestException(`Invalid checkout link ID format: ${id}`);
+      }
+      throw err;
+    }
   }
 
   /**

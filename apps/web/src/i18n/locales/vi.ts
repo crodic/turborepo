@@ -27,6 +27,7 @@ export default {
   'navigation.polar.subscriptions': 'Gói đăng ký',
   'navigation.polar.orders': 'Đơn hàng & Hóa đơn',
   'navigation.polar.checkoutLinks': 'Liên kết thanh toán',
+  'navigation.polar.webhookEvents': 'Sự kiện Webhook',
   'navigation.polar.benefits': 'Quyền lợi & Phân quyền',
   'polar.analytics.title': 'Phân tích & Thống kê Polar',
   'polar.analytics.description':

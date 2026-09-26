@@ -17,6 +17,9 @@ import {
   Receipt,
   Repeat,
   Package,
+  Tag,
+  Link2,
+  Activity,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -122,6 +125,24 @@ export const sidebarLink: SidebarData = {
           title: 'navigation.polar.orders',
           url: '/polar/orders',
           icon: Receipt,
+          permission: 'PAYMENT',
+        },
+        {
+          title: 'navigation.polar.discounts',
+          url: '/polar/discounts',
+          icon: Tag,
+          permission: 'PAYMENT',
+        },
+        {
+          title: 'navigation.polar.checkoutLinks',
+          url: '/polar/checkout-links',
+          icon: Link2,
+          permission: 'PAYMENT',
+        },
+        {
+          title: 'navigation.polar.webhookEvents',
+          url: '/polar/webhook-events',
+          icon: Activity,
           permission: 'PAYMENT',
         },
       ],

@@ -9,7 +9,6 @@ import { toast } from 'sonner'
 import http from '@/lib/http'
 import {
   polarDiscountSchema,
-  type PolarDiscountSchema,
   polarCustomFieldSchema,
   type PolarCustomFieldSchema,
   polarCustomerSchema,
@@ -18,32 +17,37 @@ import {
   type PolarSubscriptionSchema,
   polarOrderSchema,
   type PolarOrderSchema,
-  polarCheckoutLinkSchema,
   polarBenefitSchema,
 } from './schema'
 
 // ==========================================
-// DISCOUNTS
+// DISCOUNTS (Direct from Polar SDK)
 // ==========================================
 
-export async function apiGetDiscounts(
-  params: PaginateQueryParams
-): Promise<ApiMetadata & { data: PolarDiscountSchema[] }> {
-  const response = await http.get('/admin/polar/discounts', { params })
-  const result = apiMetadataSchema
-    .extend({ data: z.array(polarDiscountSchema) })
-    .safeParse(response.data)
-
-  if (!result.success) {
-    return response.data as any
-  }
-  return result.data
+export async function apiGetDiscounts(params?: { query?: string }) {
+  const response = await http.get('/admin/payments/discounts', { params })
+  return (
+    response.data?.items ?? response.data?.result?.items ?? response.data ?? []
+  )
 }
 
-export function useDataPolarDiscounts(params: PaginateQueryParams) {
+export function useDataPolarDiscounts(params?: { query?: string }) {
   return useQuery({
-    queryKey: ['polar-discounts', params],
+    queryKey: ['polar-admin-discounts', params],
     queryFn: () => apiGetDiscounts(params),
+  })
+}
+
+export async function apiGetPolarDiscount(id: string) {
+  const response = await http.get(`/admin/payments/discounts/${id}`)
+  return response.data
+}
+
+export function useDataPolarDiscount(id?: string) {
+  return useQuery({
+    queryKey: ['polar-admin-discount', id],
+    queryFn: () => apiGetPolarDiscount(id!),
+    enabled: Boolean(id),
   })
 }
 
@@ -465,7 +469,7 @@ export function useDataPolarCheckoutLinks(productId?: string) {
   return useQuery({
     queryKey: ['polar-checkout-links', productId],
     queryFn: async () => {
-      const response = await http.get('/admin/polar/checkout-links', {
+      const response = await http.get('/admin/payments/checkout-links', {
         params: productId ? { productId } : undefined,
       })
       const items =
@@ -473,8 +477,21 @@ export function useDataPolarCheckoutLinks(productId?: string) {
         response.data?.result?.items ??
         response.data ??
         []
-      return z.array(polarCheckoutLinkSchema).parse(items)
+      return items
     },
+  })
+}
+
+export async function apiGetPolarCheckoutLink(id: string) {
+  const response = await http.get(`/admin/payments/checkout-links/${id}`)
+  return response.data
+}
+
+export function useDataPolarCheckoutLink(id?: string) {
+  return useQuery({
+    queryKey: ['polar-admin-checkout-link', id],
+    queryFn: () => apiGetPolarCheckoutLink(id!),
+    enabled: Boolean(id),
   })
 }
 
@@ -653,6 +670,35 @@ export function useDataPolarProduct(id?: string) {
   return useQuery({
     queryKey: ['polar-admin-product', id],
     queryFn: () => apiGetPolarProduct(id!),
+    enabled: Boolean(id),
+  })
+}
+
+// ==========================================
+// WEBHOOK EVENTS (Local DB tracking)
+// ==========================================
+
+export async function apiGetPolarWebhookEvents(params?: any) {
+  const response = await http.get('/admin/payments/webhook-events', { params })
+  return response.data
+}
+
+export function useDataPolarWebhookEvents(params?: any) {
+  return useQuery({
+    queryKey: ['polar-admin-webhook-events', params],
+    queryFn: () => apiGetPolarWebhookEvents(params),
+  })
+}
+
+export async function apiGetPolarWebhookEvent(id: string | number) {
+  const response = await http.get(`/admin/payments/webhook-events/${id}`)
+  return response.data
+}
+
+export function useDataPolarWebhookEvent(id?: string | number) {
+  return useQuery({
+    queryKey: ['polar-admin-webhook-event', id],
+    queryFn: () => apiGetPolarWebhookEvent(id!),
     enabled: Boolean(id),
   })
 }

@@ -34,7 +34,7 @@ export class CreatePolarPaymentTables1780192650000 implements MigrationInterface
       )
     `);
     await queryRunner.query(
-      `CREATE UNIQUE INDEX "UQ_polar_orders_order_number" ON "polar_orders" ("order_number")`,
+      `CREATE UNIQUE INDEX "IDX_polar_orders_order_number" ON "polar_orders" ("order_number")`,
     );
     await queryRunner.query(
       `CREATE INDEX "IDX_polar_orders_user_id" ON "polar_orders" ("user_id")`,
@@ -77,7 +77,7 @@ export class CreatePolarPaymentTables1780192650000 implements MigrationInterface
       )
     `);
     await queryRunner.query(
-      `CREATE UNIQUE INDEX "UQ_polar_subscriptions_polar_subscription_id" ON "polar_subscriptions" ("polar_subscription_id")`,
+      `CREATE UNIQUE INDEX "IDX_polar_subscriptions_polar_subscription_id" ON "polar_subscriptions" ("polar_subscription_id")`,
     );
     await queryRunner.query(
       `CREATE INDEX "IDX_polar_subscriptions_user_id" ON "polar_subscriptions" ("user_id")`,
@@ -110,7 +110,7 @@ export class CreatePolarPaymentTables1780192650000 implements MigrationInterface
       )
     `);
     await queryRunner.query(
-      `CREATE UNIQUE INDEX "UQ_polar_webhook_events_event_id" ON "polar_webhook_events" ("event_id")`,
+      `CREATE UNIQUE INDEX "IDX_polar_webhook_events_event_id" ON "polar_webhook_events" ("event_id")`,
     );
     await queryRunner.query(
       `CREATE INDEX "IDX_polar_webhook_events_event_type" ON "polar_webhook_events" ("event_type")`,
@@ -118,9 +118,51 @@ export class CreatePolarPaymentTables1780192650000 implements MigrationInterface
     await queryRunner.query(
       `CREATE INDEX "IDX_polar_webhook_events_status" ON "polar_webhook_events" ("status")`,
     );
+
+    // 4. polar_refund_requests
+    await queryRunner.query(`
+      CREATE TYPE "public"."polar_refund_requests_status_enum" AS ENUM(
+        'pending', 'approved', 'rejected', 'processed'
+      )
+    `);
+    await queryRunner.query(`
+      CREATE TABLE "polar_refund_requests" (
+        "id" BIGSERIAL NOT NULL,
+        "order_id" bigint NOT NULL,
+        "user_id" bigint,
+        "amount" integer NOT NULL,
+        "currency" character varying(10) NOT NULL DEFAULT 'usd',
+        "reason" character varying(100) NOT NULL,
+        "customer_note" text,
+        "status" "public"."polar_refund_requests_status_enum" NOT NULL DEFAULT 'pending',
+        "admin_note" text,
+        "reviewed_by" bigint,
+        "reviewed_at" TIMESTAMP WITH TIME ZONE,
+        "polar_refund_id" character varying(150),
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_polar_refund_request_id" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_polar_refund_requests_order_id" FOREIGN KEY ("order_id") REFERENCES "polar_orders"("id") ON DELETE CASCADE ON UPDATE NO ACTION,
+        CONSTRAINT "FK_polar_refund_requests_user_id" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE NO ACTION,
+        CONSTRAINT "FK_polar_refund_requests_reviewed_by" FOREIGN KEY ("reviewed_by") REFERENCES "admin_users"("id") ON DELETE SET NULL ON UPDATE NO ACTION
+      )
+    `);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_polar_refund_requests_order_id" ON "polar_refund_requests" ("order_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_polar_refund_requests_user_id" ON "polar_refund_requests" ("user_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_polar_refund_requests_status" ON "polar_refund_requests" ("status")`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TABLE "polar_refund_requests"`);
+    await queryRunner.query(
+      `DROP TYPE "public"."polar_refund_requests_status_enum"`,
+    );
     await queryRunner.query(`DROP TABLE "polar_webhook_events"`);
     await queryRunner.query(
       `DROP TYPE "public"."polar_webhook_events_status_enum"`,

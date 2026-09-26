@@ -27,6 +27,7 @@ export default {
   'navigation.polar.subscriptions': 'Subscriptions',
   'navigation.polar.orders': 'Orders & Invoices',
   'navigation.polar.checkoutLinks': 'Checkout Links',
+  'navigation.polar.webhookEvents': 'Webhook Events',
   'navigation.polar.benefits': 'Benefits & Grants',
   'polar.analytics.title': 'Polar Analytics & Metrics',
   'polar.analytics.description':

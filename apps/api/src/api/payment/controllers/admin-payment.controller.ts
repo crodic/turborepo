@@ -12,6 +12,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -25,6 +26,7 @@ import { DirectRefundReqDto } from '../dto/direct-refund.req.dto';
 import { PaymentOrderResDto } from '../dto/payment-order.res.dto';
 import { PaymentRefundRequestResDto } from '../dto/payment-refund-request.res.dto';
 import { PaymentSubscriptionResDto } from '../dto/payment-subscription.res.dto';
+import { PaymentWebhookEventResDto } from '../dto/payment-webhook-event.res.dto';
 import { ReviewRefundRequestReqDto } from '../dto/review-refund-request.req.dto';
 import { PaymentService } from '../services/payment.service';
 import { PolarService } from '../services/polar.service';
@@ -72,6 +74,112 @@ export class AdminPaymentController {
   )
   async getProduct(@Param('id') id: string) {
     return await this.polarService.getProduct(id);
+  }
+
+  @Get('discounts')
+  @ApiOperation({
+    summary: 'Get all discounts from Polar (Admin)',
+    description: 'Fetches discounts directly from Polar API.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'List of discounts from Polar',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.Payment),
+  )
+  async getDiscounts(@Query('query') query?: string) {
+    return await this.polarService.listDiscounts(query ? { query } : undefined);
+  }
+
+  @Get('discounts/:id')
+  @ApiOperation({
+    summary: 'Get discount details from Polar (Admin)',
+    description: 'Fetches discount details by ID directly from Polar API.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Discount details from Polar',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.Payment),
+  )
+  async getDiscount(@Param('id') id: string) {
+    return await this.polarService.getDiscount(id);
+  }
+
+  @Get('checkout-links')
+  @ApiOperation({
+    summary: 'Get all checkout links from Polar (Admin)',
+    description: 'Fetches checkout links directly from Polar API.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'List of checkout links from Polar',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.Payment),
+  )
+  async getCheckoutLinks(@Query('productId') productId?: string) {
+    return await this.polarService.listCheckoutLinks(
+      productId ? { productId } : undefined,
+    );
+  }
+
+  @Get('checkout-links/:id')
+  @ApiOperation({
+    summary: 'Get checkout link details from Polar (Admin)',
+    description: 'Fetches checkout link details by ID directly from Polar API.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Checkout link details from Polar',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.Payment),
+  )
+  async getCheckoutLink(@Param('id') id: string) {
+    return await this.polarService.getCheckoutLink(id);
+  }
+
+  @Get('webhook-events')
+  @ApiOperation({
+    summary: 'Get all tracked webhook events (Admin)',
+    description:
+      'Retrieves a paginated list of all received Polar webhook events.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Paginated list of webhook events',
+    type: [PaymentWebhookEventResDto],
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.Payment),
+  )
+  async getWebhookEvents(
+    @Paginate() query: PaginateQuery,
+  ): Promise<Paginated<PaymentWebhookEventResDto>> {
+    return (await this.paymentService.getAdminWebhookEvents(query)) as any;
+  }
+
+  @Get('webhook-events/:id')
+  @ApiOperation({
+    summary: 'Get webhook event details (Admin)',
+    description:
+      'Retrieves details and raw payload of a specific tracked webhook event by DB ID or Polar eventId.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Detailed webhook event with payload',
+    type: PaymentWebhookEventResDto,
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.Payment),
+  )
+  async getWebhookEvent(
+    @Param('id') id: string,
+  ): Promise<PaymentWebhookEventResDto> {
+    return (await this.paymentService.getAdminWebhookEvent(id)) as any;
   }
 
   @Get('orders')
