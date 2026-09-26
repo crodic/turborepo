@@ -24,14 +24,20 @@ import {
 // DISCOUNTS (Direct from Polar SDK)
 // ==========================================
 
-export async function apiGetDiscounts(params?: { query?: string }) {
+export async function apiGetDiscounts(params?: {
+  query?: string
+  page?: number
+  limit?: number
+}) {
   const response = await http.get('/admin/payments/discounts', { params })
-  return (
-    response.data?.items ?? response.data?.result?.items ?? response.data ?? []
-  )
+  return response.data
 }
 
-export function useDataPolarDiscounts(params?: { query?: string }) {
+export function useDataPolarDiscounts(params?: {
+  query?: string
+  page?: number
+  limit?: number
+}) {
   return useQuery({
     queryKey: ['polar-admin-discounts', params],
     queryFn: () => apiGetDiscounts(params),
@@ -465,19 +471,18 @@ export async function downloadCsv(endpoint: string, filename: string) {
 // CHECKOUT LINKS
 // ==========================================
 
-export function useDataPolarCheckoutLinks(productId?: string) {
+export function useDataPolarCheckoutLinks(params?: {
+  productId?: string
+  page?: number
+  limit?: number
+}) {
   return useQuery({
-    queryKey: ['polar-checkout-links', productId],
+    queryKey: ['polar-checkout-links', params],
     queryFn: async () => {
       const response = await http.get('/admin/payments/checkout-links', {
-        params: productId ? { productId } : undefined,
+        params,
       })
-      const items =
-        response.data?.items ??
-        response.data?.result?.items ??
-        response.data ??
-        []
-      return items
+      return response.data
     },
   })
 }
@@ -647,17 +652,25 @@ export function useDataPolarOrganizations() {
 // PRODUCTS (Read-only from Polar SDK)
 // ==========================================
 
-export async function apiGetPolarProducts() {
-  const response = await http.get('/admin/payments/products')
-  return (
-    response.data?.items ?? response.data?.result?.items ?? response.data ?? []
-  )
+export async function apiGetPolarProducts(params?: {
+  query?: string
+  isRecurring?: boolean
+  page?: number
+  limit?: number
+}) {
+  const response = await http.get('/admin/payments/products', { params })
+  return response.data
 }
 
-export function useDataPolarProducts() {
+export function useDataPolarProducts(params?: {
+  query?: string
+  isRecurring?: boolean
+  page?: number
+  limit?: number
+}) {
   return useQuery({
-    queryKey: ['polar-admin-products'],
-    queryFn: () => apiGetPolarProducts(),
+    queryKey: ['polar-admin-products', params],
+    queryFn: () => apiGetPolarProducts(params),
   })
 }
 

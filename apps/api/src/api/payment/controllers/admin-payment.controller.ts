@@ -56,8 +56,19 @@ export class AdminPaymentController {
   @CheckPolicies((ability: AppAbility) =>
     ability.can(AppActions.Read, AppSubjects.Payment),
   )
-  async getProducts() {
-    return await this.polarService.listProducts();
+  async getProducts(
+    @Query('query') query?: string,
+    @Query('isRecurring') isRecurring?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return await this.polarService.listProducts({
+      query,
+      isRecurring:
+        isRecurring !== undefined ? isRecurring === 'true' : undefined,
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 10,
+    });
   }
 
   @Get('products/:id')
@@ -79,17 +90,25 @@ export class AdminPaymentController {
   @Get('discounts')
   @ApiOperation({
     summary: 'Get all discounts from Polar (Admin)',
-    description: 'Fetches discounts directly from Polar API.',
+    description: 'Fetches discounts directly from Polar API with pagination.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'List of discounts from Polar',
+    description: 'Paginated discounts from Polar',
   })
   @CheckPolicies((ability: AppAbility) =>
     ability.can(AppActions.Read, AppSubjects.Payment),
   )
-  async getDiscounts(@Query('query') query?: string) {
-    return await this.polarService.listDiscounts(query ? { query } : undefined);
+  async getDiscounts(
+    @Query('query') query?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return await this.polarService.listDiscounts({
+      query,
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 10,
+    });
   }
 
   @Get('discounts/:id')
@@ -111,19 +130,26 @@ export class AdminPaymentController {
   @Get('checkout-links')
   @ApiOperation({
     summary: 'Get all checkout links from Polar (Admin)',
-    description: 'Fetches checkout links directly from Polar API.',
+    description:
+      'Fetches checkout links directly from Polar API with pagination.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'List of checkout links from Polar',
+    description: 'Paginated checkout links from Polar',
   })
   @CheckPolicies((ability: AppAbility) =>
     ability.can(AppActions.Read, AppSubjects.Payment),
   )
-  async getCheckoutLinks(@Query('productId') productId?: string) {
-    return await this.polarService.listCheckoutLinks(
-      productId ? { productId } : undefined,
-    );
+  async getCheckoutLinks(
+    @Query('productId') productId?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return await this.polarService.listCheckoutLinks({
+      productId,
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 10,
+    });
   }
 
   @Get('checkout-links/:id')
@@ -216,6 +242,23 @@ export class AdminPaymentController {
     @Paginate() query: PaginateQuery,
   ): Promise<Paginated<PaymentSubscriptionResDto>> {
     return (await this.paymentService.getAdminSubscriptions(query)) as any;
+  }
+
+  @Get('users/:userId/summary')
+  @ApiOperation({
+    summary: 'Get user payment summary (Admin)',
+    description:
+      'Retrieves subscriptions, orders, and payment summary for a specific user.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'User payment summary',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.Payment),
+  )
+  async getUserPaymentSummary(@Param('userId') userId: AutoIncrementID) {
+    return await this.paymentService.getUserPaymentSummary(userId);
   }
 
   @Get('refund-requests')

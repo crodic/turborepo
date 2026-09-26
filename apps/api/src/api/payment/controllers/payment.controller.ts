@@ -51,7 +51,8 @@ export class PaymentController {
     description: 'List of active pricing products from Polar',
   })
   async getProducts() {
-    return await this.polarService.listProducts();
+    const res = await this.polarService.listProducts({ limit: 100 });
+    return res.data;
   }
 
   @Post('checkout')

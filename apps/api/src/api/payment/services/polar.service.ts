@@ -62,12 +62,35 @@ export class PolarService {
   }
 
   /**
-   * Fetches active products and tiers directly from Polar
+   * Fetches active products and tiers directly from Polar with pagination
    */
-  async listProducts() {
+  async listProducts(params?: {
+    query?: string;
+    isRecurring?: boolean;
+    page?: number;
+    limit?: number;
+  }) {
     const polar = this.ensureConfigured();
-    const response = await polar.products.list({ isArchived: false });
-    return response.result?.items ?? [];
+    const page = params?.page ? Number(params.page) : 1;
+    const limit = params?.limit ? Number(params.limit) : 10;
+    const response = await polar.products.list({
+      isArchived: false,
+      ...(params?.query ? { query: params.query } : {}),
+      ...(params?.isRecurring !== undefined
+        ? { isRecurring: params.isRecurring }
+        : {}),
+      page,
+      limit,
+    });
+    return {
+      data: response.result?.items ?? [],
+      meta: {
+        totalItems: response.result?.pagination?.totalCount ?? 0,
+        totalPages: response.result?.pagination?.maxPage ?? 1,
+        currentPage: page,
+        itemsPerPage: limit,
+      },
+    };
   }
 
   /**
@@ -97,7 +120,7 @@ export class PolarService {
   }
 
   /**
-   * Fetches discounts directly from Polar
+   * Fetches discounts directly from Polar with pagination
    */
   async listDiscounts(params?: {
     query?: string;
@@ -105,8 +128,22 @@ export class PolarService {
     limit?: number;
   }) {
     const polar = this.ensureConfigured();
-    const response = await polar.discounts.list(params || {});
-    return response.result?.items ?? [];
+    const page = params?.page ? Number(params.page) : 1;
+    const limit = params?.limit ? Number(params.limit) : 10;
+    const response = await polar.discounts.list({
+      ...(params?.query ? { query: params.query } : {}),
+      page,
+      limit,
+    });
+    return {
+      data: response.result?.items ?? [],
+      meta: {
+        totalItems: response.result?.pagination?.totalCount ?? 0,
+        totalPages: response.result?.pagination?.maxPage ?? 1,
+        currentPage: page,
+        itemsPerPage: limit,
+      },
+    };
   }
 
   /**
@@ -136,7 +173,7 @@ export class PolarService {
   }
 
   /**
-   * Fetches checkout links directly from Polar
+   * Fetches checkout links directly from Polar with pagination
    */
   async listCheckoutLinks(params?: {
     productId?: string;
@@ -144,8 +181,22 @@ export class PolarService {
     limit?: number;
   }) {
     const polar = this.ensureConfigured();
-    const response = await polar.checkoutLinks.list(params || {});
-    return response.result?.items ?? [];
+    const page = params?.page ? Number(params.page) : 1;
+    const limit = params?.limit ? Number(params.limit) : 10;
+    const response = await polar.checkoutLinks.list({
+      ...(params?.productId ? { productId: params.productId } : {}),
+      page,
+      limit,
+    });
+    return {
+      data: response.result?.items ?? [],
+      meta: {
+        totalItems: response.result?.pagination?.totalCount ?? 0,
+        totalPages: response.result?.pagination?.maxPage ?? 1,
+        currentPage: page,
+        itemsPerPage: limit,
+      },
+    };
   }
 
   /**

@@ -793,4 +793,123 @@ export class PaymentService {
     const saved = await this.orderRepo.save(order);
     return saved as any;
   }
+
+  /**
+   * Retrieves overall payment and subscription summary for a specific user.
+   * Matches by userId or user's email, and automatically backfills missing userId.
+   */
+  async getUserPaymentSummary(userId: AutoIncrementID) {
+    // 1. Get user email
+    let userEmail: string | null = null;
+    try {
+      const userRes = await this.orderRepo.manager.query(
+        `SELECT id, email FROM users WHERE id = $1 LIMIT 1`,
+        [userId],
+      );
+      userEmail = userRes?.[0]?.email || null;
+    } catch (e: any) {
+      this.logger.warn(`Failed to lookup user #${userId}: ${e.message}`);
+    }
+
+    // 2. Query subscriptions
+    const subQueryBuilder = this.subscriptionRepo.createQueryBuilder('sub');
+    if (userEmail) {
+      subQueryBuilder.where(
+        '(sub.user_id = :userId OR LOWER(sub.customer_email) = LOWER(:email))',
+        { userId, email: userEmail },
+      );
+    } else {
+      subQueryBuilder.where('sub.user_id = :userId', { userId });
+    }
+    const subscriptions = await subQueryBuilder
+      .orderBy('sub.created_at', 'DESC')
+      .getMany();
+
+    // Backfill userId on subscriptions if missing
+    const subsToBackfill = subscriptions.filter((s) => !s.userId);
+    if (subsToBackfill.length > 0) {
+      for (const sub of subsToBackfill) {
+        sub.userId = userId;
+      }
+      await this.subscriptionRepo.save(subsToBackfill).catch((err) => {
+        this.logger.warn(
+          `Failed to backfill subscription userId: ${err.message}`,
+        );
+      });
+    }
+
+    // 3. Query orders
+    const orderQueryBuilder = this.orderRepo.createQueryBuilder('order');
+    if (userEmail) {
+      orderQueryBuilder.where(
+        '(order.user_id = :userId OR LOWER(order.customer_email) = LOWER(:email))',
+        { userId, email: userEmail },
+      );
+    } else {
+      orderQueryBuilder.where('order.user_id = :userId', { userId });
+    }
+    const orders = await orderQueryBuilder
+      .orderBy('order.created_at', 'DESC')
+      .getMany();
+
+    // Backfill userId on orders if missing
+    const ordersToBackfill = orders.filter((o) => !o.userId);
+    if (ordersToBackfill.length > 0) {
+      for (const order of ordersToBackfill) {
+        order.userId = userId;
+      }
+      await this.orderRepo.save(ordersToBackfill).catch((err) => {
+        this.logger.warn(`Failed to backfill order userId: ${err.message}`);
+      });
+    }
+
+    const paidOrders = orders.filter(
+      (o) => o.status === PaymentOrderStatus.PAID,
+    );
+    const totalSpent = paidOrders.reduce((sum, o) => sum + (o.amount || 0), 0);
+
+    return {
+      subscriptions: subscriptions.map((s) => ({
+        id: s.id,
+        userId: s.userId,
+        customerEmail: s.customerEmail || userEmail || '',
+        polarSubscriptionId: s.polarSubscriptionId,
+        polarCustomerId: s.polarCustomerId,
+        productId: s.productId,
+        status: s.status,
+        currentPeriodStart: s.currentPeriodStart
+          ? s.currentPeriodStart.toISOString()
+          : null,
+        currentPeriodEnd: s.currentPeriodEnd
+          ? s.currentPeriodEnd.toISOString()
+          : null,
+        cancelAtPeriodEnd: Boolean(s.cancelAtPeriodEnd),
+        createdAt: s.createdAt
+          ? s.createdAt.toISOString()
+          : new Date().toISOString(),
+        updatedAt: s.updatedAt ? s.updatedAt.toISOString() : null,
+      })),
+      recentOrders: orders.slice(0, 10).map((o) => ({
+        id: o.id,
+        orderNumber: o.orderNumber,
+        userId: o.userId,
+        customerEmail: o.customerEmail,
+        customerName: o.customerName,
+        polarOrderId: o.polarOrderId,
+        polarCheckoutId: o.polarCheckoutId,
+        productId: o.productId,
+        productTitle: o.productTitle,
+        amount: o.amount,
+        currency: o.currency,
+        status: o.status,
+        createdAt: o.createdAt
+          ? o.createdAt.toISOString()
+          : new Date().toISOString(),
+        updatedAt: o.updatedAt ? o.updatedAt.toISOString() : null,
+      })),
+      totalSpent,
+      totalOrdersCount: paidOrders.length,
+      currency: orders[0]?.currency || 'usd',
+    };
+  }
 }

@@ -33,12 +33,16 @@ import { PagePermissionOverview } from '@/pages/permissions'
 import { PagePermissionEdit } from '@/pages/permissions/edit'
 import PagePermissionShow from '@/pages/permissions/show'
 import { PagePolarCheckoutLinks } from '@/pages/polar/checkout-links'
+import { PagePolarCheckoutLinkDetail } from '@/pages/polar/checkout-links/detail'
 import { PagePolarCustomers } from '@/pages/polar/customers'
 import { PagePolarDiscounts } from '@/pages/polar/discounts'
+import { PagePolarDiscountDetail } from '@/pages/polar/discounts/detail'
 import { PagePolarOrders } from '@/pages/polar/orders'
 import { PagePolarProducts } from '@/pages/polar/products'
+import { PagePolarProductDetail } from '@/pages/polar/products/detail'
 import { PagePolarSubscriptions } from '@/pages/polar/subscriptions'
 import { PagePolarWebhookEvents } from '@/pages/polar/webhook-events'
+import { PagePolarWebhookEventDetail } from '@/pages/polar/webhook-events/detail'
 import { PageRoleOverview } from '@/pages/roles'
 import PageRoleCreate from '@/pages/roles/create'
 import { PageRoleEdit } from '@/pages/roles/edit'
@@ -383,11 +387,24 @@ const appRoutes: RouteObject[] = [
           },
           {
             path: 'products',
-            element: (
-              <RouteAuthorize action='read' subject='PAYMENT'>
-                <PagePolarProducts />
-              </RouteAuthorize>
-            ),
+            children: [
+              {
+                index: true,
+                element: (
+                  <RouteAuthorize action='read' subject='PAYMENT'>
+                    <PagePolarProducts />
+                  </RouteAuthorize>
+                ),
+              },
+              {
+                path: ':id',
+                element: (
+                  <RouteAuthorize action='read' subject='PAYMENT'>
+                    <PagePolarProductDetail />
+                  </RouteAuthorize>
+                ),
+              },
+            ],
           },
           {
             path: 'subscriptions',
@@ -415,27 +432,66 @@ const appRoutes: RouteObject[] = [
           },
           {
             path: 'discounts',
-            element: (
-              <RouteAuthorize action='read' subject='PAYMENT'>
-                <PagePolarDiscounts />
-              </RouteAuthorize>
-            ),
+            children: [
+              {
+                index: true,
+                element: (
+                  <RouteAuthorize action='read' subject='PAYMENT'>
+                    <PagePolarDiscounts />
+                  </RouteAuthorize>
+                ),
+              },
+              {
+                path: ':id',
+                element: (
+                  <RouteAuthorize action='read' subject='PAYMENT'>
+                    <PagePolarDiscountDetail />
+                  </RouteAuthorize>
+                ),
+              },
+            ],
           },
           {
             path: 'checkout-links',
-            element: (
-              <RouteAuthorize action='read' subject='PAYMENT'>
-                <PagePolarCheckoutLinks />
-              </RouteAuthorize>
-            ),
+            children: [
+              {
+                index: true,
+                element: (
+                  <RouteAuthorize action='read' subject='PAYMENT'>
+                    <PagePolarCheckoutLinks />
+                  </RouteAuthorize>
+                ),
+              },
+              {
+                path: ':id',
+                element: (
+                  <RouteAuthorize action='read' subject='PAYMENT'>
+                    <PagePolarCheckoutLinkDetail />
+                  </RouteAuthorize>
+                ),
+              },
+            ],
           },
           {
             path: 'webhook-events',
-            element: (
-              <RouteAuthorize action='read' subject='PAYMENT'>
-                <PagePolarWebhookEvents />
-              </RouteAuthorize>
-            ),
+            children: [
+              {
+                index: true,
+                element: (
+                  <RouteAuthorize action='read' subject='PAYMENT'>
+                    <PagePolarWebhookEvents />
+                  </RouteAuthorize>
+                ),
+              },
+              {
+                path: ':id',
+                element: (
+                  <RouteAuthorize action='read' subject='PAYMENT'>
+                    <PagePolarWebhookEventDetail />
+                  </RouteAuthorize>
+                ),
+              },
+            ],
           },
         ],
       },
