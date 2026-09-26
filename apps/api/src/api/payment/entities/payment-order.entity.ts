@@ -96,6 +96,27 @@ export class PaymentOrderEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 10, default: 'usd' })
   currency!: string;
 
+  @Column({ name: 'subtotal_amount', type: 'integer', nullable: true })
+  subtotalAmount?: number | null;
+
+  @Column({ name: 'tax_amount', type: 'integer', nullable: true })
+  taxAmount?: number | null;
+
+  @Column({ name: 'discount_amount', type: 'integer', nullable: true })
+  discountAmount?: number | null;
+
+  @Column({ name: 'discount_id', type: 'varchar', length: 150, nullable: true })
+  discountId?: string | null;
+
+  @Column({ name: 'custom_field_data', type: 'jsonb', nullable: true })
+  customFieldData?: Record<string, any> | null;
+
+  @Column({ name: 'invoice_url', type: 'varchar', length: 500, nullable: true })
+  invoiceUrl?: string | null;
+
+  @Column({ name: 'receipt_url', type: 'varchar', length: 500, nullable: true })
+  receiptUrl?: string | null;
+
   @Column({
     type: 'enum',
     enum: PaymentOrderStatus,

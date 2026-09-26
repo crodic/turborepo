@@ -12,6 +12,9 @@ export class CreatePaymentTables1780192650000 implements MigrationInterface {
         "polar_customer_id" character varying(150) NOT NULL,
         "email" character varying(255) NOT NULL,
         "name" character varying(255),
+        "avatar_url" character varying(500),
+        "billing_address" jsonb,
+        "tax_id" character varying(100),
         "metadata" jsonb,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -48,6 +51,13 @@ export class CreatePaymentTables1780192650000 implements MigrationInterface {
         "product_title" character varying(255),
         "amount" integer NOT NULL,
         "currency" character varying(10) NOT NULL DEFAULT 'usd',
+        "subtotal_amount" integer,
+        "tax_amount" integer,
+        "discount_amount" integer,
+        "discount_id" character varying(150),
+        "custom_field_data" jsonb,
+        "invoice_url" character varying(500),
+        "receipt_url" character varying(500),
         "status" "public"."payment_orders_status_enum" NOT NULL DEFAULT 'pending',
         "metadata" jsonb,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -142,10 +152,17 @@ export class CreatePaymentTables1780192650000 implements MigrationInterface {
         "polar_subscription_id" character varying(150) NOT NULL,
         "polar_customer_id" character varying(150),
         "product_id" character varying(150) NOT NULL,
+        "amount" integer,
+        "currency" character varying(10),
+        "recurring_interval" character varying(20),
         "status" "public"."payment_subscriptions_status_enum" NOT NULL DEFAULT 'incomplete',
         "current_period_start" TIMESTAMP WITH TIME ZONE,
         "current_period_end" TIMESTAMP WITH TIME ZONE,
         "cancel_at_period_end" boolean NOT NULL DEFAULT false,
+        "started_at" TIMESTAMP WITH TIME ZONE,
+        "ended_at" TIMESTAMP WITH TIME ZONE,
+        "discount_id" character varying(150),
+        "custom_field_data" jsonb,
         "metadata" jsonb,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -200,9 +217,78 @@ export class CreatePaymentTables1780192650000 implements MigrationInterface {
     await queryRunner.query(
       `CREATE INDEX "IDX_payment_webhook_events_status" ON "payment_webhook_events" ("status")`,
     );
+
+    // 6. polar_discounts
+    await queryRunner.query(`
+      CREATE TABLE "polar_discounts" (
+        "id" BIGSERIAL NOT NULL,
+        "polar_discount_id" character varying(150) NOT NULL,
+        "name" character varying(255) NOT NULL,
+        "type" character varying(50) NOT NULL,
+        "amount" integer,
+        "basis_points" integer,
+        "currency" character varying(10),
+        "amounts" jsonb,
+        "code" character varying(100),
+        "duration" character varying(50) NOT NULL DEFAULT 'once',
+        "duration_in_months" integer,
+        "max_redemptions" integer,
+        "redemptions_count" integer NOT NULL DEFAULT 0,
+        "starts_at" TIMESTAMP WITH TIME ZONE,
+        "ends_at" TIMESTAMP WITH TIME ZONE,
+        "product_ids" jsonb NOT NULL DEFAULT '[]',
+        "metadata" jsonb,
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_polar_discount_id" PRIMARY KEY ("id")
+      )
+    `);
+    await queryRunner.query(
+      `CREATE UNIQUE INDEX "UQ_polar_discounts_polar_discount_id" ON "polar_discounts" ("polar_discount_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_polar_discounts_code" ON "polar_discounts" ("code")`,
+    );
+
+    // 7. polar_custom_fields
+    await queryRunner.query(`
+      CREATE TABLE "polar_custom_fields" (
+        "id" BIGSERIAL NOT NULL,
+        "polar_custom_field_id" character varying(150) NOT NULL,
+        "type" character varying(50) NOT NULL,
+        "slug" character varying(100) NOT NULL,
+        "name" character varying(255) NOT NULL,
+        "properties" jsonb NOT NULL DEFAULT '{}',
+        "metadata" jsonb,
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_polar_custom_field_id" PRIMARY KEY ("id")
+      )
+    `);
+    await queryRunner.query(
+      `CREATE UNIQUE INDEX "UQ_polar_custom_fields_polar_custom_field_id" ON "polar_custom_fields" ("polar_custom_field_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_polar_custom_fields_slug" ON "polar_custom_fields" ("slug")`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    // Drop polar_custom_fields
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_polar_custom_fields_slug"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."UQ_polar_custom_fields_polar_custom_field_id"`,
+    );
+    await queryRunner.query(`DROP TABLE "polar_custom_fields"`);
+
+    // Drop polar_discounts
+    await queryRunner.query(`DROP INDEX "public"."IDX_polar_discounts_code"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."UQ_polar_discounts_polar_discount_id"`,
+    );
+    await queryRunner.query(`DROP TABLE "polar_discounts"`);
     // Drop payment_webhook_events
     await queryRunner.query(
       `DROP INDEX "public"."IDX_payment_webhook_events_status"`,

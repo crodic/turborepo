@@ -359,6 +359,22 @@ export class ProductService {
   }
 
   /**
+   * Deletes a local product by Polar product ID (triggered by webhook)
+   */
+  async deleteProductByPolarId(polarProductId: string): Promise<void> {
+    if (!polarProductId) return;
+    const prod = await this.productRepo.findOne({
+      where: { polarProductId },
+    });
+    if (prod) {
+      this.logger.log(
+        `Removing product #${prod.id} (${prod.planSlug}) via Polar webhook`,
+      );
+      await this.productRepo.remove(prod);
+    }
+  }
+
+  /**
    * Retrieves available benefits from Polar
    */
   async getPolarBenefits(): Promise<any[]> {

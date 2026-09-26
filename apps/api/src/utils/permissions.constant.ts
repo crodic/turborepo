@@ -10,6 +10,9 @@ export enum AppSubjects {
   Location = 'LOCATION',
   Payment = 'PAYMENT',
   PaymentProduct = 'PAYMENT_PRODUCT',
+  PolarDiscount = 'POLAR_DISCOUNT',
+  PolarCustomField = 'POLAR_CUSTOM_FIELD',
+  PolarCustomer = 'POLAR_CUSTOMER',
 
   All = 'all',
 }
@@ -318,6 +321,96 @@ export const ALL_PERMISSIONS = [
     'Payment Products Management',
     'Delete payment products',
     'Delete or archive pricing products.',
+  ),
+
+  // Polar Discount
+  permissionMeta(
+    AppActions.Read,
+    AppSubjects.PolarDiscount,
+    'Polar Discounts Management',
+    'View discounts',
+    'View coupon codes and promotional discounts.',
+  ),
+  permissionMeta(
+    AppActions.Create,
+    AppSubjects.PolarDiscount,
+    'Polar Discounts Management',
+    'Create discounts',
+    'Create promotional discounts and coupon codes.',
+  ),
+  permissionMeta(
+    AppActions.Update,
+    AppSubjects.PolarDiscount,
+    'Polar Discounts Management',
+    'Update discounts',
+    'Edit promotional discounts and coupon codes.',
+  ),
+  permissionMeta(
+    AppActions.Delete,
+    AppSubjects.PolarDiscount,
+    'Polar Discounts Management',
+    'Delete discounts',
+    'Delete or deactivate discounts.',
+  ),
+
+  // Polar Custom Field
+  permissionMeta(
+    AppActions.Read,
+    AppSubjects.PolarCustomField,
+    'Polar Custom Fields Management',
+    'View custom fields',
+    'View checkout custom form fields.',
+  ),
+  permissionMeta(
+    AppActions.Create,
+    AppSubjects.PolarCustomField,
+    'Polar Custom Fields Management',
+    'Create custom fields',
+    'Create checkout custom form fields.',
+  ),
+  permissionMeta(
+    AppActions.Update,
+    AppSubjects.PolarCustomField,
+    'Polar Custom Fields Management',
+    'Update custom fields',
+    'Edit checkout custom form fields.',
+  ),
+  permissionMeta(
+    AppActions.Delete,
+    AppSubjects.PolarCustomField,
+    'Polar Custom Fields Management',
+    'Delete custom fields',
+    'Delete checkout custom form fields.',
+  ),
+
+  // Polar Customer
+  permissionMeta(
+    AppActions.Read,
+    AppSubjects.PolarCustomer,
+    'Polar Customers Management',
+    'View customers',
+    'View Polar customers, states, and payment methods.',
+  ),
+  permissionMeta(
+    AppActions.Create,
+    AppSubjects.PolarCustomer,
+    'Polar Customers Management',
+    'Create customers',
+    'Create customer profiles in Polar.',
+  ),
+  permissionMeta(
+    AppActions.Update,
+    AppSubjects.PolarCustomer,
+    'Polar Customers Management',
+    'Update customers',
+    'Update Polar customer details and payment methods.',
+  ),
+  permissionMeta(
+    AppActions.Delete,
+    AppSubjects.PolarCustomer,
+    'Polar Customers Management',
+    'Delete customers',
+    'Delete or anonymize Polar customers.',
   ),
 
   // SUPER

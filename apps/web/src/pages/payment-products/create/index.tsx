@@ -28,7 +28,7 @@ export function PagePaymentProductCreate() {
           defaultValue: `Plan "${data.name}" created successfully`,
         })
       )
-      navigate('/payment-products')
+      navigate('/polar/products')
     },
     onError: (err: any) => {
       toast.error(
@@ -57,7 +57,7 @@ export function PagePaymentProductCreate() {
           <Button
             variant='ghost'
             size='icon'
-            onClick={() => navigate('/payment-products')}
+            onClick={() => navigate('/polar/products')}
           >
             <ArrowLeft className='size-5' />
           </Button>
@@ -79,7 +79,7 @@ export function PagePaymentProductCreate() {
         <PaymentProductForm
           isSubmitting={createMutation.isPending}
           onSubmit={handleSubmit}
-          onCancel={() => navigate('/payment-products')}
+          onCancel={() => navigate('/polar/products')}
         />
       </Main>
     </>

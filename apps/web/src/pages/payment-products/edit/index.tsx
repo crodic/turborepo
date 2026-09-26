@@ -38,7 +38,7 @@ export function PagePaymentProductEdit() {
           defaultValue: `Plan "${data.name}" updated successfully`,
         })
       )
-      navigate('/payment-products')
+      navigate('/polar/products')
     },
     onError: (err: any) => {
       toast.error(
@@ -68,7 +68,7 @@ export function PagePaymentProductEdit() {
           <Button
             variant='ghost'
             size='icon'
-            onClick={() => navigate('/payment-products')}
+            onClick={() => navigate('/polar/products')}
           >
             <ArrowLeft className='size-5' />
           </Button>
@@ -96,7 +96,7 @@ export function PagePaymentProductEdit() {
             initialData={product}
             isSubmitting={updateMutation.isPending}
             onSubmit={handleSubmit}
-            onCancel={() => navigate('/payment-products')}
+            onCancel={() => navigate('/polar/products')}
           />
         ) : (
           <div className='text-muted-foreground p-8 text-center'>

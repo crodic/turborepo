@@ -45,6 +45,18 @@ export const groupPermission = [
     permissions: ['create', 'read', 'update', 'delete'],
   },
   {
+    group: 'POLAR_DISCOUNT',
+    permissions: ['create', 'read', 'update', 'delete'],
+  },
+  {
+    group: 'POLAR_CUSTOM_FIELD',
+    permissions: ['create', 'read', 'update', 'delete'],
+  },
+  {
+    group: 'POLAR_CUSTOMER',
+    permissions: ['create', 'read', 'update', 'delete'],
+  },
+  {
     group: 'manage',
     permissions: ['all'],
   },
@@ -109,6 +121,24 @@ export const permissions = [
   { action: 'read', subject: 'PAYMENT_PRODUCT' },
   { action: 'update', subject: 'PAYMENT_PRODUCT' },
   { action: 'delete', subject: 'PAYMENT_PRODUCT' },
+
+  // POLAR_DISCOUNT
+  { action: 'create', subject: 'POLAR_DISCOUNT' },
+  { action: 'read', subject: 'POLAR_DISCOUNT' },
+  { action: 'update', subject: 'POLAR_DISCOUNT' },
+  { action: 'delete', subject: 'POLAR_DISCOUNT' },
+
+  // POLAR_CUSTOM_FIELD
+  { action: 'create', subject: 'POLAR_CUSTOM_FIELD' },
+  { action: 'read', subject: 'POLAR_CUSTOM_FIELD' },
+  { action: 'update', subject: 'POLAR_CUSTOM_FIELD' },
+  { action: 'delete', subject: 'POLAR_CUSTOM_FIELD' },
+
+  // POLAR_CUSTOMER
+  { action: 'create', subject: 'POLAR_CUSTOMER' },
+  { action: 'read', subject: 'POLAR_CUSTOMER' },
+  { action: 'update', subject: 'POLAR_CUSTOMER' },
+  { action: 'delete', subject: 'POLAR_CUSTOMER' },
 
   // SUPER
   { action: 'manage', subject: 'all' },

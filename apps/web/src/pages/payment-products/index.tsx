@@ -135,7 +135,7 @@ export function PagePaymentProductsOverview() {
           isFetching={isFetching}
           onClickRowAction={(row) => {
             if (canUpdate) {
-              navigate(`/payment-products/${row.id}/edit`)
+              navigate(`/polar/products/${row.id}/edit`)
             }
           }}
         >

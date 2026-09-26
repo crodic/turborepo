@@ -8,7 +8,9 @@ import { MailService } from '@/mail/mail.service';
 import {
   BadRequestException,
   ConflictException,
+  forwardRef,
   HttpException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -58,6 +60,9 @@ import {
   PaymentWebhookStatus,
 } from '../entities/payment-webhook-event.entity';
 import { PaymentGatewayFactory } from '../factories/payment-gateway.factory';
+import { CustomFieldService } from './custom-field.service';
+import { DiscountService } from './discount.service';
+import { PolarService } from './polar.service';
 import { ProductService } from './product.service';
 
 @Injectable()
@@ -79,9 +84,14 @@ export class PaymentService {
     private readonly webhookEventRepo: Repository<PaymentWebhookEventEntity>,
     private readonly gatewayFactory: PaymentGatewayFactory,
     private readonly productService: ProductService,
+    private readonly polarService: PolarService,
     private readonly notificationService: NotificationService,
     private readonly mailService: MailService,
     private readonly configService: ConfigService<AllConfigType>,
+    @Inject(forwardRef(() => DiscountService))
+    private readonly discountService: DiscountService,
+    @Inject(forwardRef(() => CustomFieldService))
+    private readonly customFieldService: CustomFieldService,
   ) {}
 
   /**
@@ -356,24 +366,82 @@ export class PaymentService {
           await this.productService.syncProductFromPolar(data);
           break;
 
+        case 'product.deleted':
+          await this.productService.deleteProductByPolarId(data.id);
+          break;
+
+        case 'discount.created':
+        case 'discount.updated':
+          await this.discountService.syncDiscountFromPolar(data);
+          break;
+
+        case 'discount.deleted':
+          await this.discountService.deleteDiscountByPolarId(data.id);
+          break;
+
+        case 'custom_field.created':
+        case 'custom_field.updated':
+          await this.customFieldService.syncCustomFieldFromPolar(data);
+          break;
+
+        case 'custom_field.deleted':
+          await this.customFieldService.deleteCustomFieldByPolarId(data.id);
+          break;
+
+        case 'customer.created':
+        case 'customer.updated': {
+          const cId = data.id;
+          const cEmail = data.email;
+          const cUserId =
+            data.external_id || (await this.resolveUserIdByEmail(cEmail));
+          if (cId && cEmail) {
+            await this.syncCustomer(
+              cId,
+              cEmail,
+              cUserId,
+              data.name,
+              data.avatar_url,
+              data.billing_address,
+              data.tax_id,
+            );
+          }
+          break;
+        }
+
+        case 'customer.deleted': {
+          const c = await this.customerRepo.findOne({
+            where: { polarCustomerId: data.id },
+          });
+          if (c) {
+            await this.customerRepo.remove(c);
+          }
+          break;
+        }
+
         case 'order.created':
         case 'order.paid':
+        case 'order.updated':
           await this.handleOrderPaid(data);
           break;
 
         case 'subscription.created':
         case 'subscription.active':
         case 'subscription.updated':
+        case 'subscription.uncanceled':
+        case 'subscription.resumed':
           await this.handleSubscriptionUpdated(data);
           break;
 
         case 'subscription.canceled':
         case 'subscription.revoked':
+        case 'subscription.paused':
+        case 'subscription.past_due':
           await this.handleSubscriptionCanceled(data);
           break;
 
         case 'order.refunded':
         case 'refund.created':
+        case 'refund.updated':
           await this.handleOrderRefunded(data);
           break;
 
@@ -404,6 +472,9 @@ export class PaymentService {
     email: string,
     userId?: AutoIncrementID | string | null,
     name?: string | null,
+    avatarUrl?: string | null,
+    billingAddress?: Record<string, any> | null,
+    taxId?: string | null,
   ): Promise<PaymentCustomerEntity> {
     let customer = await this.customerRepo.findOne({
       where: { polarCustomerId },
@@ -417,11 +488,18 @@ export class PaymentService {
         email,
         userId: parsedUserId,
         name: name || null,
+        avatarUrl: avatarUrl || null,
+        billingAddress: billingAddress || null,
+        taxId: taxId || null,
       });
     } else {
       if (parsedUserId && !customer.userId) customer.userId = parsedUserId;
       if (email && customer.email !== email) customer.email = email;
       if (name && !customer.name) customer.name = name;
+      if (avatarUrl && !customer.avatarUrl) customer.avatarUrl = avatarUrl;
+      if (billingAddress && !customer.billingAddress)
+        customer.billingAddress = billingAddress;
+      if (taxId && !customer.taxId) customer.taxId = taxId;
     }
 
     return await this.customerRepo.save(customer);
@@ -481,6 +559,13 @@ export class PaymentService {
         productTitle: data.product?.name || null,
         amount: data.amount || 0,
         currency: data.currency || 'usd',
+        subtotalAmount: data.subtotal_amount ?? data.amount ?? 0,
+        taxAmount: data.tax_amount ?? null,
+        discountAmount: data.discount_amount ?? null,
+        discountId: data.discount_id ?? null,
+        customFieldData: data.custom_field_data ?? null,
+        invoiceUrl: data.invoice_url ?? null,
+        receiptUrl: data.receipt_url ?? null,
         status: PaymentOrderStatus.PAID,
         metadata: data.metadata || null,
       });
@@ -489,6 +574,16 @@ export class PaymentService {
       order.polarOrderId = polarOrderId;
       if (data.amount) order.amount = data.amount;
       if (data.currency) order.currency = data.currency;
+      if (data.subtotal_amount !== undefined)
+        order.subtotalAmount = data.subtotal_amount;
+      if (data.tax_amount !== undefined) order.taxAmount = data.tax_amount;
+      if (data.discount_amount !== undefined)
+        order.discountAmount = data.discount_amount;
+      if (data.discount_id !== undefined) order.discountId = data.discount_id;
+      if (data.custom_field_data !== undefined)
+        order.customFieldData = data.custom_field_data;
+      if (data.invoice_url !== undefined) order.invoiceUrl = data.invoice_url;
+      if (data.receipt_url !== undefined) order.receiptUrl = data.receipt_url;
       if (customer?.id && !order.customerId) order.customerId = customer.id;
       if (data.product?.name) order.productTitle = data.product.name;
       if (userId && !order.userId) order.userId = userId as AutoIncrementID;
@@ -573,6 +668,9 @@ export class PaymentService {
         userId: userId || null,
         customerEmail: customerEmail || 'unknown@example.com',
         productId: data.product_id || data.product?.id || 'unknown',
+        amount: data.amount ?? data.recurring_price_amount ?? null,
+        currency: data.currency ?? null,
+        recurringInterval: data.recurring_interval ?? null,
         status: mappedStatus,
         currentPeriodStart: data.current_period_start
           ? new Date(data.current_period_start)
@@ -581,10 +679,28 @@ export class PaymentService {
           ? new Date(data.current_period_end)
           : null,
         cancelAtPeriodEnd: Boolean(data.cancel_at_period_end),
+        startedAt: data.started_at ? new Date(data.started_at) : null,
+        endedAt: data.ended_at ? new Date(data.ended_at) : null,
+        discountId: data.discount_id ?? null,
+        customFieldData: data.custom_field_data ?? null,
         metadata: data.metadata || null,
       });
     } else {
       subscription.status = mappedStatus;
+      if (data.amount !== undefined) subscription.amount = data.amount;
+      if (data.currency !== undefined) subscription.currency = data.currency;
+      if (data.recurring_interval !== undefined)
+        subscription.recurringInterval = data.recurring_interval;
+      if (data.started_at !== undefined)
+        subscription.startedAt = data.started_at
+          ? new Date(data.started_at)
+          : null;
+      if (data.ended_at !== undefined)
+        subscription.endedAt = data.ended_at ? new Date(data.ended_at) : null;
+      if (data.discount_id !== undefined)
+        subscription.discountId = data.discount_id;
+      if (data.custom_field_data !== undefined)
+        subscription.customFieldData = data.custom_field_data;
       if (data.current_period_start) {
         subscription.currentPeriodStart = new Date(data.current_period_start);
       }
@@ -804,6 +920,110 @@ export class PaymentService {
       ...result,
       data: plainToInstance(PaymentSubscriptionResDto, result.data),
     } as Paginated<PaymentSubscriptionResDto>;
+  }
+
+  async cancelSubscription(
+    id: AutoIncrementID,
+  ): Promise<PaymentSubscriptionResDto> {
+    const sub = await this.subscriptionRepo.findOne({ where: { id } });
+    if (!sub) {
+      throw new NotFoundException(`Subscription #${id} not found.`);
+    }
+
+    if (
+      this.polarService.isGatewayConfigured() &&
+      sub.polarSubscriptionId &&
+      !sub.polarSubscriptionId.startsWith('local_')
+    ) {
+      await this.polarService.cancelSubscription(sub.polarSubscriptionId);
+    }
+
+    sub.cancelAtPeriodEnd = true;
+    const saved = await this.subscriptionRepo.save(sub);
+    return plainToInstance(PaymentSubscriptionResDto, saved);
+  }
+
+  async revokeSubscription(
+    id: AutoIncrementID,
+  ): Promise<PaymentSubscriptionResDto> {
+    const sub = await this.subscriptionRepo.findOne({ where: { id } });
+    if (!sub) {
+      throw new NotFoundException(`Subscription #${id} not found.`);
+    }
+
+    if (
+      this.polarService.isGatewayConfigured() &&
+      sub.polarSubscriptionId &&
+      !sub.polarSubscriptionId.startsWith('local_')
+    ) {
+      await this.polarService.revokeSubscription(sub.polarSubscriptionId);
+    }
+
+    sub.status = PaymentSubscriptionStatus.CANCELED;
+    sub.endedAt = new Date();
+    const saved = await this.subscriptionRepo.save(sub);
+    return plainToInstance(PaymentSubscriptionResDto, saved);
+  }
+
+  async exportSubscriptions(): Promise<string> {
+    if (!this.polarService.isGatewayConfigured()) {
+      return 'id,status,customer_email,created_at\n';
+    }
+    return await this.polarService.exportSubscriptions();
+  }
+
+  async getOrderInvoice(id: AutoIncrementID): Promise<any> {
+    const order = await this.orderRepo.findOne({ where: { id } });
+    if (!order) {
+      throw new NotFoundException(`Order #${id} not found.`);
+    }
+
+    if (
+      !this.polarService.isGatewayConfigured() ||
+      !order.polarOrderId ||
+      order.polarOrderId.startsWith('local_')
+    ) {
+      return {
+        id: order.id,
+        orderNumber: order.orderNumber,
+        invoiceUrl: order.invoiceUrl,
+      };
+    }
+
+    const invoice = await this.polarService.getOrderInvoice(order.polarOrderId);
+    if ((invoice as any)?.url && !order.invoiceUrl) {
+      order.invoiceUrl = (invoice as any).url;
+      await this.orderRepo.save(order);
+    }
+    return invoice;
+  }
+
+  async getOrderReceipt(id: AutoIncrementID): Promise<any> {
+    const order = await this.orderRepo.findOne({ where: { id } });
+    if (!order) {
+      throw new NotFoundException(`Order #${id} not found.`);
+    }
+
+    if (
+      !this.polarService.isGatewayConfigured() ||
+      !order.polarOrderId ||
+      order.polarOrderId.startsWith('local_')
+    ) {
+      return {
+        id: order.id,
+        orderNumber: order.orderNumber,
+        receiptUrl: order.receiptUrl,
+      };
+    }
+
+    return await this.polarService.getOrderReceipt(order.polarOrderId);
+  }
+
+  async exportOrders(): Promise<string> {
+    if (!this.polarService.isGatewayConfigured()) {
+      return 'id,order_number,amount,currency,status,created_at\n';
+    }
+    return await this.polarService.exportOrders();
   }
 
   /**

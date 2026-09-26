@@ -25,7 +25,10 @@ import {
   PaymentWebhookStatus,
 } from '../entities/payment-webhook-event.entity';
 import { PaymentGatewayFactory } from '../factories/payment-gateway.factory';
+import { CustomFieldService } from './custom-field.service';
+import { DiscountService } from './discount.service';
 import { PaymentService } from './payment.service';
+import { PolarService } from './polar.service';
 import { ProductService } from './product.service';
 
 describe('PaymentService', () => {
@@ -226,6 +229,33 @@ describe('PaymentService', () => {
         {
           provide: ConfigService,
           useValue: configServiceMock,
+        },
+        {
+          provide: PolarService,
+          useValue: {
+            cancelSubscription: jest.fn(),
+            revokeSubscription: jest.fn(),
+            getOrderInvoice: jest.fn(),
+            getOrderReceipt: jest.fn(),
+            createRefund: jest.fn(),
+            listCustomers: jest.fn(),
+            listSubscriptions: jest.fn(),
+            listOrders: jest.fn(),
+          },
+        },
+        {
+          provide: DiscountService,
+          useValue: {
+            syncDiscountFromPolar: jest.fn(),
+            deleteDiscountByPolarId: jest.fn(),
+          },
+        },
+        {
+          provide: CustomFieldService,
+          useValue: {
+            syncCustomFieldFromPolar: jest.fn(),
+            deleteCustomFieldByPolarId: jest.fn(),
+          },
         },
       ],
     }).compile();

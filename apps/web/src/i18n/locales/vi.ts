@@ -18,6 +18,40 @@ export default {
   'navigation.management.locations': 'Địa điểm',
   'navigation.management.payments': 'Thanh toán & Đơn hàng',
   'navigation.management.paymentProducts': 'Gói thanh toán',
+  'navigation.polar.title': 'Polar',
+  'navigation.polar.analytics': 'Phân tích & Thống kê',
+  'navigation.polar.products': 'Sản phẩm & Gói giá',
+  'navigation.polar.discounts': 'Mã giảm giá',
+  'navigation.polar.customFields': 'Trường tùy chỉnh',
+  'navigation.polar.customers': 'Khách hàng',
+  'navigation.polar.subscriptions': 'Gói đăng ký',
+  'navigation.polar.orders': 'Đơn hàng & Hóa đơn',
+  'navigation.polar.checkoutLinks': 'Liên kết thanh toán',
+  'navigation.polar.benefits': 'Quyền lợi & Phân quyền',
+  'polar.analytics.title': 'Phân tích & Thống kê Polar',
+  'polar.analytics.description':
+    'Chỉ số tài chính, doanh thu định kỳ MRR, khối lượng giao dịch và dữ liệu khách hàng từ cổng Polar.',
+  'polar.discounts.title': 'Mã giảm giá & Phiếu ưu đãi',
+  'polar.discounts.description':
+    'Quản lý mã giảm giá theo phần trăm hoặc số tiền cố định, giới hạn lượt dùng và thời hạn hiệu lực.',
+  'polar.customFields.title': 'Trường thanh toán tùy chỉnh',
+  'polar.customFields.description':
+    'Thu thập thêm thông tin của khách hàng khi thanh toán như mã số thuế, Discord ID, tên công ty.',
+  'polar.customers.title': 'Khách hàng Polar',
+  'polar.customers.description':
+    'Xem hồ sơ khách hàng đã đồng bộ, phương thức thanh toán lưu trữ và quyền lợi dịch vụ.',
+  'polar.subscriptions.title': 'Gói thuê bao định kỳ',
+  'polar.subscriptions.description':
+    'Theo dõi các gói đăng ký định kỳ, chu kỳ thanh toán, hủy vào cuối kỳ hoặc thu hồi quyền truy cập tức thì.',
+  'polar.orders.title': 'Đơn hàng & Hóa đơn',
+  'polar.orders.description':
+    'Theo dõi biên lai thanh toán, hóa đơn PDF, chi tiết thuế và thực hiện hoàn tiền trực tiếp.',
+  'polar.checkoutLinks.title': 'Liên kết thanh toán',
+  'polar.checkoutLinks.description':
+    'Tạo liên kết thanh toán trực tiếp để chia sẻ qua email, mạng xã hội hoặc chiến dịch marketing.',
+  'polar.benefits.title': 'Quyền lợi & Khóa bản quyền',
+  'polar.benefits.description':
+    'Quản lý quyền lợi đi kèm gói, cấp mã bản quyền tự động, phân quyền Discord/GitHub và kiểm tra cấp quyền.',
   'payments.title': 'Thanh toán & Hóa đơn',
   'payments.description':
     'Theo dõi đơn hàng toàn cầu, các gói đăng ký định kỳ SaaS, nhật ký giao dịch và yêu cầu hoàn tiền.',

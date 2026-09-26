@@ -18,6 +18,40 @@ export default {
   'navigation.management.locations': 'Locations',
   'navigation.management.payments': 'Payments',
   'navigation.management.paymentProducts': 'Payment Products',
+  'navigation.polar.title': 'Polar',
+  'navigation.polar.analytics': 'Analytics & Metrics',
+  'navigation.polar.products': 'Products & Plans',
+  'navigation.polar.discounts': 'Discounts & Coupons',
+  'navigation.polar.customFields': 'Custom Fields',
+  'navigation.polar.customers': 'Customers',
+  'navigation.polar.subscriptions': 'Subscriptions',
+  'navigation.polar.orders': 'Orders & Invoices',
+  'navigation.polar.checkoutLinks': 'Checkout Links',
+  'navigation.polar.benefits': 'Benefits & Grants',
+  'polar.analytics.title': 'Polar Analytics & Metrics',
+  'polar.analytics.description':
+    'Financial performance metrics, MRR, volume, and customer lifetime telemetry synced with Polar.',
+  'polar.discounts.title': 'Discounts & Coupons',
+  'polar.discounts.description':
+    'Manage percentage and fixed-amount discounts, promo codes, and redemption limits.',
+  'polar.customFields.title': 'Custom Checkout Fields',
+  'polar.customFields.description':
+    'Collect extra metadata from customers at checkout, such as tax IDs, Discord IDs, or company handles.',
+  'polar.customers.title': 'Polar Customers',
+  'polar.customers.description':
+    'View all synced Polar customer profiles, active payment methods, and live entitlement states.',
+  'polar.subscriptions.title': 'Subscriptions',
+  'polar.subscriptions.description':
+    'Monitor recurring billing subscriptions, plan tiers, and manage period-end cancellations or immediate revocations.',
+  'polar.orders.title': 'Orders & Invoices',
+  'polar.orders.description':
+    'View comprehensive payment receipts, invoice PDFs, tax breakdowns, and trigger direct refunds.',
+  'polar.checkoutLinks.title': 'Checkout Links',
+  'polar.checkoutLinks.description':
+    'Create direct, pre-configured Polar checkout links for marketing campaigns, newsletters, and social media.',
+  'polar.benefits.title': 'Benefits & Entitlements',
+  'polar.benefits.description':
+    'Manage customer benefits, software license keys, Discord/GitHub access, and audit customer grants.',
   'payments.title': 'Payments & Billing',
   'payments.description':
     'Monitor global orders, SaaS recurring subscriptions, payment transaction logs, and refund requests.',

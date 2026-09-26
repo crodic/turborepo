@@ -44,6 +44,15 @@ export class PaymentCustomerEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 255, nullable: true })
   name?: string | null;
 
+  @Column({ name: 'avatar_url', type: 'varchar', length: 500, nullable: true })
+  avatarUrl?: string | null;
+
+  @Column({ name: 'billing_address', type: 'jsonb', nullable: true })
+  billingAddress?: Record<string, any> | null;
+
+  @Column({ name: 'tax_id', type: 'varchar', length: 100, nullable: true })
+  taxId?: string | null;
+
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, any> | null;
 

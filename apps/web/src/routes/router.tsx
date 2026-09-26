@@ -32,10 +32,17 @@ import { PageLocationOverview } from '@/pages/locations'
 import { PagePaymentProductsOverview } from '@/pages/payment-products'
 import { PagePaymentProductCreate } from '@/pages/payment-products/create'
 import { PagePaymentProductEdit } from '@/pages/payment-products/edit'
-import { PagePaymentsOverview } from '@/pages/payments'
 import { PagePermissionOverview } from '@/pages/permissions'
 import { PagePermissionEdit } from '@/pages/permissions/edit'
 import PagePermissionShow from '@/pages/permissions/show'
+import { PagePolarAnalytics } from '@/pages/polar/analytics'
+import { PagePolarBenefits } from '@/pages/polar/benefits'
+import { PagePolarCheckoutLinks } from '@/pages/polar/checkout-links'
+import { PagePolarCustomFields } from '@/pages/polar/custom-fields'
+import { PagePolarCustomers } from '@/pages/polar/customers'
+import { PagePolarDiscounts } from '@/pages/polar/discounts'
+import { PagePolarOrders } from '@/pages/polar/orders'
+import { PagePolarSubscriptions } from '@/pages/polar/subscriptions'
 import { PageRoleOverview } from '@/pages/roles'
 import PageRoleCreate from '@/pages/roles/create'
 import { PageRoleEdit } from '@/pages/roles/edit'
@@ -364,11 +371,7 @@ const appRoutes: RouteObject[] = [
         children: [
           {
             index: true,
-            element: (
-              <RouteAuthorize action='read' subject='PAYMENT_PRODUCT'>
-                <PagePaymentProductsOverview />
-              </RouteAuthorize>
-            ),
+            element: <Navigate to='/polar/products' replace />,
           },
           {
             path: 'create',
@@ -390,11 +393,109 @@ const appRoutes: RouteObject[] = [
       },
       {
         path: '/payments',
-        element: (
-          <RouteAuthorize action='read' subject='PAYMENT'>
-            <PagePaymentsOverview />
-          </RouteAuthorize>
-        ),
+        element: <Navigate to='/polar/orders' replace />,
+      },
+      {
+        path: '/polar',
+        children: [
+          {
+            index: true,
+            element: <Navigate to='/polar/analytics' replace />,
+          },
+          {
+            path: 'analytics',
+            element: (
+              <RouteAuthorize action='read' subject='PAYMENT'>
+                <PagePolarAnalytics />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: 'products',
+            children: [
+              {
+                index: true,
+                element: (
+                  <RouteAuthorize action='read' subject='PAYMENT_PRODUCT'>
+                    <PagePaymentProductsOverview />
+                  </RouteAuthorize>
+                ),
+              },
+              {
+                path: 'create',
+                element: (
+                  <RouteAuthorize action='create' subject='PAYMENT_PRODUCT'>
+                    <PagePaymentProductCreate />
+                  </RouteAuthorize>
+                ),
+              },
+              {
+                path: ':id/edit',
+                element: (
+                  <RouteAuthorize action='update' subject='PAYMENT_PRODUCT'>
+                    <PagePaymentProductEdit />
+                  </RouteAuthorize>
+                ),
+              },
+            ],
+          },
+          {
+            path: 'discounts',
+            element: (
+              <RouteAuthorize action='read' subject='POLAR_DISCOUNT'>
+                <PagePolarDiscounts />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: 'custom-fields',
+            element: (
+              <RouteAuthorize action='read' subject='POLAR_CUSTOM_FIELD'>
+                <PagePolarCustomFields />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: 'customers',
+            element: (
+              <RouteAuthorize action='read' subject='POLAR_CUSTOMER'>
+                <PagePolarCustomers />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: 'subscriptions',
+            element: (
+              <RouteAuthorize action='read' subject='PAYMENT'>
+                <PagePolarSubscriptions />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: 'orders',
+            element: (
+              <RouteAuthorize action='read' subject='PAYMENT'>
+                <PagePolarOrders />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: 'checkout-links',
+            element: (
+              <RouteAuthorize action='read' subject='PAYMENT_PRODUCT'>
+                <PagePolarCheckoutLinks />
+              </RouteAuthorize>
+            ),
+          },
+          {
+            path: 'benefits',
+            element: (
+              <RouteAuthorize action='read' subject='PAYMENT_PRODUCT'>
+                <PagePolarBenefits />
+              </RouteAuthorize>
+            ),
+          },
+        ],
       },
       {
         path: '/users',

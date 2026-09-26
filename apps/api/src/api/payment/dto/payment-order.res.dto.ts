@@ -39,10 +39,31 @@ export class PaymentOrderResDto {
   @ApiProperty({ example: 'usd' })
   currency!: string;
 
+  @ApiPropertyOptional({ example: 2900 })
+  subtotalAmount?: number | null;
+
+  @ApiPropertyOptional({ example: 0 })
+  taxAmount?: number | null;
+
+  @ApiPropertyOptional({ example: 500 })
+  discountAmount?: number | null;
+
+  @ApiPropertyOptional({ example: 'dsc_123' })
+  discountId?: string | null;
+
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
+  customFieldData?: Record<string, any> | null;
+
+  @ApiPropertyOptional({ example: 'https://polar.sh/invoices/inv_123.pdf' })
+  invoiceUrl?: string | null;
+
+  @ApiPropertyOptional({ example: 'https://polar.sh/receipts/rec_123.pdf' })
+  receiptUrl?: string | null;
+
   @ApiProperty({ enum: PaymentOrderStatus, example: PaymentOrderStatus.PAID })
   status!: PaymentOrderStatus;
 
-  @ApiPropertyOptional({ example: { plan: 'pro' } })
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   metadata?: Record<string, any> | null;
 
   @ApiProperty()

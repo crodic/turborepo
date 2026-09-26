@@ -67,6 +67,20 @@ export class PaymentSubscriptionEntity extends AbstractEntity {
   @Column({ name: 'product_id', type: 'varchar', length: 150 })
   productId!: string;
 
+  @Column({ type: 'integer', nullable: true })
+  amount?: number | null;
+
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  currency?: string | null;
+
+  @Column({
+    name: 'recurring_interval',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  recurringInterval?: string | null;
+
   @Column({
     type: 'enum',
     enum: PaymentSubscriptionStatus,
@@ -83,6 +97,18 @@ export class PaymentSubscriptionEntity extends AbstractEntity {
 
   @Column({ name: 'cancel_at_period_end', type: 'boolean', default: false })
   cancelAtPeriodEnd!: boolean;
+
+  @Column({ name: 'started_at', type: 'timestamptz', nullable: true })
+  startedAt?: Date | null;
+
+  @Column({ name: 'ended_at', type: 'timestamptz', nullable: true })
+  endedAt?: Date | null;
+
+  @Column({ name: 'discount_id', type: 'varchar', length: 150, nullable: true })
+  discountId?: string | null;
+
+  @Column({ name: 'custom_field_data', type: 'jsonb', nullable: true })
+  customFieldData?: Record<string, any> | null;
 
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, any> | null;

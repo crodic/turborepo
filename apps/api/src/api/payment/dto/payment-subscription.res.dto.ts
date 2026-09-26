@@ -24,6 +24,15 @@ export class PaymentSubscriptionResDto {
   @ApiProperty({ example: 'prod_123456789' })
   productId!: string;
 
+  @ApiPropertyOptional({ example: 1900 })
+  amount?: number | null;
+
+  @ApiPropertyOptional({ example: 'usd' })
+  currency?: string | null;
+
+  @ApiPropertyOptional({ example: 'month' })
+  recurringInterval?: string | null;
+
   @ApiProperty({
     enum: PaymentSubscriptionStatus,
     example: PaymentSubscriptionStatus.ACTIVE,
@@ -39,7 +48,19 @@ export class PaymentSubscriptionResDto {
   @ApiProperty({ example: false })
   cancelAtPeriodEnd!: boolean;
 
+  @ApiPropertyOptional({ example: '2026-09-01T00:00:00.000Z' })
+  startedAt?: Date | null;
+
   @ApiPropertyOptional({ example: null })
+  endedAt?: Date | null;
+
+  @ApiPropertyOptional({ example: 'dsc_123' })
+  discountId?: string | null;
+
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
+  customFieldData?: Record<string, any> | null;
+
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   metadata?: Record<string, any> | null;
 
   @ApiProperty()

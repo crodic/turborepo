@@ -61,7 +61,7 @@ export default function ComponentTableRowActions({
         <DropdownMenuContent align='end'>
           {canUpdate && (
             <DropdownMenuItem
-              onClick={() => navigate(`/payment-products/${item.id}/edit`)}
+              onClick={() => navigate(`/polar/products/${item.id}/edit`)}
             >
               <Edit2Icon className='size-4' />
               {t('buttons.edit', { defaultValue: 'Edit' })}
