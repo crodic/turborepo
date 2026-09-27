@@ -51,7 +51,11 @@ export class PaymentController {
     description: 'List of active pricing products from Polar',
   })
   async getProducts() {
-    const res = await this.polarService.listProducts({ limit: 100 });
+    // Client endpoints do not use Redis cache (direct fetch from Polar)
+    const res = await this.polarService.listProducts(
+      { limit: 100 },
+      false, // useCache: false
+    );
     return res.data;
   }
 

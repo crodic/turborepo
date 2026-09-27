@@ -47,7 +47,8 @@ export class AdminPaymentController {
   @Get('products')
   @ApiOperation({
     summary: 'Get all products from Polar (Admin)',
-    description: 'Fetches active products directly from Polar API.',
+    description:
+      'Fetches active products directly from Polar API with Redis cache.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -61,20 +62,26 @@ export class AdminPaymentController {
     @Query('isRecurring') isRecurring?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('refresh') refresh?: string,
   ) {
-    return await this.polarService.listProducts({
-      query,
-      isRecurring:
-        isRecurring !== undefined ? isRecurring === 'true' : undefined,
-      page: page ? Number(page) : 1,
-      limit: limit ? Number(limit) : 10,
-    });
+    return await this.polarService.listProducts(
+      {
+        query,
+        isRecurring:
+          isRecurring !== undefined ? isRecurring === 'true' : undefined,
+        page: page ? Number(page) : 1,
+        limit: limit ? Number(limit) : 10,
+      },
+      true,
+      refresh === 'true',
+    );
   }
 
   @Get('products/:id')
   @ApiOperation({
     summary: 'Get product details from Polar (Admin)',
-    description: 'Fetches product details by ID directly from Polar API.',
+    description:
+      'Fetches product details by ID directly from Polar API with Redis cache.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -83,14 +90,18 @@ export class AdminPaymentController {
   @CheckPolicies((ability: AppAbility) =>
     ability.can(AppActions.Read, AppSubjects.Payment),
   )
-  async getProduct(@Param('id') id: string) {
-    return await this.polarService.getProduct(id);
+  async getProduct(
+    @Param('id') id: string,
+    @Query('refresh') refresh?: string,
+  ) {
+    return await this.polarService.getProduct(id, true, refresh === 'true');
   }
 
   @Get('discounts')
   @ApiOperation({
     summary: 'Get all discounts from Polar (Admin)',
-    description: 'Fetches discounts directly from Polar API with pagination.',
+    description:
+      'Fetches discounts directly from Polar API with pagination and Redis cache.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -103,18 +114,24 @@ export class AdminPaymentController {
     @Query('query') query?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('refresh') refresh?: string,
   ) {
-    return await this.polarService.listDiscounts({
-      query,
-      page: page ? Number(page) : 1,
-      limit: limit ? Number(limit) : 10,
-    });
+    return await this.polarService.listDiscounts(
+      {
+        query,
+        page: page ? Number(page) : 1,
+        limit: limit ? Number(limit) : 10,
+      },
+      true,
+      refresh === 'true',
+    );
   }
 
   @Get('discounts/:id')
   @ApiOperation({
     summary: 'Get discount details from Polar (Admin)',
-    description: 'Fetches discount details by ID directly from Polar API.',
+    description:
+      'Fetches discount details by ID directly from Polar API with Redis cache.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -123,15 +140,18 @@ export class AdminPaymentController {
   @CheckPolicies((ability: AppAbility) =>
     ability.can(AppActions.Read, AppSubjects.Payment),
   )
-  async getDiscount(@Param('id') id: string) {
-    return await this.polarService.getDiscount(id);
+  async getDiscount(
+    @Param('id') id: string,
+    @Query('refresh') refresh?: string,
+  ) {
+    return await this.polarService.getDiscount(id, true, refresh === 'true');
   }
 
   @Get('checkout-links')
   @ApiOperation({
     summary: 'Get all checkout links from Polar (Admin)',
     description:
-      'Fetches checkout links directly from Polar API with pagination.',
+      'Fetches checkout links directly from Polar API with pagination and Redis cache.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -144,18 +164,24 @@ export class AdminPaymentController {
     @Query('productId') productId?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('refresh') refresh?: string,
   ) {
-    return await this.polarService.listCheckoutLinks({
-      productId,
-      page: page ? Number(page) : 1,
-      limit: limit ? Number(limit) : 10,
-    });
+    return await this.polarService.listCheckoutLinks(
+      {
+        productId,
+        page: page ? Number(page) : 1,
+        limit: limit ? Number(limit) : 10,
+      },
+      true,
+      refresh === 'true',
+    );
   }
 
   @Get('checkout-links/:id')
   @ApiOperation({
     summary: 'Get checkout link details from Polar (Admin)',
-    description: 'Fetches checkout link details by ID directly from Polar API.',
+    description:
+      'Fetches checkout link details by ID directly from Polar API with Redis cache.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -164,8 +190,35 @@ export class AdminPaymentController {
   @CheckPolicies((ability: AppAbility) =>
     ability.can(AppActions.Read, AppSubjects.Payment),
   )
-  async getCheckoutLink(@Param('id') id: string) {
-    return await this.polarService.getCheckoutLink(id);
+  async getCheckoutLink(
+    @Param('id') id: string,
+    @Query('refresh') refresh?: string,
+  ) {
+    return await this.polarService.getCheckoutLink(
+      id,
+      true,
+      refresh === 'true',
+    );
+  }
+
+  @Post('cache/refresh')
+  @ApiOperation({
+    summary: 'Clear / refresh Polar Redis cache (Admin)',
+    description: 'Purges cached Polar catalog items from Redis.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Cache cleared successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Update, AppSubjects.Payment),
+  )
+  async refreshCache(@Query('scope') scope?: string) {
+    await this.polarService.clearCache(scope);
+    return {
+      success: true,
+      message: `Polar cache for scope '${scope || 'all'}' cleared successfully.`,
+    };
   }
 
   @Get('webhook-events')

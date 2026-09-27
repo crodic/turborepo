@@ -68,6 +68,15 @@ export class PaymentWebhookController {
 
     await this.paymentService.handleWebhook(event, webhookId);
 
+    // Auto invalidate catalog Redis cache if product or discount changes
+    if (
+      event.type?.startsWith('product.') ||
+      event.type?.startsWith('discount.') ||
+      event.type?.startsWith('checkout_link.')
+    ) {
+      await this.polarService.clearCache('all');
+    }
+
     return { received: true };
   }
 }

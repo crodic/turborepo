@@ -657,6 +657,7 @@ export async function apiGetPolarProducts(params?: {
   isRecurring?: boolean
   page?: number
   limit?: number
+  refresh?: boolean
 }) {
   const response = await http.get('/admin/payments/products', { params })
   return response.data
@@ -667,6 +668,7 @@ export function useDataPolarProducts(params?: {
   isRecurring?: boolean
   page?: number
   limit?: number
+  refresh?: boolean
 }) {
   return useQuery({
     queryKey: ['polar-admin-products', params],
@@ -674,16 +676,50 @@ export function useDataPolarProducts(params?: {
   })
 }
 
-export async function apiGetPolarProduct(id: string) {
-  const response = await http.get(`/admin/payments/products/${id}`)
+export async function apiGetPolarProduct(id: string, refresh?: boolean) {
+  const response = await http.get(`/admin/payments/products/${id}`, {
+    params: refresh ? { refresh: true } : undefined,
+  })
   return response.data
 }
 
-export function useDataPolarProduct(id?: string) {
+export function useDataPolarProduct(id?: string, refresh?: boolean) {
   return useQuery({
-    queryKey: ['polar-admin-product', id],
-    queryFn: () => apiGetPolarProduct(id!),
+    queryKey: ['polar-admin-product', id, refresh],
+    queryFn: () => apiGetPolarProduct(id!, refresh),
     enabled: Boolean(id),
+  })
+}
+
+export function useMutationRefreshPolarCache() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (scope?: string) => {
+      const response = await http.post('/admin/payments/cache/refresh', null, {
+        params: scope ? { scope } : undefined,
+      })
+      return response.data
+    },
+    onSuccess: (_data, scope) => {
+      void queryClient.invalidateQueries({ queryKey: ['polar-admin-products'] })
+      void queryClient.invalidateQueries({ queryKey: ['polar-admin-product'] })
+      void queryClient.invalidateQueries({
+        queryKey: ['polar-admin-discounts'],
+      })
+      void queryClient.invalidateQueries({ queryKey: ['polar-admin-discount'] })
+      void queryClient.invalidateQueries({ queryKey: ['polar-checkout-links'] })
+      void queryClient.invalidateQueries({
+        queryKey: ['polar-admin-checkout-link'],
+      })
+      toast.success(
+        `Polar cache${scope ? ` (${scope})` : ''} refreshed from live Polar API!`
+      )
+    },
+    onError: (err: any) => {
+      toast.error(
+        err.response?.data?.message || 'Failed to refresh Polar cache'
+      )
+    },
   })
 }
 

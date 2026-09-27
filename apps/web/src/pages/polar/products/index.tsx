@@ -12,12 +12,14 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { useDataPolarProducts } from '../queries'
+import { useDataPolarProducts, useMutationRefreshPolarCache } from '../queries'
 import { getProductsColumns } from './columns'
 
 export function PagePolarProducts() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { mutate: refreshPolarCache, isPending: isRefreshingCache } =
+    useMutationRefreshPolarCache()
 
   const { page, perPage, search } = useGetFilterParams<
     any,
@@ -27,7 +29,7 @@ export function PagePolarProducts() {
     filterParsers: {},
   })
 
-  const { data, isFetching, refetch } = useDataPolarProducts({
+  const { data, isFetching } = useDataPolarProducts({
     query: search || undefined,
     page,
     limit: perPage,
@@ -84,11 +86,11 @@ export function PagePolarProducts() {
             <Button
               variant='outline'
               size='sm'
-              onClick={() => refetch()}
-              disabled={isFetching}
+              onClick={() => refreshPolarCache('products')}
+              disabled={isFetching || isRefreshingCache}
             >
               <RefreshCw
-                className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
+                className={`mr-2 h-4 w-4 ${isFetching || isRefreshingCache ? 'animate-spin' : ''}`}
               />
               Refresh
             </Button>

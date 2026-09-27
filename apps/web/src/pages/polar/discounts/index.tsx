@@ -12,12 +12,14 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { useDataPolarDiscounts } from '../queries'
+import { useDataPolarDiscounts, useMutationRefreshPolarCache } from '../queries'
 import { getDiscountsColumns } from './columns'
 
 export function PagePolarDiscounts() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { mutate: refreshPolarCache, isPending: isRefreshingCache } =
+    useMutationRefreshPolarCache()
 
   const { page, perPage, search } = useGetFilterParams<
     any,
@@ -27,7 +29,7 @@ export function PagePolarDiscounts() {
     filterParsers: {},
   })
 
-  const { data, isFetching, refetch } = useDataPolarDiscounts({
+  const { data, isFetching } = useDataPolarDiscounts({
     query: search || undefined,
     page,
     limit: perPage,
@@ -86,11 +88,11 @@ export function PagePolarDiscounts() {
             <Button
               variant='outline'
               size='sm'
-              onClick={() => refetch()}
-              disabled={isFetching}
+              onClick={() => refreshPolarCache('discounts')}
+              disabled={isFetching || isRefreshingCache}
             >
               <RefreshCw
-                className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
+                className={`mr-2 h-4 w-4 ${isFetching || isRefreshingCache ? 'animate-spin' : ''}`}
               />
               Refresh
             </Button>

@@ -12,19 +12,24 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { useDataPolarCheckoutLinks } from '../queries'
+import {
+  useDataPolarCheckoutLinks,
+  useMutationRefreshPolarCache,
+} from '../queries'
 import { getCheckoutLinksColumns } from './columns'
 
 export function PagePolarCheckoutLinks() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { mutate: refreshPolarCache, isPending: isRefreshingCache } =
+    useMutationRefreshPolarCache()
 
   const { page, perPage } = useGetFilterParams<any, Record<string, never>>({
     allowedSorts: ['label'],
     filterParsers: {},
   })
 
-  const { data, isFetching, refetch } = useDataPolarCheckoutLinks({
+  const { data, isFetching } = useDataPolarCheckoutLinks({
     page,
     limit: perPage,
   })
@@ -82,11 +87,11 @@ export function PagePolarCheckoutLinks() {
             <Button
               variant='outline'
               size='sm'
-              onClick={() => refetch()}
-              disabled={isFetching}
+              onClick={() => refreshPolarCache('checkout-links')}
+              disabled={isFetching || isRefreshingCache}
             >
               <RefreshCw
-                className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
+                className={`mr-2 h-4 w-4 ${isFetching || isRefreshingCache ? 'animate-spin' : ''}`}
               />
               Refresh
             </Button>
