@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Tag, RefreshCw, Plus, ExternalLink } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
@@ -12,14 +12,26 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { useDataPolarDiscounts, useMutationRefreshPolarCache } from '../queries'
+import { ConfirmActionDialog } from '../components/confirm-action-dialog'
+import {
+  useDataPolarDiscounts,
+  useMutationRefreshPolarCache,
+  useMutationDeletePolarDiscount,
+} from '../queries'
 import { getDiscountsColumns } from './columns'
+import { DiscountFormDialog } from './components/discount-form-dialog'
 
 export function PagePolarDiscounts() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { mutate: refreshPolarCache, isPending: isRefreshingCache } =
     useMutationRefreshPolarCache()
+  const { mutate: deleteDiscount, isPending: isDeleting } =
+    useMutationDeletePolarDiscount()
+
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [editingDiscount, setEditingDiscount] = useState<any | null>(null)
+  const [deletingDiscount, setDeletingDiscount] = useState<any | null>(null)
 
   const { page, perPage, search } = useGetFilterParams<
     any,
@@ -41,6 +53,12 @@ export function PagePolarDiscounts() {
         onViewDetail: (discount) => {
           navigate(`/polar/discounts/${discount.id}`)
         },
+        onEdit: (discount) => {
+          setEditingDiscount(discount)
+        },
+        onDelete: (discount) => {
+          setDeletingDiscount(discount)
+        },
       }),
     [navigate]
   )
@@ -51,6 +69,15 @@ export function PagePolarDiscounts() {
     pageCount: data?.meta?.totalPages ?? 0,
     getRowId: (row) => String(row.id),
   })
+
+  const handleConfirmDelete = () => {
+    if (!deletingDiscount) return
+    deleteDiscount(deletingDiscount.id, {
+      onSuccess: () => {
+        setDeletingDiscount(null)
+      },
+    })
+  }
 
   return (
     <>
@@ -97,14 +124,24 @@ export function PagePolarDiscounts() {
               Refresh
             </Button>
             <Button
+              variant='outline'
               size='sm'
               onClick={() =>
                 window.open('https://sandbox.polar.sh/dashboard', '_blank')
               }
             >
+              <ExternalLink className='mr-2 h-4 w-4' />
+              Manage on Polar
+            </Button>
+            <Button
+              size='sm'
+              onClick={() => {
+                setEditingDiscount(null)
+                setIsCreateOpen(true)
+              }}
+            >
               <Plus className='mr-2 h-4 w-4' />
-              Create on Polar
-              <ExternalLink className='ml-1.5 h-3.5 w-3.5' />
+              Create Discount
             </Button>
           </div>
         </div>
@@ -119,6 +156,32 @@ export function PagePolarDiscounts() {
         >
           <DataTableToolbar table={table} />
         </DataTable>
+
+        {/* Create / Edit Dialog */}
+        <DiscountFormDialog
+          open={isCreateOpen || Boolean(editingDiscount)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setIsCreateOpen(false)
+              setEditingDiscount(null)
+            }
+          }}
+          discount={editingDiscount}
+        />
+
+        {/* Delete Confirmation Dialog */}
+        <ConfirmActionDialog
+          open={Boolean(deletingDiscount)}
+          onOpenChange={(open) => {
+            if (!open) setDeletingDiscount(null)
+          }}
+          title='Delete Discount'
+          description={`Are you sure you want to permanently delete discount "${deletingDiscount?.name}"? Customers will no longer be able to redeem this coupon code.`}
+          confirmText='Delete Discount'
+          variant='destructive'
+          isPending={isDeleting}
+          onConfirm={handleConfirmDelete}
+        />
       </Main>
     </>
   )

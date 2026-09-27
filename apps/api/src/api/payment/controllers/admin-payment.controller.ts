@@ -6,15 +6,21 @@ import { PoliciesGuard } from '@/guards/policies.guard';
 import { AppAbility } from '@/shared/casl/ability.factory';
 import { AppActions, AppSubjects } from '@/utils/permissions.constant';
 import {
+  BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -22,12 +28,18 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Paginate, Paginated, PaginateQuery } from 'nestjs-paginate';
+import { CreateCheckoutLinkReqDto } from '../dto/create-checkout-link.req.dto';
+import { CreateDiscountReqDto } from '../dto/create-discount.req.dto';
+import { CreateProductReqDto } from '../dto/create-product.req.dto';
 import { DirectRefundReqDto } from '../dto/direct-refund.req.dto';
 import { PaymentOrderResDto } from '../dto/payment-order.res.dto';
 import { PaymentRefundRequestResDto } from '../dto/payment-refund-request.res.dto';
 import { PaymentSubscriptionResDto } from '../dto/payment-subscription.res.dto';
 import { PaymentWebhookEventResDto } from '../dto/payment-webhook-event.res.dto';
 import { ReviewRefundRequestReqDto } from '../dto/review-refund-request.req.dto';
+import { UpdateCheckoutLinkReqDto } from '../dto/update-checkout-link.req.dto';
+import { UpdateDiscountReqDto } from '../dto/update-discount.req.dto';
+import { UpdateProductReqDto } from '../dto/update-product.req.dto';
 import { PaymentService } from '../services/payment.service';
 import { PolarService } from '../services/polar.service';
 
@@ -97,6 +109,59 @@ export class AdminPaymentController {
     return await this.polarService.getProduct(id, true, refresh === 'true');
   }
 
+  @Post('products')
+  @ApiOperation({
+    summary: 'Create a new product on Polar (Admin)',
+    description:
+      'Creates a product and its pricing tiers directly on Polar gateway.',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Product created successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Create, AppSubjects.Payment),
+  )
+  async createProduct(@Body() dto: CreateProductReqDto) {
+    return await this.polarService.createProduct(dto);
+  }
+
+  @Patch('products/:id')
+  @ApiOperation({
+    summary: 'Update a product on Polar (Admin)',
+    description:
+      'Updates product details, pricing, visibility, or archive status on Polar.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Product updated successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Update, AppSubjects.Payment),
+  )
+  async updateProduct(
+    @Param('id') id: string,
+    @Body() dto: UpdateProductReqDto,
+  ) {
+    return await this.polarService.updateProduct(id, dto);
+  }
+
+  @Delete('products/:id')
+  @ApiOperation({
+    summary: 'Archive a product on Polar (Admin)',
+    description: 'Archives a product on Polar so it is no longer purchasable.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Product archived successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Delete, AppSubjects.Payment),
+  )
+  async archiveProduct(@Param('id') id: string) {
+    return await this.polarService.archiveProduct(id);
+  }
+
   @Get('discounts')
   @ApiOperation({
     summary: 'Get all discounts from Polar (Admin)',
@@ -145,6 +210,106 @@ export class AdminPaymentController {
     @Query('refresh') refresh?: string,
   ) {
     return await this.polarService.getDiscount(id, true, refresh === 'true');
+  }
+
+  @Get('benefits')
+  @ApiOperation({
+    summary: 'Get all automated benefits from Polar (Admin)',
+    description: 'Fetches automated benefits directly from Polar gateway.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Paginated benefits from Polar',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.Payment),
+  )
+  async getBenefits(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('refresh') refresh?: string,
+  ) {
+    return await this.polarService.listBenefits(
+      {
+        page: page ? Number(page) : 1,
+        limit: limit ? Number(limit) : 50,
+      },
+      true,
+      refresh === 'true',
+    );
+  }
+
+  @Post('upload-media')
+  @ApiOperation({
+    summary: 'Upload product media image to Polar (Admin)',
+    description:
+      'Uploads an image directly to Polar product media via S3 multipart upload.',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Media uploaded successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Create, AppSubjects.Payment),
+  )
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadMedia(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+    return await this.polarService.uploadProductMedia(file);
+  }
+
+  @Post('discounts')
+  @ApiOperation({
+    summary: 'Create a new discount on Polar (Admin)',
+    description:
+      'Creates a promotional coupon/discount directly on Polar gateway.',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Discount created successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Create, AppSubjects.Payment),
+  )
+  async createDiscount(@Body() dto: CreateDiscountReqDto) {
+    return await this.polarService.createDiscount(dto);
+  }
+
+  @Patch('discounts/:id')
+  @ApiOperation({
+    summary: 'Update a discount on Polar (Admin)',
+    description: 'Updates discount details on Polar.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Discount updated successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Update, AppSubjects.Payment),
+  )
+  async updateDiscount(
+    @Param('id') id: string,
+    @Body() dto: UpdateDiscountReqDto,
+  ) {
+    return await this.polarService.updateDiscount(id, dto);
+  }
+
+  @Delete('discounts/:id')
+  @ApiOperation({
+    summary: 'Delete a discount on Polar (Admin)',
+    description: 'Deletes a discount permanently from Polar.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Discount deleted successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Delete, AppSubjects.Payment),
+  )
+  async deleteDiscount(@Param('id') id: string) {
+    return await this.polarService.deleteDiscount(id);
   }
 
   @Get('checkout-links')
@@ -199,6 +364,57 @@ export class AdminPaymentController {
       true,
       refresh === 'true',
     );
+  }
+
+  @Post('checkout-links')
+  @ApiOperation({
+    summary: 'Create a new checkout link on Polar (Admin)',
+    description: 'Creates a pre-configured shareable checkout link on Polar.',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Checkout link created successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Create, AppSubjects.Payment),
+  )
+  async createCheckoutLink(@Body() dto: CreateCheckoutLinkReqDto) {
+    return await this.polarService.createCheckoutLink(dto);
+  }
+
+  @Patch('checkout-links/:id')
+  @ApiOperation({
+    summary: 'Update a checkout link on Polar (Admin)',
+    description: 'Updates checkout link configuration on Polar.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Checkout link updated successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Update, AppSubjects.Payment),
+  )
+  async updateCheckoutLink(
+    @Param('id') id: string,
+    @Body() dto: UpdateCheckoutLinkReqDto,
+  ) {
+    return await this.polarService.updateCheckoutLink(id, dto);
+  }
+
+  @Delete('checkout-links/:id')
+  @ApiOperation({
+    summary: 'Delete a checkout link on Polar (Admin)',
+    description: 'Deletes a checkout link from Polar.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Checkout link deleted successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Delete, AppSubjects.Payment),
+  )
+  async deleteCheckoutLink(@Param('id') id: string) {
+    return await this.polarService.deleteCheckoutLink(id);
   }
 
   @Post('cache/refresh')

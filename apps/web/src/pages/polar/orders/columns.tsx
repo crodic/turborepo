@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header'
 import type { PolarOrderSchema } from '../schema'
+import { formatPolarPrice } from '../utils'
 
 const orderStatusVariant: Record<
   string,
@@ -84,24 +85,33 @@ export function getOrdersTableColumns({
       ),
       cell: ({ row }) => {
         const { amount, currency, discountAmount, taxAmount } = row.original
-        const total = (amount / 100).toFixed(2)
+        const total = formatPolarPrice({
+          priceAmount: amount,
+          priceCurrency: currency,
+        })
         const discount = discountAmount
-          ? (discountAmount / 100).toFixed(2)
+          ? formatPolarPrice({
+              priceAmount: discountAmount,
+              priceCurrency: currency,
+            })
           : null
-        const tax = taxAmount ? (taxAmount / 100).toFixed(2) : null
+        const tax = taxAmount
+          ? formatPolarPrice({
+              priceAmount: taxAmount,
+              priceCurrency: currency,
+            })
+          : null
 
         return (
           <div className='flex flex-col text-xs'>
-            <span className='font-mono text-sm font-semibold'>
-              ${total} {currency.toUpperCase()}
-            </span>
+            <span className='font-mono text-sm font-semibold'>{total}</span>
             <div className='text-muted-foreground flex items-center gap-2 text-[11px]'>
               {discount && (
                 <span className='font-mono text-emerald-600'>
-                  -${discount} discount
+                  -{discount} discount
                 </span>
               )}
-              {tax && <span className='font-mono'>+${tax} tax</span>}
+              {tax && <span className='font-mono'>+{tax} tax</span>}
             </div>
           </div>
         )

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link2, RefreshCw, Plus, ExternalLink } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
@@ -12,17 +12,26 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { ConfirmActionDialog } from '../components/confirm-action-dialog'
 import {
   useDataPolarCheckoutLinks,
   useMutationRefreshPolarCache,
+  useMutationDeletePolarCheckoutLink,
 } from '../queries'
 import { getCheckoutLinksColumns } from './columns'
+import { CheckoutLinkFormDialog } from './components/checkout-link-form-dialog'
 
 export function PagePolarCheckoutLinks() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { mutate: refreshPolarCache, isPending: isRefreshingCache } =
     useMutationRefreshPolarCache()
+  const { mutate: deleteLink, isPending: isDeleting } =
+    useMutationDeletePolarCheckoutLink()
+
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [editingLink, setEditingLink] = useState<any | null>(null)
+  const [deletingLink, setDeletingLink] = useState<any | null>(null)
 
   const { page, perPage } = useGetFilterParams<any, Record<string, never>>({
     allowedSorts: ['label'],
@@ -40,6 +49,12 @@ export function PagePolarCheckoutLinks() {
         onViewDetail: (link) => {
           navigate(`/polar/checkout-links/${link.id}`)
         },
+        onEdit: (link) => {
+          setEditingLink(link)
+        },
+        onDelete: (link) => {
+          setDeletingLink(link)
+        },
       }),
     [navigate]
   )
@@ -50,6 +65,15 @@ export function PagePolarCheckoutLinks() {
     pageCount: data?.meta?.totalPages ?? 0,
     getRowId: (row) => String(row.id),
   })
+
+  const handleConfirmDelete = () => {
+    if (!deletingLink) return
+    deleteLink(deletingLink.id, {
+      onSuccess: () => {
+        setDeletingLink(null)
+      },
+    })
+  }
 
   return (
     <>
@@ -96,14 +120,24 @@ export function PagePolarCheckoutLinks() {
               Refresh
             </Button>
             <Button
+              variant='outline'
               size='sm'
               onClick={() =>
                 window.open('https://sandbox.polar.sh/dashboard', '_blank')
               }
             >
+              <ExternalLink className='mr-2 h-4 w-4' />
+              Manage on Polar
+            </Button>
+            <Button
+              size='sm'
+              onClick={() => {
+                setEditingLink(null)
+                setIsCreateOpen(true)
+              }}
+            >
               <Plus className='mr-2 h-4 w-4' />
-              Create on Polar
-              <ExternalLink className='ml-1.5 h-3.5 w-3.5' />
+              Create Checkout Link
             </Button>
           </div>
         </div>
@@ -118,6 +152,32 @@ export function PagePolarCheckoutLinks() {
         >
           <DataTableToolbar table={table} />
         </DataTable>
+
+        {/* Create / Edit Dialog */}
+        <CheckoutLinkFormDialog
+          open={isCreateOpen || Boolean(editingLink)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setIsCreateOpen(false)
+              setEditingLink(null)
+            }
+          }}
+          checkoutLink={editingLink}
+        />
+
+        {/* Delete Confirmation Dialog */}
+        <ConfirmActionDialog
+          open={Boolean(deletingLink)}
+          onOpenChange={(open) => {
+            if (!open) setDeletingLink(null)
+          }}
+          title='Delete Checkout Link'
+          description={`Are you sure you want to permanently delete checkout link "${deletingLink?.label || deletingLink?.id}"? This link will no longer be accessible by customers.`}
+          confirmText='Delete Checkout Link'
+          variant='destructive'
+          isPending={isDeleting}
+          onConfirm={handleConfirmDelete}
+        />
       </Main>
     </>
   )

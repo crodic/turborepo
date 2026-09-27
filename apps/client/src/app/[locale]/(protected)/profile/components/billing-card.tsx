@@ -44,6 +44,18 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+const formatOrderPrice = (amount?: number | null, currency = "USD") => {
+  if (amount == null) return "-";
+  const curr = (currency || "USD").toUpperCase();
+  const isZeroDecimal = ["VND", "JPY", "KRW"].includes(curr);
+  const actual = isZeroDecimal ? amount : amount / 100;
+  return new Intl.NumberFormat(curr === "VND" ? "vi-VN" : "en-US", {
+    style: "currency",
+    currency: curr,
+    maximumFractionDigits: isZeroDecimal ? 0 : 2,
+  }).format(actual);
+};
+
 export function BillingCard() {
   const t = useTranslations("Profile.billing");
   const { data: subscriptions, isLoading: isLoadingSubs } =
@@ -142,10 +154,10 @@ export function BillingCard() {
                       "Pro Plan"}
                   </h3>
                   <span className="text-muted-foreground text-sm font-semibold">
-                    $
-                    {activeSub.amount
-                      ? (activeSub.amount / 100).toFixed(2)
-                      : "19.00"}{" "}
+                    {formatOrderPrice(
+                      activeSub.amount,
+                      activeSub.currency || "USD"
+                    )}{" "}
                     /{" "}
                     {activeSub.recurringInterval === "year" ? "year" : "month"}
                   </span>
@@ -273,8 +285,7 @@ export function BillingCard() {
                           {format(new Date(order.createdAt), "MMM dd, yyyy")}
                         </TableCell>
                         <TableCell className="text-foreground font-semibold">
-                          ${((order.amount || 0) / 100).toFixed(2)}{" "}
-                          {order.currency?.toUpperCase() || "USD"}
+                          {formatOrderPrice(order.amount, order.currency)}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap items-center gap-1.5">

@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { Package, RefreshCw, ExternalLink } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Package, RefreshCw, ExternalLink, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { useDataTable } from '@/hooks/use-data-table'
@@ -12,14 +12,26 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { useDataPolarProducts, useMutationRefreshPolarCache } from '../queries'
+import { ConfirmActionDialog } from '../components/confirm-action-dialog'
+import {
+  useDataPolarProducts,
+  useMutationRefreshPolarCache,
+  useMutationArchivePolarProduct,
+} from '../queries'
 import { getProductsColumns } from './columns'
+import { ProductFormDialog } from './components/product-form-dialog'
 
 export function PagePolarProducts() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { mutate: refreshPolarCache, isPending: isRefreshingCache } =
     useMutationRefreshPolarCache()
+  const { mutate: archiveProduct, isPending: isArchiving } =
+    useMutationArchivePolarProduct()
+
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<any | null>(null)
+  const [archivingProduct, setArchivingProduct] = useState<any | null>(null)
 
   const { page, perPage, search } = useGetFilterParams<
     any,
@@ -41,6 +53,12 @@ export function PagePolarProducts() {
         onViewDetail: (product) => {
           navigate(`/polar/products/${product.id}`)
         },
+        onEdit: (product) => {
+          setEditingProduct(product)
+        },
+        onArchive: (product) => {
+          setArchivingProduct(product)
+        },
       }),
     [navigate]
   )
@@ -51,6 +69,15 @@ export function PagePolarProducts() {
     pageCount: data?.meta?.totalPages ?? 0,
     getRowId: (row) => String(row.id),
   })
+
+  const handleConfirmArchive = () => {
+    if (!archivingProduct) return
+    archiveProduct(archivingProduct.id, {
+      onSuccess: () => {
+        setArchivingProduct(null)
+      },
+    })
+  }
 
   return (
     <>
@@ -95,6 +122,7 @@ export function PagePolarProducts() {
               Refresh
             </Button>
             <Button
+              variant='outline'
               size='sm'
               onClick={() =>
                 window.open('https://sandbox.polar.sh/dashboard', '_blank')
@@ -102,6 +130,16 @@ export function PagePolarProducts() {
             >
               <ExternalLink className='mr-2 h-4 w-4' />
               Manage on Polar
+            </Button>
+            <Button
+              size='sm'
+              onClick={() => {
+                setEditingProduct(null)
+                setIsCreateOpen(true)
+              }}
+            >
+              <Plus className='mr-2 h-4 w-4' />
+              Create Product
             </Button>
           </div>
         </div>
@@ -116,6 +154,32 @@ export function PagePolarProducts() {
         >
           <DataTableToolbar table={table} />
         </DataTable>
+
+        {/* Create / Edit Dialog */}
+        <ProductFormDialog
+          open={isCreateOpen || Boolean(editingProduct)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setIsCreateOpen(false)
+              setEditingProduct(null)
+            }
+          }}
+          product={editingProduct}
+        />
+
+        {/* Archive Confirmation Dialog */}
+        <ConfirmActionDialog
+          open={Boolean(archivingProduct)}
+          onOpenChange={(open) => {
+            if (!open) setArchivingProduct(null)
+          }}
+          title='Archive Product'
+          description={`Are you sure you want to archive "${archivingProduct?.name}"? Once archived, new customers cannot purchase this product. Existing subscriptions remain active.`}
+          confirmText='Archive Product'
+          variant='destructive'
+          isPending={isArchiving}
+          onConfirm={handleConfirmArchive}
+        />
       </Main>
     </>
   )

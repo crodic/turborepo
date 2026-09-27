@@ -8,7 +8,6 @@ import {
 import { toast } from 'sonner'
 import http from '@/lib/http'
 import {
-  polarDiscountSchema,
   polarCustomFieldSchema,
   type PolarCustomFieldSchema,
   polarCustomerSchema,
@@ -17,7 +16,6 @@ import {
   type PolarSubscriptionSchema,
   polarOrderSchema,
   type PolarOrderSchema,
-  polarBenefitSchema,
 } from './schema'
 
 // ==========================================
@@ -57,15 +55,17 @@ export function useDataPolarDiscount(id?: string) {
   })
 }
 
-export function useMutationCreateDiscount() {
+export function useMutationCreatePolarDiscount() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (payload: any) => {
-      const response = await http.post('/admin/polar/discounts', payload)
-      return polarDiscountSchema.parse(response.data)
+      const response = await http.post('/admin/payments/discounts', payload)
+      return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['polar-discounts'] })
+      void queryClient.invalidateQueries({
+        queryKey: ['polar-admin-discounts'],
+      })
       toast.success('Discount created successfully')
     },
     onError: (err: any) => {
@@ -74,15 +74,23 @@ export function useMutationCreateDiscount() {
   })
 }
 
-export function useMutationUpdateDiscount() {
+export function useMutationUpdatePolarDiscount() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, payload }: { id: number; payload: any }) => {
-      const response = await http.put(`/admin/polar/discounts/${id}`, payload)
-      return polarDiscountSchema.parse(response.data)
+    mutationFn: async ({ id, payload }: { id: string; payload: any }) => {
+      const response = await http.patch(
+        `/admin/payments/discounts/${id}`,
+        payload
+      )
+      return response.data
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['polar-discounts'] })
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: ['polar-admin-discounts'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['polar-admin-discount', variables.id],
+      })
       toast.success('Discount updated successfully')
     },
     onError: (err: any) => {
@@ -91,14 +99,17 @@ export function useMutationUpdateDiscount() {
   })
 }
 
-export function useMutationDeleteDiscount() {
+export function useMutationDeletePolarDiscount() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (id: number) => {
-      await http.delete(`/admin/polar/discounts/${id}`)
+    mutationFn: async (id: string) => {
+      const response = await http.delete(`/admin/payments/discounts/${id}`)
+      return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['polar-discounts'] })
+      void queryClient.invalidateQueries({
+        queryKey: ['polar-admin-discounts'],
+      })
       toast.success('Discount deleted successfully')
     },
     onError: (err: any) => {
@@ -106,6 +117,11 @@ export function useMutationDeleteDiscount() {
     },
   })
 }
+
+// Aliases for compatibility
+export const useMutationCreateDiscount = useMutationCreatePolarDiscount
+export const useMutationUpdateDiscount = useMutationUpdatePolarDiscount
+export const useMutationDeleteDiscount = useMutationDeletePolarDiscount
 
 export function useMutationSyncDiscounts() {
   const queryClient = useQueryClient()
@@ -500,16 +516,19 @@ export function useDataPolarCheckoutLink(id?: string) {
   })
 }
 
-export function useMutationCreateCheckoutLink() {
+export function useMutationCreatePolarCheckoutLink() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (payload: any) => {
-      const response = await http.post('/admin/polar/checkout-links', payload)
+      const response = await http.post(
+        '/admin/payments/checkout-links',
+        payload
+      )
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['polar-checkout-links'] })
-      toast.success('Checkout link created')
+      void queryClient.invalidateQueries({ queryKey: ['polar-checkout-links'] })
+      toast.success('Checkout link created successfully')
     },
     onError: (err: any) => {
       toast.error(
@@ -519,15 +538,41 @@ export function useMutationCreateCheckoutLink() {
   })
 }
 
-export function useMutationDeleteCheckoutLink() {
+export function useMutationUpdatePolarCheckoutLink() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: any }) => {
+      const response = await http.patch(
+        `/admin/payments/checkout-links/${id}`,
+        payload
+      )
+      return response.data
+    },
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ['polar-checkout-links'] })
+      void queryClient.invalidateQueries({
+        queryKey: ['polar-admin-checkout-link', variables.id],
+      })
+      toast.success('Checkout link updated successfully')
+    },
+    onError: (err: any) => {
+      toast.error(
+        err.response?.data?.message || 'Failed to update checkout link'
+      )
+    },
+  })
+}
+
+export function useMutationDeletePolarCheckoutLink() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
-      await http.delete(`/admin/polar/checkout-links/${id}`)
+      const response = await http.delete(`/admin/payments/checkout-links/${id}`)
+      return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['polar-checkout-links'] })
-      toast.success('Checkout link deleted')
+      void queryClient.invalidateQueries({ queryKey: ['polar-checkout-links'] })
+      toast.success('Checkout link deleted successfully')
     },
     onError: (err: any) => {
       toast.error(
@@ -537,6 +582,10 @@ export function useMutationDeleteCheckoutLink() {
   })
 }
 
+// Deprecated aliases
+export const useMutationCreateCheckoutLink = useMutationCreatePolarCheckoutLink
+export const useMutationDeleteCheckoutLink = useMutationDeletePolarCheckoutLink
+
 // ==========================================
 // BENEFITS
 // ==========================================
@@ -545,11 +594,35 @@ export function useDataPolarBenefits() {
   return useQuery({
     queryKey: ['polar-benefits'],
     queryFn: async () => {
-      const response = await http.get('/admin/polar/benefits')
-      const items = Array.isArray(response.data)
-        ? response.data
-        : (response.data?.items ?? response.data?.result?.items ?? [])
-      return z.array(polarBenefitSchema).parse(items)
+      const response = await http.get('/admin/payments/benefits')
+      const items = Array.isArray(response.data?.data)
+        ? response.data.data
+        : Array.isArray(response.data)
+          ? response.data
+          : (response.data?.items ?? response.data?.result?.items ?? [])
+      return items
+    },
+  })
+}
+
+export function useMutationUploadPolarMedia() {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await http.post(
+        '/admin/payments/upload-media',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      )
+      return response.data
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to upload image')
     },
   })
 }
@@ -688,6 +761,63 @@ export function useDataPolarProduct(id?: string, refresh?: boolean) {
     queryKey: ['polar-admin-product', id, refresh],
     queryFn: () => apiGetPolarProduct(id!, refresh),
     enabled: Boolean(id),
+  })
+}
+
+export function useMutationCreatePolarProduct() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: any) => {
+      const response = await http.post('/admin/payments/products', payload)
+      return response.data
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['polar-admin-products'] })
+      toast.success('Product created successfully')
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to create product')
+    },
+  })
+}
+
+export function useMutationUpdatePolarProduct() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: any }) => {
+      const response = await http.patch(
+        `/admin/payments/products/${id}`,
+        payload
+      )
+      return response.data
+    },
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ['polar-admin-products'] })
+      void queryClient.invalidateQueries({
+        queryKey: ['polar-admin-product', variables.id],
+      })
+      toast.success('Product updated successfully')
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to update product')
+    },
+  })
+}
+
+export function useMutationArchivePolarProduct() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await http.delete(`/admin/payments/products/${id}`)
+      return response.data
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['polar-admin-products'] })
+      toast.success('Product archived successfully')
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to archive product')
+    },
   })
 }
 

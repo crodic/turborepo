@@ -51,6 +51,7 @@ import {
   useDataPolarProduct,
   useDataPolarSubscriptions,
 } from '../queries'
+import { formatPolarPrice } from '../utils'
 
 export function PagePolarProductDetail() {
   const navigate = useNavigate()
@@ -76,17 +77,18 @@ export function PagePolarProductDetail() {
   }
 
   // Filter subscriptions & orders belonging to this product
+  const productId = product?.id
   const subscriptions = useMemo(() => {
     const list = subscriptionsData?.data || []
-    if (!product?.id) return []
-    return list.filter((s: any) => s.productId === product.id)
-  }, [subscriptionsData, product?.id])
+    if (!productId) return []
+    return list.filter((s: any) => s.productId === productId)
+  }, [subscriptionsData, productId])
 
   const orders = useMemo(() => {
     const list = ordersData?.data || []
-    if (!product?.id) return []
-    return list.filter((o: any) => o.productId === product.id)
-  }, [ordersData, product?.id])
+    if (!productId) return []
+    return list.filter((o: any) => o.productId === productId)
+  }, [ordersData, productId])
 
   const activeSubsCount = useMemo(() => {
     return subscriptions.filter((s: any) => s.status === 'active').length
@@ -160,26 +162,7 @@ export function PagePolarProductDetail() {
   }, [orders])
 
   const formatPrice = (price: any) => {
-    if (!price) return 'Free'
-    const rawAmount =
-      price.priceAmount ?? price.price_amount ?? price.amount ?? 0
-    const currency = (
-      price.priceCurrency ??
-      price.price_currency ??
-      price.currency ??
-      'USD'
-    ).toUpperCase()
-    const interval = price.recurringInterval ?? price.recurring_interval
-
-    const amount = rawAmount / 100
-    const formatted = new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: currency === 'VND' ? 0 : 2,
-      minimumFractionDigits: currency === 'VND' ? 0 : 2,
-    }).format(amount)
-
-    return `${formatted}${interval ? ` / ${interval}` : ''}`
+    return formatPolarPrice(price, product?.recurringInterval)
   }
 
   if (isLoadingProduct) return <DataLoader />
@@ -226,7 +209,7 @@ export function PagePolarProductDetail() {
 
       <Main className='flex flex-1 flex-col gap-6 p-6 pb-16'>
         {/* Hero Card */}
-        <div className='from-muted/60 via-muted/20 to-background rounded-2xl border bg-gradient-to-b p-6 shadow-sm'>
+        <div className='from-muted/60 via-muted/20 to-background rounded-2xl border bg-linear-to-b p-6 shadow-sm'>
           <div className='flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between'>
             <div className='flex items-start gap-4'>
               <div className='bg-primary/10 text-primary ring-primary/20 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-sm ring-1'>

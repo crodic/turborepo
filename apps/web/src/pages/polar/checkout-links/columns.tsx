@@ -1,7 +1,16 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Copy, Check, Eye, ExternalLink, Link2, Package } from 'lucide-react'
+import {
+  Copy,
+  Check,
+  Eye,
+  ExternalLink,
+  Link2,
+  Package,
+  Pencil,
+  Trash2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -21,7 +30,7 @@ function CopyUrlCell({ url, id }: { url: string; id: string }) {
 
   return (
     <div className='flex items-center gap-1.5'>
-      <span className='text-muted-foreground max-w-[200px] truncate font-mono text-xs'>
+      <span className='text-muted-foreground max-w-50 truncate font-mono text-xs'>
         {checkoutUrl}
       </span>
       <Button
@@ -42,8 +51,12 @@ function CopyUrlCell({ url, id }: { url: string; id: string }) {
 
 export function getCheckoutLinksColumns({
   onViewDetail,
+  onEdit,
+  onDelete,
 }: {
   onViewDetail: (link: any) => void
+  onEdit?: (link: any) => void
+  onDelete?: (link: any) => void
 }): ColumnDef<any>[] {
   return [
     {
@@ -131,6 +144,7 @@ export function getCheckoutLinksColumns({
             <Button
               variant='ghost'
               size='icon'
+              title='View Details'
               className='h-8 w-8 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950'
               onClick={(e) => {
                 e.stopPropagation()
@@ -139,9 +153,38 @@ export function getCheckoutLinksColumns({
             >
               <Eye className='h-4 w-4' />
             </Button>
+            {onEdit && (
+              <Button
+                variant='ghost'
+                size='icon'
+                title='Edit Checkout Link'
+                className='h-8 w-8 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950'
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEdit(row.original)
+                }}
+              >
+                <Pencil className='h-4 w-4' />
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                variant='ghost'
+                size='icon'
+                title='Delete Checkout Link'
+                className='h-8 w-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950'
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete(row.original)
+                }}
+              >
+                <Trash2 className='h-4 w-4' />
+              </Button>
+            )}
             <Button
               variant='ghost'
               size='icon'
+              title='Open in Browser'
               className='text-muted-foreground hover:text-foreground h-8 w-8'
               onClick={(e) => {
                 e.stopPropagation()

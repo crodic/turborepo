@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Copy, Check, Eye, Tag } from 'lucide-react'
+import { Copy, Check, Eye, Tag, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -49,8 +49,12 @@ function CopyCodeCell({ code }: { code?: string }) {
 
 export function getDiscountsColumns({
   onViewDetail,
+  onEdit,
+  onDelete,
 }: {
   onViewDetail: (discount: any) => void
+  onEdit?: (discount: any) => void
+  onDelete?: (discount: any) => void
 }): ColumnDef<any>[] {
   return [
     {
@@ -143,6 +147,7 @@ export function getDiscountsColumns({
           <Button
             variant='ghost'
             size='icon'
+            title='View Details'
             className='h-8 w-8 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950'
             onClick={(e) => {
               e.stopPropagation()
@@ -151,6 +156,34 @@ export function getDiscountsColumns({
           >
             <Eye className='h-4 w-4' />
           </Button>
+          {onEdit && (
+            <Button
+              variant='ghost'
+              size='icon'
+              title='Edit Discount'
+              className='h-8 w-8 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950'
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit(row.original)
+              }}
+            >
+              <Pencil className='h-4 w-4' />
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant='ghost'
+              size='icon'
+              title='Delete Discount'
+              className='h-8 w-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950'
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete(row.original)
+              }}
+            >
+              <Trash2 className='h-4 w-4' />
+            </Button>
+          )}
         </div>
       ),
     },

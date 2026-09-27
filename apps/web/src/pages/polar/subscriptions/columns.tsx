@@ -28,6 +28,7 @@ import {
   useMutationRevokeSubscription,
 } from '../queries'
 import type { PolarSubscriptionSchema } from '../schema'
+import { formatPolarPrice } from '../utils'
 
 const subStatusVariant: Record<
   string,
@@ -194,15 +195,13 @@ export function getSubscriptionsTableColumns({
       ),
       cell: ({ row }) => {
         const { amount, currency, recurringInterval } = row.original
-        const formatted = amount != null ? (amount / 100).toFixed(2) : '-'
+        const formatted = formatPolarPrice(
+          { priceAmount: amount, priceCurrency: currency },
+          recurringInterval
+        )
         return (
           <div className='flex flex-col text-xs'>
-            <span className='font-mono font-semibold'>
-              ${formatted} {(currency || 'usd').toUpperCase()}
-            </span>
-            <span className='text-muted-foreground capitalize'>
-              per {recurringInterval || 'month'}
-            </span>
+            <span className='font-mono font-semibold'>{formatted}</span>
           </div>
         )
       },
