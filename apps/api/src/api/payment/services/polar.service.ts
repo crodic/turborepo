@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { Polar } from '@polar-sh/sdk';
 import * as crypto from 'crypto';
 import { Webhook, WebhookVerificationError } from 'standardwebhooks';
+import { CreateBenefitReqDto } from '../dto/create-benefit.req.dto';
 import { CreateCheckoutLinkReqDto } from '../dto/create-checkout-link.req.dto';
 import { CreateDiscountReqDto } from '../dto/create-discount.req.dto';
 import { CreateProductReqDto } from '../dto/create-product.req.dto';
@@ -118,6 +119,7 @@ export class PolarService {
     if (scope === 'products') pattern = 'polar:cache:product*';
     else if (scope === 'discounts') pattern = 'polar:cache:discount*';
     else if (scope === 'checkout-links') pattern = 'polar:cache:checkout_link*';
+    else if (scope === 'benefits') pattern = 'polar:cache:benefits*';
 
     try {
       const keys = await redis.keys(pattern);
@@ -269,6 +271,140 @@ export class PolarService {
       useCache,
       forceRefresh,
     );
+  }
+
+  /**
+   * Creates an automated benefit on Polar
+   */
+  async createBenefit(dto: CreateBenefitReqDto) {
+    const polar = this.ensureConfigured();
+    const organizationId = this.isOrganizationToken
+      ? undefined
+      : await this.getOrganizationId();
+
+    try {
+      let benefitCreatePayload: any;
+      const type = dto.type || 'custom';
+      const properties = dto.properties || {};
+
+      switch (type) {
+        case 'custom':
+          benefitCreatePayload = {
+            type: 'custom',
+            description: dto.description,
+            organizationId: organizationId || undefined,
+            properties: {
+              note: properties.note || null,
+            },
+          };
+          break;
+        case 'license_keys':
+          benefitCreatePayload = {
+            type: 'license_keys',
+            description: dto.description,
+            organizationId: organizationId || undefined,
+            properties: {
+              prefix: properties.prefix || null,
+              expires: properties.expires || null,
+              activations: properties.activations || null,
+              limitUsage: properties.limitUsage || null,
+            },
+          };
+          break;
+        case 'downloadables':
+          benefitCreatePayload = {
+            type: 'downloadables',
+            description: dto.description,
+            organizationId: organizationId || undefined,
+            properties: {
+              files: properties.files || [],
+            },
+          };
+          break;
+        case 'discord':
+          benefitCreatePayload = {
+            type: 'discord',
+            description: dto.description,
+            organizationId: organizationId || undefined,
+            properties: {
+              guildToken: properties.guildToken,
+              roleId: properties.roleId,
+              kickMember: Boolean(properties.kickMember),
+            },
+          };
+          break;
+        case 'github_repository':
+          benefitCreatePayload = {
+            type: 'github_repository',
+            description: dto.description,
+            organizationId: organizationId || undefined,
+            properties: {
+              repositoryOwner: properties.repositoryOwner,
+              repositoryName: properties.repositoryName,
+              permission: properties.permission || 'pull',
+            },
+          };
+          break;
+        case 'meter_credit':
+          benefitCreatePayload = {
+            type: 'meter_credit',
+            description: dto.description,
+            organizationId: organizationId || undefined,
+            properties: {
+              meterId: properties.meterId,
+              units: Number(properties.units) || 0,
+              rollover: Boolean(properties.rollover),
+            },
+          };
+          break;
+        case 'feature_flag':
+          benefitCreatePayload = {
+            type: 'feature_flag',
+            description: dto.description,
+            organizationId: organizationId || undefined,
+            properties: {},
+          };
+          break;
+        default:
+          benefitCreatePayload = {
+            type,
+            description: dto.description,
+            organizationId: organizationId || undefined,
+            properties,
+          };
+          break;
+      }
+
+      if (dto.metadata && Object.keys(dto.metadata).length > 0) {
+        benefitCreatePayload.metadata = dto.metadata;
+      }
+
+      const created = await polar.benefits.create(benefitCreatePayload);
+      await this.clearCache('benefits');
+      return created;
+    } catch (err: any) {
+      this.logger.error(`Failed to create benefit: ${err.message}`, err.stack);
+      throw new BadRequestException(
+        err.message || 'Failed to create benefit on Polar',
+      );
+    }
+  }
+
+  /**
+   * Deletes a benefit on Polar
+   */
+  async deleteBenefit(id: string) {
+    const polar = this.ensureConfigured();
+    try {
+      await polar.benefits.delete({ id });
+      await this.clearCache('benefits');
+      return { success: true };
+    } catch (err: any) {
+      this.logger.error(`Failed to delete benefit: ${err.message}`, err.stack);
+      throw new BadRequestException(
+        err.message || 'Failed to delete benefit on Polar',
+      );
+    }
   }
 
   /**
@@ -481,6 +617,11 @@ export class PolarService {
 
   private cachedOrgId: string | null = null;
 
+  get isOrganizationToken(): boolean {
+    const paymentConfig = this.configService.get('payment', { infer: true });
+    return Boolean(paymentConfig?.accessToken?.startsWith('polar_oat_'));
+  }
+
   async getOrganizationId(): Promise<string | undefined> {
     if (this.cachedOrgId) return this.cachedOrgId;
     const paymentConfig = this.configService.get('payment', { infer: true });
@@ -511,7 +652,9 @@ export class PolarService {
 
   async createProduct(dto: CreateProductReqDto) {
     const polar = this.ensureConfigured();
-    const organizationId = await this.getOrganizationId();
+    const organizationId = this.isOrganizationToken
+      ? undefined
+      : await this.getOrganizationId();
 
     const prices: any[] =
       dto.prices && dto.prices.length > 0
@@ -540,6 +683,34 @@ export class PolarService {
               priceCurrency: dto.currency || 'usd',
             },
           ];
+
+    // Polar requires the organization's default presentment currency (VND) in prices
+    const defaultCurrency = 'vnd';
+    const hasDefaultCurrency = prices.some(
+      (p) =>
+        (p.priceCurrency || p.price_currency)?.toLowerCase() ===
+        defaultCurrency,
+    );
+    if (!hasDefaultCurrency && prices.length > 0) {
+      const refPrice = prices[0];
+      const refAmt = refPrice.priceAmount ?? refPrice.price_amount ?? 100;
+      const refCurr = (
+        refPrice.priceCurrency ||
+        refPrice.price_currency ||
+        'usd'
+      ).toLowerCase();
+      const vndAmount =
+        refCurr === 'usd'
+          ? Math.round((refAmt / 100) * 25400)
+          : Math.round(refAmt * 25000);
+
+      prices.unshift({
+        amountType: refPrice.amountType || 'fixed',
+        priceCurrency: 'vnd',
+        priceAmount: vndAmount > 0 ? vndAmount : 25000,
+        taxBehavior: refPrice.taxBehavior,
+      });
+    }
 
     let created: any;
     if (dto.isRecurring) {
@@ -656,7 +827,9 @@ export class PolarService {
 
   async createDiscount(dto: CreateDiscountReqDto) {
     const polar = this.ensureConfigured();
-    const organizationId = await this.getOrganizationId();
+    const organizationId = this.isOrganizationToken
+      ? undefined
+      : await this.getOrganizationId();
 
     let created: any;
     if (dto.type === 'percentage') {
@@ -839,33 +1012,37 @@ export class PolarService {
   }
 
   /**
-   * Uploads an image file directly to Polar product media via multipart S3
+   * Uploads a file (product media or downloadable file) directly to Polar via multipart S3
    * following Polar 2026-04 Files API specification
    */
-  async uploadProductMedia(file: Express.Multer.File) {
+  async uploadFile(
+    file: Express.Multer.File,
+    service: 'product_media' | 'downloadable' = 'product_media',
+    version?: string,
+  ) {
     if (!file || !file.buffer) {
       throw new BadRequestException('File is required');
     }
 
-    // Polar 2026-04 ProductMediaFileCreate specification:
-    // Only image/(jpeg|png|gif|webp|svg+xml) allowed, maximum 10 MB (10485760 bytes)
-    const allowedMimeTypes = [
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'image/svg+xml',
-    ];
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException(
-        `Invalid file type '${file.mimetype}'. Only images are supported (jpeg, png, gif, webp, svg).`,
-      );
-    }
-    const maxSizeBytes = 10485760; // 10MB
-    if (file.size > maxSizeBytes || file.buffer.length > maxSizeBytes) {
-      throw new BadRequestException(
-        `File size exceeds the 10 MB limit allowed by Polar product media.`,
-      );
+    if (service === 'product_media') {
+      const allowedMimeTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/svg+xml',
+      ];
+      if (!allowedMimeTypes.includes(file.mimetype)) {
+        throw new BadRequestException(
+          `Invalid file type '${file.mimetype}'. Only images are supported (jpeg, png, gif, webp, svg).`,
+        );
+      }
+      const maxSizeBytes = 10485760; // 10MB
+      if (file.size > maxSizeBytes || file.buffer.length > maxSizeBytes) {
+        throw new BadRequestException(
+          `File size exceeds the 10 MB limit allowed by Polar product media.`,
+        );
+      }
     }
 
     const polar = this.ensureConfigured();
@@ -878,10 +1055,11 @@ export class PolarService {
     // 1. Create file record on Polar (POST /v1/files/)
     const created = await polar.files.create({
       name: file.originalname,
-      mimeType: file.mimetype,
+      mimeType: file.mimetype || 'application/octet-stream',
       size: buffer.length,
       checksumSha256Base64: sha256Base64,
-      service: 'product_media',
+      service: service as any,
+      version: version || undefined,
       upload: {
         parts: [
           {
@@ -910,8 +1088,8 @@ export class PolarService {
 
     if (!s3Response.ok) {
       const errText = await s3Response.text();
-      this.logger.error(`Polar S3 media upload failed: ${errText}`);
-      throw new BadRequestException('Failed to upload media to Polar storage.');
+      this.logger.error(`Polar S3 upload failed: ${errText}`);
+      throw new BadRequestException('Failed to upload file to Polar storage.');
     }
 
     const etag = s3Response.headers.get('etag')?.replace(/"/g, '') || '';
@@ -948,5 +1126,9 @@ export class PolarService {
           : undefined),
       sizeReadable: (completed as any).sizeReadable,
     };
+  }
+
+  async uploadProductMedia(file: Express.Multer.File) {
+    return await this.uploadFile(file, 'product_media');
   }
 }

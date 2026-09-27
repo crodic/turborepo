@@ -28,6 +28,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Paginate, Paginated, PaginateQuery } from 'nestjs-paginate';
+import { CreateBenefitReqDto } from '../dto/create-benefit.req.dto';
 import { CreateCheckoutLinkReqDto } from '../dto/create-checkout-link.req.dto';
 import { CreateDiscountReqDto } from '../dto/create-discount.req.dto';
 import { CreateProductReqDto } from '../dto/create-product.req.dto';
@@ -239,25 +240,63 @@ export class AdminPaymentController {
     );
   }
 
-  @Post('upload-media')
+  @Post('benefits')
   @ApiOperation({
-    summary: 'Upload product media image to Polar (Admin)',
-    description:
-      'Uploads an image directly to Polar product media via S3 multipart upload.',
+    summary: 'Create a new automated benefit on Polar (Admin)',
+    description: 'Creates an entitlement/benefit on Polar gateway.',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
-    description: 'Media uploaded successfully',
+    description: 'Benefit created successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Create, AppSubjects.Payment),
+  )
+  async createBenefit(@Body() dto: CreateBenefitReqDto) {
+    return await this.polarService.createBenefit(dto);
+  }
+
+  @Delete('benefits/:id')
+  @ApiOperation({
+    summary: 'Delete an automated benefit on Polar (Admin)',
+    description: 'Deletes an existing benefit on Polar gateway.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Benefit deleted successfully',
+  })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Delete, AppSubjects.Payment),
+  )
+  async deleteBenefit(@Param('id') id: string) {
+    return await this.polarService.deleteBenefit(id);
+  }
+
+  @Post('upload-media')
+  @ApiOperation({
+    summary: 'Upload product media or downloadable file to Polar (Admin)',
+    description:
+      'Uploads a file directly to Polar storage via S3 multipart upload.',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'File uploaded successfully',
   })
   @CheckPolicies((ability: AppAbility) =>
     ability.can(AppActions.Create, AppSubjects.Payment),
   )
   @UseInterceptors(FileInterceptor('file'))
-  async uploadMedia(@UploadedFile() file: Express.Multer.File) {
+  async uploadMedia(
+    @UploadedFile() file: Express.Multer.File,
+    @Query('service') service?: string,
+    @Query('version') version?: string,
+  ) {
     if (!file) {
       throw new BadRequestException('File is required');
     }
-    return await this.polarService.uploadProductMedia(file);
+    const targetService =
+      service === 'downloadable' ? 'downloadable' : 'product_media';
+    return await this.polarService.uploadFile(file, targetService, version);
   }
 
   @Post('discounts')

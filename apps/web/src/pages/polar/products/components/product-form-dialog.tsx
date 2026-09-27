@@ -37,6 +37,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -57,8 +58,8 @@ import {
   useMutationUpdatePolarProduct,
   useDataPolarBenefits,
   useMutationUploadPolarMedia,
-  useMutationCreateBenefit,
 } from '../../queries'
+import { CreateBenefitDialog } from './create-benefit-dialog'
 
 export const SUPPORTED_CURRENCIES = [
   { code: 'vnd', label: 'VND', name: 'Vietnamese Dong (₫)', symbol: '₫' },
@@ -154,9 +155,6 @@ export function ProductFormDialog({
 
   // Quick Create Benefit state
   const [isCreateBenefitOpen, setIsCreateBenefitOpen] = useState(false)
-  const [newBenefitDescription, setNewBenefitDescription] = useState('')
-  const [newBenefitType, setNewBenefitType] = useState('custom')
-  const createBenefitMutation = useMutationCreateBenefit()
 
   // Metadata entries & editing toggle
   const [metadataEntries, setMetadataEntries] = useState<MetadataEntry[]>([])
@@ -355,6 +353,12 @@ export function ProductFormDialog({
   }
 
   const handleRemoveCurrency = (currCode: string) => {
+    if (currCode === 'vnd') {
+      toast.error(
+        'VND is the organization default currency and cannot be removed.'
+      )
+      return
+    }
     if (activeCurrencies.length <= 1) return
     setActiveCurrencies(activeCurrencies.filter((c) => c !== currCode))
   }
@@ -388,28 +392,6 @@ export function ProductFormDialog({
         : [...prev, benefitId]
     )
   }, [])
-
-  // Create benefit handler
-  const handleCreateBenefit = async () => {
-    if (!newBenefitDescription.trim()) {
-      toast.error('Benefit description is required')
-      return
-    }
-    try {
-      const res = await createBenefitMutation.mutateAsync({
-        type: newBenefitType,
-        description: newBenefitDescription.trim(),
-      })
-      if (res?.id) {
-        setSelectedBenefitIds((prev) => [...prev, res.id])
-        setNewBenefitDescription('')
-        setIsCreateBenefitOpen(false)
-        toast.success('Benefit created and attached')
-      }
-    } catch {
-      // Error handled by mutation onError
-    }
-  }
 
   // File upload handler
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -479,13 +461,22 @@ export function ProductFormDialog({
   }
 
   const onSubmit = (values: ProductFormValues) => {
+    // Ensure organization default currency (VND) is always included
+    const targetCurrencies = activeCurrencies.includes('vnd')
+      ? activeCurrencies
+      : ['vnd', ...activeCurrencies]
+
     // Generate pricing objects for all active currencies
-    const pricesPayload: any[] = activeCurrencies.map((curr) => {
+    const pricesPayload: any[] = targetCurrencies.map((curr) => {
       const isZeroDecimal = curr === 'vnd' || curr === 'jpy' || curr === 'krw'
       const mult = isZeroDecimal ? 1 : 100
 
       if (values.amountType === 'custom') {
-        const lim = customLimits[curr] || { min: 5, max: 100, preset: 20 }
+        const lim = customLimits[curr] || {
+          min: curr === 'vnd' ? 20000 : 5,
+          max: curr === 'vnd' ? 5000000 : 100,
+          preset: curr === 'vnd' ? 100000 : 20,
+        }
         return {
           amountType: 'custom',
           priceCurrency: curr,
@@ -502,7 +493,19 @@ export function ProductFormDialog({
         }
       }
 
-      const rawAmount = pricesByCurrency[curr] ?? 0
+      let rawAmount = pricesByCurrency[curr]
+      if (
+        rawAmount === undefined ||
+        rawAmount === null ||
+        (rawAmount === 0 && curr === 'vnd')
+      ) {
+        if (curr === 'vnd' && pricesByCurrency['usd']) {
+          rawAmount = Math.round(pricesByCurrency['usd'] * 25400)
+        } else {
+          rawAmount = rawAmount ?? 0
+        }
+      }
+
       return {
         amountType: 'fixed',
         priceCurrency: curr,
@@ -806,6 +809,7 @@ export function ProductFormDialog({
                       const info = SUPPORTED_CURRENCIES.find(
                         (c) => c.code === curr
                       )
+                      const isDefault = curr === 'vnd'
                       return (
                         <Badge
                           key={curr}
@@ -813,7 +817,12 @@ export function ProductFormDialog({
                           className='bg-background border-border/60 flex items-center gap-1.5 rounded-md border px-3 py-1 text-xs font-semibold tracking-wider uppercase'
                         >
                           {info?.label || curr.toUpperCase()}
-                          {activeCurrencies.length > 1 && (
+                          {isDefault && (
+                            <span className='text-muted-foreground text-[10px] font-normal lowercase'>
+                              (default)
+                            </span>
+                          )}
+                          {!isDefault && activeCurrencies.length > 1 && (
                             <button
                               type='button'
                               onClick={() => handleRemoveCurrency(curr)}
@@ -1438,9 +1447,9 @@ export function ProductFormDialog({
 
                     {/* Product Images / Media */}
                     <div className='space-y-2'>
-                      <FormLabel className='block text-xs font-medium'>
+                      <Label className='block text-xs font-medium'>
                         Product images
-                      </FormLabel>
+                      </Label>
 
                       <input
                         ref={fileInputRef}
@@ -1679,75 +1688,17 @@ export function ProductFormDialog({
         </DialogContent>
       </Dialog>
 
-      {/* Quick Create Benefit Dialog */}
-      <Dialog open={isCreateBenefitOpen} onOpenChange={setIsCreateBenefitOpen}>
-        <DialogContent className='sm:max-w-md'>
-          <DialogHeader>
-            <DialogTitle className='text-base font-bold'>
-              Create New Benefit
-            </DialogTitle>
-            <DialogDescription className='text-muted-foreground text-xs'>
-              Add a benefit to automatically grant customers upon product
-              purchase.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className='space-y-3 py-2'>
-            <div className='space-y-1.5'>
-              <FormLabel className='text-xs font-medium'>
-                Description / Name
-              </FormLabel>
-              <Input
-                placeholder='e.g. VIP Discord Channel, 500 Credits'
-                value={newBenefitDescription}
-                onChange={(e) => setNewBenefitDescription(e.target.value)}
-              />
-            </div>
-
-            <div className='space-y-1.5'>
-              <FormLabel className='text-xs font-medium'>
-                Benefit Type
-              </FormLabel>
-              <Select value={newBenefitType} onValueChange={setNewBenefitType}>
-                <SelectTrigger className='w-full'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='custom'>Custom entitlement</SelectItem>
-                  <SelectItem value='license_keys'>License Key</SelectItem>
-                  <SelectItem value='downloadables'>
-                    Downloadable file
-                  </SelectItem>
-                  <SelectItem value='discord'>Discord role</SelectItem>
-                  <SelectItem value='github_repository'>
-                    GitHub repository access
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <DialogFooter className='gap-3'>
-            <Button
-              type='button'
-              variant='outline'
-              onClick={() => setIsCreateBenefitOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type='button'
-              onClick={handleCreateBenefit}
-              disabled={createBenefitMutation.isPending}
-            >
-              {createBenefitMutation.isPending && (
-                <Loader2 className='mr-2 size-4 animate-spin' />
-              )}
-              Create & Attach
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Create Benefit Dialog */}
+      <CreateBenefitDialog
+        open={isCreateBenefitOpen}
+        onOpenChange={setIsCreateBenefitOpen}
+        onSuccess={(created) => {
+          if (created?.id) {
+            setSelectedBenefitIds((prev) => [...prev, created.id])
+            toast.success('Benefit created and attached')
+          }
+        }}
+      />
     </>
   )
 }

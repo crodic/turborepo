@@ -627,11 +627,44 @@ export function useMutationUploadPolarMedia() {
   })
 }
 
+export function useMutationUploadPolarFile() {
+  return useMutation({
+    mutationFn: async ({
+      file,
+      service = 'downloadable',
+      version,
+    }: {
+      file: File
+      service?: string
+      version?: string
+    }) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      const params = new URLSearchParams()
+      if (service) params.set('service', service)
+      if (version) params.set('version', version)
+      const response = await http.post(
+        `/admin/payments/upload-media?${params.toString()}`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      )
+      return response.data
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to upload file')
+    },
+  })
+}
+
 export function useMutationCreateBenefit() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (payload: any) => {
-      const response = await http.post('/admin/polar/benefits', payload)
+      const response = await http.post('/admin/payments/benefits', payload)
       return response.data
     },
     onSuccess: () => {
@@ -648,7 +681,7 @@ export function useMutationDeleteBenefit() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
-      await http.delete(`/admin/polar/benefits/${id}`)
+      await http.delete(`/admin/payments/benefits/${id}`)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['polar-benefits'] })
