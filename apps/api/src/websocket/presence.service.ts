@@ -2,12 +2,12 @@ import { RedisService } from '@/redis/redis.service';
 import { Injectable } from '@nestjs/common';
 import {
   OnlinePresence,
-  PresencePrincipal,
   PresenceSnapshot,
-  PresenceUserType,
+  WsPrincipal,
+  WsUserType,
 } from './types';
 
-type StoredPresenceRecord = Omit<PresencePrincipal, 'tokenHash'> & {
+type StoredPresenceRecord = Omit<WsPrincipal, 'tokenHash'> & {
   connectedAt: string;
   lastSeenAt: string;
 };
@@ -15,6 +15,8 @@ type StoredPresenceRecord = Omit<PresencePrincipal, 'tokenHash'> & {
 const PRESENCE_RECORDS_KEY = 'presence:records';
 const PRESENCE_SOCKET_INDEX_KEY = 'presence:socket_index';
 const PRESENCE_USER_SOCKETS_PREFIX = 'presence:user_sockets:';
+const PRESENCE_HEARTBEATS_KEY = 'presence:socket_heartbeats';
+const DEFAULT_HEARTBEAT_TIMEOUT_MS = 60_000;
 
 @Injectable()
 export class PresenceService {
@@ -22,7 +24,7 @@ export class PresenceService {
 
   async add(
     socketId: string,
-    principal: PresencePrincipal,
+    principal: WsPrincipal,
   ): Promise<PresenceSnapshot> {
     const key = this.createKey(principal.type, principal.id);
     const userSocketsKey = `${PRESENCE_USER_SOCKETS_PREFIX}${key}`;
@@ -30,6 +32,7 @@ export class PresenceService {
 
     await this.redisService.hset(PRESENCE_SOCKET_INDEX_KEY, socketId, key);
     await this.redisService.sadd(userSocketsKey, socketId);
+    await this.redisService.zadd(PRESENCE_HEARTBEATS_KEY, Date.now(), socketId);
 
     const existingRaw = await this.redisService.hget(PRESENCE_RECORDS_KEY, key);
     if (existingRaw) {
@@ -95,6 +98,7 @@ export class PresenceService {
     const userSocketsKey = `${PRESENCE_USER_SOCKETS_PREFIX}${key}`;
     await this.redisService.hdel(PRESENCE_SOCKET_INDEX_KEY, socketId);
     await this.redisService.srem(userSocketsKey, socketId);
+    await this.redisService.zrem(PRESENCE_HEARTBEATS_KEY, socketId);
 
     const remainingSockets = await this.redisService.scard(userSocketsKey);
     if (remainingSockets === 0) {
@@ -122,8 +126,10 @@ export class PresenceService {
 
   async touch(
     socketId: string,
-    principal?: PresencePrincipal,
+    principal?: WsPrincipal,
   ): Promise<PresenceSnapshot> {
+    await this.redisService.zadd(PRESENCE_HEARTBEATS_KEY, Date.now(), socketId);
+
     const key = await this.redisService.hget(
       PRESENCE_SOCKET_INDEX_KEY,
       socketId,
@@ -198,7 +204,7 @@ export class PresenceService {
           lastSeenAt: new Date(stored.lastSeenAt),
         };
 
-        if (stored.type === PresenceUserType.ADMIN) {
+        if (stored.type === WsUserType.ADMIN) {
           admins.push(onlinePresence);
         } else {
           users.push(onlinePresence);
@@ -222,14 +228,33 @@ export class PresenceService {
     };
   }
 
-  async pruneDeadSockets(liveSocketIds: Set<string>): Promise<boolean> {
-    const allSockets = await this.redisService.hgetall(
-      PRESENCE_SOCKET_INDEX_KEY,
-    );
+  async pruneDeadSockets(
+    liveSocketIdsOrTimeout?: Set<string> | number,
+  ): Promise<boolean> {
     const staleSocketIds: string[] = [];
 
-    for (const socketId of Object.keys(allSockets)) {
-      if (!liveSocketIds.has(socketId)) {
+    if (liveSocketIdsOrTimeout instanceof Set) {
+      const allSockets = await this.redisService.hgetall(
+        PRESENCE_SOCKET_INDEX_KEY,
+      );
+      for (const socketId of Object.keys(allSockets)) {
+        if (!liveSocketIdsOrTimeout.has(socketId)) {
+          staleSocketIds.push(socketId);
+        }
+      }
+    } else {
+      const timeoutMs =
+        typeof liveSocketIdsOrTimeout === 'number'
+          ? liveSocketIdsOrTimeout
+          : DEFAULT_HEARTBEAT_TIMEOUT_MS;
+      const cutoff = Date.now() - timeoutMs;
+
+      const expiredFromZset = await this.redisService.zrangebyscore(
+        PRESENCE_HEARTBEATS_KEY,
+        '-inf',
+        cutoff,
+      );
+      for (const socketId of expiredFromZset) {
         staleSocketIds.push(socketId);
       }
     }
@@ -250,7 +275,7 @@ export class PresenceService {
     return snapshot.admins.map((a) => Number(a.id)).filter((id) => !isNaN(id));
   }
 
-  private createKey(type: PresenceUserType, id: string | number) {
+  private createKey(type: WsUserType, id: string | number) {
     return `${type}:${id}`;
   }
 }

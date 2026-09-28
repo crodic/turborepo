@@ -1,35 +1,34 @@
+import { WebsocketService } from '@/websocket/websocket.service';
 import { Injectable } from '@nestjs/common';
-import { Server } from 'socket.io';
 import { NotificationResDto } from './dto/notification.res.dto';
 
 @Injectable()
 export class NotificationRealtimeService {
-  private server?: Server;
-
-  bindServer(server: Server) {
-    this.server = server;
-  }
+  constructor(private readonly websocketService: WebsocketService) {}
 
   emitNewNotification(adminId: string, notification: NotificationResDto) {
-    this.server
-      ?.to(this.getAdminRoom(adminId))
-      .emit('notification:new', notification);
+    this.websocketService.emitToAdmin(
+      adminId,
+      'notification:new',
+      notification,
+    );
   }
 
   emitUnreadCount(adminId: string, unreadCount: number) {
-    this.server
-      ?.to(this.getAdminRoom(adminId))
-      .emit('notification:unread-count', { unreadCount });
+    this.websocketService.emitToAdmin(adminId, 'notification:unread-count', {
+      unreadCount,
+    });
   }
 
   getAdminRoom(adminId: string) {
-    return `admin:${adminId}`;
+    return this.websocketService.getAdminRoom(adminId);
   }
 
   getOnlineAdminIds(): number[] {
-    if (!this.server) return [];
+    const server = this.websocketService.getServer();
+    if (!server) return [];
 
-    const namespaceOrServer = this.server as any;
+    const namespaceOrServer = server as any;
     const adapter =
       namespaceOrServer.adapter || namespaceOrServer.sockets?.adapter;
     if (!adapter || !adapter.rooms) return [];

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { http } from "@/lib/http";
 import { getClientToken } from "@/services/apis";
@@ -30,6 +31,22 @@ export function extractErrorMessage(error: unknown, fallback: string): string {
 }
 
 export function useProfile() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const handleTokensUpdated = () => {
+      void queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY });
+      void queryClient.invalidateQueries({
+        queryKey: SOCIAL_ACCOUNTS_QUERY_KEY,
+      });
+    };
+
+    window.addEventListener("auth:tokens-updated", handleTokensUpdated);
+    return () => {
+      window.removeEventListener("auth:tokens-updated", handleTokensUpdated);
+    };
+  }, [queryClient]);
+
   return useQuery<User | null>({
     queryKey: PROFILE_QUERY_KEY,
     queryFn: async () => {

@@ -1,22 +1,31 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
+import { ApiModule } from '@/api/api.module';
 import authConfig from '@/api/auth/config/auth.config';
+import { BackgroundModule } from '@/background/background.module';
 import appConfig from '@/config/app.config';
+import { AllConfigType } from '@/config/config.type';
+import { Environment } from '@/constants/app.constant';
 import databaseConfig from '@/database/config/database.config';
-import storageConfig from '@/filesystem/config/storage.config';
-import mailConfig from '@/mail/config/mail.config';
-import redisConfig from '@/redis/config/redis.config';
-
 import { TypeOrmConfigService } from '@/database/typeorm-config.service';
-import { TypeOrmModule } from '@nestjs/typeorm';
-
+import storageConfig from '@/filesystem/config/storage.config';
+import { FilesystemModule } from '@/filesystem/filesystem.module';
+import mailConfig from '@/mail/config/mail.config';
+import { MailModule } from '@/mail/mail.module';
+import redisConfig from '@/redis/config/redis.config';
+import { SharedModule } from '@/shared/shared.module';
+import { WebsocketModule } from '@/websocket/websocket.module';
 import { ExpressAdapter } from '@bull-board/express';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { BullModule } from '@nestjs/bullmq';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { SentryModule } from '@sentry/nestjs/setup';
 import expressBasicAuth from 'express-basic-auth';
-
+import { ClsModule } from 'nestjs-cls';
 import {
   AcceptLanguageResolver,
   HeaderResolver,
@@ -24,23 +33,8 @@ import {
   QueryResolver,
 } from 'nestjs-i18n';
 import { LoggerModule } from 'nestjs-pino';
-
-import { ApiModule } from '@/api/api.module';
-import { BackgroundModule } from '@/background/background.module';
-import { FilesystemModule } from '@/filesystem/filesystem.module';
-import { MailModule } from '@/mail/mail.module';
-import { SharedModule } from '@/shared/shared.module';
-
-import { SentryModule } from '@sentry/nestjs/setup';
-import { ClsModule } from 'nestjs-cls';
-
-import { AllConfigType } from '@/config/config.type';
-import { Environment } from '@/constants/app.constant';
 import path from 'path';
 import { DataSource, DataSourceOptions } from 'typeorm';
-
-import { APP_INTERCEPTOR } from '@nestjs/core';
-import { ScheduleModule } from '@nestjs/schedule';
 import { RequestContextInterceptor } from './interceptors/request-context.interceptor';
 import { RequestIdMiddleware } from './middlewares/request-id.middleware';
 import { RedisModule } from './redis/redis.module';
@@ -177,6 +171,7 @@ import loggerFactory from './utils/logger-factory';
     SentryModule.forRoot(),
     BackgroundModule,
     MailModule,
+    WebsocketModule,
     ApiModule,
     SharedModule,
   ],

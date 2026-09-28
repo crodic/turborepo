@@ -11,7 +11,6 @@ import { HomeModule } from './home/home.module';
 import { LocationModule } from './location/location.module';
 import { NotificationModule } from './notification/notification.module';
 import { PermissionModule } from './permission/permission.module';
-import { PresenceModule } from './presence/presence.module';
 import { RoleModule } from './role/role.module';
 import { SentryMonitoringModule } from './sentry-monitoring/sentry-monitoring.module';
 import { SettingsModule } from './settings/settings.module';
@@ -26,7 +25,6 @@ import { WhiteLabelModule } from './white-label/white-label.module';
     HomeModule,
     AuditLogModule,
 
-    PresenceModule,
     PermissionModule,
     RoleModule,
     AdminUserModule,

@@ -2,7 +2,7 @@ import { AutoIncrementID } from '@/common/types/common.type';
 import { RedisService } from '@/redis/redis.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PresenceService } from './presence.service';
-import { PresencePrincipal, PresenceUserType } from './types';
+import { WsPrincipal, WsUserType } from './types';
 
 describe('PresenceService', () => {
   let service: PresenceService;
@@ -10,12 +10,50 @@ describe('PresenceService', () => {
 
   const memoryHash = new Map<string, string>();
   const memorySets = new Map<string, Set<string>>();
+  const memoryZSet = new Map<string, number>();
 
   beforeEach(async () => {
     memoryHash.clear();
     memorySets.clear();
+    memoryZSet.clear();
 
     mockRedisService = {
+      zadd: jest.fn(async (key: string, score: number, member: string) => {
+        memoryZSet.set(`${key}:${member}`, score);
+        return 1;
+      }),
+      zrem: jest.fn(async (key: string, member: string) => {
+        const deleted = memoryZSet.delete(`${key}:${member}`);
+        return deleted ? 1 : 0;
+      }),
+      zrangebyscore: jest.fn(async (key: string, min: any, max: any) => {
+        const results: string[] = [];
+        const maxScore = max === '+inf' ? Infinity : Number(max);
+        const minScore = min === '-inf' ? -Infinity : Number(min);
+        for (const [k, score] of memoryZSet.entries()) {
+          if (k.startsWith(`${key}:`)) {
+            const member = k.replace(`${key}:`, '');
+            if (score >= minScore && score <= maxScore) {
+              results.push(member);
+            }
+          }
+        }
+        return results;
+      }),
+      zremrangebyscore: jest.fn(async (key: string, min: any, max: any) => {
+        let count = 0;
+        const maxScore = max === '+inf' ? Infinity : Number(max);
+        const minScore = min === '-inf' ? -Infinity : Number(min);
+        for (const [k, score] of memoryZSet.entries()) {
+          if (k.startsWith(`${key}:`)) {
+            if (score >= minScore && score <= maxScore) {
+              memoryZSet.delete(k);
+              count++;
+            }
+          }
+        }
+        return count;
+      }),
       hset: jest.fn(async (hashKey: string, field: string, val: string) => {
         memoryHash.set(`${hashKey}:${field}`, val);
         return 1;
@@ -87,9 +125,9 @@ describe('PresenceService', () => {
     service = module.get<PresenceService>(PresenceService);
   });
 
-  const adminPrincipal: PresencePrincipal = {
+  const adminPrincipal: WsPrincipal = {
     id: '1' as AutoIncrementID,
-    type: PresenceUserType.ADMIN,
+    type: WsUserType.ADMIN,
     sessionId: 'session-1',
     tokenHash: 'hash-1',
     email: 'admin@example.com',
@@ -97,9 +135,9 @@ describe('PresenceService', () => {
     avatar: 'https://example.com/avatar.png',
   };
 
-  const userPrincipal: PresencePrincipal = {
+  const userPrincipal: WsPrincipal = {
     id: '2' as AutoIncrementID,
-    type: PresenceUserType.USER,
+    type: WsUserType.USER,
     sessionId: 'session-2',
     tokenHash: 'hash-2',
     email: 'user@example.com',
@@ -188,6 +226,23 @@ describe('PresenceService', () => {
     expect(cleanedSnapshot.counts.admins).toBe(1);
     expect(cleanedSnapshot.admins[0].socketCount).toBe(1);
     expect(cleanedSnapshot.counts.users).toBe(0);
+  });
+
+  it('prunes dead sockets based on timestamp timeout', async () => {
+    await service.add('socket-alive', adminPrincipal);
+    await service.add('socket-old', userPrincipal);
+
+    memoryZSet.set(
+      'presence:socket_heartbeats:socket-old',
+      Date.now() - 70_000,
+    );
+
+    const pruned = await service.pruneDeadSockets();
+    expect(pruned).toBe(true);
+
+    const snapshot = await service.getSnapshot();
+    expect(snapshot.counts.admins).toBe(1);
+    expect(snapshot.counts.users).toBe(0);
   });
 
   it('returns online admin IDs correctly', async () => {

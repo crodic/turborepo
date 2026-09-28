@@ -1,8 +1,12 @@
-import { SettingsService } from '@/api/settings/settings.service';
+import { CmsPageSeedService } from '@/database/seeds/cms-page/cms-page-seed.service';
+import { LocationSeedService } from '@/database/seeds/location/location-seed.service';
+import { SettingSeedService } from '@/database/seeds/setting/setting-seed.service';
+import { WhiteLabelSeedService } from '@/database/seeds/white-label/white-label-seed.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { AdminUserService } from '../admin-user/admin-user.service';
 import { RoleService } from '../role/role.service';
+import { WhiteLabelService } from '../white-label/white-label.service';
 import { HomeService } from './home.service';
 
 describe('HomeService', () => {
@@ -39,11 +43,43 @@ describe('HomeService', () => {
           },
         },
 
-        // Mock SettingsService
+        // Mock WhiteLabelService
         {
-          provide: SettingsService,
+          provide: WhiteLabelService,
           useValue: {
-            set: jest.fn(),
+            getWhiteLabel: jest.fn(),
+          },
+        },
+
+        // Mock SettingSeedService
+        {
+          provide: SettingSeedService,
+          useValue: {
+            run: jest.fn(),
+          },
+        },
+
+        // Mock WhiteLabelSeedService
+        {
+          provide: WhiteLabelSeedService,
+          useValue: {
+            run: jest.fn(),
+          },
+        },
+
+        // Mock CmsPageSeedService
+        {
+          provide: CmsPageSeedService,
+          useValue: {
+            run: jest.fn(),
+          },
+        },
+
+        // Mock LocationSeedService
+        {
+          provide: LocationSeedService,
+          useValue: {
+            run: jest.fn(),
           },
         },
       ],

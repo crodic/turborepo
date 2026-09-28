@@ -1,8 +1,13 @@
 import { AllConfigType } from '@/config/config.type';
+import { QueueName } from '@/constants/job.constant';
+import { RedisService } from '@/redis/redis.service';
+import { getQueueToken } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import {
+  DiskHealthIndicator,
   HealthCheckService,
   HttpHealthIndicator,
+  MemoryHealthIndicator,
   TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -56,6 +61,36 @@ describe('HealthController', () => {
           provide: TypeOrmHealthIndicator,
           useValue: dbUseValue,
         },
+        {
+          provide: MemoryHealthIndicator,
+          useValue: {
+            checkHeap: jest.fn(),
+          },
+        },
+        {
+          provide: DiskHealthIndicator,
+          useValue: {
+            checkStorage: jest.fn(),
+          },
+        },
+        {
+          provide: RedisService,
+          useValue: {
+            ping: jest.fn(),
+          },
+        },
+        {
+          provide: getQueueToken(QueueName.EMAIL),
+          useValue: {
+            getWaitingCount: jest.fn().mockResolvedValue(0),
+          },
+        },
+        {
+          provide: getQueueToken(QueueName.FILE),
+          useValue: {
+            getWaitingCount: jest.fn().mockResolvedValue(0),
+          },
+        },
       ],
     }).compile();
 
@@ -87,7 +122,7 @@ describe('HealthController', () => {
         error: {},
       };
 
-      healthCheckServiceValue.check.mockReturnValue(healthCheckResult);
+      healthCheckServiceValue.check!.mockReturnValue(healthCheckResult);
 
       const result = await controller.check();
 

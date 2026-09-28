@@ -76,6 +76,42 @@ function logoutAndRedirect() {
     })
 }
 
+export async function refreshAdminToken(): Promise<string | null> {
+  if (!refreshTokenPromise) {
+    const refreshToken = useAuthStore.getState().meta.refreshToken
+
+    if (!refreshToken) {
+      logoutAndRedirect()
+      return null
+    }
+
+    refreshTokenPromise = refreshAccessToken(refreshToken)
+      .then((res) => {
+        const accessToken = res.accessToken
+        const newRefreshToken = res.refreshToken
+        useAuthStore.getState().setToken({
+          accessToken,
+          refreshToken: newRefreshToken,
+        })
+        http.defaults.headers.Authorization = `Bearer ${accessToken}`
+      })
+      .catch((_error) => {
+        logoutAndRedirect()
+        throw _error
+      })
+      .finally(() => {
+        refreshTokenPromise = null
+      })
+  }
+
+  try {
+    await refreshTokenPromise
+    return useAuthStore.getState().meta.accessToken ?? null
+  } catch {
+    return null
+  }
+}
+
 http.interceptors.response.use(
   (response) => {
     return response
@@ -91,41 +127,14 @@ http.interceptors.response.use(
 
       originalRequest._retry = true
 
-      if (!refreshTokenPromise) {
-        const refreshToken = useAuthStore.getState().meta.refreshToken
-
-        if (!refreshToken) {
-          logoutAndRedirect()
-          return Promise.reject(error)
-        }
-
-        refreshTokenPromise = refreshAccessToken(refreshToken)
-          .then((res) => {
-            const accessToken = res.accessToken
-            const refreshToken = res.refreshToken
-            useAuthStore.getState().setToken({
-              accessToken,
-              refreshToken,
-            })
-            http.defaults.headers.Authorization = `Bearer ${accessToken}`
-          })
-          .catch((_error) => {
-            logoutAndRedirect()
-            return Promise.reject(_error)
-          })
-          .finally(() => {
-            refreshTokenPromise = null
-          })
-      }
-
-      return refreshTokenPromise.then(() => {
-        const accessToken = useAuthStore.getState().meta.accessToken
-        if (accessToken) {
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`
-        }
-
-        return http(originalRequest)
-      })
+      return refreshAdminToken()
+        .then((accessToken) => {
+          if (accessToken) {
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`
+          }
+          return http(originalRequest)
+        })
+        .catch(() => Promise.reject(error))
     }
 
     return Promise.reject(error)

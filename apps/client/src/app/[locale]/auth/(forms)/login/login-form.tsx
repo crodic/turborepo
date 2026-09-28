@@ -32,11 +32,14 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AUTH_CODE, AUTH_QUERY_PARAM, AuthCode } from "@/constants/auth";
 import { Link } from "@/i18n/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { PROFILE_QUERY_KEY } from "@/hooks/use-profile";
 
 export default function LoginForm() {
   const t = useTranslations("Auth.login");
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const handledMessageRef = useRef<string | null>(null);
 
   const rawCode = searchParams.get(AUTH_QUERY_PARAM.CODE);
@@ -65,7 +68,8 @@ export default function LoginForm() {
     const verification = searchParams.get("verification");
     const reset = searchParams.get("reset");
     const social = searchParams.get("social");
-    const messageKey = verification ?? reset ?? social;
+
+    const messageKey = [verification, reset, social].filter(Boolean).join(":");
 
     if (!messageKey || handledMessageRef.current === messageKey) {
       return;
@@ -105,11 +109,17 @@ export default function LoginForm() {
         values
       );
       const { accessToken, refreshToken } = data;
+
       await xior.post(`${process.env.NEXT_PUBLIC_APP_URL}/api/auth/tokens`, {
         accessToken,
         refreshToken,
       });
+
+      // Clear the cached null profile so /profile fetches fresh user data
+      await queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY });
+
       window.dispatchEvent(new Event("auth:tokens-updated"));
+
       const from = searchParams.get(AUTH_QUERY_PARAM.FROM);
       const redirectTarget = from && from.startsWith("/") ? from : "/profile";
       router.push(redirectTarget);

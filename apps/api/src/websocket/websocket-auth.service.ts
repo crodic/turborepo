@@ -14,10 +14,10 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Socket } from 'socket.io';
 import { Repository } from 'typeorm';
-import { PresencePrincipal, PresenceUserType } from './types';
+import { WsPrincipal, WsUserType } from './types';
 
 @Injectable()
-export class PresenceAuthService {
+export class WebsocketAuthService {
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
     private readonly jwtService: JwtService,
@@ -31,7 +31,7 @@ export class PresenceAuthService {
     private readonly cacheManager: Cache,
   ) {}
 
-  async authenticate(client: Socket): Promise<PresencePrincipal> {
+  async authenticate(client: Socket): Promise<WsPrincipal> {
     const userType = this.getUserType(client);
     const token = this.getToken(client);
 
@@ -39,21 +39,26 @@ export class PresenceAuthService {
       throw new UnauthorizedException('Missing socket auth token');
     }
 
-    return userType === PresenceUserType.ADMIN
+    return userType === WsUserType.ADMIN
       ? this.authenticateAdmin(token)
       : this.authenticateUser(token);
   }
 
-  async ensureSessionActive(principal: PresencePrincipal): Promise<void> {
-    const userType =
-      principal.type === PresenceUserType.ADMIN
-        ? ESessionUserType.ADMIN
-        : ESessionUserType.USER;
+  async ensureSessionActive(principal: WsPrincipal): Promise<void> {
+    if (!principal.sessionId) {
+      throw new UnauthorizedException('Missing socket auth session');
+    }
 
-    await this.validateSessionByFields(principal, userType);
+    const isSessionBlacklisted = await this.cacheManager.get<boolean>(
+      createCacheKey(CacheKey.SESSION_BLACKLIST, String(principal.sessionId)),
+    );
+
+    if (isSessionBlacklisted) {
+      throw new UnauthorizedException('Socket auth session was revoked');
+    }
   }
 
-  private async authenticateAdmin(token: string): Promise<PresencePrincipal> {
+  private async authenticateAdmin(token: string): Promise<WsPrincipal> {
     const payload = this.verifyToken(token, 'auth.secret');
     const session = await this.validateSession(payload, ESessionUserType.ADMIN);
 
@@ -68,7 +73,7 @@ export class PresenceAuthService {
 
     return {
       id: admin.id,
-      type: PresenceUserType.ADMIN,
+      type: WsUserType.ADMIN,
       sessionId: session.id,
       tokenHash: payload.hash,
       email: admin.email,
@@ -77,7 +82,7 @@ export class PresenceAuthService {
     };
   }
 
-  private async authenticateUser(token: string): Promise<PresencePrincipal> {
+  private async authenticateUser(token: string): Promise<WsPrincipal> {
     const payload = this.verifyToken(token, 'auth.userSecret');
     const session = await this.validateSession(payload, ESessionUserType.USER);
 
@@ -92,7 +97,7 @@ export class PresenceAuthService {
 
     return {
       id: user.id,
-      type: PresenceUserType.USER,
+      type: WsUserType.USER,
       sessionId: session.id,
       tokenHash: payload.hash,
       email: user.email,
@@ -180,13 +185,18 @@ export class PresenceAuthService {
     return this.stripBearerPrefix(header);
   }
 
-  private getUserType(client: Socket): PresenceUserType {
+  private getUserType(client: Socket): WsUserType {
     const rawType =
       client.handshake.auth?.userType ?? client.handshake.query?.userType;
     const type = Array.isArray(rawType) ? rawType[0] : rawType;
 
-    if (type === PresenceUserType.ADMIN || type === PresenceUserType.USER) {
+    if (type === WsUserType.ADMIN || type === WsUserType.USER) {
       return type;
+    }
+
+    // Default to admin if not specified (for convenience in admin portal)
+    if (!type) {
+      return WsUserType.ADMIN;
     }
 
     throw new UnauthorizedException('Invalid socket user type');

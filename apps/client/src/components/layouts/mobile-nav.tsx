@@ -7,13 +7,17 @@ import { LinkItem } from "@/components/layouts/sheard";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
-import { MenuIcon, XIcon } from "lucide-react";
+import { LogOut, MenuIcon, User, XIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useProfile, useSignOut } from "@/hooks/use-profile";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const { isMobile } = useMediaQuery();
+  const { data: profile } = useProfile();
+  const signOutMutation = useSignOut();
   const t = useTranslations("Navigation");
 
   useEffect(() => {
@@ -26,6 +30,13 @@ export function MobileNav() {
       document.body.style.overflow = "";
     };
   }, [open, isMobile]);
+
+  const initials =
+    (
+      (profile?.firstName?.[0] || "") + (profile?.lastName?.[0] || "")
+    ).toUpperCase() ||
+    profile?.email?.slice(0, 2).toUpperCase() ||
+    "U";
 
   return (
     <>
@@ -105,21 +116,78 @@ export function MobileNav() {
               </div>
 
               <div className="mt-6 flex flex-col gap-2 border-t pt-4">
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  asChild
-                  onClick={() => setOpen(false)}
-                >
-                  <Link href="/auth/login">{t("signIn")}</Link>
-                </Button>
-                <Button
-                  className="w-full"
-                  asChild
-                  onClick={() => setOpen(false)}
-                >
-                  <Link href="/auth/sign-up">{t("signUp")}</Link>
-                </Button>
+                {profile ? (
+                  <>
+                    <Link
+                      href="/profile"
+                      onClick={() => setOpen(false)}
+                      className="hover:bg-accent flex items-center gap-3 rounded-lg border p-3 transition-colors"
+                    >
+                      <Avatar className="size-10">
+                        {profile.avatar && (
+                          <AvatarImage
+                            src={profile.avatar}
+                            alt={profile.fullName}
+                          />
+                        )}
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col space-y-0.5 overflow-hidden">
+                        <span className="truncate text-sm font-medium">
+                          {profile.fullName || profile.email}
+                        </span>
+                        <span className="text-muted-foreground truncate text-xs">
+                          {profile.email}
+                        </span>
+                      </div>
+                    </Link>
+
+                    <Button
+                      className="w-full justify-start gap-2"
+                      variant="outline"
+                      asChild
+                      onClick={() => setOpen(false)}
+                    >
+                      <Link href="/profile">
+                        <User className="size-4" />
+                        <span>{t("profile")}</span>
+                      </Link>
+                    </Button>
+
+                    <Button
+                      className="text-destructive hover:text-destructive w-full justify-start gap-2"
+                      variant="outline"
+                      onClick={() => {
+                        setOpen(false);
+                        signOutMutation.mutate();
+                      }}
+                      disabled={signOutMutation.isPending}
+                    >
+                      <LogOut className="size-4" />
+                      <span>{t("logout")}</span>
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      asChild
+                      onClick={() => setOpen(false)}
+                    >
+                      <Link href="/auth/login">{t("signIn")}</Link>
+                    </Button>
+                    <Button
+                      className="w-full"
+                      asChild
+                      onClick={() => setOpen(false)}
+                    >
+                      <Link href="/auth/sign-up">{t("signUp")}</Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </div>,
