@@ -1,5 +1,6 @@
 import { BackgroundModule } from '@/background/background.module';
 import { AllConfigType } from '@/config/config.type';
+import { LocationSeedService } from '@/database/seeds/location/location-seed.service';
 import { GlobalExceptionFilter } from '@/filters/global-exception.filter';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
@@ -61,7 +62,10 @@ describe('App (e2e)', () => {
         "admin_permissions",
         "audit_logs",
         "settings",
-        "files"
+        "files",
+        "white_labels",
+        "cms_pages",
+        "cms_page_translations"
       RESTART IDENTITY CASCADE
     `);
     await testCacheManager.clear();
@@ -102,6 +106,10 @@ describe('App (e2e)', () => {
       .useModule(TestBackgroundModule)
       .overrideProvider(CACHE_MANAGER)
       .useValue(testCacheManager)
+      .overrideProvider(LocationSeedService)
+      .useValue({
+        run: jest.fn().mockResolvedValue(undefined),
+      })
       .compile();
 
     app = moduleFixture.createNestApplication();
