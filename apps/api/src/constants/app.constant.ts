@@ -47,3 +47,19 @@ export const SUPER_ADMIN_ACCOUNT = {
   email: 'admin@email.com',
   password: 'admin@2025',
 };
+
+/**
+ * Number of days before soft-deleted accounts become permanently unrecoverable.
+ */
+export const ACCOUNT_RESTORE_GRACE_PERIOD_DAYS = 30;
+
+/**
+ * Account restoration grace period in milliseconds.
+ */
+export const ACCOUNT_RESTORE_GRACE_PERIOD_MS =
+  ACCOUNT_RESTORE_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000;
+
+/**
+ * Default number of days tracked for login activity heatmaps.
+ */
+export const LOGIN_ACTIVITY_DAYS = 180;

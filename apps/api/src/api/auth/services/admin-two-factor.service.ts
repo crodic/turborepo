@@ -39,10 +39,10 @@ import { TwoFactorStatusResDto } from '../dto/admin-users/two-factor/two-factor-
 import { VerifyTwoFactorLoginReqDto } from '../dto/admin-users/two-factor/verify-two-factor-login.req.dto';
 import { VerifyTwoFactorSetupReqDto } from '../dto/admin-users/two-factor/verify-two-factor-setup.req.dto';
 import { VerifyTwoFactorSetupResDto } from '../dto/admin-users/two-factor/verify-two-factor-setup.res.dto';
-import { SessionEntity } from '../entities/session.entity';
 import { JwtPayloadType } from '../types/jwt-payload.type';
 import { SessionRequestInfo } from '../types/session-request-info.type';
 import { AuthSessionService } from './auth-session.service';
+import { AuthTokenService, TokenSigningConfig } from './auth-token.service';
 
 export type TwoFactorSetupPayload = {
   secret: string;
@@ -58,10 +58,6 @@ export const TWO_FACTOR_ISSUER = 'Crodic Portal';
 export const TWO_FACTOR_SETUP_TTL = '10m' as StringValue;
 export const TWO_FACTOR_LOGIN_TTL = '5m' as StringValue;
 
-function normalizeUserAgent(userAgent?: string | string[]) {
-  return Array.isArray(userAgent) ? userAgent.join(', ') : userAgent;
-}
-
 @Injectable()
 export class AdminTwoFactorService {
   private readonly logger = new Logger(AdminTwoFactorService.name);
@@ -71,14 +67,13 @@ export class AdminTwoFactorService {
     private readonly adminUserRepository: Repository<AdminUserEntity>,
     @InjectRepository(AdminAccountEntity)
     private readonly adminAccountRepository: Repository<AdminAccountEntity>,
-    @InjectRepository(SessionEntity)
-    private readonly sessionRepository: Repository<SessionEntity>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService<AllConfigType>,
     private readonly notificationService: NotificationService,
     private readonly authSessionService: AuthSessionService,
+    private readonly authTokenService: AuthTokenService,
   ) {}
 
   async twoFactorStatus(
@@ -150,7 +145,7 @@ export class AdminTwoFactorService {
       twoFactorBackupCodes: setup.backupCodeHashes,
     });
     await this.cacheManager.del(cacheKey);
-    await this.notifyAdmin(
+    await this.notificationService.notifyAdmin(
       user.id,
       AdminNotificationType.TwoFactorEnabled,
       'Two-factor authentication enabled',
@@ -180,7 +175,7 @@ export class AdminTwoFactorService {
     await this.cacheManager.del(
       createCacheKey(CacheKey.ADMIN_TWO_FACTOR_SETUP, user.id),
     );
-    await this.notifyAdmin(
+    await this.notificationService.notifyAdmin(
       user.id,
       AdminNotificationType.TwoFactorDisabled,
       'Two-factor authentication disabled',
@@ -218,6 +213,10 @@ export class AdminTwoFactorService {
     });
   }
 
+  /**
+   * Verify 2FA code (TOTP or backup code) after initial password authentication.
+   * On success, creates a login session and returns JWT tokens.
+   */
   async verifyTwoFactorLogin(
     dto: VerifyTwoFactorLoginReqDto,
     requestInfo?: SessionRequestInfo,
@@ -241,16 +240,23 @@ export class AdminTwoFactorService {
       throw new BadRequestException('Invalid two-factor code');
     }
 
-    const session = await this.createAdminLoginSession(user, requestInfo);
-    const token = await this.createToken({
-      id: user.id,
-      sessionId: session.id,
-      hash: session.hash,
+    // Reuse shared session + token services instead of duplicating logic
+    const hash = this.authTokenService.generateSessionHash();
+    const session = await this.authSessionService.createLoginSession({
+      userId: user.id,
+      userType: ESessionUserType.ADMIN,
+      hash,
+      requestInfo,
     });
+
+    const tokens = await this.authTokenService.createTokenPair(
+      { id: user.id, sessionId: session.id, hash: session.hash },
+      this.getAdminTokenConfig(),
+    );
 
     return plainToInstance(AdminUserLoginResDto, {
       userId: user.id,
-      ...token,
+      ...tokens,
     });
   }
 
@@ -351,6 +357,10 @@ export class AdminTwoFactorService {
     return true;
   }
 
+  /**
+   * Verify admin password against local account credentials.
+   * Used before enabling/disabling 2FA and regenerating backup codes.
+   */
   private async assertPassword(
     user: AdminUserEntity,
     password: string,
@@ -401,85 +411,17 @@ export class AdminTwoFactorService {
       .digest('hex');
   }
 
-  private async createAdminLoginSession(
-    user: AdminUserEntity,
-    requestInfo?: SessionRequestInfo,
-  ): Promise<SessionEntity> {
-    const session = this.sessionRepository.create({
-      userType: ESessionUserType.ADMIN,
-      userId: user.id,
-      ipAddress: requestInfo?.ipAddress,
-      userAgent: normalizeUserAgent(requestInfo?.userAgent),
-      hash: crypto.randomBytes(32).toString('hex'),
-    });
-    const savedSession = await this.sessionRepository.save(session);
-    await this.authSessionService.clearSessionBlacklist(savedSession.id);
-
-    return savedSession;
-  }
-
-  private async createToken(data: {
-    id: string;
-    sessionId: string;
-    hash: string;
-  }) {
-    const tokenExpiresIn = this.configService.getOrThrow('auth.expires', {
-      infer: true,
-    });
-    const tokenExpires = Date.now() + ms(tokenExpiresIn as StringValue);
-
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(
-        {
-          id: data.id,
-          sessionId: data.sessionId,
-          hash: data.hash,
-        },
-        {
-          secret: this.configService.getOrThrow('auth.secret', { infer: true }),
-          expiresIn: tokenExpiresIn as StringValue,
-        },
-      ),
-      this.jwtService.signAsync(
-        {
-          sessionId: data.sessionId,
-          hash: data.hash,
-        },
-        {
-          secret: this.configService.getOrThrow('auth.refreshSecret', {
-            infer: true,
-          }),
-          expiresIn: this.configService.getOrThrow('auth.refreshExpires', {
-            infer: true,
-          }),
-        },
-      ),
-    ]);
-
+  /** Reuse shared admin token config for session/token creation. */
+  private getAdminTokenConfig(): TokenSigningConfig {
     return {
-      accessToken,
-      refreshToken,
-      tokenExpires,
+      secret: this.configService.getOrThrow('auth.secret', { infer: true }),
+      expiresIn: this.configService.getOrThrow('auth.expires', { infer: true }),
+      refreshSecret: this.configService.getOrThrow('auth.refreshSecret', {
+        infer: true,
+      }),
+      refreshExpiresIn: this.configService.getOrThrow('auth.refreshExpires', {
+        infer: true,
+      }),
     };
-  }
-
-  private async notifyAdmin(
-    adminId: AutoIncrementID | string,
-    type: AdminNotificationType,
-    title: string,
-    message: string,
-    data?: Record<string, unknown>,
-  ): Promise<void> {
-    try {
-      await this.notificationService.createForAdmin({
-        adminId,
-        type,
-        title,
-        message,
-        data,
-      });
-    } catch (error) {
-      this.logger.warn(`Failed to create admin notification: ${error}`);
-    }
   }
 }

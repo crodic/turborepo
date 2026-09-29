@@ -11,6 +11,7 @@ import { EAccountProvider, ESessionUserType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { QueueName } from '@/constants/job.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
+import { normalizeEmail } from '@/utils/normalize.util';
 import { InjectQueue } from '@nestjs/bullmq';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import {
@@ -24,9 +25,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
+import assert from 'assert';
 import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
-import { assert } from 'console';
 import { Repository } from 'typeorm';
 import { ChangePasswordReqDto } from '../dto/change-password.req.dto';
 import { RegisterResDto } from '../dto/register.res.dto';
@@ -222,6 +223,17 @@ export class UserAuthService extends AuthService<
     return plainToInstance(SocialLinkUrlResDto, { url: url.toString() });
   }
 
+  /**
+   * Handles OAuth provider callbacks for social logins (Google, etc.).
+   *
+   * Business Logic & Flow:
+   * 1. Validates completeness of the social provider profile.
+   * 2. Checks the OAuth state parameter (anti-CSRF nonce).
+   * 3. Mode 'link': If the state indicates the user initiated linking from their profile,
+   *    links the social provider to the existing authenticated account and redirects to /profile.
+   * 4. Mode 'login' / default: Signs in the user if the social account exists, or auto-registers them
+   *    if new. Creates a secure exchange token and redirects the browser back to the frontend app.
+   */
   async handleSocialLoginCallback(
     profile: OAuthProviderProfile,
     state?: string,
@@ -397,6 +409,17 @@ export class UserAuthService extends AuthService<
     });
   }
 
+  /**
+   * Signs in an existing social account user or auto-registers a new account.
+   *
+   * Business Rules:
+   * 1. If an account with this provider + providerAccountId already exists, logs in immediately.
+   * 2. Requires email to be verified by the OAuth provider.
+   * 3. If a local user with the same email already exists:
+   *    - Marks the local email as verified (trusting provider's verification).
+   *    - Links the new social provider to that existing user.
+   * 4. If no user exists: creates a new UserEntity with verified email and links the social provider.
+   */
   private async signInOrRegisterSocialUser(
     profile: OAuthProviderProfile,
     requestInfo?: SessionRequestInfo,
@@ -516,8 +539,4 @@ export class UserAuthService extends AuthService<
       }),
     );
   }
-}
-
-function normalizeEmail(email: string) {
-  return email.trim().toLowerCase();
 }

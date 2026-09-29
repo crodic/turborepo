@@ -7,8 +7,8 @@ import { ADMIN_FULL_ACCESS } from '@/utils/permissions.constant';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import assert from 'assert';
 import { plainToInstance } from 'class-transformer';
-import { assert } from 'console';
 import {
   FilterOperator,
   paginate,
@@ -102,7 +102,6 @@ export class RoleService {
   async hasRole(): Promise<boolean> {
     const cacheKey = CacheKey.SYSTEM_HAS_ROLE;
     const cached = await this.cacheManager.get<boolean>(cacheKey);
-    console.log('Cache store type:', this.cacheManager.constructor.name);
 
     if (cached !== undefined) {
       return cached;
@@ -170,8 +169,6 @@ export class RoleService {
     const query = await this.roleRepository.find({
       relations: ['permissionEntities'],
     });
-
-    console.log(query);
 
     return plainToInstance(RoleResDto, query, {
       excludeExtraneousValues: true,

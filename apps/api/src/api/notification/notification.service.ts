@@ -245,6 +245,24 @@ export class NotificationService {
     );
   }
 
+  /**
+   * Fire-and-forget notification for admin actions (password change, 2FA, session revoke, etc.).
+   * Swallows errors so that notification failures never break the primary operation.
+   */
+  async notifyAdmin(
+    adminId: AutoIncrementID | string,
+    type: AdminNotificationType,
+    title: string,
+    message: string,
+    data?: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      await this.createForAdmin({ adminId, type, title, message, data });
+    } catch (error) {
+      this.logger.warn(`Failed to create admin notification: ${error}`);
+    }
+  }
+
   private async countUnread(adminId: AutoIncrementID) {
     return this.notificationRepository.count({
       where: { adminId, readAt: IsNull() },

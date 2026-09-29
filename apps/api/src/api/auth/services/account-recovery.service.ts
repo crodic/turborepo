@@ -11,7 +11,7 @@ import { ValidationException } from '@/exceptions/validation.exception';
 import { BadRequestException } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, ObjectLiteral, Repository } from 'typeorm';
 import { ForgotPasswordReqDto } from '../dto/forgot-password.req.dto';
 import { ForgotPasswordResDto } from '../dto/forgot-password.res.dto';
 import { ResendEmailVerifyReqDto } from '../dto/resend-email-verify.req.dto';
@@ -32,7 +32,9 @@ export interface AccountRecoveryConfig {
   forgotPasswordJob: JobName;
 }
 
-export abstract class AccountRecoveryService<TUser extends IAuthUser> {
+export abstract class AccountRecoveryService<
+  TUser extends ObjectLiteral & IAuthUser,
+> {
   constructor(
     protected readonly authRecoveryService: AuthRecoveryService,
     protected readonly userRepository: Repository<TUser>,
@@ -78,14 +80,14 @@ export abstract class AccountRecoveryService<TUser extends IAuthUser> {
 
     const user = await this.userRepository.findOneBy({
       id: id as AutoIncrementID,
-    } as any);
+    } as FindOptionsWhere<TUser>);
 
     if (!user) {
       throw new BadRequestException();
     }
 
     user.verifiedAt = new Date();
-    await this.userRepository.save(user as any);
+    await this.userRepository.save(user);
 
     return plainToInstance(VerifyAccountResDto, {
       verified: true,
@@ -98,7 +100,7 @@ export abstract class AccountRecoveryService<TUser extends IAuthUser> {
     dto: ResendEmailVerifyReqDto,
   ): Promise<ResendEmailVerifyResDto> {
     const user = await this.userRepository.findOne({
-      where: { email: dto.email } as any,
+      where: { email: dto.email } as FindOptionsWhere<TUser>,
     });
 
     if (user) {
@@ -113,8 +115,8 @@ export abstract class AccountRecoveryService<TUser extends IAuthUser> {
   async forgotPassword(
     dto: ForgotPasswordReqDto,
   ): Promise<ForgotPasswordResDto> {
-    const user = await this.userRepository.findOneOrFail({
-      where: { email: dto.email } as any,
+    const user = await this.userRepository.findOne({
+      where: { email: dto.email } as FindOptionsWhere<TUser>,
     });
 
     if (!user) {
@@ -157,7 +159,7 @@ export abstract class AccountRecoveryService<TUser extends IAuthUser> {
 
     const user = await this.userRepository.findOneBy({
       id: id as AutoIncrementID,
-    } as any);
+    } as FindOptionsWhere<TUser>);
 
     if (!user) {
       throw new BadRequestException();

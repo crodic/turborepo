@@ -10,9 +10,16 @@ import {
 } from '@/api/notification/notification.service';
 import { RoleEntity } from '@/api/role/entities/role.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
-import { IEmailJob } from '@/common/interfaces/job.interface';
+import {
+  IAdminAccountDeletionRequestedEmailJob,
+  IEmailJob,
+} from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
+import {
+  ACCOUNT_RESTORE_GRACE_PERIOD_DAYS,
+  ACCOUNT_RESTORE_GRACE_PERIOD_MS,
+} from '@/constants/app.constant';
 import { EAccountProvider, ESessionUserType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { JobName, QueueName } from '@/constants/job.constant';
@@ -32,9 +39,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
+import assert from 'assert';
 import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
-import { assert } from 'console';
 import { In, Repository } from 'typeorm';
 import { AdminUserLoginReqDto } from '../dto/admin-users/admin-user-login.req.dto';
 import { AdminUserLoginResDto } from '../dto/admin-users/admin-user-login.res.dto';
@@ -156,11 +163,14 @@ export class AdminAuthService extends AuthService<
     };
   }
 
-  async login(
-    dto: AdminUserLoginReqDto,
-    requestInfo?: SessionRequestInfo,
-  ): Promise<AdminUserLoginResDto> {
-    const { email, password } = dto;
+  /**
+   * Validates admin login credentials against the database.
+   * Throws BadRequestException for invalid credentials or ForbiddenException for unverified emails.
+   */
+  private async validateCredentials(
+    email: string,
+    password: string,
+  ): Promise<AdminUserEntity> {
     const user = await this.adminUserRepository.findOne({
       where: { email },
       withDeleted: true,
@@ -171,52 +181,82 @@ export class AdminAuthService extends AuthService<
     }
 
     const { isValid } = await this.verifyLocalPassword(user.id, password);
-
     if (!isValid) {
       throw new BadRequestException({ message: 'Invalid credentials' });
     }
 
     if (!user.verifiedAt) {
       throw new ForbiddenException({
-        message: 'Vui lòng xác thực email trước khi đăng nhập',
+        message: 'Please verify your email before logging in',
         code: 'UNVERIFIED_EMAIL',
       });
     }
 
-    if (user.deletedAt) {
-      const msIn30Days = 30 * 24 * 60 * 60 * 1000;
-      if (Date.now() - user.deletedAt.getTime() > msIn30Days) {
-        throw new BadRequestException({ message: 'Invalid credentials' });
-      }
+    return user;
+  }
 
-      const payload = { id: user.id } as any;
-      const restoreToken = await this.jwtService.signAsync(payload, {
+  /**
+   * Business Rule: Handles soft-deleted accounts.
+   * Soft-deleted accounts have a 30-day grace period where they can be restored.
+   * After 30 days, credentials are permanently rejected.
+   */
+  private async handleDeletedAccount(
+    user: AdminUserEntity,
+  ): Promise<AdminUserLoginResDto> {
+    if (!user.deletedAt) {
+      throw new BadRequestException({ message: 'Account is not deleted' });
+    }
+
+    const isExpired =
+      Date.now() - user.deletedAt.getTime() > ACCOUNT_RESTORE_GRACE_PERIOD_MS;
+    if (isExpired) {
+      throw new BadRequestException({ message: 'Invalid credentials' });
+    }
+
+    const restoreToken = await this.jwtService.signAsync(
+      { id: user.id },
+      {
         secret: this.configService.getOrThrow('auth.secret', { infer: true }),
         expiresIn: '5m',
+      },
+    );
+
+    return plainToInstance(AdminUserLoginResDto, {
+      userId: user.id,
+      restoreAccountRequired: true,
+      restoreToken,
+    });
+  }
+
+  /**
+   * Handles login when Two-Factor Authentication (2FA) is enabled for the account.
+   * Returns a temporary twoFactorToken for the client to proceed with 2FA verification.
+   */
+  private async handleTwoFactorLogin(
+    user: AdminUserEntity,
+  ): Promise<AdminUserLoginResDto> {
+    const twoFactorToken =
+      await this.adminTwoFactorService.createTwoFactorLoginToken({
+        id: user.id,
+        purpose: 'admin-2fa-login',
       });
 
-      return plainToInstance(AdminUserLoginResDto, {
-        userId: user.id,
-        restoreAccountRequired: true,
-        restoreToken,
-      });
-    }
+    return plainToInstance(AdminUserLoginResDto, {
+      userId: user.id,
+      twoFactorRequired: true,
+      twoFactorToken,
+      twoFactorMethods: ['totp', 'backup_code'],
+    });
+  }
 
-    if (user.twoFactorEnabled) {
-      const twoFactorToken =
-        await this.adminTwoFactorService.createTwoFactorLoginToken({
-          id: user.id,
-          purpose: 'admin-2fa-login',
-        });
-
-      return plainToInstance(AdminUserLoginResDto, {
-        userId: user.id,
-        twoFactorRequired: true,
-        twoFactorToken,
-        twoFactorMethods: ['totp', 'backup_code'],
-      });
-    }
-
+  /**
+   * Standard login flow when 2FA is not enabled and the account is active.
+   * Creates a new user session and generates access & refresh tokens.
+   */
+  private async handleStandardLogin(
+    user: AdminUserEntity,
+    requestInfo?: SessionRequestInfo,
+  ): Promise<AdminUserLoginResDto> {
     const { tokens } = await this.createLoginSessionAndTokens(
       user.id,
       requestInfo,
@@ -226,6 +266,28 @@ export class AdminAuthService extends AuthService<
       userId: user.id,
       ...tokens,
     });
+  }
+
+  /**
+   * Admin login entrypoint.
+   * Validates credentials and routes to deleted account restoration,
+   * 2FA challenge, or standard session creation.
+   */
+  async login(
+    dto: AdminUserLoginReqDto,
+    requestInfo?: SessionRequestInfo,
+  ): Promise<AdminUserLoginResDto> {
+    const user = await this.validateCredentials(dto.email, dto.password);
+
+    if (user.deletedAt) {
+      return this.handleDeletedAccount(user);
+    }
+
+    if (user.twoFactorEnabled) {
+      return this.handleTwoFactorLogin(user);
+    }
+
+    return this.handleStandardLogin(user, requestInfo);
   }
 
   async register(dto: AdminUserRegisterReqDto): Promise<RegisterResDto> {
@@ -308,11 +370,29 @@ export class AdminAuthService extends AuthService<
       avatarPath = this.filesystemService.disk('public').url(filename);
     }
 
-    Object.assign(user, {
-      ...dto,
-      updatedBy: id,
-      ...(avatarPath && { avatar: avatarPath }),
-    });
+    if (dto.firstName !== undefined) {
+      user.firstName = dto.firstName;
+    }
+    if (dto.lastName !== undefined) {
+      user.lastName = dto.lastName;
+    }
+    if (dto.phone !== undefined) {
+      user.phone = dto.phone;
+    }
+    if (dto.bio !== undefined) {
+      user.bio = dto.bio;
+    }
+    if (dto.birthday !== undefined) {
+      user.birthday = dto.birthday;
+    }
+    if (dto.removeAvatar) {
+      user.avatar = undefined;
+    } else if (avatarPath) {
+      user.avatar = avatarPath;
+    }
+    if (dto.notifications !== undefined) {
+      user.notifications = dto.notifications;
+    }
 
     await this.adminUserRepository.save(user);
 
@@ -338,7 +418,7 @@ export class AdminAuthService extends AuthService<
 
     await this.saveLocalAccountPassword(user, dto.newPassword);
 
-    await this.notifyAdmin(
+    await this.notificationService.notifyAdmin(
       user.id,
       AdminNotificationType.PasswordChanged,
       'Password changed',
@@ -349,26 +429,6 @@ export class AdminAuthService extends AuthService<
       message: 'Change password successfully',
       user: user.toDto(AdminUserResDto),
     });
-  }
-
-  async notifyAdmin(
-    adminId: AutoIncrementID | string,
-    type: AdminNotificationType,
-    title: string,
-    message: string,
-    data?: Record<string, unknown>,
-  ): Promise<void> {
-    try {
-      await this.notificationService.createForAdmin({
-        adminId,
-        type,
-        title,
-        message,
-        data,
-      });
-    } catch (error) {
-      this.logger.warn(`Failed to create admin notification: ${error}`);
-    }
   }
 
   async assertPassword(user: AdminUserEntity, password: string): Promise<void> {
@@ -391,13 +451,15 @@ export class AdminAuthService extends AuthService<
     );
 
     const deletionDate = new Date();
-    deletionDate.setDate(deletionDate.getDate() + 30);
+    deletionDate.setDate(
+      deletionDate.getDate() + ACCOUNT_RESTORE_GRACE_PERIOD_DAYS,
+    );
 
     await this.emailQueue.add(JobName.ADMIN_ACCOUNT_DELETION_REQUESTED, {
       email: user.email,
       adminName: user.fullName || user.firstName,
       deletionDate: deletionDate.toISOString(),
-    } as any);
+    } as IAdminAccountDeletionRequestedEmailJob);
   }
 
   async restoreAccount(

@@ -13,3 +13,17 @@ export class UploadDto {
   @Matches(FILE_FOLDER_NAME_PATTERN, { message: FILE_FOLDER_NAME_MESSAGE })
   folder?: string;
 }
+
+export class UploadSingleImageDto extends UploadDto {
+  @IsOptional()
+  @IsString()
+  sizes?: string;
+
+  @IsOptional()
+  @IsString()
+  generateThumbnail?: string;
+
+  @IsOptional()
+  @IsString()
+  thumbnailWidth?: string;
+}

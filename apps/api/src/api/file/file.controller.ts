@@ -48,6 +48,7 @@ import {
 } from './dto/folder.dto';
 import { SortableImageListResDto } from './dto/sortable-image.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
+import { UploadSingleImageDto } from './dto/upload.dto';
 import { FileChunkUploadService } from './file-chunk-upload.service';
 import { FileFolderService } from './file-folder.service';
 import { FileService } from './file.service';
@@ -383,13 +384,25 @@ export class FileController {
   @CheckPolicies((ability: AppAbility) =>
     ability.can(AppActions.Create, AppSubjects.File),
   )
-  uploadSingle(@UploadedFile() file: Express.Multer.File, @Body() body: any) {
+  uploadSingle(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: UploadSingleImageDto,
+  ) {
+    let parsedSizes: any = undefined;
+    if (body.sizes) {
+      try {
+        parsedSizes = JSON.parse(body.sizes);
+      } catch {
+        // Fallback to undefined if invalid JSON
+      }
+    }
+
     return this.fileService.uploadImage(file, {
       folder: body.folder,
-      sizes: JSON.parse(body.sizes),
-      generateThumbnail: body.generateThumbnail === 'true' ? true : false,
+      sizes: parsedSizes,
+      generateThumbnail: body.generateThumbnail === 'true',
       thumbnailWidth: body.thumbnailWidth
-        ? parseInt(body.thumbnailWidth)
+        ? parseInt(body.thumbnailWidth, 10)
         : undefined,
     });
   }

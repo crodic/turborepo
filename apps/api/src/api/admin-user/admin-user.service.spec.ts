@@ -1,15 +1,14 @@
 import { CacheKey } from '@/constants/cache.constant';
 import { ErrorCode } from '@/constants/error-code.constant';
-import { JobName, QueueName } from '@/constants/job.constant';
-import { createCacheKey } from '@/utils/cache.util';
+import { QueueName } from '@/constants/job.constant';
 import { getQueueToken } from '@nestjs/bullmq';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ClsService } from 'nestjs-cls';
 import { Repository } from 'typeorm';
+import { AdminAccountRecoveryService } from '../auth/services/admin-account-recovery.service';
 import { RoleEntity } from '../role/entities/role.entity';
 import { SettingsService } from '../settings/settings.service';
 import { AdminUserService } from './admin-user.service';
@@ -27,7 +26,7 @@ describe('AdminUserService', () => {
   >;
   let roleRepoMock: Partial<Record<keyof Repository<RoleEntity>, jest.Mock>>;
   let cacheMock: { get: jest.Mock; set: jest.Mock; del: jest.Mock };
-  let jwtServiceMock: { signAsync: jest.Mock };
+  let adminAccountRecoveryServiceMock: { sendVerificationEmail: jest.Mock };
   let configServiceMock: { getOrThrow: jest.Mock };
   let emailQueueMock: { add: jest.Mock };
 
@@ -60,8 +59,8 @@ describe('AdminUserService', () => {
       set: jest.fn(),
       del: jest.fn(),
     };
-    jwtServiceMock = {
-      signAsync: jest.fn(),
+    adminAccountRecoveryServiceMock = {
+      sendVerificationEmail: jest.fn(),
     };
     configServiceMock = {
       getOrThrow: jest.fn(),
@@ -108,8 +107,8 @@ describe('AdminUserService', () => {
           useValue: configServiceMock,
         },
         {
-          provide: JwtService,
-          useValue: jwtServiceMock,
+          provide: AdminAccountRecoveryService,
+          useValue: adminAccountRecoveryServiceMock,
         },
         {
           provide: getQueueToken(QueueName.EMAIL),
@@ -123,13 +122,6 @@ describe('AdminUserService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jwtServiceMock.signAsync.mockResolvedValue('verify-token');
-    configServiceMock.getOrThrow.mockImplementation((key: string) => {
-      if (key === 'auth.confirmEmailSecret') return 'confirm-secret';
-      if (key === 'auth.confirmEmailExpires') return '1d';
-
-      return undefined;
-    });
   });
 
   it('should be defined', () => {
@@ -188,26 +180,9 @@ describe('AdminUserService', () => {
       expect(adminRepoMock.save).toHaveBeenCalledWith(
         expect.objectContaining({ email: dto.email, roles: [role] }),
       );
-      expect(jwtServiceMock.signAsync).toHaveBeenCalledWith(
-        { id: savedAdmin.id },
-        {
-          secret: 'confirm-secret',
-          expiresIn: '1d',
-        },
-      );
-      expect(cacheMock.set).toHaveBeenCalledWith(
-        createCacheKey(CacheKey.EMAIL_VERIFICATION, savedAdmin.id),
-        'verify-token',
-        expect.any(Number),
-      );
-      expect(emailQueueMock.add).toHaveBeenCalledWith(
-        JobName.ADMIN_EMAIL_VERIFICATION,
-        {
-          email: dto.email,
-          token: 'verify-token',
-        },
-        { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
-      );
+      expect(
+        adminAccountRecoveryServiceMock.sendVerificationEmail,
+      ).toHaveBeenCalledWith(savedAdmin);
       expect(result).toEqual(expect.objectContaining({ email: dto.email }));
     });
 

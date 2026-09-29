@@ -146,6 +146,15 @@ export class CmsPageService {
     return this.findOne(saved.id);
   }
 
+  /**
+   * Updates a CMS page's status and localized translations.
+   *
+   * Business Rules:
+   * 1. Changing status to PUBLISHED stamps publishedAt if not already published.
+   * 2. Changing status to DRAFT resets publishedAt to null (unpublishes page).
+   * 3. Translations are deduplicated per locale, slug is normalized, and slugs are verified for uniqueness.
+   * 4. Uses an ACID database transaction to atomically replace translations and update page metadata.
+   */
   async update(
     id: AutoIncrementID,
     dto: UpdateCmsPageReqDto,
@@ -161,16 +170,12 @@ export class CmsPageService {
     }
 
     const nextStatus = dto.status ?? page.status;
-    const shouldSetPublishedAt =
-      nextStatus === ECmsPageStatus.PUBLISHED && !page.publishedAt;
+    page.status = nextStatus;
+    page.updatedBy = adminId;
 
-    Object.assign(page, {
-      status: nextStatus,
-      updatedBy: adminId,
-      publishedAt: shouldSetPublishedAt ? new Date() : page.publishedAt,
-    });
-
-    if (nextStatus === ECmsPageStatus.DRAFT) {
+    if (nextStatus === ECmsPageStatus.PUBLISHED && !page.publishedAt) {
+      page.publishedAt = new Date();
+    } else if (nextStatus === ECmsPageStatus.DRAFT) {
       page.publishedAt = null;
     }
 

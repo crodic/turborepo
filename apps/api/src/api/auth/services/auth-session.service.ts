@@ -1,13 +1,16 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
+import { LOGIN_ACTIVITY_DAYS } from '@/constants/app.constant';
 import { CacheKey } from '@/constants/cache.constant';
 import { ESessionUserType } from '@/constants/entity.enum';
 import { createCacheKey } from '@/utils/cache.util';
+import { normalizeUserAgent } from '@/utils/normalize.util';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -24,6 +27,8 @@ import { SessionRequestInfo } from '../types/session-request-info.type';
 
 @Injectable()
 export class AuthSessionService {
+  private readonly logger = new Logger(AuthSessionService.name);
+
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
     @InjectRepository(SessionEntity)
@@ -146,7 +151,7 @@ export class AuthSessionService {
     if (!result.affected) {
       throw new NotFoundException('Session not found');
     }
-    return { message: 'Xóa phiên đăng nhập thành công' };
+    return { message: 'Session revoked successfully' };
   }
 
   async revokeAllSessions(
@@ -172,44 +177,84 @@ export class AuthSessionService {
       ),
     );
 
-    return { message: 'Xóa tất cả phiên đăng nhập thành công' };
+    return { message: 'All other sessions revoked successfully' };
   }
 
+  /**
+   * Builds a map of YYYY-MM-DD date strings initialized to 0 for the past N days.
+   */
+  private buildDateRangeMap(days: number): {
+    startDate: Date;
+    datesMap: Map<string, number>;
+  } {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - days);
+
+    const datesMap = new Map<string, number>();
+    for (let i = 0; i <= days; i++) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      datesMap.set(dateStr, 0);
+    }
+
+    return { startDate, datesMap };
+  }
+
+  /**
+   * Queries aggregated daily session counts for a given user from the database.
+   */
+  private async querySessionCounts(
+    userId: AutoIncrementID | string,
+    userType: ESessionUserType,
+    startDate: Date,
+  ): Promise<Array<{ date: string; count: string }>> {
+    return this.sessionRepository
+      .createQueryBuilder('session')
+      .select(
+        "TO_CHAR(session.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')",
+        'date',
+      )
+      .addSelect('COUNT(session.id)', 'count')
+      .where('session.userId = :userId', { userId })
+      .andWhere('session.userType = :userType', { userType })
+      .andWhere('session.createdAt >= :startDate', { startDate })
+      .groupBy("TO_CHAR(session.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')")
+      .getRawMany();
+  }
+
+  /**
+   * Computes an activity heatmap level (0-4) based on session count.
+   */
+  private calculateActivityLevel(count: number): number {
+    if (count <= 0) return 0;
+    if (count === 1) return 1;
+    if (count <= 3) return 2;
+    if (count <= 5) return 3;
+    return 4;
+  }
+
+  /**
+   * Computes login activity heatmap data for the past 180 days.
+   */
   async getLoginActivity(
     userToken: JwtPayloadType,
     userType: ESessionUserType,
   ): Promise<LoginActivityResDto> {
     try {
-      const days = 180;
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(endDate.getDate() - days);
-
-      const datesMap = new Map<string, number>();
-      for (let i = 0; i <= days; i++) {
-        const d = new Date(startDate);
-        d.setDate(d.getDate() + i);
-        const dateStr = d.toISOString().split('T')[0];
-        datesMap.set(dateStr, 0);
-      }
-
-      const sessions = await this.sessionRepository
-        .createQueryBuilder('session')
-        .select(
-          "TO_CHAR(session.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')",
-          'date',
-        )
-        .addSelect('COUNT(session.id)', 'count')
-        .where('session.userId = :userId', { userId: userToken.id })
-        .andWhere('session.userType = :userType', { userType })
-        .andWhere('session.createdAt >= :startDate', { startDate })
-        .groupBy("TO_CHAR(session.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')")
-        .getRawMany();
+      const { startDate, datesMap } =
+        this.buildDateRangeMap(LOGIN_ACTIVITY_DAYS);
+      const rawSessions = await this.querySessionCounts(
+        userToken.id,
+        userType,
+        startDate,
+      );
 
       let totalSessions = 0;
       let activeDays = 0;
 
-      for (const session of sessions) {
+      for (const session of rawSessions) {
         if (datesMap.has(session.date)) {
           const count = parseInt(session.count, 10);
           datesMap.set(session.date, count);
@@ -218,27 +263,22 @@ export class AuthSessionService {
         }
       }
 
-      const data = Array.from(datesMap.entries()).map(([date, count]) => {
-        let level = 0;
-        if (count === 1) level = 1;
-        else if (count >= 2 && count <= 3) level = 2;
-        else if (count >= 4 && count <= 5) level = 3;
-        else if (count >= 6) level = 4;
-        return { date, count, level };
-      });
+      const data = Array.from(datesMap.entries()).map(([date, count]) => ({
+        date,
+        count,
+        level: this.calculateActivityLevel(count),
+      }));
 
       return plainToInstance(LoginActivityResDto, {
         totalSessions,
         activeDays,
         data,
       });
-    } catch (e: any) {
-      console.error(e);
-      throw new BadRequestException(e.message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to get login activity: ${message}`, stack);
+      throw new BadRequestException('Failed to retrieve login activity');
     }
   }
-}
-
-function normalizeUserAgent(userAgent?: string | string[]): string | undefined {
-  return Array.isArray(userAgent) ? userAgent.join(', ') : userAgent;
 }

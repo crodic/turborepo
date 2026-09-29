@@ -1,22 +1,20 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
+import { ACCOUNT_RESTORE_GRACE_PERIOD_MS } from '@/constants/app.constant';
 import { CacheKey } from '@/constants/cache.constant';
 import { EAccountProvider } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { JobName, QueueName } from '@/constants/job.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
-import { createCacheKey } from '@/utils/cache.util';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import assert from 'assert';
 import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
-import ms, { StringValue } from 'ms';
 import { ClsService } from 'nestjs-cls';
 import {
   FilterOperator,
@@ -25,6 +23,7 @@ import {
   PaginateQuery,
 } from 'nestjs-paginate';
 import { EntityManager, In, LessThan, Repository } from 'typeorm';
+import { AdminAccountRecoveryService } from '../auth/services/admin-account-recovery.service';
 import { RoleEntity } from '../role/entities/role.entity';
 import { SettingsService } from '../settings/settings.service';
 import { AdminUserResDto } from './dto/admin-user.res.dto';
@@ -49,7 +48,7 @@ export class AdminUserService {
     private readonly cacheManager: Cache,
     private readonly settingsService: SettingsService,
     private readonly configService: ConfigService<AllConfigType>,
-    private readonly jwtService: JwtService,
+    private readonly adminAccountRecoveryService: AdminAccountRecoveryService,
     @InjectQueue(QueueName.EMAIL)
     private readonly emailQueue: Queue<any, any, string>,
   ) {}
@@ -156,45 +155,9 @@ export class AdminUserService {
       );
     }
 
-    await this.sendVerificationEmail(savedUser);
+    await this.adminAccountRecoveryService.sendVerificationEmail(savedUser);
 
     return plainToInstance(AdminUserResDto, savedUser);
-  }
-
-  private async sendVerificationEmail(user: AdminUserEntity): Promise<void> {
-    const token = await this.jwtService.signAsync(
-      {
-        id: user.id,
-      },
-      {
-        secret: this.configService.getOrThrow('auth.confirmEmailSecret', {
-          infer: true,
-        }),
-        expiresIn: this.configService.getOrThrow('auth.confirmEmailExpires', {
-          infer: true,
-        }),
-      },
-    );
-    const tokenExpiresIn = this.configService.getOrThrow(
-      'auth.confirmEmailExpires',
-      {
-        infer: true,
-      },
-    );
-
-    await this.cacheManager.set(
-      createCacheKey(CacheKey.EMAIL_VERIFICATION, user.id),
-      token,
-      ms(tokenExpiresIn as StringValue),
-    );
-    await this.emailQueue.add(
-      JobName.ADMIN_EMAIL_VERIFICATION,
-      {
-        email: user.email,
-        token,
-      },
-      { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
-    );
   }
 
   async findAllUser(query: PaginateQuery): Promise<Paginated<AdminUserResDto>> {
@@ -231,16 +194,34 @@ export class AdminUserService {
     return user.toDto(AdminUserResDto);
   }
 
+  /**
+   * Updates an admin user's profile and assigned roles.
+   * Modifies only specified fields explicitly without mutating unwanted properties.
+   */
   async update(id: AutoIncrementID, updateUserDto: UpdateAdminUserReqDto) {
     const user = await this.adminUserRepository.findOneOrFail({
       where: { id },
       relations: ['roles'],
     });
 
-    Object.assign(user, updateUserDto);
-
-    delete user.password;
-    delete (user as AdminUserEntity & { roleIds?: AutoIncrementID[] }).roleIds;
+    if (updateUserDto.firstName !== undefined) {
+      user.firstName = updateUserDto.firstName;
+    }
+    if (updateUserDto.lastName !== undefined) {
+      user.lastName = updateUserDto.lastName;
+    }
+    if (updateUserDto.email !== undefined) {
+      user.email = updateUserDto.email;
+    }
+    if (updateUserDto.phone !== undefined) {
+      user.phone = updateUserDto.phone;
+    }
+    if (updateUserDto.bio !== undefined) {
+      user.bio = updateUserDto.bio;
+    }
+    if (updateUserDto.birthday !== undefined) {
+      user.birthday = updateUserDto.birthday;
+    }
 
     if (updateUserDto.roleIds) {
       const roles = await this.roleRepository.findBy({
@@ -254,6 +235,9 @@ export class AdminUserService {
       user.roles = roles;
     }
 
+    // Ensure password is not inadvertently modified or re-hashed during profile update
+    delete user.password;
+
     await this.adminUserRepository.save(user);
   }
 
@@ -262,10 +246,17 @@ export class AdminUserService {
     await this.adminUserRepository.softRemove(admin);
   }
 
+  /**
+   * Business Rule: Daily scheduled purge of soft-deleted admin accounts.
+   * Accounts soft-deleted more than 30 days ago (ACCOUNT_RESTORE_GRACE_PERIOD_MS)
+   * are permanently hard-deleted. Sends notification emails to the deleted users
+   * and dispatches a summary report to active system administrators.
+   */
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async hardDeleteOldAccounts() {
-    const msIn30Days = 30 * 24 * 60 * 60 * 1000;
-    const thresholdDate = new Date(Date.now() - msIn30Days);
+    const thresholdDate = new Date(
+      Date.now() - ACCOUNT_RESTORE_GRACE_PERIOD_MS,
+    );
 
     const usersToDelete = await this.adminUserRepository.find({
       where: {
@@ -278,36 +269,33 @@ export class AdminUserService {
       return;
     }
 
-    // Hard delete
+    // Hard delete records from the database
     const idsToDelete = usersToDelete.map((u) => u.id);
     await this.adminUserRepository.delete({
       id: In(idsToDelete),
     });
 
-    // Send email to deleted users
+    // Notify each permanently deleted account owner
     for (const user of usersToDelete) {
-      await this.emailQueue.add(JobName.ADMIN_ACCOUNT_HARD_DELETED as any, {
+      await this.emailQueue.add(JobName.ADMIN_ACCOUNT_HARD_DELETED, {
         email: user.email,
         adminName: user.fullName || user.firstName,
         deletedAt: user.deletedAt.toISOString(),
       });
     }
 
-    // Send summary report to system admins
+    // Send summary report to active admins with email notifications enabled
     const allAdmins = await this.adminUserRepository.find();
     const adminsToNotify = allAdmins.filter(
       (admin) => admin.notifications?.email !== false,
     );
 
     for (const admin of adminsToNotify) {
-      await this.emailQueue.add(
-        JobName.ADMIN_ACCOUNT_HARD_DELETED_REPORT as any,
-        {
-          email: admin.email,
-          adminName: admin.fullName || admin.firstName,
-          deletedCount: usersToDelete.length,
-        },
-      );
+      await this.emailQueue.add(JobName.ADMIN_ACCOUNT_HARD_DELETED_REPORT, {
+        email: admin.email,
+        adminName: admin.fullName || admin.firstName,
+        deletedCount: usersToDelete.length,
+      });
     }
   }
 }

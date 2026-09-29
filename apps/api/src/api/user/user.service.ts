@@ -1,22 +1,11 @@
-import { IVerifyEmailJob } from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';
-import { AllConfigType } from '@/config/config.type';
-import { CacheKey } from '@/constants/cache.constant';
 import { EAccountProvider } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
-import { JobName, QueueName } from '@/constants/job.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
-import { createCacheKey } from '@/utils/cache.util';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import assert from 'assert';
-import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
-import ms, { StringValue } from 'ms';
 import { ClsService } from 'nestjs-cls';
 import {
   FilterOperator,
@@ -25,6 +14,7 @@ import {
   PaginateQuery,
 } from 'nestjs-paginate';
 import { Repository } from 'typeorm';
+import { UserAccountRecoveryService } from '../auth/services/user-account-recovery.service';
 import { CreateUserReqDto } from './dto/create-user.req.dto';
 import { UpdateUserReqDto } from './dto/update-user.req.dto';
 import { UserResDto } from './dto/user.res.dto';
@@ -41,12 +31,7 @@ export class UserService {
     @InjectRepository(UserAccountEntity)
     private readonly userAccountRepository: Repository<UserAccountEntity>,
     private cls: ClsService,
-    private readonly configService: ConfigService<AllConfigType>,
-    private readonly jwtService: JwtService,
-    @Inject(CACHE_MANAGER)
-    private readonly cacheManager: Cache,
-    @InjectQueue(QueueName.EMAIL)
-    private readonly emailQueue: Queue<IVerifyEmailJob, any, string>,
+    private readonly userAccountRecoveryService: UserAccountRecoveryService,
   ) {}
 
   async findAllUser(query: PaginateQuery): Promise<Paginated<UserResDto>> {
@@ -111,48 +96,9 @@ export class UserService {
       );
     }
 
-    await this.sendVerificationEmail(savedUser);
+    await this.userAccountRecoveryService.sendVerificationEmail(savedUser);
 
     return plainToInstance(UserResDto, savedUser);
-  }
-
-  private async sendVerificationEmail(user: UserEntity): Promise<void> {
-    const token = await this.jwtService.signAsync(
-      {
-        id: user.id,
-      },
-      {
-        secret: this.configService.getOrThrow('auth.userConfirmEmailSecret', {
-          infer: true,
-        }),
-        expiresIn: this.configService.getOrThrow(
-          'auth.userConfirmEmailExpires',
-          {
-            infer: true,
-          },
-        ),
-      },
-    );
-    const tokenExpiresIn = this.configService.getOrThrow(
-      'auth.userConfirmEmailExpires',
-      {
-        infer: true,
-      },
-    );
-
-    await this.cacheManager.set(
-      createCacheKey(CacheKey.EMAIL_VERIFICATION, user.id),
-      token,
-      ms(tokenExpiresIn as StringValue),
-    );
-    await this.emailQueue.add(
-      JobName.USER_EMAIL_VERIFICATION,
-      {
-        email: user.email,
-        token,
-      },
-      { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
-    );
   }
 
   async findOne(id: AutoIncrementID): Promise<UserResDto> {

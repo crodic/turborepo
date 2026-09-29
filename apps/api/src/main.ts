@@ -52,13 +52,15 @@ async function bootstrap() {
     }),
   );
 
+  const logger = app.get(Logger);
+
   app.enableCors({
     origin: corsOrigin,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders: 'Content-Type, Accept, Authorization',
     credentials: true,
   });
-  console.info('CORS Origin:', corsOrigin);
+  logger.log(`CORS Origin: ${corsOrigin}`);
 
   const secureHeaderOrigin = configService.getOrThrow(
     'app.secureHeaderOrigin',
@@ -83,9 +85,9 @@ async function bootstrap() {
     }),
   );
 
-  console.log('Secure header for: ', [
-    ...secureHeaderOrigin.split(',').map((s) => s.trim()),
-  ]);
+  logger.log(
+    `Secure header origins: ${[...secureHeaderOrigin.split(',').map((s) => s.trim())].join(', ')}`,
+  );
 
   // Use global prefix if you don't have subdomain
   app.setGlobalPrefix(
@@ -147,7 +149,7 @@ async function bootstrap() {
 
   await app.listen(configService.getOrThrow('app.port', { infer: true }));
 
-  console.info(`Server running on ${await app.getUrl()}`);
+  logger.log(`Server running on ${await app.getUrl()}`);
 
   return app;
 }

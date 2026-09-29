@@ -6,7 +6,13 @@ import { createCacheKey } from '@/utils/cache.util';
 import { verifyPassword } from '@/utils/password.util';
 import { Cache } from '@nestjs/cache-manager';
 import { UnauthorizedException } from '@nestjs/common';
-import { IsNull, Repository } from 'typeorm';
+import {
+  FindOptionsSelect,
+  FindOptionsWhere,
+  IsNull,
+  ObjectLiteral,
+  Repository,
+} from 'typeorm';
 import { RefreshReqDto } from '../dto/refresh.req.dto';
 import { RefreshResDto } from '../dto/refresh.res.dto';
 import { IAuthAccount, IAuthUser } from '../interfaces/auth-entity.interface';
@@ -25,8 +31,8 @@ export interface AuthConfig {
 }
 
 export abstract class AuthService<
-  TUser extends IAuthUser,
-  TAccount extends IAuthAccount,
+  TUser extends ObjectLiteral & IAuthUser,
+  TAccount extends ObjectLiteral & IAuthAccount,
 > {
   constructor(
     protected readonly userRepository: Repository<TUser>,
@@ -73,6 +79,18 @@ export abstract class AuthService<
     return { session, tokens };
   }
 
+  /**
+   * Refreshes access and refresh tokens using Refresh Token Rotation.
+   *
+   * Business & Security Rules:
+   * 1. Decodes and verifies the refresh token signature.
+   * 2. Checks that the session exists in the database, is not revoked, and has a matching hash.
+   * 3. Checks session expiration; revokes expired sessions automatically.
+   * 4. Session Rotation: Replaces the current session hash with a newly generated random hash.
+   *    If an old refresh token is reused after rotation, the hash mismatch will reject it,
+   *    effectively preventing replay and token theft attacks.
+   * 5. Returns a brand new token pair (access token + rotated refresh token).
+   */
   async refreshToken(dto: RefreshReqDto): Promise<RefreshResDto> {
     const config = this.getAuthConfig();
     const { sessionId, hash } = this.authTokenService.verifyRefreshToken(
@@ -98,8 +116,10 @@ export abstract class AuthService<
     }
 
     const user = await this.userRepository.findOneOrFail({
-      where: { id: session.userId } as any,
-      select: ['id'] as any,
+      where: {
+        id: session.userId as AutoIncrementID,
+      } as FindOptionsWhere<TUser>,
+      select: { id: true } as FindOptionsSelect<TUser>,
     });
 
     const newHash = this.authTokenService.generateSessionHash();
@@ -124,6 +144,14 @@ export abstract class AuthService<
     );
   }
 
+  /**
+   * Verifies access token and validates the active status of the backing session.
+   *
+   * Security Flow:
+   * 1. Verifies JWT signature and structure.
+   * 2. Quick Check: Checks Redis cache for blacklisted session IDs (instant logout propagation).
+   * 3. Database Check: Verifies session exists, hash matches, and session is neither revoked nor expired.
+   */
   async verifyAccessToken(token: string): Promise<JwtPayloadType> {
     const config = this.getAuthConfig();
     const payload = this.authTokenService.verifyAccessToken(

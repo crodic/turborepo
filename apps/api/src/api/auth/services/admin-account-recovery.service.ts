@@ -5,7 +5,6 @@ import {
   NotificationService,
 } from '@/api/notification/notification.service';
 import { IEmailJob } from '@/common/interfaces/job.interface';
-import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
 import { EAccountProvider } from '@/constants/entity.enum';
 import { JobName, QueueName } from '@/constants/job.constant';
@@ -87,31 +86,11 @@ export class AdminAccountRecoveryService extends AccountRecoveryService<AdminUse
   protected override async onPasswordResetSuccess(
     user: AdminUserEntity,
   ): Promise<void> {
-    await this.notifyAdmin(
+    await this.notificationService.notifyAdmin(
       user.id,
       AdminNotificationType.PasswordReset,
       'Password reset completed',
       'Your admin account password was reset successfully.',
     );
-  }
-
-  private async notifyAdmin(
-    adminId: AutoIncrementID | string,
-    type: AdminNotificationType,
-    title: string,
-    message: string,
-    data?: Record<string, unknown>,
-  ): Promise<void> {
-    try {
-      await this.notificationService.createForAdmin({
-        adminId,
-        type,
-        title,
-        message,
-        data,
-      });
-    } catch {
-      // Notification failure shouldn't fail the operation
-    }
   }
 }
