@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { PresenceService } from '../presence/presence.service';
 import { NotificationEntity } from './entities/notification.entity';
 import { NotificationRealtimeService } from './notification-realtime.service';
 import {
@@ -22,6 +23,9 @@ describe('NotificationService', () => {
   let realtimeServiceMock: {
     emitNewNotification: jest.Mock;
     emitUnreadCount: jest.Mock;
+  };
+  let presenceServiceMock: {
+    getOnlineAdminIds: jest.Mock;
   };
 
   const baseParams = {
@@ -43,6 +47,9 @@ describe('NotificationService', () => {
       emitNewNotification: jest.fn(),
       emitUnreadCount: jest.fn(),
     };
+    presenceServiceMock = {
+      getOnlineAdminIds: jest.fn().mockResolvedValue([1]),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -62,6 +69,10 @@ describe('NotificationService', () => {
         {
           provide: ConfigService,
           useValue: { get: jest.fn() },
+        },
+        {
+          provide: PresenceService,
+          useValue: presenceServiceMock,
         },
       ],
     }).compile();

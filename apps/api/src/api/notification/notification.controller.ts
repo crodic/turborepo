@@ -14,19 +14,34 @@ import {
   Patch,
   Post,
   Query,
+  Sse,
   UseGuards,
+  type MessageEvent,
 } from '@nestjs/common';
-import { ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Observable } from 'rxjs';
 import { NotificationResDto } from './dto/notification.res.dto';
 import { SendNotificationReqDto } from './dto/send-notification.req.dto';
 import { NotificationUnreadCountResDto } from './dto/unread-count.res.dto';
+import { NotificationSseService } from './notification-sse.service';
 import { NotificationService } from './notification.service';
 
 @ApiTags('Notifications')
 @Controller({ path: 'notifications', version: '1' })
 @UseGuards(AdminAuthGuard)
 export class NotificationController {
-  constructor(private readonly notificationService: NotificationService) {}
+  constructor(
+    private readonly notificationService: NotificationService,
+    private readonly sseService: NotificationSseService,
+  ) {}
+
+  @Sse('stream')
+  @ApiOperation({ summary: 'Subscribe to SSE realtime notification stream' })
+  stream(
+    @CurrentUser('id') adminId: AutoIncrementID,
+  ): Observable<MessageEvent> {
+    return this.sseService.subscribe(String(adminId));
+  }
 
   @Get()
   @ApiAuth({
@@ -49,7 +64,7 @@ export class NotificationController {
     ability.can(AppActions.Manage, AppSubjects.All),
   )
   @ApiResponse({ type: Number, isArray: true })
-  getOnlineAdmins(): number[] {
+  async getOnlineAdmins(): Promise<number[]> {
     return this.notificationService.getOnlineAdminIds();
   }
 

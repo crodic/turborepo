@@ -1,156 +1,136 @@
-# WebSocket Architecture & Boilerplate Guide
+# WebSocket Architecture & Developer Guide
 
-> **100% Production-Ready Realtime Infrastructure** for Monorepo applications with multi-pod clustering, Redis Sorted Set presence tracking, zero-exhaustion session validation, and decoupled TypeScript clients.
+> **Production-Hardened WebSocket Infrastructure** for high-frequency, bidirectional realtime features with multi-pod clustering, thin gateway routing, session revocation sweeps, rate limiting, and end-to-end TypeScript contracts.
 
 ---
 
-## 1. Overview & System Architecture
+## 1. Architecture Overview
 
-This monorepo utilizes a centralized, production-hardened WebSocket infrastructure based on **Socket.IO v4** and **Redis Pub/Sub**. The architecture strictly decouples realtime communication into two separate namespaces:
+This monorepo provides a production-grade WebSocket infrastructure built on **Socket.IO v4** and **Redis Pub/Sub** (`@socket.io/redis-adapter`). The architecture decouples realtime communication into two dedicated namespaces:
 
 1. **`/ws` (Authenticated Namespace)**:
-   - Dedicated to authorized users (`admin` and `user`).
-   - Validates JWT tokens and verifies active database sessions during handshakes.
-   - Enforces periodic O(1) Redis Blacklist sweeps to disconnect revoked sessions immediately.
-   - Automatically tracks online presence across nodes using Redis Hashes and Sorted Sets.
-   - Automatically joins users to private notification rooms (`admin:<id>`, `user:<id>`, `presence:admins`, `presence:users`).
+   - Dedicated to authenticated users (`admin` and `user`).
+   - Performs JWT validation and active session verification during the handshake.
+   - Enforces periodic O(1) session activity sweeps to disconnect revoked sessions without querying PostgreSQL.
+   - Automatically routes connections into private rooms (`admin:<id>`, `user:<id>`).
+   - Protected by rate limiting (`WsThrottleGuard`) and graceful server shutdown hooks.
 
 2. **`/public` (Unauthenticated Namespace)**:
-   - Designed for anonymous guests and open data streaming (e.g., live market tickers, public banner announcements, stream viewer counts).
+   - Designed for anonymous guests and open data streaming (e.g., market tickers, live metrics, public announcements).
    - Implements the **Topic Subscription Pattern** (`public:subscribe`, `public:unsubscribe`).
-   - Zero authentication overhead, enabling high throughput for public readers.
+   - Zero authentication overhead for high-throughput public consumption.
 
 ```mermaid
 flowchart TD
     subgraph Clients["Frontend Clients"]
-        AdminWeb["Admin Portal (apps/web)<br/>React + Vite<br/>WsClient (admin)"]
-        NextClient["Web Client (apps/client)<br/>Next.js App Router<br/>WsClient (user / guest)"]
+        AdminWeb["Admin Portal (apps/web)<br/>WsClient (/ws)"]
+        NextClient["Web Client (apps/client)<br/>WsClient (/ws or /public)"]
     end
 
     subgraph LB["Load Balancer / Ingress"]
-        Traefik["Nginx / Traefik / ALB<br/>Sticky Sessions (Cookie/IP)"]
+        Ingress["Nginx / ALB / Traefik<br/>Sticky Sessions Enabled"]
     end
 
     subgraph BackendCluster["NestJS API Cluster (apps/api)"]
-        Pod1["Pod 1<br/>/ws Gateway<br/>/public Gateway"]
-        Pod2["Pod 2<br/>/ws Gateway<br/>/public Gateway"]
-        PodN["Pod N<br/>/ws Gateway<br/>/public Gateway"]
+        Pod1["Pod 1<br/>WebsocketGateway (/ws)<br/>PublicWebsocketGateway (/public)"]
+        Pod2["Pod 2<br/>WebsocketGateway (/ws)<br/>PublicWebsocketGateway (/public)"]
     end
 
-    subgraph SharedInfra["Shared Infrastructure"]
-        RedisPubSub["Redis Pub/Sub<br/>(@socket.io/redis-adapter)"]
-        RedisPresence["Redis Sorted Set & Hash<br/>presence:heartbeats & online"]
-        Postgres["PostgreSQL DB<br/>(User & Session Persistence)"]
+    subgraph Infra["Shared Infrastructure"]
+        RedisAdapter["Redis Pub/Sub<br/>(@socket.io/redis-adapter)"]
+        Postgres["PostgreSQL DB<br/>(Handshake Session Lookup Only)"]
     end
 
-    AdminWeb -->|WebSocket /ws| LB
-    NextClient -->|WebSocket /ws or /public| LB
-    LB --> Pod1
-    LB --> Pod2
-    LB --> PodN
+    AdminWeb -->|WebSocket /ws| Ingress
+    NextClient -->|WebSocket /ws or /public| Ingress
+    Ingress --> Pod1
+    Ingress --> Pod2
 
-    Pod1 <-->|Sync Rooms & Broadcasts| RedisPubSub
-    Pod2 <-->|Sync Rooms & Broadcasts| RedisPubSub
-    PodN <-->|Sync Rooms & Broadcasts| RedisPubSub
+    Pod1 <-->|Sync Rooms & Broadcasts| RedisAdapter
+    Pod2 <-->|Sync Rooms & Broadcasts| RedisAdapter
 
-    Pod1 -->|Heartbeats & O(1) Blacklist| RedisPresence
-    Pod2 -->|Heartbeats & O(1) Blacklist| RedisPresence
-    PodN -->|Heartbeats & O(1) Blacklist| RedisPresence
-
-    Pod1 -.->|Handshake Auth Only| Postgres
-    Pod2 -.->|Handshake Auth Only| Postgres
-    PodN -.->|Handshake Auth Only| Postgres
+    Pod1 -.->|Initial Handshake Auth| Postgres
+    Pod2 -.->|Initial Handshake Auth| Postgres
 ```
 
 ---
 
-## 2. Production-Ready Features Checklist
+## 2. Core Architectural Pillars
 
-| Production Requirement            | Solution & Implementation                                                                                                                                                              |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Multi-Node Clustering**         | Uses `@socket.io/redis-adapter` over Redis Pub/Sub. Messages emitted on Pod A seamlessly broadcast to sockets connected to Pod B or Pod N.                                             |
-| **Cluster-Safe Presence**         | Heartbeats store `Date.now()` timestamps in a Redis Sorted Set (`presence:socket_heartbeats`). Any pod can run cleanup without pruning active sockets from other pods.                 |
-| **Zero DB Connection Exhaustion** | Database lookup is **only** performed during initial socket handshake. Periodic sweeps check Redis `SESSION_BLACKLIST` (O(1)), protecting PostgreSQL from connection pool exhaustion.  |
-| **Resilient Frontend Clients**    | Dedicated, framework-agnostic TypeScript `WsClient` classes in both frontends handle auto-reconnect backoff, silent token refresh on 401 Unauthorized, and page visibility throttling. |
-| **Graceful Degradation**          | If Redis is unavailable during local development, `RedisIoAdapter` logs a warning and falls back to default in-memory `IoAdapter` without crashing the application.                    |
-| **Safe Environment Defaults**     | Clients feature intelligent fallback resolution (stripping trailing slashes, defaulting to port 8000) so local developers can clone and run immediately without missing variables.     |
+### 2.1. Thin Gateway Pattern
+
+[`WebsocketGateway`](file:///home/crodic/personal/turborepo/apps/api/src/websocket/websocket.gateway.ts) is deliberately kept thin:
+
+- It does not maintain heavy custom state or run complex in-memory loops.
+- It delegates auth validation to [`WebsocketAuthService`](file:///home/crodic/personal/turborepo/apps/api/src/websocket/websocket-auth.service.ts).
+- It routes socket connections into user/admin rooms and handles socket lifecycle cleanly.
+
+### 2.2. Zero Database Exhaustion Session Validation
+
+- **Handshake Phase**: Queries PostgreSQL only once to verify user identity and session validity.
+- **Connected Phase**: Background sweep runs every 30 seconds. Instead of hitting PostgreSQL for every connected socket, it checks cached Redis session state in O(1) time. Any revoked session is disconnected immediately.
+
+### 2.3. Rate Limiting (`WsThrottleGuard`)
+
+WebSocket endpoints are protected by [`WsThrottleGuard`](file:///home/crodic/personal/turborepo/apps/api/src/websocket/guards/ws-throttle.guard.ts) using a sliding window (max 60 events per 10s per socket) to prevent message flooding and abuse.
+
+### 2.4. Graceful Shutdown (`OnApplicationShutdown`)
+
+On server restarts or container termination (`SIGTERM`), `WebsocketGateway` intercepts the shutdown signal, emits a `ws:shutdown` message to connected clients, and closes all sockets cleanly so clients can immediately reconnect to another healthy pod.
 
 ---
 
-## 3. Quickstart: Monorepo Boilerplate Setup
+## 3. Type Safety & Event Contracts
 
-### Step 1: Environment Configuration
+All WebSocket events in the monorepo are strongly typed in [`apps/api/src/websocket/events.ts`](file:///home/crodic/personal/turborepo/apps/api/src/websocket/events.ts):
 
-Verify or copy the environment files across the monorepo:
+```typescript
+export interface ServerToClientEvents {
+  'ws:pong': (data: { at: string }) => void;
+  'ws:unauthorized': (data: { message: string }) => void;
+  'ws:error': (data: { code: string; message: string }) => void;
+  'ws:shutdown': (data: { message: string }) => void;
+  'room:joined': (data: { room: string }) => void;
+  'room:left': (data: { room: string }) => void;
+}
 
-#### `apps/api/.env`
+export interface ClientToServerEvents {
+  'ws:ping': () => void;
+  'room:join': (room: string) => void;
+  'room:leave': (room: string) => void;
+}
 
-```bash
-# Redis Configuration (Required for multi-instance sync & presence)
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=redispass
-REDIS_TLS_ENABLED=false
-
-# App Port & CORS
-APP_PORT=8000
-APP_CORS_ORIGIN=http://localhost:5173,http://localhost:3000
-```
-
-#### `apps/web/.env` (Admin Portal)
-
-```bash
-VITE_API_URL=http://localhost:8000/api/v1
-VITE_SOCKET_URL=http://localhost:8000
-```
-
-#### `apps/client/.env` (Next.js Client)
-
-```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_SOCKET_URL=http://localhost:8000
-```
-
-### Step 2: Spin Up Infrastructure & Start Dev Servers
-
-```bash
-# 1. Start PostgreSQL and Redis via Docker Compose
-docker compose up -d postgres redis
-
-# 2. Run database migrations and seeds
-pnpm --filter api migration:run
-pnpm --filter api seed:run
-
-# 3. Start all workspaces in parallel
-pnpm dev
+export interface SocketData {
+  principal: WsPrincipal;
+  rateLimit?: {
+    count: number;
+    resetAt: number;
+  };
+}
 ```
 
 ---
 
-## 4. Backend Architecture Guide (`apps/api`)
+## 4. Backend Service: `WebsocketService`
 
-### Global Module Availability
+[`WebsocketService`](file:///home/crodic/personal/turborepo/apps/api/src/websocket/websocket.service.ts) is `@Global()`. You can inject it directly into any service or controller without re-importing `WebsocketModule`.
 
-`WebsocketModule` is marked as `@Global()`. You **never** need to import `WebsocketModule` into your feature modules. Simply inject `WebsocketService` directly into your services or controllers.
-
-### `WebsocketService` API Reference
-
-Located at [`apps/api/src/websocket/websocket.service.ts`](file:///home/hongphat/Documents/Personal/turborepo/apps/api/src/websocket/websocket.service.ts):
+### API Methods
 
 ```typescript
 export class WebsocketService {
   /**
-   * Send a private event to a specific Admin user across all connected pods.
+   * Send a private event to a specific Admin user across all cluster pods.
    */
   emitToAdmin(adminId: number | string, event: string, data: unknown): void;
 
   /**
-   * Send a private event to a specific Customer / End-User across all connected pods.
+   * Send a private event to a specific Customer / End-User across all cluster pods.
    */
   emitToUser(userId: number | string, event: string, data: unknown): void;
 
   /**
-   * Send an event to all sockets in a specific room (e.g. 'presence:admins', 'presence:users', or custom room).
+   * Send an event to all sockets in a specific room.
    */
   emitToRoom(room: string, event: string, data: unknown): void;
 
@@ -173,349 +153,308 @@ export class WebsocketService {
 
 ---
 
-## 5. Frontend Integration Guide
+## 5. Frontend Client Architecture (`WsClient`)
 
-### 5.1. Admin Portal (`apps/web` - React / Vite)
+Both frontend applications use the resilient TypeScript [`WsClient`](file:///home/crodic/personal/turborepo/apps/web/src/lib/ws-client.ts) wrapper around `socket.io-client`:
 
-The Admin Portal uses [`getWsClient()`](file:///home/hongphat/Documents/Personal/turborepo/apps/web/src/lib/ws-client.ts) and exports the `useSocket()` hook from [`socket-context.tsx`](file:///home/hongphat/Documents/Personal/turborepo/apps/web/src/context/socket-context.tsx).
+- **Automatic Reconnect**: Exponential backoff reconnect logic.
+- **Silent Token Refresh**: Re-authenticates seamlessly when access token expires without triggering full page reloads.
+- **Document Visibility Awareness**: Slows down or pauses heartbeat pings when the browser tab is hidden in the background.
 
-#### Listening to Realtime Events & Cache Invalidation:
+### 5.1. Admin Portal (`apps/web`)
+
+Wrap your layout with `SocketProvider` and consume the socket using `useSocket()`:
 
 ```tsx
 import { useEffect } from 'react';
 import { useSocket } from '@/context/socket-context';
-import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 
-export function AdminUsersPage() {
+export function LiveActivityWatcher() {
   const socket = useSocket();
-  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!socket) return;
 
-    const handleUserRegistered = (payload: {
-      userId: number;
-      email: string;
-    }) => {
-      toast.info(`New user registered: ${payload.email}`);
-      // Invalidate TanStack query to fetch latest data without manual refresh
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+    const handleUpdate = (payload: { entityId: number; action: string }) => {
+      console.log('Realtime event received:', payload);
     };
 
-    socket.on('user:registered', handleUserRegistered);
+    socket.on('activity:update', handleUpdate);
 
     // CRITICAL: Always clean up listener on unmount
     return () => {
-      socket.off('user:registered', handleUserRegistered);
+      socket.off('activity:update', handleUpdate);
     };
-  }, [socket, queryClient]);
+  }, [socket]);
 
-  return <div>Users Management</div>;
+  return <div>Monitoring Activity...</div>;
 }
 ```
 
----
+### 5.2. Public Topic Subscriptions (`/public`)
 
-### 5.2. Web Client (`apps/client` - Next.js App Router)
-
-The Next.js client uses `useSocket()` from [`socket-context.tsx`](file:///home/hongphat/Documents/Personal/turborepo/apps/client/src/context/socket-context.tsx):
-
-```tsx
-'use client';
-
-import { useEffect } from 'react';
-import { useSocket } from '@/context/socket-context';
-import { toast } from 'sonner';
-
-export function UserNotificationListener() {
-  const { socket, isConnected } = usePresenceSocket();
-
-  useEffect(() => {
-    if (!socket || !isConnected) return;
-
-    const handleNotification = (data: { title: string; body: string }) => {
-      toast.success(data.title, { description: data.body });
-      window.dispatchEvent(new CustomEvent('notifications:refresh'));
-    };
-
-    socket.on('notification:received', handleNotification);
-
-    return () => {
-      socket.off('notification:received', handleNotification);
-    };
-  }, [socket, isConnected]);
-
-  return null;
-}
-```
-
----
-
-### 5.3. Public Data Streaming (`/public` Namespace)
-
-For unauthenticated features (Landing page live stats, public price tickers, counters):
+For unauthenticated data streams:
 
 ```typescript
-import { getPublicWsClient } from '@/lib/ws-client'; // or getPublicClientWs() in apps/client
+import { getPublicWsClient } from '@/lib/ws-client';
 import { useEffect, useState } from 'react';
 
-export function LiveBtcPrice() {
-  const [price, setPrice] = useState<number | null>(null);
+export function LiveMarketTicker() {
+  const [data, setData] = useState<unknown>(null);
 
   useEffect(() => {
-    const publicWs = getPublicWsClient();
+    const client = getPublicWsClient();
 
-    // Connect anonymously to /public
-    void publicWs.connect().then(() => {
-      publicWs.subscribeTopic('market:btc');
+    void client.connect().then(() => {
+      client.subscribeTopic('market:btc');
     });
 
-    const handlePriceUpdate = (data: { price: number }) => {
-      setPrice(data.price);
+    const handleUpdate = (payload: unknown) => {
+      setData(payload);
     };
 
-    publicWs.on('price:update', handlePriceUpdate);
+    client.on('market:update', handleUpdate);
 
     return () => {
-      publicWs.unsubscribeTopic('market:btc');
-      publicWs.off('price:update', handlePriceUpdate);
+      client.unsubscribeTopic('market:btc');
+      client.off('market:update', handleUpdate);
     };
   }, []);
 
-  return <div>BTC Price: {price ? `$${price.toLocaleString()}` : 'Loading...'}</div>;
+  return <div>{JSON.stringify(data)}</div>;
 }
 ```
 
 ---
 
-## 6. End-to-End Recipe: Implementing a New Realtime Feature
+## 6. Practical Guide: How to Use WebSocket (Concrete Examples)
 
-Follow this 4-step checklist whenever building a feature that requires WebSocket updates:
-
-### Scenario: Admin approves an order (`Order Approval`)
-
-1. Admin clicks **"Approve"** on Admin Portal.
-2. Backend updates database status to `APPROVED`.
-3. Backend sends a realtime notification to the specific Customer.
-4. Backend sends a notification to all other Admins to update their dashboard tables in real time.
+This section shows exact, copy-pasteable patterns for the two most common realtime use cases.
 
 ---
 
-### Step 1: Emit from NestJS Service (`apps/api`)
+### Case A: Server Emitting to a Specific User or Admin (e.g. Order Status Update)
+
+Use this pattern when a backend business service needs to notify a specific user or admin in real time (e.g., after a background job completes or an order is approved).
+
+#### 1. Backend (`apps/api`): Inject `WebsocketService` and Emit
+
+In any NestJS service, inject `WebsocketService` (available globally):
 
 ```typescript
 // apps/api/src/api/order/order.service.ts
 import { WebsocketService } from '@/websocket/websocket.service';
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { OrderEntity } from './entities/order.entity';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class OrderService {
-  constructor(
-    @InjectRepository(OrderEntity)
-    private readonly orderRepository: Repository<OrderEntity>,
-    private readonly wsService: WebsocketService,
-  ) {}
+  constructor(private readonly wsService: WebsocketService) {}
 
-  async approveOrder(orderId: number, adminId: number) {
-    const order = await this.orderRepository.findOneBy({ id: orderId });
-    if (!order) throw new NotFoundException('Order not found');
+  async markOrderShipped(orderId: number, customerUserId: number) {
+    // 1. Perform database update...
 
-    order.status = 'APPROVED';
-    order.approvedBy = adminId;
-    await this.orderRepository.save(order);
-
-    // 1. Notify the individual user
-    this.wsService.emitToUser(order.userId, 'order:status_changed', {
-      orderId: order.id,
-      status: 'APPROVED',
-      message: 'Your order has been approved!',
+    // 2. Emit event directly to the customer:
+    this.wsService.emitToUser(customerUserId, 'order:updated', {
+      orderId,
+      status: 'SHIPPED',
       updatedAt: new Date().toISOString(),
     });
 
-    // 2. Notify all connected Admins to refresh their views
-    this.wsService.emitToRoom('presence:admins', 'admin:order_approved', {
-      orderId: order.id,
-      approvedBy: adminId,
-      updatedAt: new Date().toISOString(),
+    // 3. Or emit to all online administrators:
+    this.wsService.emitToRoom('admin:channel', 'admin:order_shipped', {
+      orderId,
+      shippedBy: 'DHL',
     });
-
-    return order;
   }
 }
 ```
 
----
+#### 2. Frontend (`apps/web` or `apps/client`): Listen and React
 
-### Step 2: Listen in Next.js Client (`apps/client`)
-
-```tsx
-// apps/client/src/components/orders/order-status-listener.tsx
-'use client';
-
-import { useEffect } from 'react';
-import { useSocket } from '@/context/socket-context';
-import { toast } from 'sonner';
-
-export function OrderStatusListener() {
-  const { socket, isConnected } = useSocket();
-
-  useEffect(() => {
-    if (!socket || !isConnected) return;
-
-    const handleStatusChanged = (payload: {
-      orderId: number;
-      message: string;
-    }) => {
-      toast.success(payload.message, {
-        description: `Order #${payload.orderId}`,
-      });
-      // Optionally trigger client-side data refetch
-      window.dispatchEvent(new CustomEvent('orders:refresh'));
-    };
-
-    socket.on('order:status_changed', handleStatusChanged);
-
-    return () => {
-      socket.off('order:status_changed', handleStatusChanged);
-    };
-  }, [socket, isConnected]);
-
-  return null;
-}
-```
-
----
-
-### Step 3: Listen in Admin Portal (`apps/web`)
+In your React component, use `useSocket()`:
 
 ```tsx
-// apps/web/src/pages/orders/orders-table.tsx
+// apps/client/src/components/order/order-status-card.tsx
 import { useEffect } from 'react';
 import { useSocket } from '@/context/socket-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-export function OrdersTable() {
+export function OrderStatusCard({ orderId }: { orderId: number }) {
   const socket = useSocket();
   const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!socket) return;
 
-    const handleOrderApproved = (payload: {
+    const handleOrderUpdate = (payload: {
       orderId: number;
-      approvedBy: number;
+      status: string;
     }) => {
-      toast.info(`Order #${payload.orderId} was approved.`);
-      // Invalidate queries so TanStack Query refetches in background
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      if (payload.orderId !== orderId) return;
+
+      toast.info(`Order status updated: ${payload.status}`);
+      // Invalidate React Query cache to re-fetch fresh order data:
+      queryClient.invalidateQueries({ queryKey: ['orders', orderId] });
     };
 
-    socket.on('admin:order_approved', handleOrderApproved);
+    socket.on('order:updated', handleOrderUpdate);
 
+    // CRITICAL: Always clean up listener on unmount to prevent memory leaks
     return () => {
-      socket.off('admin:order_approved', handleOrderApproved);
+      socket.off('order:updated', handleOrderUpdate);
     };
-  }, [socket, queryClient]);
+  }, [socket, orderId, queryClient]);
 
-  return <div>{/* Orders table UI */}</div>;
+  return <div>Order #{orderId} Status Tracking</div>;
 }
 ```
 
 ---
 
-### Step 4: Write Unit Test for Backend Service (`apps/api`)
+### Case B: Full Two-Way Interactive Room (e.g. Live Room Chat / Support)
 
-Mocking `WebsocketService` in your Jest tests is straightforward:
+Use this pattern when multiple clients join a room and send messages back and forth in real time.
+
+#### 1. Declare Event Types (`apps/api/src/websocket/events.ts`)
+
+Add your event signatures to the typed maps:
 
 ```typescript
-// apps/api/src/api/order/order.service.spec.ts
-import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { OrderService } from './order.service';
-import { OrderEntity } from './entities/order.entity';
-import { WebsocketService } from '@/websocket/websocket.service';
+// apps/api/src/websocket/events.ts
+export interface ClientToServerEvents {
+  'ws:ping': () => void;
+  'room:join': (room: string) => void;
+  'room:leave': (room: string) => void;
+  // NEW: Client sends a message to room
+  'chat:send_message': (data: { room: string; content: string }) => void;
+}
 
-describe('OrderService Realtime Integration', () => {
-  let service: OrderService;
-  const mockWsService = {
-    emitToUser: jest.fn(),
-    emitToAdmin: jest.fn(),
-    emitToRoom: jest.fn(),
-    broadcast: jest.fn(),
+export interface ServerToClientEvents {
+  'room:joined': (data: { room: string }) => void;
+  'room:left': (data: { room: string }) => void;
+  // NEW: Server broadcasts message to all participants in room
+  'chat:new_message': (data: {
+    room: string;
+    content: string;
+    senderId: string;
+    senderName: string;
+    sentAt: string;
+  }) => void;
+}
+```
+
+#### 2. Add Handler in Gateway (`apps/api/src/websocket/websocket.gateway.ts`)
+
+Add the `@SubscribeMessage` handler to `WebsocketGateway`:
+
+```typescript
+// apps/api/src/websocket/websocket.gateway.ts
+@UseGuards(WsThrottleGuard)
+@SubscribeMessage('chat:send_message')
+async handleChatMessage(
+  @ConnectedSocket() client: TypedSocket,
+  @MessageBody() data: { room: string; content: string },
+) {
+  const principal = client.data.principal;
+  if (!principal || !data.room || !data.content?.trim()) return;
+
+  const payload = {
+    room: data.room,
+    content: data.content.trim(),
+    senderId: String(principal.id),
+    senderName: principal.fullName || principal.email,
+    sentAt: new Date().toISOString(),
   };
 
-  const mockOrderRepository = {
-    findOneBy: jest
-      .fn()
-      .mockResolvedValue({ id: 101, userId: 5, status: 'PENDING' }),
-    save: jest.fn().mockImplementation((val) => Promise.resolve(val)),
+  // Broadcast to everyone in the room (including or excluding sender)
+  this.websocketService.emitToRoom(data.room, 'chat:new_message', payload);
+}
+```
+
+#### 3. Frontend Chat Component (`apps/web` or `apps/client`)
+
+Join the room on mount, send messages with `socket.emit`, listen with `socket.on`, and leave the room on unmount:
+
+```tsx
+import { useEffect, useState } from 'react';
+import { useSocket } from '@/context/socket-context';
+
+type ChatMessage = {
+  room: string;
+  content: string;
+  senderId: string;
+  senderName: string;
+  sentAt: string;
+};
+
+export function LiveChatRoom({ roomId }: { roomId: string }) {
+  const socket = useSocket();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+
+  useEffect(() => {
+    if (!socket) return;
+
+    // 1. Join room when entering component
+    socket.emit('room:join', roomId);
+
+    // 2. Listen for incoming messages
+    const handleNewMessage = (msg: ChatMessage) => {
+      if (msg.room === roomId) {
+        setMessages((prev) => [...prev, msg]);
+      }
+    };
+    socket.on('chat:new_message', handleNewMessage);
+
+    // 3. Leave room and deregister listener on unmount
+    return () => {
+      socket.emit('room:leave', roomId);
+      socket.off('chat:new_message', handleNewMessage);
+    };
+  }, [socket, roomId]);
+
+  const handleSend = () => {
+    if (!socket || !input.trim()) return;
+    socket.emit('chat:send_message', { room: roomId, content: input });
+    setInput('');
   };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        OrderService,
-        {
-          provide: getRepositoryToken(OrderEntity),
-          useValue: mockOrderRepository,
-        },
-        { provide: WebsocketService, useValue: mockWsService },
-      ],
-    }).compile();
-
-    service = module.get<OrderService>(OrderService);
-  });
-
-  it('should emit order:status_changed to user when order is approved', async () => {
-    await service.approveOrder(101, 1);
-
-    expect(mockWsService.emitToUser).toHaveBeenCalledWith(
-      5,
-      'order:status_changed',
-      expect.objectContaining({ orderId: 101, status: 'APPROVED' }),
-    );
-    expect(mockWsService.emitToRoom).toHaveBeenCalledWith(
-      'presence:admins',
-      'admin:order_approved',
-      expect.objectContaining({ orderId: 101, approvedBy: 1 }),
-    );
-  });
-});
+  return (
+    <div className="flex flex-col h-96 border rounded-lg p-4">
+      <div className="flex-1 overflow-y-auto space-y-2">
+        {messages.map((m, idx) => (
+          <div key={idx} className="text-sm">
+            <span className="font-semibold text-primary">{m.senderName}: </span>
+            <span>{m.content}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2 mt-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+          placeholder="Type a message..."
+          className="flex-1 px-3 py-1 border rounded"
+        />
+        <button
+          onClick={handleSend}
+          className="px-4 py-1 bg-primary text-white rounded"
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  );
+}
 ```
 
 ---
 
-## 7. Production Best Practices & Rules
+## 7. Production Deployment & Operational Rules
 
-1. **Event Naming Convention**:
-   - Always use the `<domain>:<action>` format.
-   - Examples: `order:created`, `user:banned`, `notification:new`, `public:viewer_count`.
-2. **Always Clean Up Listeners (`socket.off`)**:
-   - In React, missing cleanup inside `useEffect` causes duplicate event triggers (2x, 4x, 8x...) on re-renders and leaks memory.
-3. **The "Signal + React Query" Pattern**:
-   - WebSocket events should carry lightweight signals (e.g. `{ id, status }`) rather than massive, deeply nested payloads.
-   - Let TanStack React Query (`queryClient.invalidateQueries`) handle caching, deduplication, and fetching full details.
-4. **Never Expose Sensitive Data on `/public`**:
-   - The `/public` namespace is open to any internet client. Never emit personally identifiable information (PII), emails, or internal database IDs onto public topics.
-5. **Horizontal Scaling / Sticky Sessions**:
-   - If running behind a reverse proxy (Nginx, Traefik, AWS ALB) with multiple API pods, enable **Sticky Sessions** (Session Affinity via Cookie or IP) so the HTTP long-polling handshake always hits the same pod before upgrading to pure WebSocket.
-
----
-
-## 8. Core Source Files Reference
-
-| File Path                                                                                                                                                     | Description                                                     |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| [`apps/api/src/websocket/redis-io.adapter.ts`](file:///home/hongphat/Documents/Personal/turborepo/apps/api/src/websocket/redis-io.adapter.ts)                 | Socket.IO Redis Pub/Sub adapter for horizontal clustering.      |
-| [`apps/api/src/websocket/websocket.gateway.ts`](file:///home/hongphat/Documents/Personal/turborepo/apps/api/src/websocket/websocket.gateway.ts)               | Private Gateway mounted at `/ws` (Auth, Presence, Room joins).  |
-| [`apps/api/src/websocket/public-websocket.gateway.ts`](file:///home/hongphat/Documents/Personal/turborepo/apps/api/src/websocket/public-websocket.gateway.ts) | Public Gateway mounted at `/public` (Topic subscription).       |
-| [`apps/api/src/websocket/websocket.service.ts`](file:///home/hongphat/Documents/Personal/turborepo/apps/api/src/websocket/websocket.service.ts)               | Centralized emitter service (`emitToUser`, `emitToRoom`, etc.). |
-| [`apps/api/src/websocket/presence.service.ts`](file:///home/hongphat/Documents/Personal/turborepo/apps/api/src/websocket/presence.service.ts)                 | Redis Sorted Set & Hash presence tracking service.              |
-| [`apps/api/src/websocket/websocket-auth.service.ts`](file:///home/hongphat/Documents/Personal/turborepo/apps/api/src/websocket/websocket-auth.service.ts)     | JWT + Session verification with O(1) Redis Blacklist checks.    |
-| [`apps/web/src/lib/ws-client.ts`](file:///home/hongphat/Documents/Personal/turborepo/apps/web/src/lib/ws-client.ts)                                           | Pure TypeScript `WsClient` class for Admin Portal.              |
-| [`apps/client/src/lib/ws-client.ts`](file:///home/hongphat/Documents/Personal/turborepo/apps/client/src/lib/ws-client.ts)                                     | Pure TypeScript `WsClient` class for Next.js Client.            |
+1. **Sticky Sessions**: When running multiple API pods behind Nginx, AWS ALB, or Cloudflare, configure session affinity (sticky cookies) so the initial Socket.IO HTTP long-polling handshake connects to the same pod before upgrading to pure WebSocket.
+2. **Listener Cleanup**: Always deregister listeners (`socket.off`) in component unmount functions to prevent memory leaks and multiplied event handlers.
+3. **Signal over Payload**: Emit lightweight IDs or status codes (`{ orderId: 10, status: 'PROCESSED' }`) and let React Query invalidate and fetch cached details.
+4. **Public Topic Security**: Never emit sensitive user information, emails, or internal database keys to the `/public` namespace.

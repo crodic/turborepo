@@ -1,6 +1,7 @@
-import { Logger } from '@nestjs/common';
+import { Logger, OnApplicationShutdown, UseGuards } from '@nestjs/common';
 import {
   ConnectedSocket,
+  MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
   OnGatewayInit,
@@ -9,14 +10,39 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { PresenceService } from './presence.service';
-import { OnlinePresence, WsPrincipal, WsUserType } from './types';
+import {
+  ClientToServerEvents,
+  InterServerEvents,
+  ServerToClientEvents,
+  SocketData,
+} from './events';
+import { WsThrottleGuard } from './guards/ws-throttle.guard';
+import { WsUserType } from './types';
 import { WebsocketAuthService } from './websocket-auth.service';
 import { WebsocketService } from './websocket.service';
 
-const PRESENCE_ADMIN_ROOM = 'presence:admins';
-const PRESENCE_USER_ROOM = 'presence:users';
+export type TypedServer = Server<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData
+>;
+export type TypedSocket = Socket<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData
+>;
 
+/**
+ * Hardened, thin WebSocket Gateway for bidirectional realtime communication.
+ *
+ * Responsibilities:
+ * - Connection authentication & principal binding
+ * - Session revocation sweeps
+ * - Direct user/admin room routing
+ * - Rate limiting & graceful shutdown
+ */
 @WebSocketGateway({
   namespace: '/ws',
   cors: {
@@ -25,21 +51,24 @@ const PRESENCE_USER_ROOM = 'presence:users';
   },
 })
 export class WebsocketGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+  implements
+    OnGatewayInit,
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    OnApplicationShutdown
 {
   private readonly logger = new Logger(WebsocketGateway.name);
   private authSweepTimer?: ReturnType<typeof setInterval>;
 
   @WebSocketServer()
-  private readonly server: Server;
+  private readonly server: TypedServer;
 
   constructor(
     private readonly websocketAuthService: WebsocketAuthService,
     private readonly websocketService: WebsocketService,
-    private readonly presenceService: PresenceService,
   ) {}
 
-  afterInit(server: Server) {
+  afterInit(server: TypedServer) {
     this.websocketService.bindServer(server);
 
     server.use((client, next) => {
@@ -59,7 +88,7 @@ export class WebsocketGateway
 
     this.authSweepTimer = setInterval(() => {
       void this.disconnectInactiveSockets(server);
-    }, 30000);
+    }, 30_000);
     this.authSweepTimer.unref?.();
 
     // Initial sweep to clear orphaned sockets from previous server restarts
@@ -69,134 +98,87 @@ export class WebsocketGateway
     initSweepTimeout.unref?.();
   }
 
-  async handleConnection(client: Socket) {
-    const principal = client.data.principal as WsPrincipal;
+  async handleConnection(client: TypedSocket) {
+    const principal = client.data.principal;
+    if (!principal) return;
 
-    // Join role and specific user/admin rooms
+    // Join specific user or admin room for targeted messages
     if (principal.type === WsUserType.ADMIN) {
-      client.join(PRESENCE_ADMIN_ROOM);
       client.join(this.websocketService.getAdminRoom(String(principal.id)));
     } else {
-      client.join(PRESENCE_USER_ROOM);
       client.join(this.websocketService.getUserRoom(String(principal.id)));
     }
-
-    const snapshot = await this.presenceService.add(client.id, principal);
-
-    client.emit('presence:me', this.toPublicPrincipal(principal));
-    client.emit('presence:counts', snapshot.counts);
-
-    if (principal.type === WsUserType.ADMIN) {
-      client.emit('presence:snapshot', snapshot);
-    }
-
-    await this.broadcastPresence();
   }
 
-  async handleDisconnect(client: Socket) {
-    await this.presenceService.remove(client.id);
-    await this.broadcastPresence();
+  async handleDisconnect(_client: TypedSocket) {
+    // Rooms are automatically cleaned up by Socket.IO upon disconnect
   }
 
-  @SubscribeMessage('presence:subscribe')
-  async handleSubscribe(@ConnectedSocket() client: Socket) {
-    const principal = client.data.principal as WsPrincipal | undefined;
-    const snapshot = await this.presenceService.touch(client.id, principal);
-
-    client.emit('presence:counts', snapshot.counts);
-
-    if (principal?.type === WsUserType.ADMIN) {
-      client.emit('presence:snapshot', snapshot);
-    }
-  }
-
-  @SubscribeMessage('presence:unsubscribe')
-  async handleUnsubscribe(@ConnectedSocket() _client: Socket) {
-    // Client unsubscribed from presence updates
-  }
-
-  @SubscribeMessage('presence:get')
-  async getPresence(@ConnectedSocket() client: Socket) {
-    const principal = client.data.principal as WsPrincipal | undefined;
-    const snapshot = await this.presenceService.touch(client.id, principal);
-
-    client.emit('presence:counts', snapshot.counts);
-
-    if (principal?.type === WsUserType.ADMIN) {
-      client.emit('presence:snapshot', snapshot);
-    }
-
-    return {
-      event:
-        principal?.type === WsUserType.ADMIN
-          ? 'presence:snapshot'
-          : 'presence:counts',
-      data: principal?.type === WsUserType.ADMIN ? snapshot : snapshot.counts,
-    };
-  }
-
-  @SubscribeMessage('presence:ping')
-  async ping(@ConnectedSocket() client: Socket) {
+  @UseGuards(WsThrottleGuard)
+  @SubscribeMessage('ws:ping')
+  async ping(@ConnectedSocket() client: TypedSocket) {
     const isActive = await this.ensureSocketStillAuthorized(client);
 
     if (!isActive) {
-      return {
-        event: 'presence:unauthorized',
-        data: { message: 'Socket auth session is inactive' },
-      };
+      client.emit('ws:unauthorized', {
+        message: 'Socket auth session is inactive',
+      });
+      return;
     }
 
-    const principal = client.data.principal as WsPrincipal | undefined;
-    const snapshot = await this.presenceService.touch(client.id, principal);
-
-    client.emit('presence:counts', snapshot.counts);
-
-    return {
-      event: 'presence:pong',
-      data: { at: new Date().toISOString() },
-    };
+    client.emit('ws:pong', { at: new Date().toISOString() });
   }
 
-  @SubscribeMessage('notification:ping')
-  async notificationPing(@ConnectedSocket() client: Socket) {
-    const isActive = await this.ensureSocketStillAuthorized(client);
+  @UseGuards(WsThrottleGuard)
+  @SubscribeMessage('room:join')
+  async handleRoomJoin(
+    @ConnectedSocket() client: TypedSocket,
+    @MessageBody() room: string,
+  ) {
+    if (!room || typeof room !== 'string') return;
+    client.join(room);
+    client.emit('room:joined', { room });
+  }
 
-    if (!isActive) {
-      return {
-        event: 'notification:unauthorized',
-        data: { message: 'Notification auth session is inactive' },
-      };
+  @UseGuards(WsThrottleGuard)
+  @SubscribeMessage('room:leave')
+  async handleRoomLeave(
+    @ConnectedSocket() client: TypedSocket,
+    @MessageBody() room: string,
+  ) {
+    if (!room || typeof room !== 'string') return;
+    client.leave(room);
+    client.emit('room:left', { room });
+  }
+
+  async onApplicationShutdown(signal?: string) {
+    this.logger.log(`Shutting down WebSocket gateway (${signal})...`);
+    if (this.authSweepTimer) {
+      clearInterval(this.authSweepTimer);
+      this.authSweepTimer = undefined;
     }
 
-    return {
-      event: 'notification:pong',
-      data: { at: new Date().toISOString() },
-    };
+    if (!this.server) return;
+
+    const sockets = this.getNamespaceSockets(this.server);
+    for (const socket of sockets.values()) {
+      socket.emit('ws:shutdown', {
+        message: 'Server is restarting for maintenance',
+      });
+      socket.disconnect(true);
+    }
   }
 
-  private async broadcastPresence() {
-    const snapshot = await this.presenceService.getSnapshot();
-
-    this.server.emit('presence:counts', snapshot.counts);
-    this.server.emit('onlineCount', snapshot.counts.total);
-    this.server.to(PRESENCE_ADMIN_ROOM).emit('presence:snapshot', snapshot);
-  }
-
-  private async disconnectInactiveSockets(server: Server) {
+  private async disconnectInactiveSockets(server: TypedServer) {
     const sockets = this.getNamespaceSockets(server);
 
     for (const client of sockets.values()) {
       await this.ensureSocketStillAuthorized(client);
     }
-
-    const hasPruned = await this.presenceService.pruneDeadSockets();
-    if (hasPruned) {
-      await this.broadcastPresence();
-    }
   }
 
-  private async ensureSocketStillAuthorized(client: Socket) {
-    const principal = client.data.principal as WsPrincipal | undefined;
+  private async ensureSocketStillAuthorized(client: TypedSocket) {
+    const principal = client.data.principal;
 
     if (!principal) {
       client.disconnect(true);
@@ -210,7 +192,7 @@ export class WebsocketGateway
       this.logger.warn(
         `Revoking socket ${client.id} due to inactive auth session`,
       );
-      client.emit('presence:unauthorized', {
+      client.emit('ws:unauthorized', {
         message: 'Socket auth session is inactive',
       });
       client.disconnect(true);
@@ -218,23 +200,7 @@ export class WebsocketGateway
     }
   }
 
-  private toPublicPrincipal(
-    principal: WsPrincipal,
-  ): Omit<OnlinePresence, 'socketCount'> {
-    const now = new Date();
-    return {
-      id: principal.id,
-      type: principal.type,
-      sessionId: principal.sessionId,
-      email: principal.email,
-      fullName: principal.fullName,
-      avatar: principal.avatar,
-      connectedAt: now,
-      lastSeenAt: now,
-    };
-  }
-
-  private getNamespaceSockets(server: Server): Map<string, Socket> {
+  private getNamespaceSockets(server: TypedServer): Map<string, TypedSocket> {
     const namespaceOrServer = server as any;
     if (namespaceOrServer.sockets instanceof Map) {
       return namespaceOrServer.sockets;
@@ -247,6 +213,6 @@ export class WebsocketGateway
       return namespaceOrServer.sockets.sockets;
     }
 
-    return new Map<string, Socket>();
+    return new Map<string, TypedSocket>();
   }
 }

@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { formatDistanceToNow } from 'date-fns'
 import { useQuery } from '@tanstack/react-query'
@@ -24,7 +23,6 @@ import { Helmet } from 'react-helmet-async'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import http from '@/lib/http'
-import { useSocket } from '@/context/socket-context'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -41,28 +39,11 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-
-type OnlinePresence = {
-  id: string
-  type: 'admin' | 'user'
-  sessionId?: string
-  email: string
-  fullName?: string
-  avatar?: string
-  socketCount: number
-  connectedAt: string
-  lastSeenAt: string
-}
-
-type PresenceSnapshot = {
-  admins: OnlinePresence[]
-  users: OnlinePresence[]
-  counts: {
-    admins: number
-    users: number
-    total: number
-  }
-}
+import {
+  emptySnapshot,
+  usePresenceSnapshot,
+  type OnlinePresence,
+} from './presence-queries'
 
 type HealthIndicator = {
   status?: string
@@ -130,16 +111,6 @@ type SentrySummary = {
   }
 }
 
-const emptySnapshot: PresenceSnapshot = {
-  admins: [],
-  users: [],
-  counts: {
-    admins: 0,
-    users: 0,
-    total: 0,
-  },
-}
-
 const HEALTH_QUERY_KEY = ['system_health'] as const
 const SENTRY_SUMMARY_QUERY_KEY = ['sentry_summary'] as const
 const QUEUE_STATS_QUERY_KEY = ['queue_stats'] as const
@@ -192,9 +163,9 @@ async function apiGetSentrySummary(): Promise<SentrySummary> {
 
 export function Dashboard() {
   const { t } = useTranslation()
-  const socket = useSocket()
   const navigate = useNavigate()
-  const [snapshot, setSnapshot] = useState<PresenceSnapshot>(emptySnapshot)
+  const presenceQuery = usePresenceSnapshot(30_000)
+  const snapshot = presenceQuery.data ?? emptySnapshot
   const healthQuery = useQuery({
     queryKey: HEALTH_QUERY_KEY,
     queryFn: apiGetSystemHealth,
@@ -210,43 +181,6 @@ export function Dashboard() {
     queryFn: apiGetSentrySummary,
     refetchInterval: 60_000,
   })
-
-  useEffect(() => {
-    if (!socket) {
-      return
-    }
-
-    const handleSnapshot = (nextSnapshot: PresenceSnapshot) => {
-      setSnapshot(nextSnapshot)
-    }
-
-    const handleCounts = (counts: PresenceSnapshot['counts']) => {
-      setSnapshot((current) => ({
-        ...current,
-        counts,
-      }))
-    }
-
-    const requestPresence = () => {
-      socket.emit('presence:subscribe')
-      socket.emit('presence:get')
-    }
-
-    socket.on('presence:snapshot', handleSnapshot)
-    socket.on('presence:counts', handleCounts)
-    socket.on('connect', requestPresence)
-
-    if (socket.connected) {
-      requestPresence()
-    }
-
-    return () => {
-      socket.emit('presence:unsubscribe')
-      socket.off('presence:snapshot', handleSnapshot)
-      socket.off('presence:counts', handleCounts)
-      socket.off('connect', requestPresence)
-    }
-  }, [socket])
 
   return (
     <>
@@ -1132,11 +1066,7 @@ function OnlinePresenceList({
               </div>
               <div className='text-muted-foreground hidden text-right text-xs sm:block'>
                 <p>
-                  {item.socketCount} {t('dashboard.realtime.socket')}
-                  {item.socketCount > 1 ? 's' : ''}
-                </p>
-                <p>
-                  {t('dashboard.realtime.seen')}{' '}
+                  {t('dashboard.realtime.seen', { defaultValue: 'Seen' })}{' '}
                   {formatDistanceToNow(new Date(item.lastSeenAt), {
                     addSuffix: true,
                   })}

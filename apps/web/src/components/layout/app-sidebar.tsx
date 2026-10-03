@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react'
 import { useLayout } from '@/context/layout-provider'
-import { useSocket } from '@/context/socket-context'
 import {
   Sidebar,
   SidebarContent,
@@ -15,20 +13,6 @@ import { NavUser } from './nav-user'
 
 export function AppSidebar() {
   const { collapsible, variant } = useLayout()
-  const [_onlineUsers, setOnlineUsers] = useState(0)
-  const socket = useSocket()
-
-  useEffect(() => {
-    const handleOnlineCount = (data: number) => {
-      setOnlineUsers(data)
-    }
-
-    socket?.on('onlineCount', handleOnlineCount)
-
-    return () => {
-      socket?.off('onlineCount', handleOnlineCount)
-    }
-  }, [socket])
 
   return (
     <Sidebar collapsible={collapsible} variant={variant}>

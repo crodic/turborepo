@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Server } from 'socket.io';
-import { PresenceService } from './presence.service';
 
 /**
  * Unified Emitter Service for WebSocket events across the entire application.
@@ -18,7 +17,7 @@ export class WebsocketService {
   private privateServer?: Server;
   private publicServer?: Server;
 
-  constructor(private readonly presenceService: PresenceService) {}
+  constructor() {}
 
   /**
    * Binds the private namespace (`/ws`) Socket.IO server.
@@ -141,12 +140,5 @@ export class WebsocketService {
       return;
     }
     this.publicServer.emit(event, payload);
-  }
-
-  /**
-   * Returns list of currently online administrator IDs from Redis Presence.
-   */
-  async getOnlineAdminIds(): Promise<number[]> {
-    return this.presenceService.getOnlineAdminIds();
   }
 }

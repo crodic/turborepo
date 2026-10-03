@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell, CheckCheck, Circle, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { useNotificationSocket } from '@/context/notification-socket-context'
+import { useNotificationSse } from '@/hooks/use-notification-sse'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -32,10 +31,9 @@ import {
   useNotifications,
   useNotificationUnreadCount,
 } from '@/pages/notifications/queries'
-import {
-  notificationSchema,
-  type NotificationSchema,
-  type NotificationUnreadCountSchema,
+import type {
+  NotificationSchema,
+  NotificationUnreadCountSchema,
 } from '@/pages/notifications/schema'
 
 const NOTIFICATION_LIMIT = 20
@@ -43,7 +41,7 @@ const NOTIFICATION_LIMIT = 20
 export function NotificationDropdown() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const socket = useNotificationSocket()
+  useNotificationSse()
   const queryClient = useQueryClient()
   const [selectedNotification, setSelectedNotification] =
     useState<NotificationSchema | null>(null)
@@ -107,69 +105,6 @@ export function NotificationDropdown() {
       )
     },
   })
-
-  useEffect(() => {
-    if (!socket) return
-
-    const handleNewNotification = (payload: unknown) => {
-      const parsed = notificationSchema.safeParse(payload)
-
-      if (!parsed.success) return
-
-      queryClient.setQueryData<NotificationSchema[]>(
-        notificationKeys.list(NOTIFICATION_LIMIT),
-        (current = []) => {
-          const filtered = current.filter((item) => item.id !== parsed.data.id)
-          return [parsed.data, ...filtered].slice(0, NOTIFICATION_LIMIT)
-        }
-      )
-      queryClient.invalidateQueries({
-        queryKey: notificationKeys.unreadCount(),
-      })
-      toast.info(parsed.data.title, {
-        description: parsed.data.message,
-        position: 'top-right',
-        duration: 8000,
-        icon: <Bell className='size-4' />,
-      })
-
-      if ('Notification' in window && Notification.permission === 'granted') {
-        const nativeNotification = new Notification(parsed.data.title, {
-          body: parsed.data.message,
-        })
-        nativeNotification.onclick = () => {
-          window.focus()
-        }
-      }
-    }
-
-    const handleUnreadCount = (payload: unknown) => {
-      if (
-        typeof payload !== 'object' ||
-        payload === null ||
-        !('unreadCount' in payload)
-      ) {
-        return
-      }
-
-      const unreadCount = Number(payload.unreadCount)
-
-      if (!Number.isFinite(unreadCount)) return
-
-      queryClient.setQueryData<NotificationUnreadCountSchema>(
-        notificationKeys.unreadCount(),
-        { unreadCount }
-      )
-    }
-
-    socket.on('notification:new', handleNewNotification)
-    socket.on('notification:unread-count', handleUnreadCount)
-
-    return () => {
-      socket.off('notification:new', handleNewNotification)
-      socket.off('notification:unread-count', handleUnreadCount)
-    }
-  }, [queryClient, socket])
 
   const notifications = notificationsQuery.data ?? []
 

@@ -312,7 +312,7 @@ export function getWsClient(): WsClient {
       getToken: () => useAuthStore.getState().meta.accessToken,
       refreshToken: refreshAdminToken,
       pingIntervalMs: 25000,
-      pingEvent: 'presence:ping',
+      pingEvent: 'ws:ping',
     })
   }
 

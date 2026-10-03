@@ -7,6 +7,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import { IsNull, LessThan, Repository } from 'typeorm';
+import { PresenceService } from '../presence/presence.service';
 import { NotificationResDto } from './dto/notification.res.dto';
 import { SendNotificationReqDto } from './dto/send-notification.req.dto';
 import { NotificationUnreadCountResDto } from './dto/unread-count.res.dto';
@@ -65,6 +66,7 @@ export class NotificationService {
     private readonly adminUserRepository: Repository<AdminUserEntity>,
     private readonly realtimeService: NotificationRealtimeService,
     private readonly configService: ConfigService<AllConfigType>,
+    private readonly presenceService: PresenceService,
   ) {}
 
   async createForAdmin(
@@ -99,8 +101,8 @@ export class NotificationService {
     return dto;
   }
 
-  getOnlineAdminIds(): number[] {
-    return this.realtimeService.getOnlineAdminIds();
+  async getOnlineAdminIds(): Promise<number[]> {
+    return this.presenceService.getOnlineAdminIds();
   }
 
   async sendManualNotification(
