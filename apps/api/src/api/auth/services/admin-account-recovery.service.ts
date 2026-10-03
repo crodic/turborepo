@@ -6,7 +6,7 @@ import {
 } from '@/api/notification/notification.service';
 import { IEmailJob } from '@/common/interfaces/job.interface';
 import { AllConfigType } from '@/config/config.type';
-import { EAccountProvider } from '@/constants/entity.enum';
+import { EAccountProvider, ESessionUserType } from '@/constants/entity.enum';
 import { JobName, QueueName } from '@/constants/job.constant';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
@@ -19,6 +19,7 @@ import {
   AccountRecoveryService,
 } from './account-recovery.service';
 import { AuthRecoveryService } from './auth-recovery.service';
+import { AuthSessionService } from './auth-session.service';
 
 @Injectable()
 export class AdminAccountRecoveryService extends AccountRecoveryService<AdminUserEntity> {
@@ -32,12 +33,14 @@ export class AdminAccountRecoveryService extends AccountRecoveryService<AdminUse
     @InjectQueue(QueueName.EMAIL)
     emailQueue: Queue<IEmailJob, any, string>,
     private readonly notificationService: NotificationService,
+    private readonly authSessionService: AuthSessionService,
   ) {
     super(authRecoveryService, adminUserRepository, emailQueue);
   }
 
   protected getRecoveryConfig(): AccountRecoveryConfig {
     return {
+      scope: ESessionUserType.ADMIN,
       confirmEmailSecret: this.configService.getOrThrow(
         'auth.confirmEmailSecret',
         { infer: true },
@@ -86,6 +89,12 @@ export class AdminAccountRecoveryService extends AccountRecoveryService<AdminUse
   protected override async onPasswordResetSuccess(
     user: AdminUserEntity,
   ): Promise<void> {
+    // Revoke all existing sessions for this admin upon password reset
+    await this.authSessionService.revokeAllUserSessions({
+      userId: user.id,
+      userType: ESessionUserType.ADMIN,
+    });
+
     await this.notificationService.notifyAdmin(
       user.id,
       AdminNotificationType.PasswordReset,

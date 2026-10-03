@@ -86,6 +86,7 @@ describe('AdminAuthService login', () => {
     authSessionService = {
       blacklistSession: jest.fn(),
       clearSessionBlacklist: jest.fn(),
+      revokeAllUserSessions: jest.fn().mockResolvedValue(1),
       createLoginSession: jest.fn(async (params) => ({
         id: String(sessionIdSequence++),
         userId: params.userId,

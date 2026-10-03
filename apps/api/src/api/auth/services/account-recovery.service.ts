@@ -5,6 +5,7 @@ import {
 } from '@/common/interfaces/job.interface';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { CacheKey } from '@/constants/cache.constant';
+import { ESessionUserType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { JobName } from '@/constants/job.constant';
 import { ValidationException } from '@/exceptions/validation.exception';
@@ -23,6 +24,7 @@ import { IAuthUser } from '../interfaces/auth-entity.interface';
 import { AuthRecoveryService } from './auth-recovery.service';
 
 export interface AccountRecoveryConfig {
+  scope: ESessionUserType;
   confirmEmailSecret: string;
   confirmEmailExpires: string;
   forgotSecret: string;
@@ -55,6 +57,7 @@ export abstract class AccountRecoveryService<
     const { token } =
       await this.authRecoveryService.createAndCacheVerificationToken({
         userId: user.id,
+        scope: config.scope,
         secret: config.confirmEmailSecret,
         expiresIn: config.confirmEmailExpires,
         cacheKeyPrefix: CacheKey.EMAIL_VERIFICATION,
@@ -74,6 +77,7 @@ export abstract class AccountRecoveryService<
     const config = this.getRecoveryConfig();
     const { id } = await this.authRecoveryService.verifyAndConsumeToken({
       token,
+      scope: config.scope,
       secret: config.confirmEmailSecret,
       cacheKeyPrefix: CacheKey.EMAIL_VERIFICATION,
     });
@@ -127,6 +131,7 @@ export abstract class AccountRecoveryService<
     const { token } =
       await this.authRecoveryService.createAndCacheVerificationToken({
         userId: user.id,
+        scope: config.scope,
         secret: config.forgotSecret,
         expiresIn: config.forgotExpires,
         cacheKeyPrefix: CacheKey.FORGOT_PASSWORD,
@@ -141,8 +146,10 @@ export abstract class AccountRecoveryService<
       { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
     );
 
+    // SECURITY: Do NOT return the reset token to the client in the HTTP response.
+    // The reset token must only be delivered out-of-band via verified email.
     return plainToInstance(ForgotPasswordResDto, {
-      redirect: `${config.resetPasswordUrl}?token=${token}`,
+      message: 'A password reset link has been sent to your email.',
     });
   }
 
@@ -153,6 +160,7 @@ export abstract class AccountRecoveryService<
     const config = this.getRecoveryConfig();
     const { id } = await this.authRecoveryService.verifyAndConsumeToken({
       token,
+      scope: config.scope,
       secret: config.forgotSecret,
       cacheKeyPrefix: CacheKey.FORGOT_PASSWORD,
     });

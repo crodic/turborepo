@@ -1,4 +1,5 @@
 import { CacheKey } from '@/constants/cache.constant';
+import { ESessionUserType } from '@/constants/entity.enum';
 import { Cache } from '@nestjs/cache-manager';
 import { BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -26,11 +27,12 @@ describe('AuthRecoveryService', () => {
   });
 
   describe('createAndCacheVerificationToken', () => {
-    it('signs JWT and saves to cache with correct expiration', async () => {
+    it('signs JWT and saves to cache with correct expiration and scope', async () => {
       jwtService.signAsync.mockResolvedValue('signed-token');
 
       const result = await service.createAndCacheVerificationToken({
         userId: 'user-1',
+        scope: ESessionUserType.USER,
         secret: 'test-secret',
         expiresIn: '15m',
         cacheKeyPrefix: CacheKey.EMAIL_VERIFICATION,
@@ -48,11 +50,15 @@ describe('AuthRecoveryService', () => {
 
   describe('verifyAndConsumeToken', () => {
     it('verifies token, checks cache and deletes it', async () => {
-      jwtService.verify.mockReturnValue({ id: 'user-1' });
-      cacheManager.get.mockResolvedValue('cached-token');
+      jwtService.verify.mockReturnValue({
+        id: 'user-1',
+        scope: ESessionUserType.USER,
+      });
+      cacheManager.get.mockResolvedValue('input-token');
 
       const result = await service.verifyAndConsumeToken({
         token: 'input-token',
+        scope: ESessionUserType.USER,
         secret: 'test-secret',
         cacheKeyPrefix: CacheKey.EMAIL_VERIFICATION,
       });
@@ -71,6 +77,23 @@ describe('AuthRecoveryService', () => {
       await expect(
         service.verifyAndConsumeToken({
           token: 'invalid-token',
+          scope: ESessionUserType.USER,
+          secret: 'test-secret',
+          cacheKeyPrefix: CacheKey.EMAIL_VERIFICATION,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException if token scope does not match', async () => {
+      jwtService.verify.mockReturnValue({
+        id: 'user-1',
+        scope: ESessionUserType.ADMIN,
+      });
+
+      await expect(
+        service.verifyAndConsumeToken({
+          token: 'input-token',
+          scope: ESessionUserType.USER,
           secret: 'test-secret',
           cacheKeyPrefix: CacheKey.EMAIL_VERIFICATION,
         }),
@@ -78,12 +101,16 @@ describe('AuthRecoveryService', () => {
     });
 
     it('throws BadRequestException if token is missing from cache', async () => {
-      jwtService.verify.mockReturnValue({ id: 'user-1' });
+      jwtService.verify.mockReturnValue({
+        id: 'user-1',
+        scope: ESessionUserType.USER,
+      });
       cacheManager.get.mockResolvedValue(null);
 
       await expect(
         service.verifyAndConsumeToken({
           token: 'input-token',
+          scope: ESessionUserType.USER,
           secret: 'test-secret',
           cacheKeyPrefix: CacheKey.EMAIL_VERIFICATION,
         }),

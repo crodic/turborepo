@@ -9,9 +9,12 @@ import {
   ApiAuthOptional,
   ApiPublic,
 } from '@/decorators/http.decorators';
+import { CheckPolicies } from '@/decorators/policies.decorator';
 import { SkipPolicies } from '@/decorators/skip-policies.decorator';
 import { AdminAuthGuard } from '@/guards/admin-auth.guard';
 import { PoliciesGuard } from '@/guards/policies.guard';
+import { AppAbility } from '@/shared/casl/ability.factory';
+import { AppActions, AppSubjects } from '@/utils/permissions.constant';
 import {
   Body,
   Controller,
@@ -130,10 +133,13 @@ export class AdminAuthenticationController {
     return result;
   }
 
-  @ApiPublic({
+  @ApiAuth({
     type: RegisterResDto,
     summary: 'Admin Register API',
   })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Create, AppSubjects.Admin),
+  )
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('register')
   async register(
@@ -390,10 +396,14 @@ export class AdminAuthenticationController {
   @SkipThrottle()
   @Post('me/change-password')
   async changePassword(
-    @CurrentUser('id') userId: AutoIncrementID,
+    @CurrentUser() userToken: JwtPayloadType,
     @Body() reqDto: ChangePasswordReqDto,
   ): Promise<ChangePasswordResDto> {
-    return this.adminAuthService.changePassword(userId, reqDto);
+    return this.adminAuthService.changePassword(
+      userToken.id as AutoIncrementID,
+      reqDto,
+      userToken.sessionId,
+    );
   }
 
   @ApiAuth({

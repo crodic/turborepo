@@ -285,10 +285,14 @@ export class UserAuthenticationController {
   @SkipThrottle()
   @Post('me/change-password')
   async changePassword(
-    @CurrentUser('id') userId: AutoIncrementID,
+    @CurrentUser() userToken: JwtPayloadType,
     @Body() reqDto: ChangePasswordReqDto,
   ): Promise<UserChangePasswordResDto> {
-    return this.userAuthService.changePassword(userId, reqDto);
+    return this.userAuthService.changePassword(
+      userToken.id as AutoIncrementID,
+      reqDto,
+      userToken.sessionId,
+    );
   }
 
   @ApiAuth({

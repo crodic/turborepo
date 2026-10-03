@@ -2,7 +2,7 @@ import { UserAccountEntity } from '@/api/user/entities/user-account.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { IEmailJob } from '@/common/interfaces/job.interface';
 import { AllConfigType } from '@/config/config.type';
-import { EAccountProvider } from '@/constants/entity.enum';
+import { EAccountProvider, ESessionUserType } from '@/constants/entity.enum';
 import { JobName, QueueName } from '@/constants/job.constant';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
@@ -15,6 +15,7 @@ import {
   AccountRecoveryService,
 } from './account-recovery.service';
 import { AuthRecoveryService } from './auth-recovery.service';
+import { AuthSessionService } from './auth-session.service';
 
 @Injectable()
 export class UserAccountRecoveryService extends AccountRecoveryService<UserEntity> {
@@ -27,12 +28,14 @@ export class UserAccountRecoveryService extends AccountRecoveryService<UserEntit
     private readonly userAccountRepository: Repository<UserAccountEntity>,
     @InjectQueue(QueueName.EMAIL)
     emailQueue: Queue<IEmailJob, any, string>,
+    private readonly authSessionService: AuthSessionService,
   ) {
     super(authRecoveryService, userRepository, emailQueue);
   }
 
   protected getRecoveryConfig(): AccountRecoveryConfig {
     return {
+      scope: ESessionUserType.USER,
       confirmEmailSecret: this.configService.getOrThrow(
         'auth.userConfirmEmailSecret',
         { infer: true },
@@ -77,5 +80,15 @@ export class UserAccountRecoveryService extends AccountRecoveryService<UserEntit
     }
 
     await this.userAccountRepository.save(localAccount);
+  }
+
+  protected override async onPasswordResetSuccess(
+    user: UserEntity,
+  ): Promise<void> {
+    // Revoke all existing sessions for this user upon password reset
+    await this.authSessionService.revokeAllUserSessions({
+      userId: user.id,
+      userType: ESessionUserType.USER,
+    });
   }
 }

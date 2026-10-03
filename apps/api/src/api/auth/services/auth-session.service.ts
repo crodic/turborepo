@@ -10,7 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import ms, { StringValue } from 'ms';
-import { IsNull, Not, Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { SessionResDto } from '../dto/session.res.dto';
 import { SessionEntity } from '../entities/session.entity';
 import { JwtPayloadType } from '../types/jwt-payload.type';
@@ -150,25 +150,54 @@ export class AuthSessionService {
     userToken: JwtPayloadType,
     userType: ESessionUserType,
   ): Promise<{ message: string }> {
-    const sessions = await this.sessionRepository.find({
-      where: {
-        userId: userToken.id as AutoIncrementID,
-        id: Not(userToken.sessionId as AutoIncrementID),
-        userType,
-        revokedAt: IsNull(),
-      },
+    await this.revokeAllUserSessions({
+      userId: userToken.id as AutoIncrementID,
+      userType,
+      exceptSessionId: userToken.sessionId as AutoIncrementID,
     });
 
-    await Promise.all(
-      sessions.map((session) =>
-        this.revokeSession({
-          sessionId: session.id,
-          userId: userToken.id as AutoIncrementID,
-          userType,
-        }),
-      ),
+    return { message: 'All other sessions revoked successfully' };
+  }
+
+  /**
+   * Revokes every active session of an account in a single UPDATE and
+   * blacklists them in cache so access tokens stop working immediately.
+   * Used after password reset / change and account takeover mitigation.
+   */
+  async revokeAllUserSessions(params: {
+    userId: AutoIncrementID | string;
+    userType: ESessionUserType;
+    exceptSessionId?: AutoIncrementID | string;
+  }): Promise<number> {
+    const query = this.sessionRepository
+      .createQueryBuilder()
+      .update(SessionEntity)
+      .set({ revokedAt: new Date() })
+      .where('user_id = :userId', { userId: params.userId })
+      .andWhere('user_type = :userType', { userType: params.userType })
+      .andWhere('revoked_at IS NULL');
+
+    if (params.exceptSessionId) {
+      query.andWhere('id <> :exceptSessionId', {
+        exceptSessionId: params.exceptSessionId,
+      });
+    }
+
+    const result = await query.returning(['id']).execute();
+    const revokedIds = ((result.raw ?? []) as { id: string }[]).map(
+      (row) => row.id,
     );
 
-    return { message: 'All other sessions revoked successfully' };
+    await Promise.all(
+      revokedIds.map((id) => this.blacklistSession(id, params.userType)),
+    );
+
+    if (revokedIds.length) {
+      this.logger.log(
+        `Revoked ${revokedIds.length} session(s) for ${params.userType}#${params.userId}`,
+      );
+    }
+
+    return revokedIds.length;
   }
 }

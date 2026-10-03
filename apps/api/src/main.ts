@@ -26,6 +26,12 @@ async function bootstrap() {
     bufferLogs: true,
   });
 
+  // Enable graceful shutdown hooks for Redis, database pools, queues
+  app.enableShutdownHooks();
+
+  // Trust first proxy (reverse proxy / load balancer) so req.ip and X-Forwarded-For are respected
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   // Use Pino Logger
   app.useLogger(app.get(Logger));
   // For high-traffic websites in production, it is strongly recommended to offload compression from the application server - typically in a reverse proxy (e.g., Nginx). In that case, you should not use compression middleware.

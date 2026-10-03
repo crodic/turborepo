@@ -214,7 +214,7 @@ export class AdminAuthService extends AuthService<
     }
 
     const restoreToken = await this.jwtService.signAsync(
-      { id: user.id },
+      { id: user.id, purpose: 'admin-restore-account' },
       {
         secret: this.configService.getOrThrow('auth.secret', { infer: true }),
         expiresIn: '5m',
@@ -404,6 +404,7 @@ export class AdminAuthService extends AuthService<
   async changePassword(
     id: AutoIncrementID,
     dto: ChangePasswordReqDto,
+    currentSessionId?: string | AutoIncrementID,
   ): Promise<ChangePasswordResDto> {
     const user = await this.adminUserRepository.findOneByOrFail({ id });
     const { isValid } = await this.verifyLocalPassword(user.id, dto.password);
@@ -417,6 +418,13 @@ export class AdminAuthService extends AuthService<
     }
 
     await this.saveLocalAccountPassword(user, dto.newPassword);
+
+    // Revoke all other active admin sessions upon password change
+    await this.authSessionService.revokeAllUserSessions({
+      userId: user.id,
+      userType: ESessionUserType.ADMIN,
+      exceptSessionId: currentSessionId,
+    });
 
     await this.notificationService.notifyAdmin(
       user.id,
@@ -466,12 +474,16 @@ export class AdminAuthService extends AuthService<
     dto: RestoreAccountReqDto,
     requestInfo?: SessionRequestInfo,
   ): Promise<AdminUserLoginResDto> {
-    let payload: JwtPayloadType;
+    let payload: JwtPayloadType & { purpose?: string };
     try {
       payload = await this.jwtService.verifyAsync(dto.token, {
         secret: this.configService.getOrThrow('auth.secret', { infer: true }),
       });
     } catch {
+      throw new UnauthorizedException('Token is invalid or expired.');
+    }
+
+    if (payload.purpose !== 'admin-restore-account') {
       throw new UnauthorizedException('Token is invalid or expired.');
     }
 
@@ -485,6 +497,11 @@ export class AdminAuthService extends AuthService<
     }
 
     await this.adminUserRepository.restore(user.id);
+
+    // SECURITY: If account has 2FA enabled, enforce 2FA verification before creating session
+    if (user.twoFactorEnabled) {
+      return this.handleTwoFactorLogin(user);
+    }
 
     const { tokens } = await this.createLoginSessionAndTokens(
       user.id,

@@ -1,7 +1,15 @@
 {
   "extends": "@repo/typescript-config/nestjs",
   "ts-node": {
-    "require": ["tsconfig-paths/register"] // configuration for typeorm migration
+    "transpileOnly": true,
+    "require": ["tsconfig-paths/register"],
+    "compilerOptions": {
+      "module": "CommonJS",
+      "moduleResolution": "node",
+      "experimentalDecorators": true,
+      "emitDecoratorMetadata": true,
+      "strictPropertyInitialization": false
+    }
   },
   "compilerOptions": {
     "outDir": "./dist",

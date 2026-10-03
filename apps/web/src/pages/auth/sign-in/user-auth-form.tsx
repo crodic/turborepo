@@ -124,6 +124,13 @@ export function UserAuthForm({
     mutationFn: apiRestoreAccount,
     onSuccess: (payload) => {
       setRestoreToken(null)
+      if (payload.twoFactorRequired && payload.twoFactorToken) {
+        setTwoFactorToken(payload.twoFactorToken)
+        setPendingUserId(payload.userId)
+        twoFactorForm.reset({ code: '' })
+        toast.info('Enter your two-factor authentication code.')
+        return
+      }
       completeLogin(payload)
     },
     onError: () => {

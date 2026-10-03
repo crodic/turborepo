@@ -354,6 +354,7 @@ export class UserAuthService extends AuthService<
   async changePassword(
     id: AutoIncrementID,
     dto: ChangePasswordReqDto,
+    currentSessionId?: string | AutoIncrementID,
   ): Promise<UserChangePasswordResDto> {
     const user = await this.userRepository.findOneByOrFail({ id });
     const { isValid } = await this.verifyLocalPassword(user.id, dto.password);
@@ -366,6 +367,13 @@ export class UserAuthService extends AuthService<
     }
 
     await this.saveLocalAccountPassword(user, dto.newPassword);
+
+    // Revoke all other active user sessions upon password change
+    await this.authSessionService.revokeAllUserSessions({
+      userId: user.id,
+      userType: ESessionUserType.USER,
+      exceptSessionId: currentSessionId,
+    });
 
     return plainToInstance(UserChangePasswordResDto, {
       message: 'Change password successfully',
@@ -458,6 +466,13 @@ export class UserAuthService extends AuthService<
         verifiedAt: new Date(),
       });
     } else if (!user.verifiedAt) {
+      // SECURITY: If an unverified local account was registered previously with this email,
+      // invalidate unconfirmed local password credentials so an attacker who registered
+      // the victim's email cannot retain access once the legitimate owner signs in with Google.
+      await this.userAccountRepository.delete({
+        userId: user.id,
+        provider: EAccountProvider.LOCAL,
+      });
       user.verifiedAt = new Date();
       await this.userRepository.save(user);
     }

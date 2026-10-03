@@ -28,9 +28,17 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, 'admin-jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         ExtractJwt.fromAuthHeaderAsBearerToken(),
-        ExtractJwt.fromUrlQueryParameter('token'),
         (request: Request) =>
           extractCookieToken(request, getAuthCookieNames('admin').access),
+        (request: Request) => {
+          // Native browser EventSource cannot send Authorization headers;
+          // allow query parameter token ONLY for notification stream endpoint.
+          const url = request?.originalUrl || request?.url || '';
+          if (url.includes('/notifications/stream')) {
+            return ExtractJwt.fromUrlQueryParameter('token')(request);
+          }
+          return null;
+        },
       ]),
       secretOrKey: configService.getOrThrow<AllConfigType>('auth.secret', {
         infer: true,

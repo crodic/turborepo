@@ -95,6 +95,7 @@ describe('UserAuthService', () => {
     authSessionService = {
       blacklistSession: jest.fn(),
       clearSessionBlacklist: jest.fn(),
+      revokeAllUserSessions: jest.fn().mockResolvedValue(1),
       createLoginSession: jest.fn(async (params) => ({
         id: 'session-id',
         userId: params.userId,
