@@ -102,6 +102,13 @@ describe('PresenceService', () => {
             commands.push(async () => memorySets.get(setKey)?.size ?? 0);
             return pipe;
           },
+          zscore: (key: string, member: string) => {
+            commands.push(async () => {
+              const val = memoryZSet.get(`${key}:${member}`);
+              return val !== undefined ? String(val) : null;
+            });
+            return pipe;
+          },
           exec: async () => {
             const results: Array<[null, any]> = [];
             for (const cmd of commands) {

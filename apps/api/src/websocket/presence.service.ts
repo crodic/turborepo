@@ -249,21 +249,45 @@ export class PresenceService {
           : DEFAULT_HEARTBEAT_TIMEOUT_MS;
       const cutoff = Date.now() - timeoutMs;
 
+      // 1. Find sockets whose heartbeat has expired
       const expiredFromZset = await this.redisService.zrangebyscore(
         PRESENCE_HEARTBEATS_KEY,
         '-inf',
         cutoff,
       );
-      for (const socketId of expiredFromZset) {
-        staleSocketIds.push(socketId);
+      staleSocketIds.push(...expiredFromZset);
+
+      // 2. Find orphaned sockets: present in socket_index but missing
+      //    from heartbeats entirely (e.g. from server crash / restart)
+      const allIndexed = await this.redisService.hgetall(
+        PRESENCE_SOCKET_INDEX_KEY,
+      );
+      const indexedIds = Object.keys(allIndexed);
+
+      if (indexedIds.length > 0) {
+        const pipeline = this.redisService.pipeline();
+        for (const sid of indexedIds) {
+          pipeline.zscore(PRESENCE_HEARTBEATS_KEY, sid);
+        }
+        const scores = await pipeline.exec();
+
+        for (let i = 0; i < indexedIds.length; i++) {
+          const score = scores?.[i]?.[1];
+          if (score === null || score === undefined) {
+            staleSocketIds.push(indexedIds[i]);
+          }
+        }
       }
     }
 
-    if (staleSocketIds.length === 0) {
+    // Deduplicate before removing
+    const uniqueStale = [...new Set(staleSocketIds)];
+
+    if (uniqueStale.length === 0) {
       return false;
     }
 
-    for (const socketId of staleSocketIds) {
+    for (const socketId of uniqueStale) {
       await this.remove(socketId);
     }
 
