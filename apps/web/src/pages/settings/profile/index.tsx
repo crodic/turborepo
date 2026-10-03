@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 import { apiGetMe } from '@/pages/auth/queries'
 import { NotFoundError } from '@/pages/errors/not-found-error'
 import { ContentSection } from '../components/content-section'
-import { ActivityHeatmap } from './activity-heatmap'
 import { ProfileForm } from './profile-form'
 
 export function SettingsProfile() {
@@ -17,8 +16,8 @@ export function SettingsProfile() {
   if (isFetching)
     return (
       <ContentSection
-        title={t('settings.security.title')}
-        desc={t('settings.security.description')}
+        title={t('settings.profile.title')}
+        desc={t('settings.profile.description')}
       >
         <div className='flex min-h-40 items-center justify-center'>
           <Loader2 className='animate-spin' />
@@ -33,10 +32,7 @@ export function SettingsProfile() {
       title={t('settings.profile.title')}
       desc={t('settings.profile.description')}
     >
-      <div className='space-y-8'>
-        <ProfileForm user={currentUser} />
-        <ActivityHeatmap />
-      </div>
+      <ProfileForm user={currentUser} />
     </ContentSection>
   )
 }

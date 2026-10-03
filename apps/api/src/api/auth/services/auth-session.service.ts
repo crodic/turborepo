@@ -1,24 +1,16 @@
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AllConfigType } from '@/config/config.type';
-import { LOGIN_ACTIVITY_DAYS } from '@/constants/app.constant';
 import { CacheKey } from '@/constants/cache.constant';
 import { ESessionUserType } from '@/constants/entity.enum';
 import { createCacheKey } from '@/utils/cache.util';
 import { normalizeUserAgent } from '@/utils/normalize.util';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import ms, { StringValue } from 'ms';
 import { IsNull, Not, Repository } from 'typeorm';
-import { LoginActivityResDto } from '../dto/admin-users/login-activity.res.dto';
 import { SessionResDto } from '../dto/session.res.dto';
 import { SessionEntity } from '../entities/session.entity';
 import { JwtPayloadType } from '../types/jwt-payload.type';
@@ -178,107 +170,5 @@ export class AuthSessionService {
     );
 
     return { message: 'All other sessions revoked successfully' };
-  }
-
-  /**
-   * Builds a map of YYYY-MM-DD date strings initialized to 0 for the past N days.
-   */
-  private buildDateRangeMap(days: number): {
-    startDate: Date;
-    datesMap: Map<string, number>;
-  } {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(endDate.getDate() - days);
-
-    const datesMap = new Map<string, number>();
-    for (let i = 0; i <= days; i++) {
-      const d = new Date(startDate);
-      d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
-      datesMap.set(dateStr, 0);
-    }
-
-    return { startDate, datesMap };
-  }
-
-  /**
-   * Queries aggregated daily session counts for a given user from the database.
-   */
-  private async querySessionCounts(
-    userId: AutoIncrementID | string,
-    userType: ESessionUserType,
-    startDate: Date,
-  ): Promise<Array<{ date: string; count: string }>> {
-    return this.sessionRepository
-      .createQueryBuilder('session')
-      .select(
-        "TO_CHAR(session.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')",
-        'date',
-      )
-      .addSelect('COUNT(session.id)', 'count')
-      .where('session.userId = :userId', { userId })
-      .andWhere('session.userType = :userType', { userType })
-      .andWhere('session.createdAt >= :startDate', { startDate })
-      .groupBy("TO_CHAR(session.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')")
-      .getRawMany();
-  }
-
-  /**
-   * Computes an activity heatmap level (0-4) based on session count.
-   */
-  private calculateActivityLevel(count: number): number {
-    if (count <= 0) return 0;
-    if (count === 1) return 1;
-    if (count <= 3) return 2;
-    if (count <= 5) return 3;
-    return 4;
-  }
-
-  /**
-   * Computes login activity heatmap data for the past 180 days.
-   */
-  async getLoginActivity(
-    userToken: JwtPayloadType,
-    userType: ESessionUserType,
-  ): Promise<LoginActivityResDto> {
-    try {
-      const { startDate, datesMap } =
-        this.buildDateRangeMap(LOGIN_ACTIVITY_DAYS);
-      const rawSessions = await this.querySessionCounts(
-        userToken.id,
-        userType,
-        startDate,
-      );
-
-      let totalSessions = 0;
-      let activeDays = 0;
-
-      for (const session of rawSessions) {
-        if (datesMap.has(session.date)) {
-          const count = parseInt(session.count, 10);
-          datesMap.set(session.date, count);
-          totalSessions += count;
-          if (count > 0) activeDays++;
-        }
-      }
-
-      const data = Array.from(datesMap.entries()).map(([date, count]) => ({
-        date,
-        count,
-        level: this.calculateActivityLevel(count),
-      }));
-
-      return plainToInstance(LoginActivityResDto, {
-        totalSessions,
-        activeDays,
-        data,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      const stack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(`Failed to get login activity: ${message}`, stack);
-      throw new BadRequestException('Failed to retrieve login activity');
-    }
   }
 }

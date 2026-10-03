@@ -1039,12 +1039,6 @@ export default {
   'settings.notifications.submit': 'Update notifications',
   'settings.notifications.success':
     'Notification settings updated successfully',
-  'settings.profile.loginActivity': 'Login activity',
-  'settings.profile.activityDesc':
-    'Your session activity over the last 180 days.',
-  'settings.profile.activityFailed': 'Failed to load activity data',
-  'settings.profile.sessions': 'sessions',
-  'settings.profile.activeDays': 'active days',
   'settings.website.brandIdentity': 'Brand identity',
   'settings.website.brandIdentityDesc':
     'These values are used across navigation, browser metadata, and product-facing copy.',

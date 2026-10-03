@@ -1032,12 +1032,6 @@ export default {
   'settings.display.submit': 'Cập nhật hiển thị',
   'settings.notifications.submit': 'Cập nhật thông báo',
   'settings.notifications.success': 'Cập nhật cài đặt thông báo thành công',
-  'settings.profile.loginActivity': 'Hoạt động đăng nhập',
-  'settings.profile.activityDesc':
-    'Hoạt động phiên của bạn trong 180 ngày qua.',
-  'settings.profile.activityFailed': 'Không thể tải dữ liệu hoạt động',
-  'settings.profile.sessions': 'phiên',
-  'settings.profile.activeDays': 'ngày hoạt động',
   'settings.website.brandIdentity': 'Nhận diện thương hiệu',
   'settings.website.brandIdentityDesc':
     'Các giá trị này được sử dụng trên thanh điều hướng, metadata trình duyệt và nội dung giao diện.',
