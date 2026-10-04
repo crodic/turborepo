@@ -72,13 +72,13 @@ To connect pgAdmin to the Docker database, use:
 Migrations are not run automatically when the app container starts. Run them explicitly after the database is healthy:
 
 ```bash
-docker compose run --rm app pnpm migration:run:docker
+docker compose run --rm app pnpm migration:run
 ```
 
 To revert the latest migration locally:
 
 ```bash
-docker compose run --rm app pnpm migration:revert:docker
+docker compose run --rm app pnpm migration:revert
 ```
 
 To seed local relational data:
