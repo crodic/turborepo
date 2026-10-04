@@ -3,7 +3,7 @@ import { ChangePasswordResDto } from '@/api/admin-user/dto/change-password.res.d
 import { UpdateMeReqDto } from '@/api/admin-user/dto/update-me.req.dto';
 import { AdminAccountEntity } from '@/api/admin-user/entities/admin-account.entity';
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { SessionEntity } from '@/api/auth/entities/session.entity';
+import { AdminSessionEntity } from '@/api/auth/entities/admin-session.entity';
 import {
   AdminNotificationType,
   NotificationService,
@@ -73,7 +73,8 @@ export type {
 @Injectable()
 export class AdminAuthService extends AuthService<
   AdminUserEntity,
-  AdminAccountEntity
+  AdminAccountEntity,
+  AdminSessionEntity
 > {
   private readonly logger = new Logger(AdminAuthService.name);
 
@@ -90,8 +91,8 @@ export class AdminAuthService extends AuthService<
     adminUserRepository: Repository<AdminUserEntity>,
     @InjectRepository(AdminAccountEntity)
     private readonly adminAccountRepository: Repository<AdminAccountEntity>,
-    @InjectRepository(SessionEntity)
-    sessionRepository: Repository<SessionEntity>,
+    @InjectRepository(AdminSessionEntity)
+    sessionRepository: Repository<AdminSessionEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
     @InjectQueue(QueueName.EMAIL)

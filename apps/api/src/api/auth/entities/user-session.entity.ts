@@ -1,18 +1,27 @@
+import { IAuthSession } from '@/api/auth/interfaces/auth-entity.interface';
+import { UserEntity } from '@/api/user/entities/user.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
-import { ESessionUserType } from '@/constants/entity.enum';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Relation,
+} from 'typeorm';
 
-@Entity('sessions')
-export class SessionEntity extends AbstractEntity {
-  constructor(data?: Partial<SessionEntity>) {
+@Entity('user_sessions')
+export class UserSessionEntity extends AbstractEntity implements IAuthSession {
+  constructor(data?: Partial<UserSessionEntity>) {
     super();
     Object.assign(this, data);
   }
 
   @PrimaryGeneratedColumn('increment', {
     type: 'bigint',
-    primaryKeyConstraintName: 'PK_session_id',
+    primaryKeyConstraintName: 'PK_user_session_id',
   })
   id!: AutoIncrementID;
 
@@ -23,21 +32,22 @@ export class SessionEntity extends AbstractEntity {
   })
   hash!: string;
 
-  @Index('IDX_sessions_user_id')
+  @Index('IDX_user_sessions_user_id')
   @Column({
     name: 'user_id',
     type: 'bigint',
   })
-  userId: AutoIncrementID;
+  userId!: AutoIncrementID;
 
-  @Column({
-    type: 'enum',
-    enum: ESessionUserType,
-    enumName: 'sessions_user_enum',
-    nullable: false,
-    name: 'user_type',
+  @ManyToOne(() => UserEntity, (user) => user.sessions, {
+    onDelete: 'CASCADE',
   })
-  userType: ESessionUserType;
+  @JoinColumn({
+    name: 'user_id',
+    referencedColumnName: 'id',
+    foreignKeyConstraintName: 'FK_user_sessions_user_id',
+  })
+  user!: Relation<UserEntity>;
 
   @Column({
     name: 'ip_address',
@@ -60,7 +70,7 @@ export class SessionEntity extends AbstractEntity {
   })
   expiresAt?: Date;
 
-  @Index('IDX_sessions_revoked_at')
+  @Index('IDX_user_sessions_revoked_at')
   @Column({
     name: 'revoked_at',
     type: 'timestamptz',

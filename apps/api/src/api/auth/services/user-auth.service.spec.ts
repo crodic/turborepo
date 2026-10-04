@@ -1,7 +1,6 @@
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
 import { UserAccountEntity } from '@/api/user/entities/user-account.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
-import { ESessionUserType } from '@/constants/entity.enum';
 import { ErrorCode } from '@/constants/error-code.constant';
 import { QueueName } from '@/constants/job.constant';
 import { verifyPassword } from '@/utils/password.util';
@@ -13,7 +12,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { SessionEntity } from '../entities/session.entity';
+import { UserSessionEntity } from '../entities/user-session.entity';
 import { AuthSessionService } from './auth-session.service';
 import { AuthTokenService } from './auth-token.service';
 import { SocialAuthService } from './social-auth.service';
@@ -31,7 +30,7 @@ describe('UserAuthService', () => {
     Record<keyof Repository<AdminUserEntity>, jest.Mock>
   >;
   let sessionRepository: Partial<
-    Record<keyof Repository<SessionEntity>, jest.Mock>
+    Record<keyof Repository<UserSessionEntity>, jest.Mock>
   >;
   let userAccountRepository: Partial<
     Record<keyof Repository<UserAccountEntity>, jest.Mock>
@@ -69,7 +68,7 @@ describe('UserAuthService', () => {
       findOne: jest.fn(),
     };
     sessionRepository = {
-      create: jest.fn((data) => new SessionEntity(data)),
+      create: jest.fn((data) => new UserSessionEntity(data)),
       find: jest.fn(),
       findOneBy: jest.fn(),
       save: jest.fn(),
@@ -132,7 +131,7 @@ describe('UserAuthService', () => {
           useValue: adminUserRepository,
         },
         {
-          provide: getRepositoryToken(SessionEntity),
+          provide: getRepositoryToken(UserSessionEntity),
           useValue: sessionRepository,
         },
         {
@@ -228,10 +227,9 @@ describe('UserAuthService', () => {
       jwtService.verify.mockReturnValue(payload);
       cacheManager.get.mockResolvedValue(false);
       sessionRepository.findOneBy.mockResolvedValue(
-        new SessionEntity({
+        new UserSessionEntity({
           id: '20' as any,
           userId: '10' as any,
-          userType: ESessionUserType.USER,
           hash: 'session-hash',
         }),
       );
@@ -292,10 +290,9 @@ describe('UserAuthService', () => {
       });
       cacheManager.get.mockResolvedValue(false);
       sessionRepository.findOneBy.mockResolvedValue(
-        new SessionEntity({
+        new UserSessionEntity({
           id: '20' as any,
           userId: '10' as any,
-          userType: ESessionUserType.USER,
           hash: 'new-session-hash',
         }),
       );

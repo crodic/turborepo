@@ -1,3 +1,4 @@
+import { AdminSessionEntity } from '@/api/auth/entities/admin-session.entity';
 import { RoleEntity } from '@/api/role/entities/role.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
@@ -22,6 +23,9 @@ import { AdminAccountEntity } from './admin-account.entity';
 export class AdminUserEntity extends AbstractEntity {
   @OneToMany(() => AdminAccountEntity, (account) => account.admin)
   accounts?: Relation<AdminAccountEntity>[];
+
+  @OneToMany(() => AdminSessionEntity, (session) => session.admin)
+  sessions?: Relation<AdminSessionEntity>[];
   private previousPassword?: string;
 
   constructor(data?: Partial<AdminUserEntity>) {

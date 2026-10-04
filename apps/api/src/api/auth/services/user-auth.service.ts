@@ -1,5 +1,5 @@
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { SessionEntity } from '@/api/auth/entities/session.entity';
+import { UserSessionEntity } from '@/api/auth/entities/user-session.entity';
 import { UserChangePasswordResDto } from '@/api/user/dto/user-change-password.res.dto';
 import { UserResDto } from '@/api/user/dto/user.res.dto';
 import { UserAccountEntity } from '@/api/user/entities/user-account.entity';
@@ -51,7 +51,8 @@ import { UserAccountRecoveryService } from './user-account-recovery.service';
 @Injectable()
 export class UserAuthService extends AuthService<
   UserEntity,
-  UserAccountEntity
+  UserAccountEntity,
+  UserSessionEntity
 > {
   private readonly logger = new Logger(UserAuthService.name);
 
@@ -66,8 +67,8 @@ export class UserAuthService extends AuthService<
     userRepository: Repository<UserEntity>,
     @InjectRepository(AdminUserEntity)
     private readonly adminUserRepository: Repository<AdminUserEntity>,
-    @InjectRepository(SessionEntity)
-    sessionRepository: Repository<SessionEntity>,
+    @InjectRepository(UserSessionEntity)
+    sessionRepository: Repository<UserSessionEntity>,
     @InjectRepository(UserAccountEntity)
     private readonly userAccountRepository: Repository<UserAccountEntity>,
     @InjectQueue(QueueName.EMAIL)

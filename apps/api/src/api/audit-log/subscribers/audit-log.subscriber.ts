@@ -1,4 +1,5 @@
-import { SessionEntity } from '@/api/auth/entities/session.entity';
+import { AdminSessionEntity } from '@/api/auth/entities/admin-session.entity';
+import { UserSessionEntity } from '@/api/auth/entities/user-session.entity';
 import { EmailLogEntity } from '@/api/email/entities/email-log.entity';
 import { NotificationEntity } from '@/api/notification/entities/notification.entity';
 import { Logger } from '@nestjs/common';
@@ -20,7 +21,8 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
   private readonly logger = new Logger(AuditLogSubscriber.name);
   private readonly ignoreEntities = [
     AuditLogEntity.name,
-    SessionEntity.name,
+    AdminSessionEntity.name,
+    UserSessionEntity.name,
     EmailLogEntity.name,
     NotificationEntity.name,
   ];
@@ -170,6 +172,8 @@ export class AuditLogSubscriber implements EntitySubscriberInterface {
       File: 'File',
       UserAccount: 'User Account',
       AdminAccount: 'Admin Account',
+      AdminSession: 'Admin Session',
+      UserSession: 'User Session',
     };
     if (customMap[nameWithoutEntity]) {
       return customMap[nameWithoutEntity];

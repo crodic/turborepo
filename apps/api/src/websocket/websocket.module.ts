@@ -1,5 +1,6 @@
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { SessionEntity } from '@/api/auth/entities/session.entity';
+import { AdminSessionEntity } from '@/api/auth/entities/admin-session.entity';
+import { UserSessionEntity } from '@/api/auth/entities/user-session.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
@@ -13,7 +14,12 @@ import { WebsocketService } from './websocket.service';
 @Global()
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AdminUserEntity, UserEntity, SessionEntity]),
+    TypeOrmModule.forFeature([
+      AdminUserEntity,
+      UserEntity,
+      AdminSessionEntity,
+      UserSessionEntity,
+    ]),
     JwtModule.register({}),
   ],
   providers: [

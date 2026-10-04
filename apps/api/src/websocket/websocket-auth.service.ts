@@ -1,5 +1,7 @@
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { SessionEntity } from '@/api/auth/entities/session.entity';
+import { AdminSessionEntity } from '@/api/auth/entities/admin-session.entity';
+import { UserSessionEntity } from '@/api/auth/entities/user-session.entity';
+import { IAuthSession } from '@/api/auth/interfaces/auth-entity.interface';
 import { JwtPayloadType } from '@/api/auth/types/jwt-payload.type';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
@@ -25,8 +27,10 @@ export class WebsocketAuthService {
     private readonly adminUserRepository: Repository<AdminUserEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
-    @InjectRepository(SessionEntity)
-    private readonly sessionRepository: Repository<SessionEntity>,
+    @InjectRepository(AdminSessionEntity)
+    private readonly adminSessionRepository: Repository<AdminSessionEntity>,
+    @InjectRepository(UserSessionEntity)
+    private readonly userSessionRepository: Repository<UserSessionEntity>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
   ) {}
@@ -122,7 +126,7 @@ export class WebsocketAuthService {
   private async validateSession(
     payload: JwtPayloadType,
     userType: ESessionUserType,
-  ): Promise<SessionEntity> {
+  ): Promise<IAuthSession> {
     return this.validateSessionByFields(payload, userType);
   }
 
@@ -133,7 +137,7 @@ export class WebsocketAuthService {
       tokenHash?: string;
     },
     userType: ESessionUserType,
-  ): Promise<SessionEntity> {
+  ): Promise<IAuthSession> {
     if (!payload.sessionId) {
       throw new UnauthorizedException('Missing socket auth session');
     }
@@ -146,11 +150,17 @@ export class WebsocketAuthService {
       throw new UnauthorizedException('Socket auth session was revoked');
     }
 
-    const session = await this.sessionRepository.findOneBy({
-      id: payload.sessionId as AutoIncrementID,
-      userId: payload.id as AutoIncrementID,
-      userType,
-    });
+    const session =
+      userType === ESessionUserType.ADMIN
+        ? await this.adminSessionRepository.findOneBy({
+            id: payload.sessionId as AutoIncrementID,
+            adminUserId: payload.id as AutoIncrementID,
+          })
+        : await this.userSessionRepository.findOneBy({
+            id: payload.sessionId as AutoIncrementID,
+            userId: payload.id as AutoIncrementID,
+          });
+
     const tokenHash = payload.hash ?? payload.tokenHash;
 
     if (

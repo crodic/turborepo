@@ -1,4 +1,3 @@
-import { SessionEntity } from '@/api/auth/entities/session.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { CacheKey } from '@/constants/cache.constant';
 import { ESessionUserType } from '@/constants/entity.enum';
@@ -15,7 +14,11 @@ import {
 } from 'typeorm';
 import { RefreshReqDto } from '../dto/refresh.req.dto';
 import { RefreshResDto } from '../dto/refresh.res.dto';
-import { IAuthAccount, IAuthUser } from '../interfaces/auth-entity.interface';
+import {
+  IAuthAccount,
+  IAuthSession,
+  IAuthUser,
+} from '../interfaces/auth-entity.interface';
 import { JwtPayloadType } from '../types/jwt-payload.type';
 import { SessionRequestInfo } from '../types/session-request-info.type';
 import { AuthSessionService } from './auth-session.service';
@@ -33,10 +36,11 @@ export interface AuthConfig {
 export abstract class AuthService<
   TUser extends ObjectLiteral & IAuthUser,
   TAccount extends ObjectLiteral & IAuthAccount,
+  TSession extends ObjectLiteral & IAuthSession,
 > {
   constructor(
     protected readonly userRepository: Repository<TUser>,
-    protected readonly sessionRepository: Repository<SessionEntity>,
+    protected readonly sessionRepository: Repository<TSession>,
     protected readonly authTokenService: AuthTokenService,
     protected readonly authSessionService: AuthSessionService,
     protected readonly cacheManager: Cache,
@@ -56,16 +60,16 @@ export abstract class AuthService<
   protected async createLoginSessionAndTokens(
     userId: AutoIncrementID,
     requestInfo?: SessionRequestInfo,
-  ): Promise<{ session: SessionEntity; tokens: AuthTokenPair }> {
+  ): Promise<{ session: TSession; tokens: AuthTokenPair }> {
     const config = this.getAuthConfig();
     const hash = this.authTokenService.generateSessionHash();
 
-    const session = await this.authSessionService.createLoginSession({
+    const session = (await this.authSessionService.createLoginSession({
       userId,
       userType: config.userType,
       hash,
       requestInfo,
-    });
+    })) as unknown as TSession;
 
     const tokens = await this.authTokenService.createTokenPair(
       {
@@ -98,20 +102,22 @@ export abstract class AuthService<
       config.tokenConfig.refreshSecret,
     );
 
-    const session = await this.sessionRepository.findOneBy({
+    const session = (await this.sessionRepository.findOneBy({
       id: sessionId,
-      userType: config.userType,
       revokedAt: IsNull(),
-    });
+    } as any)) as unknown as TSession | null;
 
     if (!session || session.hash !== hash) {
       throw new UnauthorizedException();
     }
 
     if (session.expiresAt && session.expiresAt <= new Date()) {
-      await this.sessionRepository.update(session.id, {
-        revokedAt: new Date(),
-      });
+      await this.sessionRepository.update(
+        session.id as any,
+        {
+          revokedAt: new Date(),
+        } as any,
+      );
       throw new UnauthorizedException();
     }
 
@@ -128,10 +134,9 @@ export abstract class AuthService<
       {
         id: session.id,
         hash,
-        userType: config.userType,
         revokedAt: IsNull(),
-      },
-      { hash: newHash },
+      } as any,
+      { hash: newHash } as any,
     );
 
     return await this.authTokenService.createTokenPair(
@@ -167,16 +172,16 @@ export abstract class AuthService<
       throw new UnauthorizedException();
     }
 
-    const session = await this.sessionRepository.findOneBy({
+    const session = (await this.sessionRepository.findOneBy({
       id: payload.sessionId as AutoIncrementID,
-      userId: payload.id as AutoIncrementID,
-      userType: config.userType,
-    });
+      revokedAt: IsNull(),
+    } as any)) as unknown as TSession | null;
 
     if (
       !session ||
       !payload.hash ||
       session.hash !== payload.hash ||
+      String(session.userId) !== String(payload.id) ||
       session.revokedAt ||
       (session.expiresAt && session.expiresAt <= new Date())
     ) {

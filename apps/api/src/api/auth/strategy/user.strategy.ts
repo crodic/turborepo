@@ -1,7 +1,6 @@
-import { SessionEntity } from '@/api/auth/entities/session.entity';
+import { UserSessionEntity } from '@/api/auth/entities/user-session.entity';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { AllConfigType } from '@/config/config.type';
-import { ESessionUserType } from '@/constants/entity.enum';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -20,8 +19,8 @@ export class UserJwtStrategy extends PassportStrategy(Strategy, 'user-jwt') {
     configService: ConfigService<AllConfigType>,
     @Inject(CACHE_MANAGER)
     private readonly cache: Cache,
-    @InjectRepository(SessionEntity)
-    private readonly sessionRepository: Repository<SessionEntity>,
+    @InjectRepository(UserSessionEntity)
+    private readonly sessionRepository: Repository<UserSessionEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
   ) {
@@ -41,7 +40,6 @@ export class UserJwtStrategy extends PassportStrategy(Strategy, 'user-jwt') {
   async validate(payload: any) {
     return validateJwtSessionPayload({
       payload,
-      userType: ESessionUserType.USER,
       cache: this.cache,
       sessionRepository: this.sessionRepository,
       findUser: (id) => this.userRepository.findOneBy({ id }),

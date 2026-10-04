@@ -20,3 +20,15 @@ export interface IAuthAccount {
   providerAccountId: string;
   password?: string;
 }
+
+export interface IAuthSession {
+  id: AutoIncrementID;
+  userId: AutoIncrementID;
+  hash: string;
+  ipAddress?: string;
+  userAgent?: string;
+  expiresAt?: Date;
+  revokedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}

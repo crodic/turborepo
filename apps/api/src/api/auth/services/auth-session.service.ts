@@ -12,9 +12,10 @@ import { plainToInstance } from 'class-transformer';
 import ms, { StringValue } from 'ms';
 import { IsNull, Repository } from 'typeorm';
 import { SessionResDto } from '../dto/session.res.dto';
-import { SessionEntity } from '../entities/session.entity';
+import { AdminSessionEntity } from '../entities/admin-session.entity';
+import { UserSessionEntity } from '../entities/user-session.entity';
+import { IAuthSession } from '../interfaces/auth-entity.interface';
 import { JwtPayloadType } from '../types/jwt-payload.type';
-
 import { SessionRequestInfo } from '../types/session-request-info.type';
 
 @Injectable()
@@ -23,8 +24,10 @@ export class AuthSessionService {
 
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
-    @InjectRepository(SessionEntity)
-    private readonly sessionRepository: Repository<SessionEntity>,
+    @InjectRepository(AdminSessionEntity)
+    private readonly adminSessionRepository: Repository<AdminSessionEntity>,
+    @InjectRepository(UserSessionEntity)
+    private readonly userSessionRepository: Repository<UserSessionEntity>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
   ) {}
@@ -34,15 +37,29 @@ export class AuthSessionService {
     userType: ESessionUserType;
     hash: string;
     requestInfo?: SessionRequestInfo;
-  }): Promise<SessionEntity> {
-    const session = this.sessionRepository.create({
+  }): Promise<IAuthSession> {
+    const userAgent = normalizeUserAgent(params.requestInfo?.userAgent);
+    const ipAddress = params.requestInfo?.ipAddress;
+
+    if (params.userType === ESessionUserType.ADMIN) {
+      const session = this.adminSessionRepository.create({
+        adminUserId: params.userId as AutoIncrementID,
+        hash: params.hash,
+        ipAddress,
+        userAgent,
+      });
+      const savedSession = await this.adminSessionRepository.save(session);
+      await this.clearSessionBlacklist(savedSession.id);
+      return savedSession;
+    }
+
+    const session = this.userSessionRepository.create({
       userId: params.userId as AutoIncrementID,
-      userType: params.userType,
       hash: params.hash,
-      ipAddress: params.requestInfo?.ipAddress,
-      userAgent: normalizeUserAgent(params.requestInfo?.userAgent),
+      ipAddress,
+      userAgent,
     });
-    const savedSession = await this.sessionRepository.save(session);
+    const savedSession = await this.userSessionRepository.save(session);
     await this.clearSessionBlacklist(savedSession.id);
     return savedSession;
   }
@@ -79,15 +96,24 @@ export class AuthSessionService {
     revokedAt?: Date;
   }) {
     const revokedAt = params.revokedAt ?? new Date();
-    const result = await this.sessionRepository.update(
-      {
-        id: params.sessionId as AutoIncrementID,
-        userId: params.userId as AutoIncrementID,
-        userType: params.userType,
-        revokedAt: IsNull(),
-      },
-      { revokedAt },
-    );
+    const result =
+      params.userType === ESessionUserType.ADMIN
+        ? await this.adminSessionRepository.update(
+            {
+              id: params.sessionId as AutoIncrementID,
+              adminUserId: params.userId as AutoIncrementID,
+              revokedAt: IsNull(),
+            },
+            { revokedAt },
+          )
+        : await this.userSessionRepository.update(
+            {
+              id: params.sessionId as AutoIncrementID,
+              userId: params.userId as AutoIncrementID,
+              revokedAt: IsNull(),
+            },
+            { revokedAt },
+          );
 
     if (result.affected) {
       await this.blacklistSession(params.sessionId, params.userType);
@@ -111,19 +137,29 @@ export class AuthSessionService {
     userToken: JwtPayloadType,
     userType: ESessionUserType,
   ): Promise<SessionResDto[]> {
-    const sessions = await this.sessionRepository.find({
-      where: {
-        userId: userToken.id as AutoIncrementID,
-        userType,
-        revokedAt: IsNull(),
-      },
-      order: { createdAt: 'DESC' },
-    });
+    const sessions =
+      userType === ESessionUserType.ADMIN
+        ? await this.adminSessionRepository.find({
+            where: {
+              adminUserId: userToken.id as AutoIncrementID,
+              revokedAt: IsNull(),
+            },
+            order: { createdAt: 'DESC' },
+          })
+        : await this.userSessionRepository.find({
+            where: {
+              userId: userToken.id as AutoIncrementID,
+              revokedAt: IsNull(),
+            },
+            order: { createdAt: 'DESC' },
+          });
 
     return plainToInstance(
       SessionResDto,
       sessions.map((session) => ({
         ...session,
+        userId: userToken.id,
+        userType,
         isCurrent: String(session.id) === String(userToken.sessionId),
       })),
       { excludeExtraneousValues: true },
@@ -169,12 +205,18 @@ export class AuthSessionService {
     userType: ESessionUserType;
     exceptSessionId?: AutoIncrementID | string;
   }): Promise<number> {
-    const query = this.sessionRepository
+    const isParamAdmin = params.userType === ESessionUserType.ADMIN;
+    const repo = isParamAdmin
+      ? this.adminSessionRepository
+      : this.userSessionRepository;
+    const entityTarget = isParamAdmin ? AdminSessionEntity : UserSessionEntity;
+    const userColumn = isParamAdmin ? 'admin_user_id' : 'user_id';
+
+    const query = repo
       .createQueryBuilder()
-      .update(SessionEntity)
+      .update(entityTarget)
       .set({ revokedAt: new Date() })
-      .where('user_id = :userId', { userId: params.userId })
-      .andWhere('user_type = :userType', { userType: params.userType })
+      .where(`${userColumn} = :userId`, { userId: params.userId })
       .andWhere('revoked_at IS NULL');
 
     if (params.exceptSessionId) {

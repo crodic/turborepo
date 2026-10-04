@@ -13,7 +13,8 @@ import { UserAccountEntity } from '../user/entities/user-account.entity';
 import { UserEntity } from '../user/entities/user.entity';
 import { AdminAuthenticationController } from './controllers/admin-auth.controller';
 import { UserAuthenticationController } from './controllers/user-auth.controller';
-import { SessionEntity } from './entities/session.entity';
+import { AdminSessionEntity } from './entities/admin-session.entity';
+import { UserSessionEntity } from './entities/user-session.entity';
 import { AdminAccountRecoveryService } from './services/admin-account-recovery.service';
 import { AdminAuthService } from './services/admin-auth.service';
 import { AdminTwoFactorService } from './services/admin-two-factor.service';
@@ -33,7 +34,8 @@ import { UserJwtStrategy } from './strategy/user.strategy';
     TypeOrmModule.forFeature([
       UserEntity,
       AdminUserEntity,
-      SessionEntity,
+      AdminSessionEntity,
+      UserSessionEntity,
       AdminAccountEntity,
       UserAccountEntity,
     ]),

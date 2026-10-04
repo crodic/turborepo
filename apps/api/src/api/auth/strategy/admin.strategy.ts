@@ -1,7 +1,6 @@
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { SessionEntity } from '@/api/auth/entities/session.entity';
+import { AdminSessionEntity } from '@/api/auth/entities/admin-session.entity';
 import { AllConfigType } from '@/config/config.type';
-import { ESessionUserType } from '@/constants/entity.enum';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -22,8 +21,8 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, 'admin-jwt') {
     private readonly cache: Cache,
     @InjectRepository(AdminUserEntity)
     private readonly adminUserRepository: Repository<AdminUserEntity>,
-    @InjectRepository(SessionEntity)
-    private readonly sessionRepository: Repository<SessionEntity>,
+    @InjectRepository(AdminSessionEntity)
+    private readonly sessionRepository: Repository<AdminSessionEntity>,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
@@ -50,7 +49,6 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, 'admin-jwt') {
   async validate(payload: any) {
     return validateJwtSessionPayload({
       payload,
-      userType: ESessionUserType.ADMIN,
       cache: this.cache,
       sessionRepository: this.sessionRepository,
       findUser: (id) =>

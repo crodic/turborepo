@@ -1,6 +1,6 @@
 import { AdminAccountEntity } from '@/api/admin-user/entities/admin-account.entity';
 import { AdminUserEntity } from '@/api/admin-user/entities/admin-user.entity';
-import { SessionEntity } from '@/api/auth/entities/session.entity';
+import { AdminSessionEntity } from '@/api/auth/entities/admin-session.entity';
 import { NotificationService } from '@/api/notification/notification.service';
 import { UserEntity } from '@/api/user/entities/user.entity';
 import { verifyPassword } from '@/utils/password.util';
@@ -25,7 +25,7 @@ describe('AdminAuthService login', () => {
     Record<keyof Repository<AdminAccountEntity>, jest.Mock>
   >;
   let sessionRepository: Partial<
-    Record<keyof Repository<SessionEntity>, jest.Mock>
+    Record<keyof Repository<AdminSessionEntity>, jest.Mock>
   >;
   let jwtService: Partial<Record<keyof JwtService, jest.Mock>>;
   let emailQueue: { add: jest.Mock };
@@ -67,7 +67,7 @@ describe('AdminAuthService login', () => {
     };
     sessionRepository = {
       find: jest.fn(),
-      save: jest.fn(async (session: SessionEntity) => ({
+      save: jest.fn(async (session: AdminSessionEntity) => ({
         ...session,
         id: String(sessionIdSequence++),
         createdAt: new Date('2026-06-30T08:00:00.000Z'),

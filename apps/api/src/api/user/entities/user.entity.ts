@@ -1,3 +1,4 @@
+import { UserSessionEntity } from '@/api/auth/entities/user-session.entity';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
 import { hashPassword as hashPass } from '@/utils/password.util';
@@ -19,6 +20,9 @@ import { UserAccountEntity } from './user-account.entity';
 export class UserEntity extends AbstractEntity {
   @OneToMany(() => UserAccountEntity, (account) => account.user)
   accounts?: Relation<UserAccountEntity>[];
+
+  @OneToMany(() => UserSessionEntity, (session) => session.user)
+  sessions?: Relation<UserSessionEntity>[];
   private previousPassword?: string;
 
   constructor(data?: Partial<UserEntity>) {
