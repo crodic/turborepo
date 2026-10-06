@@ -1,5 +1,4 @@
 import { AutoIncrementID } from '@/common/types/common.type';
-import { AllConfigType } from '@/config/config.type';
 import { ACCOUNT_RESTORE_GRACE_PERIOD_MS } from '@/constants/app.constant';
 import { CacheKey } from '@/constants/cache.constant';
 import { EAccountProvider } from '@/constants/entity.enum';
@@ -9,13 +8,11 @@ import { ValidationException } from '@/exceptions/validation.exception';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import assert from 'assert';
 import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
-import { ClsService } from 'nestjs-cls';
 import {
   FilterOperator,
   paginate,
@@ -25,7 +22,6 @@ import {
 import { EntityManager, In, LessThan, Repository } from 'typeorm';
 import { AdminAccountRecoveryService } from '../auth/services/admin-account-recovery.service';
 import { RoleEntity } from '../role/entities/role.entity';
-import { SettingsService } from '../settings/settings.service';
 import { AdminUserResDto } from './dto/admin-user.res.dto';
 import { CreateAdminUserReqDto } from './dto/create-admin-user.req.dto';
 import { UpdateAdminUserReqDto } from './dto/update-admin-user.req.dto';
@@ -43,11 +39,8 @@ export class AdminUserService {
     private readonly adminAccountRepository: Repository<AdminAccountEntity>,
     @InjectRepository(RoleEntity)
     private readonly roleRepository: Repository<RoleEntity>,
-    private cls: ClsService,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
-    private readonly settingsService: SettingsService,
-    private readonly configService: ConfigService<AllConfigType>,
     private readonly adminAccountRecoveryService: AdminAccountRecoveryService,
     @InjectQueue(QueueName.EMAIL)
     private readonly emailQueue: Queue<any, any, string>,

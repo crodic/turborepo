@@ -64,12 +64,19 @@ import { FilesystemService } from './filesystem.service';
         filesystemService.disk('s3'),
       inject: [FilesystemService],
     },
+    {
+      provide: getDiskToken('s3-private'),
+      useFactory: (filesystemService: FilesystemService) =>
+        filesystemService.disk('s3-private'),
+      inject: [FilesystemService],
+    },
   ],
   exports: [
     FilesystemService,
     getDiskToken('local'),
     getDiskToken('public'),
     getDiskToken('s3'),
+    getDiskToken('s3-private'),
   ],
 })
 export class FilesystemModule {}

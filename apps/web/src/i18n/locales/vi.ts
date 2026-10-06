@@ -119,13 +119,21 @@ export default {
   'files.upload.disk': 'Ổ lưu trữ',
   'files.upload.diskPublic': 'Công khai',
   'files.upload.diskLocal': 'Local (riêng tư)',
+  'files.upload.diskS3': 'S3 (Công khai)',
+  'files.upload.diskS3Private': 'S3 (Riêng tư)',
   'files.upload.diskPublicHelp':
     'File public được lưu trên local public disk và có thể mở trực tiếp bằng URL.',
   'files.upload.diskLocalHelp':
     'File local được lưu trên local private disk. Preview và download cần phiên đăng nhập admin hoặc user.',
+  'files.upload.diskS3Help':
+    'File public được lưu trên AWS S3 / MinIO và có thể mở trực tiếp bằng URL.',
+  'files.upload.diskS3PrivateHelp':
+    'File private được lưu trên AWS S3 / MinIO riêng tư. Truy cập cần xác thực hoặc signed URL.',
   'files.disk.title': 'Quyền lưu trữ',
   'files.disk.public': 'Công khai',
   'files.disk.local': 'Riêng tư',
+  'files.disk.s3': 'S3 (Công khai)',
+  'files.disk.s3Private': 'S3 (Riêng tư)',
   'files.disk.publicTooltip':
     'Công khai — Bất kỳ ai có liên kết đều có thể truy cập mà không cần đăng nhập.',
   'files.disk.localTooltip':

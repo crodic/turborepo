@@ -1,6 +1,8 @@
+import { FilesystemService } from '@/filesystem/filesystem.service';
 import {
   ExecutionContext,
   Injectable,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
@@ -18,6 +20,8 @@ export class FileStorageAccessGuard extends AuthGuard([
     @InjectRepository(FileEntity)
     private readonly fileRepository: Repository<FileEntity>,
     private readonly cls: ClsService,
+    @Optional()
+    private readonly storage?: FilesystemService,
   ) {
     super();
   }
@@ -35,7 +39,11 @@ export class FileStorageAccessGuard extends AuthGuard([
       select: { id: true, disk: true },
     });
 
-    if ((file?.disk ?? 'public') !== 'local') {
+    const isPrivate = this.storage
+      ? this.storage.isPrivate(file?.disk)
+      : (file?.disk ?? 'public') === 'local' || file?.disk === 's3-private';
+
+    if (!isPrivate) {
       return true;
     }
 

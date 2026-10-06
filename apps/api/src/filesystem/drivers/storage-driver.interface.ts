@@ -79,3 +79,46 @@ export interface StorageDriver {
    */
   move: (from: string, to: string) => Promise<boolean>;
 }
+
+export interface MultipartPartInput {
+  partNumber: number;
+  etag: string;
+}
+
+export interface MultipartCapable {
+  createMultipartUpload: (
+    filePath: string,
+    options?: PutOptions,
+  ) => Promise<{ uploadId: string; key: string }>;
+
+  uploadPart: (
+    filePath: string,
+    uploadId: string,
+    partNumber: number,
+    content: Buffer | Uint8Array,
+  ) => Promise<{ etag: string; partNumber: number }>;
+
+  completeMultipartUpload: (
+    filePath: string,
+    uploadId: string,
+    parts: MultipartPartInput[],
+  ) => Promise<string>;
+
+  abortMultipartUpload: (
+    filePath: string,
+    uploadId: string,
+  ) => Promise<boolean>;
+}
+
+export function isMultipartCapable(
+  driver: unknown,
+): driver is MultipartCapable {
+  return (
+    typeof driver === 'object' &&
+    driver !== null &&
+    typeof (driver as any).createMultipartUpload === 'function' &&
+    typeof (driver as any).uploadPart === 'function' &&
+    typeof (driver as any).completeMultipartUpload === 'function' &&
+    typeof (driver as any).abortMultipartUpload === 'function'
+  );
+}

@@ -216,4 +216,49 @@ describe('FileService', () => {
       }),
     );
   });
+
+  it('stores managed media on s3 disk', async () => {
+    repository.create.mockImplementation((value) => value);
+    repository.save.mockImplementation(async (value) => ({
+      id: '2',
+      url: 'http://localhost/storage/uploads/image/public-id-s3.jpg',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...value,
+    }));
+
+    await service.upload(
+      {
+        originalname: 'photo.jpg',
+        mimetype: 'image/jpeg',
+        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+        size: 4,
+      } as Express.Multer.File,
+      'avatars',
+      's3',
+    );
+
+    expect(storageService.disk).toHaveBeenCalledWith('s3');
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        disk: 's3',
+        folder: 'avatars',
+      }),
+    );
+  });
+
+  it('throws BadRequestException when disk is invalid or not configured', async () => {
+    await expect(
+      service.upload(
+        {
+          originalname: 'photo.jpg',
+          mimetype: 'image/jpeg',
+          buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+          size: 4,
+        } as Express.Multer.File,
+        undefined,
+        'invalid-disk',
+      ),
+    ).rejects.toThrow();
+  });
 });

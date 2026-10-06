@@ -14,19 +14,63 @@ import type {
 @Injectable()
 export class FilesystemService {
   private readonly drivers = new Map<StorageDisk, StorageDriver>();
-  private readonly defaultDiskName: StorageDisk;
+  private readonly defaultDiskNameValue: StorageDisk;
 
   constructor(private readonly configService: ConfigService<AllConfigType>) {
-    this.defaultDiskName =
+    this.defaultDiskNameValue =
       this.configService.get('storage.disk', { infer: true }) ?? 'public';
   }
 
+  get defaultDiskName(): StorageDisk {
+    return this.defaultDiskNameValue;
+  }
+
+  hasDisk(name?: string | null): boolean {
+    if (!name) return false;
+    const disks = this.configService.get('storage.disks', { infer: true });
+    if (disks && disks[name as StorageDisk]) {
+      return true;
+    }
+    return ['local', 'public', 's3', 's3-private'].includes(name);
+  }
+
+  isPrivate(diskName?: string | null): boolean {
+    const target = (diskName as StorageDisk) || this.defaultDiskNameValue;
+    const disks = this.configService.get('storage.disks', { infer: true });
+    if (disks?.[target]?.visibility) {
+      return disks[target].visibility === 'private';
+    }
+    return target === 'local' || target === 's3-private';
+  }
+
+  getAvailableDisks(): Array<{
+    name: StorageDisk;
+    visibility: 'public' | 'private';
+    driver: string;
+  }> {
+    const disks = this.configService.get('storage.disks', { infer: true });
+    if (disks) {
+      return Object.entries(disks).map(([name, def]) => ({
+        name: name as StorageDisk,
+        visibility: def.visibility,
+        driver: def.driver,
+      }));
+    }
+
+    return [
+      { name: 'local', visibility: 'private', driver: 'local' },
+      { name: 'public', visibility: 'public', driver: 'local' },
+      { name: 's3', visibility: 'public', driver: 's3' },
+      { name: 's3-private', visibility: 'private', driver: 's3' },
+    ];
+  }
+
   /**
-   * Get a specific disk driver instance by name ('local' | 'public' | 's3').
+   * Get a specific disk driver instance by name ('local' | 'public' | 's3' | 's3-private').
    * If name is omitted, returns the default disk configured in .env.
    */
   disk(name?: StorageDisk): StorageDriver {
-    const diskName = name ?? this.defaultDiskName;
+    const diskName = name ?? this.defaultDiskNameValue;
 
     const existing = this.drivers.get(diskName);
     if (existing) {
@@ -44,19 +88,42 @@ export class FilesystemService {
     const appUrl =
       this.configService.get('app.url', { infer: true }) ??
       'http://localhost:8000';
+    const disks = this.configService.get('storage.disks', { infer: true });
+    const diskDef = disks?.[diskName];
 
-    switch (diskName) {
-      case 'local':
-        return new LocalDriver(localRoot, 'local');
-      case 'public':
+    const driverType =
+      diskDef?.driver ?? (diskName.startsWith('s3') ? 's3' : 'local');
+    const visibility =
+      diskDef?.visibility ??
+      (diskName === 'public' || diskName === 's3' ? 'public' : 'private');
+
+    if (driverType === 'local') {
+      if (visibility === 'public') {
         return new PublicDriver(localRoot, appUrl);
-      case 's3': {
-        const s3Config = this.configService.getOrThrow('storage.s3', {
-          infer: true,
-        });
-        return new S3Driver(s3Config);
       }
+      return new LocalDriver(localRoot, 'local');
     }
+
+    if (driverType === 's3') {
+      const s3Config = this.configService.getOrThrow('storage.s3', {
+        infer: true,
+      });
+
+      const bucket =
+        diskDef?.bucket ??
+        (diskName === 's3-private'
+          ? (s3Config.privateBucket ?? `${s3Config.bucket}-private`)
+          : s3Config.bucket);
+
+      return new S3Driver({
+        ...s3Config,
+        bucket,
+        url: diskDef?.url ?? (diskName === 's3' ? s3Config.url : undefined),
+        visibility,
+      });
+    }
+
+    throw new Error(`Unsupported storage driver: ${driverType}`);
   }
 
   // Facade methods delegating to the default disk

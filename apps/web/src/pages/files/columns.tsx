@@ -32,6 +32,11 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header'
+import {
+  getFileDiskLabel,
+  getFileDiskTooltip,
+  isFilePrivate,
+} from './disk-helper'
 import { FilePreviewThumbnail } from './file-preview'
 import { ColumnKey, type FileSchema } from './schema'
 
@@ -89,7 +94,9 @@ export function getFilesTableColumns({
       ),
       cell: ({ row }) => {
         const file = row.original
-        const isLocalDisk = file.disk === 'local'
+        const isPrivate = isFilePrivate(file)
+        const diskLabel = getFileDiskLabel(file.disk, isPrivate)
+        const diskTooltip = getFileDiskTooltip(file.disk, isPrivate)
 
         return (
           <div className='flex min-w-0 items-center gap-3'>
@@ -108,27 +115,21 @@ export function getFilesTableColumns({
                     <span
                       className={cn(
                         'inline-flex shrink-0 items-center gap-1 rounded-sm px-1 py-0.5 text-[10px] font-medium',
-                        isLocalDisk
+                        isPrivate
                           ? 'border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400'
                           : 'bg-muted text-muted-foreground border-border/60 border'
                       )}
                     >
-                      {isLocalDisk ? (
+                      {isPrivate ? (
                         <Lock className='size-2.5' />
                       ) : (
                         <Globe className='size-2.5' />
                       )}
-                      <span>
-                        {isLocalDisk
-                          ? i18n.t('files.disk.local')
-                          : i18n.t('files.disk.public')}
-                      </span>
+                      <span>{diskLabel}</span>
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side='top' className='max-w-xs text-xs'>
-                    {isLocalDisk
-                      ? i18n.t('files.disk.localTooltip')
-                      : i18n.t('files.disk.publicTooltip')}
+                    {diskTooltip}
                   </TooltipContent>
                 </Tooltip>
               </div>

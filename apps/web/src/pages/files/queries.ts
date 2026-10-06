@@ -17,7 +17,16 @@ import {
 } from './schema'
 
 export const MANAGED_FILE_UPLOAD_MAX_SIZE = 500 * 1024 * 1024
-export const FILE_UPLOAD_CHUNK_SIZE = 4 * 1024 * 1024
+export const FILE_UPLOAD_CHUNK_SIZE = 6 * 1024 * 1024
+
+export const storageDiskSchema = z.object({
+  name: z.string(),
+  driver: z.string(),
+  visibility: z.enum(['public', 'private']),
+  isDefault: z.boolean(),
+})
+
+export type StorageDiskInfo = z.infer<typeof storageDiskSchema>
 
 const chunkUploadSessionSchema = z.object({
   sessionId: z.string(),
@@ -36,6 +45,7 @@ export const fileQueryKeys = {
   ],
   detail: (publicId: string) => [...fileQueryKeys.all, publicId],
   folders: ['file-folders'] as const,
+  disks: ['file-disks'] as const,
 }
 
 export async function apiGetFileListing(
@@ -53,6 +63,11 @@ export async function apiGetFileByPublicId(publicId: string) {
   return fileSchema.parse(response.data)
 }
 
+export async function apiGetAvailableDisks(): Promise<StorageDiskInfo[]> {
+  const response = await http.get('/files/disks')
+  return z.array(storageDiskSchema).parse(response.data)
+}
+
 export async function apiUploadFile({
   file,
   folder,
@@ -61,7 +76,7 @@ export async function apiUploadFile({
 }: {
   file: File
   folder?: string | null
-  disk?: 'local' | 'public'
+  disk?: string
   onProgress?: (progress: number) => void
 }) {
   return apiUploadFileInChunks({ file, folder, disk, onProgress })
@@ -75,7 +90,7 @@ async function apiUploadFileInChunks({
 }: {
   file: File
   folder?: string | null
-  disk?: 'local' | 'public'
+  disk?: string
   onProgress?: (progress: number) => void
 }) {
   const totalChunks = Math.ceil(file.size / FILE_UPLOAD_CHUNK_SIZE)
@@ -218,4 +233,10 @@ export const useDataFileFolders = () =>
   useQuery({
     queryKey: fileQueryKeys.folders,
     queryFn: apiGetFileFolders,
+  })
+
+export const useDataFileDisks = () =>
+  useQuery({
+    queryKey: fileQueryKeys.disks,
+    queryFn: apiGetAvailableDisks,
   })

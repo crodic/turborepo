@@ -345,7 +345,7 @@ export class AdminAuthService extends AuthService<
     }
 
     if (user.avatar && !user.avatar.startsWith('http')) {
-      user.avatar = this.filesystemService.disk('public').url(user.avatar);
+      user.avatar = this.filesystemService.disk().url(user.avatar);
     }
 
     return user.toDto(AdminUserResDto);
@@ -366,9 +366,9 @@ export class AdminAuthService extends AuthService<
     if (file) {
       const filename = `avatars/admin-${id}-${Date.now()}${file.originalname.substring(file.originalname.lastIndexOf('.'))}`;
       await this.filesystemService
-        .disk('public')
+        .disk()
         .put(filename, file.buffer, { mimeType: file.mimetype });
-      avatarPath = this.filesystemService.disk('public').url(filename);
+      avatarPath = this.filesystemService.disk().url(filename);
     }
 
     if (dto.firstName !== undefined) {

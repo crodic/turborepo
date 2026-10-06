@@ -76,8 +76,67 @@ describe('S3Driver', () => {
     expect(url).toBe('http://localhost:9000/test-bucket/photos/avatar.jpg');
   });
 
+  it('should return custom url when url option is configured', () => {
+    const customDriver = new S3Driver({
+      region: 'us-east-1',
+      bucket: 'test-bucket',
+      url: 'https://cdn.example.com',
+    });
+    const url = customDriver.url('photos/avatar.jpg');
+    expect(url).toBe('https://cdn.example.com/photos/avatar.jpg');
+  });
+
   it('should generate temporary signed url', async () => {
     const tempUrl = await driver.temporaryUrl('private/doc.pdf', 3600);
     expect(tempUrl).toBe('https://mocked-signed-url.com/file.jpg');
+  });
+
+  it('should create multipart upload and return uploadId', async () => {
+    mockSend.mockResolvedValueOnce({ UploadId: 'upload-123' });
+    const res = await driver.createMultipartUpload('large.zip');
+    expect(res).toEqual({ uploadId: 'upload-123', key: 'large.zip' });
+  });
+
+  it('should upload part and return etag', async () => {
+    mockSend.mockResolvedValueOnce({ ETag: '"etag-part-1"' });
+    const res = await driver.uploadPart(
+      'large.zip',
+      'upload-123',
+      1,
+      Buffer.from('part1'),
+    );
+    expect(res).toEqual({ etag: '"etag-part-1"', partNumber: 1 });
+  });
+
+  it('should complete multipart upload', async () => {
+    mockSend.mockResolvedValueOnce({});
+    const res = await driver.completeMultipartUpload(
+      'large.zip',
+      'upload-123',
+      [{ partNumber: 1, etag: '"etag-part-1"' }],
+    );
+    expect(res).toBe('large.zip');
+  });
+
+  it('should abort multipart upload', async () => {
+    mockSend.mockResolvedValueOnce({});
+    const res = await driver.abortMultipartUpload('large.zip', 'upload-123');
+    expect(res).toBe(true);
+  });
+
+  it('should delete directory with pagination', async () => {
+    mockSend
+      .mockResolvedValueOnce({
+        Contents: [{ Key: 'folder/a.txt' }],
+        NextContinuationToken: 'token-1',
+      })
+      .mockResolvedValueOnce({}) // DeleteObjects
+      .mockResolvedValueOnce({
+        Contents: [{ Key: 'folder/b.txt' }],
+      })
+      .mockResolvedValueOnce({}); // DeleteObjects
+
+    const res = await driver.deleteDirectory('folder');
+    expect(res).toBe(true);
   });
 });

@@ -200,15 +200,33 @@ step_install_deps() {
 
 step_start_docker() {
   if has_docker; then
-    log "Starting PostgreSQL, Redis, Mailpit, and pgAdmin with Docker Compose"
+    log "Starting PostgreSQL, Redis, Mailpit, pgAdmin, and MinIO with Docker Compose"
     local compose_args=()
     if [[ -f "$API_DIR/.env" ]]; then
       compose_args+=(--env-file "$API_DIR/.env")
     fi
-    docker compose "${compose_args[@]}" -f "$API_DIR/docker-compose.yml" up -d postgres redis mailpit pgadmin
+    docker compose "${compose_args[@]}" -f "$API_DIR/docker-compose.yml" up -d postgres redis mailpit pgadmin minio minio-init
   else
     warn "Docker Compose is not available. Skipping container startup."
-    warn "Make sure PostgreSQL and Redis are reachable using apps/api/.env."
+    warn "Make sure PostgreSQL, Redis, and MinIO/S3 are reachable using apps/api/.env."
+  fi
+}
+
+step_start_minio() {
+  if has_docker; then
+    log "Starting MinIO Server and initializing buckets with Docker Compose"
+    local compose_args=()
+    if [[ -f "$API_DIR/.env" ]]; then
+      compose_args+=(--env-file "$API_DIR/.env")
+    fi
+    docker compose "${compose_args[@]}" -f "$API_DIR/docker-compose.yml" up -d minio minio-init
+    log "✨ MinIO is running and buckets have been initialized!"
+    info "  - S3 API Endpoint: http://localhost:9000"
+    info "  - Console Web UI:  http://localhost:9001"
+    info "  - Credentials:     Username: minioadmin | Password: minioadmin"
+    info "  - Buckets:         Public: nest-uploads | Private: nest-uploads-private"
+  else
+    fail "Docker Compose is required to run MinIO. Please install and start Docker."
   fi
 }
 
@@ -317,9 +335,10 @@ Usage:
   bash scripts/setup.sh [options]
 
 Options:
-  -d, --docker        Full setup with Docker (Postgres, Redis, Mailpit, pgAdmin)
+  -d, --docker        Full setup with Docker (Postgres, Redis, Mailpit, pgAdmin, MinIO)
   -l, --no-docker     Setup without Docker (uses local Postgres & Redis)
       --local         Alias for --no-docker
+      --minio         Start MinIO S3 storage & initialize buckets only
       --db-only       Run database migrations, seeds, permission sync, and clear storage
       --reset-db      Reset database: drop all tables, fresh migrations & seeds
   -f, --force         Skip confirmation prompts (used with --reset-db)
@@ -371,6 +390,10 @@ main() {
         mode="no-docker"
         shift
         ;;
+      --minio)
+        mode="minio"
+        shift
+        ;;
       --db-only)
         mode="db-only"
         shift
@@ -416,15 +439,16 @@ main() {
       printf '\033[1;35m   🚀 Turborepo Monorepo Setup Wizard\033[0m\n'
       printf '\033[1;35m=======================================================\033[0m\n\n'
       printf 'Please choose a setup option:\n'
-      printf '  \033[1;32m1)\033[0m Full Setup with Docker (Containers for DB, Redis, Mailpit, pgAdmin) \033[1;33m[Recommended]\033[0m\n'
+      printf '  \033[1;32m1)\033[0m Full Setup with Docker (Containers for DB, Redis, Mailpit, pgAdmin, MinIO) \033[1;33m[Recommended]\033[0m\n'
       printf '  \033[1;32m2)\033[0m Local Setup without Docker (Use existing local PostgreSQL & Redis)\n'
       printf '  \033[1;32m3)\033[0m Database & Permissions Refresh Only (Run pending migrations + seeds + RBAC)\n'
       printf '  \033[1;31m4)\033[0m Reset Database (Drop all tables, fresh migrations & seeds) \033[1;31m[⚠️ DATA LOSS]\033[0m\n'
-      printf '  \033[1;32m5)\033[0m Custom Setup (Select individual steps)\n'
-      printf '  \033[1;32m6)\033[0m Exit\n\n'
+      printf '  \033[1;34m5)\033[0m Start MinIO Only (Launch MinIO S3 & initialize buckets)\n'
+      printf '  \033[1;32m6)\033[0m Custom Setup (Select individual steps)\n'
+      printf '  \033[1;32m7)\033[0m Exit\n\n'
 
       local choice
-      read -r -p "Enter selection [1-6] (default: 1): " choice
+      read -r -p "Enter selection [1-7] (default: 1): " choice
       choice="${choice:-1}"
 
       case "$choice" in
@@ -441,9 +465,12 @@ main() {
           mode="reset-db"
           ;;
         5)
-          mode="custom"
+          mode="minio"
           ;;
         6)
+          mode="custom"
+          ;;
+        7)
           info "Setup cancelled."
           exit 0
           ;;
@@ -496,6 +523,11 @@ main() {
       step_reset_database "$force"
       ;;
 
+    minio)
+      step_start_minio
+      exit 0
+      ;;
+
     custom)
       if prompt_yn "Prepare environment files (.env)?" "Y"; then
         step_prepare_env
@@ -505,8 +537,10 @@ main() {
         step_install_deps
       fi
 
-      if prompt_yn "Start Docker infrastructure (Postgres, Redis, Mailpit, pgAdmin)?" "Y"; then
+      if prompt_yn "Start Docker infrastructure (Postgres, Redis, Mailpit, pgAdmin, MinIO)?" "Y"; then
         step_start_docker
+      elif prompt_yn "Start MinIO S3 storage only (MinIO server + buckets)?" "N"; then
+        step_start_minio
       else
         warn "Skipping Docker. Ensure local PostgreSQL and Redis are running if needed."
       fi
@@ -533,6 +567,8 @@ main() {
   printf '  - API Server:   \033[1;32mpnpm --filter api start:dev\033[0m  (http://localhost:%s)\n' "$ACTUAL_API_PORT"
   printf '  - Client App:   \033[1;32mpnpm --filter client dev\033[0m     (http://localhost:%s)\n' "$ACTUAL_CLIENT_PORT"
   printf '  - Admin Portal: \033[1;32mpnpm --filter web-portal dev\033[0m (http://localhost:%s)\n' "$ACTUAL_WEB_PORT"
+  printf '  - MinIO Console: (http://localhost:9001)\n'
+  printf '  - Mailpit:      (http://localhost:8025)\n'
   printf '  - All at once:  \033[1;32mpnpm dev\033[0m\n\n'
 }
 

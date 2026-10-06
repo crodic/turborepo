@@ -139,4 +139,59 @@ describe('FileChunkUploadService', () => {
       await rm(diskRoot, { recursive: true, force: true });
     }
   });
+
+  it('uploads chunks via S3 multipart when driver is multipart capable', async () => {
+    const s3MultipartDisk = {
+      createMultipartUpload: jest.fn().mockResolvedValue({
+        uploadId: 's3-upload-123',
+        key: 'raw/docs/test.txt',
+      }),
+      uploadPart: jest
+        .fn()
+        .mockResolvedValue({ etag: '"etag-1"', partNumber: 1 }),
+      completeMultipartUpload: jest.fn().mockResolvedValue('raw/docs/test.txt'),
+      abortMultipartUpload: jest.fn().mockResolvedValue(true),
+    };
+
+    storageService.disk.mockReturnValue(s3MultipartDisk as any);
+
+    repository.create.mockImplementation((value) => value);
+    repository.save.mockImplementation(async (value) => ({
+      id: '10',
+      ...value,
+    }));
+
+    const session = await service.createUploadSession({
+      originalName: 'test.txt',
+      mime: 'text/plain',
+      size: 10,
+      chunkSize: 10,
+      totalChunks: 1,
+      disk: 's3',
+      folder: 'docs',
+    });
+
+    expect(s3MultipartDisk.createMultipartUpload).toHaveBeenCalled();
+
+    await service.uploadChunk(session.sessionId, 0, {
+      buffer: Buffer.from('helloworld'),
+      size: 10,
+    } as Express.Multer.File);
+
+    expect(s3MultipartDisk.uploadPart).toHaveBeenCalledWith(
+      expect.any(String),
+      's3-upload-123',
+      1,
+      expect.any(Buffer),
+    );
+
+    const result = await service.completeUploadSession(session.sessionId);
+
+    expect(s3MultipartDisk.completeMultipartUpload).toHaveBeenCalledWith(
+      expect.any(String),
+      's3-upload-123',
+      [{ partNumber: 1, etag: '"etag-1"' }],
+    );
+    expect(result.disk).toBe('s3');
+  });
 });

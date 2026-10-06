@@ -1,11 +1,16 @@
 import { StorageDisk } from '@/filesystem/config/storage-config.type';
-import { StorageDriver } from '@/filesystem/drivers/storage-driver.interface';
+import {
+  isMultipartCapable,
+  StorageDriver,
+} from '@/filesystem/drivers/storage-driver.interface';
 import { FilesystemService } from '@/filesystem/filesystem.service';
+import { RedisService } from '@/redis/redis.service';
 import {
   BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
@@ -38,6 +43,11 @@ export type ChunkUploadSession = {
   chunkSize: number;
   uploadedChunks: number[];
   createdAt: string;
+  s3UploadId?: string;
+  s3Key?: string;
+  s3Parts?: Array<{ partNumber: number; etag: string }>;
+  imageWidth?: number | null;
+  imageHeight?: number | null;
 };
 
 @Injectable()
@@ -49,10 +59,20 @@ export class FileChunkUploadService {
     private readonly fileRepository: Repository<FileEntity>,
     private readonly storage: FilesystemService,
     private readonly fileFolderService: FileFolderService,
+    @Optional()
+    private readonly redis?: RedisService,
   ) {}
 
   private get currentDiskName(): StorageDisk {
-    return 'public';
+    return this.storage?.defaultDiskName ?? 'public';
+  }
+
+  private isDiskPrivate(disk?: string | null): boolean {
+    if (this.storage?.isPrivate) {
+      return this.storage.isPrivate(disk);
+    }
+    const target = (disk as StorageDisk) || this.currentDiskName;
+    return target === 'local' || target === 's3-private';
   }
 
   private writeDisk(disk?: string | null): StorageDriver {
@@ -62,9 +82,13 @@ export class FileChunkUploadService {
   private normalizeUploadDisk(disk?: string | null): StorageDisk {
     const targetDisk = (disk as StorageDisk) || this.currentDiskName;
 
-    if (!['local', 'public'].includes(targetDisk)) {
+    const isSupported = this.storage?.hasDisk
+      ? this.storage.hasDisk(targetDisk)
+      : ['local', 'public', 's3', 's3-private'].includes(targetDisk);
+
+    if (!isSupported) {
       throw new BadRequestException(
-        'Only local and public disks are supported',
+        `Disk "${targetDisk}" is not supported or not configured`,
       );
     }
 
@@ -90,6 +114,17 @@ export class FileChunkUploadService {
   private async readUploadSession(
     sessionId: string,
   ): Promise<ChunkUploadSession> {
+    if (this.redis) {
+      try {
+        const cached = await this.redis.get(`chunk_session:${sessionId}`);
+        if (cached) {
+          return JSON.parse(cached) as ChunkUploadSession;
+        }
+      } catch (err) {
+        this.logger.warn(`Redis get failed for session ${sessionId}: ${err}`);
+      }
+    }
+
     try {
       const manifest = await readFile(
         this.sessionManifestPath(sessionId),
@@ -102,10 +137,31 @@ export class FileChunkUploadService {
   }
 
   private async writeUploadSession(session: ChunkUploadSession): Promise<void> {
-    await writeFile(
-      this.sessionManifestPath(session.sessionId),
-      JSON.stringify(session, null, 2),
-    );
+    if (this.redis) {
+      try {
+        await this.redis.set(
+          `chunk_session:${session.sessionId}`,
+          JSON.stringify(session),
+          86400,
+        );
+      } catch (err) {
+        this.logger.warn(
+          `Redis set failed for session ${session.sessionId}: ${err}`,
+        );
+      }
+    }
+
+    try {
+      await mkdir(this.sessionPath(session.sessionId), { recursive: true });
+      await writeFile(
+        this.sessionManifestPath(session.sessionId),
+        JSON.stringify(session, null, 2),
+      );
+    } catch (err) {
+      if (!this.redis) {
+        throw err;
+      }
+    }
   }
 
   private formatBytes(bytes: number): string {
@@ -220,12 +276,13 @@ export class FileChunkUploadService {
       throw new BadRequestException('Invalid chunk count');
     }
 
+    const targetDisk = this.normalizeUploadDisk(dto.disk);
     const session: ChunkUploadSession = {
       sessionId: uuidv4().replace(/-/g, ''),
       originalName: dto.originalName,
       mime: dto.mime,
       size: dto.size,
-      disk: this.normalizeUploadDisk(dto.disk),
+      disk: targetDisk,
       folder: this.fileFolderService.normalizeFolder(dto.folder),
       totalChunks: dto.totalChunks,
       chunkSize: dto.chunkSize,
@@ -233,7 +290,31 @@ export class FileChunkUploadService {
       createdAt: new Date().toISOString(),
     };
 
-    await mkdir(this.sessionPath(session.sessionId), { recursive: true });
+    const targetDriver = this.writeDisk(targetDisk);
+    if (isMultipartCapable(targetDriver)) {
+      const resourceType = this.detectResourceType(session.mime);
+      const publicId = uuidv4().replace(/-/g, '').slice(0, 20);
+      const ext = session.originalName.split('.').pop() || 'bin';
+      const folderPath = session.folder
+        ? posixPath.join(resourceType, session.folder)
+        : resourceType;
+      const storedPath = this.makeStorageKey(folderPath, `${publicId}.${ext}`);
+
+      const { uploadId } = await targetDriver.createMultipartUpload(
+        storedPath,
+        {
+          mimeType: session.mime,
+          visibility: this.isDiskPrivate(targetDisk) ? 'private' : 'public',
+        },
+      );
+
+      session.s3UploadId = uploadId;
+      session.s3Key = storedPath;
+      session.s3Parts = [];
+    } else {
+      await mkdir(this.sessionPath(session.sessionId), { recursive: true });
+    }
+
     await this.writeUploadSession(session);
 
     return {
@@ -265,7 +346,37 @@ export class FileChunkUploadService {
       );
     }
 
-    await writeFile(this.chunkPath(sessionId, index), chunk.buffer);
+    const targetDriver = this.writeDisk(session.disk);
+    if (
+      isMultipartCapable(targetDriver) &&
+      session.s3UploadId &&
+      session.s3Key
+    ) {
+      const partNumber = index + 1;
+      const { etag } = await targetDriver.uploadPart(
+        session.s3Key,
+        session.s3UploadId,
+        partNumber,
+        chunk.buffer,
+      );
+
+      session.s3Parts = [
+        ...(session.s3Parts ?? []).filter((p) => p.partNumber !== partNumber),
+        { partNumber, etag },
+      ];
+
+      if (index === 0 && session.mime.includes('image')) {
+        try {
+          const meta = await sharp(chunk.buffer).metadata();
+          session.imageWidth = meta.width ?? null;
+          session.imageHeight = meta.height ?? null;
+        } catch (err) {
+          this.logger.warn(`Failed to read chunk 0 image metadata: ${err}`);
+        }
+      }
+    } else {
+      await writeFile(this.chunkPath(sessionId, index), chunk.buffer);
+    }
 
     session.uploadedChunks = Array.from(
       new Set([...session.uploadedChunks, index]),
@@ -284,6 +395,56 @@ export class FileChunkUploadService {
 
     if (session.uploadedChunks.length !== session.totalChunks) {
       throw new BadRequestException('Upload session is missing chunks');
+    }
+
+    const targetDriver = this.writeDisk(session.disk);
+    if (
+      isMultipartCapable(targetDriver) &&
+      session.s3UploadId &&
+      session.s3Key
+    ) {
+      if ((session.s3Parts?.length ?? 0) !== session.totalChunks) {
+        throw new BadRequestException('Upload session is missing chunks');
+      }
+
+      await targetDriver.completeMultipartUpload(
+        session.s3Key,
+        session.s3UploadId,
+        session.s3Parts!,
+      );
+
+      const publicId = posixPath
+        .basename(session.s3Key)
+        .split('.')[0]
+        .slice(0, 20);
+      const resourceType = this.detectResourceType(session.mime);
+
+      if (session.folder) {
+        await this.fileFolderService.ensureFolder(session.folder);
+      }
+
+      const media = this.fileRepository.create({
+        public_id: publicId,
+        folder: session.folder,
+        disk: session.disk,
+        original_name: session.originalName,
+        path: session.s3Key,
+        hash: this.generateHash(),
+        mime: session.mime,
+        size: session.size,
+        width: session.imageWidth ?? null,
+        height: session.imageHeight ?? null,
+        duration: null,
+        resource_type: resourceType,
+        status: 'active',
+      });
+
+      const saved = await this.fileRepository.save(media);
+      await this.abortUploadSession(sessionId);
+
+      return plainToInstance(FileResDto, saved, {
+        excludeExtraneousValues: true,
+      });
     }
 
     for (let index = 0; index < session.totalChunks; index++) {
@@ -327,7 +488,7 @@ export class FileChunkUploadService {
       createReadStream(mergedPath),
       {
         mimeType: session.mime,
-        visibility: 'public',
+        visibility: this.isDiskPrivate(session.disk) ? 'private' : 'public',
       },
       this.writeDisk(session.disk),
     );
@@ -352,7 +513,34 @@ export class FileChunkUploadService {
   }
 
   async abortUploadSession(sessionId: string): Promise<{ message: string }> {
-    await rm(this.sessionPath(sessionId), { recursive: true, force: true });
+    try {
+      const session = await this.readUploadSession(sessionId);
+      if (session?.s3UploadId && session?.s3Key) {
+        const targetDriver = this.writeDisk(session.disk);
+        if (isMultipartCapable(targetDriver)) {
+          await targetDriver.abortMultipartUpload(
+            session.s3Key,
+            session.s3UploadId,
+          );
+        }
+      }
+    } catch {
+      // Ignore if session already missing
+    }
+
+    if (this.redis) {
+      try {
+        await this.redis.del(`chunk_session:${sessionId}`);
+      } catch {
+        // Ignore redis delete failure
+      }
+    }
+
+    try {
+      await rm(this.sessionPath(sessionId), { recursive: true, force: true });
+    } catch {
+      // Ignore directory removal failure
+    }
 
     return { message: 'Successfully aborted' };
   }

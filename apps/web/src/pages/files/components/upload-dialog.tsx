@@ -26,7 +26,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { formatBytes } from '../columns'
-import { apiUploadFile, MANAGED_FILE_UPLOAD_MAX_SIZE } from '../queries'
+import { getFileDiskLabel } from '../disk-helper'
+import {
+  apiUploadFile,
+  MANAGED_FILE_UPLOAD_MAX_SIZE,
+  useDataFileDisks,
+} from '../queries'
 import { type FolderSchema } from '../schema'
 import { FolderCreatableField } from './folder-creatable-field'
 
@@ -54,13 +59,42 @@ export function UploadDialog({
   onCreateLocalFolder,
 }: UploadDialogProps) {
   const { t } = useTranslation()
+  const { data: availableDisks } = useDataFileDisks()
   const [targetFolder, setTargetFolder] = useState(folder ?? '')
-  const [targetDisk, setTargetDisk] = useState<'local' | 'public'>('public')
+  const [targetDisk, setTargetDisk] = useState<string>('public')
   const [files, setFiles] = useState<File[]>([])
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
     {}
   )
   const [isDragOver, setIsDragOver] = useState(false)
+
+  useEffect(() => {
+    if (availableDisks && availableDisks.length > 0) {
+      const defaultDisk = availableDisks.find((d) => d.isDefault)
+      if (defaultDisk) {
+        setTargetDisk(defaultDisk.name)
+      }
+    }
+  }, [availableDisks])
+
+  const diskOptions =
+    availableDisks && availableDisks.length > 0
+      ? availableDisks.map((d) => d.name)
+      : ['public', 'local', 's3', 's3-private']
+
+  const getDiskHelpText = (disk: string): string => {
+    switch (disk) {
+      case 'local':
+        return t('files.upload.diskLocalHelp')
+      case 's3':
+        return t('files.upload.diskS3Help')
+      case 's3-private':
+        return t('files.upload.diskS3PrivateHelp')
+      case 'public':
+      default:
+        return t('files.upload.diskPublicHelp')
+    }
+  }
 
   useEffect(() => {
     if (open) {
@@ -129,26 +163,21 @@ export function UploadDialog({
             <Label>{t('files.upload.disk')}</Label>
             <Select
               value={targetDisk}
-              onValueChange={(value) =>
-                setTargetDisk(value as 'local' | 'public')
-              }
+              onValueChange={(value) => setTargetDisk(value)}
             >
               <SelectTrigger className='w-full'>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value='public'>
-                  {t('files.upload.diskPublic')}
-                </SelectItem>
-                <SelectItem value='local'>
-                  {t('files.upload.diskLocal')}
-                </SelectItem>
+                {diskOptions.map((disk) => (
+                  <SelectItem key={disk} value={disk}>
+                    {getFileDiskLabel(disk)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <p className='text-muted-foreground text-xs'>
-              {targetDisk === 'local'
-                ? t('files.upload.diskLocalHelp')
-                : t('files.upload.diskPublicHelp')}
+              {getDiskHelpText(targetDisk)}
             </p>
           </div>
           <FolderCreatableField

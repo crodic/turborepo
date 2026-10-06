@@ -163,7 +163,7 @@ export class SortableImageUploadService {
     const ext = this.getFileExtension(file);
     const path = posixPath.join('image', uploadFolder, `${publicId}.${ext}`);
 
-    await this.storage.disk('public').put(path, file.buffer, {
+    await this.storage.disk().put(path, file.buffer, {
       mimeType: file.mimetype,
       visibility: 'public',
     });
@@ -233,6 +233,6 @@ export class SortableImageUploadService {
   }
 
   private getPublicStorageUrl(path: string) {
-    return this.storage.disk('public').url(path);
+    return this.storage.disk().url(path);
   }
 }

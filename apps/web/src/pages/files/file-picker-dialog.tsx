@@ -419,7 +419,6 @@ export function FilePickerDialog(props: FilePickerDialogProps) {
           const uploaded = await apiUploadFile({
             file,
             folder: uploadFolder,
-            disk: 'public',
           })
           newlyUploaded.push(uploaded)
         }

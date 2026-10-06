@@ -15,6 +15,8 @@ describe('WhiteLabelService', () => {
   let filesystemServiceMock: {
     put: jest.Mock;
     delete: jest.Mock;
+    url?: jest.Mock;
+    disk?: jest.Mock;
   };
   let dataSourceMock: {
     createQueryRunner: jest.Mock;
@@ -35,9 +37,14 @@ describe('WhiteLabelService', () => {
       createQueryBuilder: jest.fn(),
     };
 
-    filesystemServiceMock = {
+    const diskMock = {
       put: jest.fn(),
       delete: jest.fn(),
+      url: jest.fn(),
+    };
+    filesystemServiceMock = {
+      ...diskMock,
+      disk: jest.fn().mockReturnValue(diskMock),
     };
 
     dataSourceMock = {

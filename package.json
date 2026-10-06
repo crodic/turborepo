@@ -13,6 +13,7 @@
     "test": "turbo run test",
     "config": "bash ./scripts/setup.sh --no-docker",
     "setup": "bash ./scripts/setup.sh",
+    "minio": "bash ./scripts/setup.sh --minio",
     "db:reset": "bash ./scripts/setup.sh --reset-db",
     "db:fresh": "pnpm --filter api schema:drop && pnpm --filter api migration:run",
     "storage:clear": "bash ./scripts/clear-storage.sh",

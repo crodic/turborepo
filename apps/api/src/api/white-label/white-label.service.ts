@@ -12,8 +12,10 @@ import {
   Paginated,
   PaginateQuery,
 } from 'nestjs-paginate';
+import { extname } from 'path';
 import slugify from 'slugify';
 import { DataSource, IsNull, Not, Repository } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
 import { ActiveWhiteLabelResDto } from './dto/active-white-label.res.dto';
 import { CreateWhiteLabelReqDto } from './dto/create-white-label.req.dto';
 import { UpdateWhiteLabelReqDto } from './dto/update-white-label.req.dto';
@@ -87,23 +89,25 @@ export class WhiteLabelService {
     return slug;
   }
 
-  private getPublicUploadPath(file?: Express.Multer.File): string | undefined {
-    if (!file) {
-      return undefined;
-    }
-
-    return this.storage
-      .disk('public')
-      .url(`${this.uploadFolder}/${file.filename}`);
-  }
-
-  private resolveAsset(
+  private async resolveAsset(
     file: Express.Multer.File | undefined,
     shouldRemove: boolean | undefined,
     currentValue: string | null | undefined,
-  ): string | null | undefined {
-    const publicPath = this.getPublicUploadPath(file);
-    if (publicPath) return publicPath;
+  ): Promise<string | null | undefined> {
+    if (file) {
+      const ext = extname(file.originalname);
+      const filename = `${uuidv4()}${ext}`;
+      const relativePath = `${this.uploadFolder}/${filename}`;
+      const diskInstance =
+        typeof this.storage?.disk === 'function'
+          ? this.storage.disk()
+          : (this.storage as any);
+      await diskInstance.put(relativePath, file.buffer, {
+        mimeType: file.mimetype,
+        visibility: 'public',
+      });
+      return diskInstance.url(relativePath);
+    }
     if (shouldRemove) return null;
     return currentValue;
   }
@@ -126,7 +130,11 @@ export class WhiteLabelService {
 
     if (relativePath) {
       try {
-        await this.storage.disk('public').delete(relativePath);
+        const diskInstance =
+          typeof this.storage?.disk === 'function'
+            ? this.storage.disk()
+            : (this.storage as any);
+        await diskInstance.delete(relativePath);
       } catch {
         // Ignore deletion errors gracefully
       }
@@ -214,6 +222,15 @@ export class WhiteLabelService {
         );
       }
 
+      const [siteLogo, siteDarkLogo, siteFavicon, ogImage, twitterImage] =
+        await Promise.all([
+          this.resolveAsset(files.site_logo?.[0], false, null),
+          this.resolveAsset(files.site_dark_logo?.[0], false, null),
+          this.resolveAsset(files.site_favicon?.[0], false, null),
+          this.resolveAsset(files.og_image?.[0], false, null),
+          this.resolveAsset(files.twitter_image?.[0], false, null),
+        ]);
+
       const entity = queryRunner.manager.create(WhiteLabelEntity, {
         name: dto.name,
         slug: await this.buildUniqueSlug(dto.name),
@@ -228,11 +245,11 @@ export class WhiteLabelService {
         metaDescription: dto.metaDescription ?? null,
         canonicalUrl: dto.canonicalUrl ?? null,
         styles: dto.styles,
-        siteLogo: this.resolveAsset(files.site_logo?.[0], false, null),
-        siteDarkLogo: this.resolveAsset(files.site_dark_logo?.[0], false, null),
-        siteFavicon: this.resolveAsset(files.site_favicon?.[0], false, null),
-        ogImage: this.resolveAsset(files.og_image?.[0], false, null),
-        twitterImage: this.resolveAsset(files.twitter_image?.[0], false, null),
+        siteLogo,
+        siteDarkLogo,
+        siteFavicon,
+        ogImage,
+        twitterImage,
         createdByAdminId: adminId,
         updatedByAdminId: adminId,
       });
@@ -304,31 +321,39 @@ export class WhiteLabelService {
     const nextTarget = dto.target ?? existing.target;
     existing.target = nextTarget;
 
-    const nextSiteLogo = this.resolveAsset(
-      files.site_logo?.[0],
-      dto.remove_site_logo,
-      existing.siteLogo,
-    );
-    const nextSiteDarkLogo = this.resolveAsset(
-      files.site_dark_logo?.[0],
-      dto.remove_site_dark_logo,
-      existing.siteDarkLogo,
-    );
-    const nextSiteFavicon = this.resolveAsset(
-      files.site_favicon?.[0],
-      dto.remove_site_favicon,
-      existing.siteFavicon,
-    );
-    const nextOgImage = this.resolveAsset(
-      files.og_image?.[0],
-      dto.remove_og_image,
-      existing.ogImage,
-    );
-    const nextTwitterImage = this.resolveAsset(
-      files.twitter_image?.[0],
-      dto.remove_twitter_image,
-      existing.twitterImage,
-    );
+    const [
+      nextSiteLogo,
+      nextSiteDarkLogo,
+      nextSiteFavicon,
+      nextOgImage,
+      nextTwitterImage,
+    ] = await Promise.all([
+      this.resolveAsset(
+        files.site_logo?.[0],
+        dto.remove_site_logo,
+        existing.siteLogo,
+      ),
+      this.resolveAsset(
+        files.site_dark_logo?.[0],
+        dto.remove_site_dark_logo,
+        existing.siteDarkLogo,
+      ),
+      this.resolveAsset(
+        files.site_favicon?.[0],
+        dto.remove_site_favicon,
+        existing.siteFavicon,
+      ),
+      this.resolveAsset(
+        files.og_image?.[0],
+        dto.remove_og_image,
+        existing.ogImage,
+      ),
+      this.resolveAsset(
+        files.twitter_image?.[0],
+        dto.remove_twitter_image,
+        existing.twitterImage,
+      ),
+    ]);
 
     await Promise.all([
       this.cleanupUnusedAsset(existing.siteLogo, nextSiteLogo),

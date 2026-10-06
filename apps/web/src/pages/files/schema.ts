@@ -43,6 +43,7 @@ export const fileSchema = z.object({
   url: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  visibility: z.enum(['public', 'private']).optional(),
 })
 
 export const folderSchema = z.object({
@@ -54,7 +55,7 @@ export const folderSchema = z.object({
 export const updateFileSchema = z.object({
   folder: folderNameSchema.nullable().optional(),
   status: fileStatusSchema.optional(),
-  disk: z.enum(['public', 'local']).optional(),
+  disk: z.string().optional(),
 })
 
 export const createFolderSchema = z.object({

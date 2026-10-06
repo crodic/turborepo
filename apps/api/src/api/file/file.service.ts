@@ -47,7 +47,15 @@ export class FileService {
   }
 
   private get currentDiskName(): StorageDisk {
-    return 'public';
+    return this.storage?.defaultDiskName ?? 'public';
+  }
+
+  private isDiskPrivate(disk?: string | null): boolean {
+    if (this.storage?.isPrivate) {
+      return this.storage.isPrivate(disk);
+    }
+    const target = (disk as StorageDisk) || this.currentDiskName;
+    return target === 'local' || target === 's3-private';
   }
 
   private writeDisk(disk?: string | null): StorageDriver {
@@ -57,9 +65,13 @@ export class FileService {
   private normalizeUploadDisk(disk?: string | null): StorageDisk {
     const targetDisk = (disk as StorageDisk) || this.currentDiskName;
 
-    if (!['local', 'public'].includes(targetDisk)) {
+    const isSupported = this.storage?.hasDisk
+      ? this.storage.hasDisk(targetDisk)
+      : ['local', 'public', 's3', 's3-private'].includes(targetDisk);
+
+    if (!isSupported) {
       throw new BadRequestException(
-        'Only local and public disks are supported',
+        `Disk "${targetDisk}" is not supported or not configured`,
       );
     }
 
@@ -155,7 +167,9 @@ export class FileService {
 
     if (dto.disk !== undefined) {
       const targetDisk = this.normalizeUploadDisk(dto.disk);
-      const currentDisk = this.normalizeUploadDisk(file.disk ?? 'public');
+      const currentDisk = this.normalizeUploadDisk(
+        file.disk ?? this.currentDiskName,
+      );
 
       if (targetDisk !== currentDisk) {
         const sourceDisk = this.writeDisk(currentDisk);
@@ -166,7 +180,7 @@ export class FileService {
           const fileStream = await sourceDisk.getStream(storageKey);
           await targetDriver.put(storageKey, fileStream, {
             mimeType: file.mime,
-            visibility: targetDisk === 'public' ? 'public' : 'private',
+            visibility: this.isDiskPrivate(targetDisk) ? 'private' : 'public',
           });
           await sourceDisk.delete(storageKey);
         }
@@ -205,7 +219,7 @@ export class FileService {
     const uploadDiskName = this.normalizeUploadDisk(disk);
     await this.writeDisk(uploadDiskName).put(storedPath, file.buffer, {
       mimeType: mime,
-      visibility: 'public',
+      visibility: this.isDiskPrivate(uploadDiskName) ? 'private' : 'public',
     });
 
     const media = await this.createFileRecord({

@@ -26,6 +26,6 @@ export class UpdateFileDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['public', 'local'])
-  disk?: 'public' | 'local';
+  @IsIn(['public', 'local', 's3', 's3-private'])
+  disk?: 'public' | 'local' | 's3' | 's3-private';
 }

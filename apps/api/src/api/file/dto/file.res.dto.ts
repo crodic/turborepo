@@ -20,6 +20,14 @@ export class FileResDto {
 
   @Expose()
   @IsString()
+  get visibility(): 'public' | 'private' {
+    return this.disk === 'local' || this.disk === 's3-private'
+      ? 'private'
+      : 'public';
+  }
+
+  @Expose()
+  @IsString()
   original_name: string;
 
   @Expose()

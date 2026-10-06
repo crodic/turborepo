@@ -121,13 +121,21 @@ export default {
   'files.upload.disk': 'Storage disk',
   'files.upload.diskPublic': 'Public',
   'files.upload.diskLocal': 'Local (private)',
+  'files.upload.diskS3': 'AWS S3 (Public)',
+  'files.upload.diskS3Private': 'AWS S3 (Private)',
   'files.upload.diskPublicHelp':
     'Public files are stored on the public local disk and can be opened directly by URL.',
   'files.upload.diskLocalHelp':
     'Local files are stored on the private local disk. Preview and download require an authenticated admin or user session.',
+  'files.upload.diskS3Help':
+    'Public files are stored on AWS S3 / MinIO and can be opened directly by URL.',
+  'files.upload.diskS3PrivateHelp':
+    'Private files are stored on AWS S3 / MinIO. Access requires authentication or signed URLs.',
   'files.disk.title': 'Storage Access',
   'files.disk.public': 'Public',
   'files.disk.local': 'Private',
+  'files.disk.s3': 'S3 (Public)',
+  'files.disk.s3Private': 'S3 (Private)',
   'files.disk.publicTooltip':
     'Public — Anyone with the link can view and download without login.',
   'files.disk.localTooltip':

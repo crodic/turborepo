@@ -1,12 +1,19 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { isMultipartCapable } from '@/filesystem/drivers/storage-driver.interface';
+import { FilesystemService } from '@/filesystem/filesystem.service';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { existsSync } from 'fs';
-import { readdir, rm, stat } from 'fs/promises';
+import { readFile, readdir, rm, stat } from 'fs/promises';
 import { join } from 'path';
 
 @Injectable()
 export class FileCleanupService {
   private readonly logger = new Logger(FileCleanupService.name);
+
+  constructor(
+    @Optional()
+    private readonly storage?: FilesystemService,
+  ) {}
 
   /**
    * Run a cron job every day at 2 AM to clean up orphaned temporary files
@@ -40,9 +47,33 @@ export class FileCleanupService {
           const filePath = join(dir, file);
           const fileStat = await stat(filePath);
 
-          // If the file is a file (not directory) and is older than 24 hours
-          if (fileStat.isFile() && now - fileStat.mtimeMs > MAX_AGE_MS) {
-            await rm(filePath, { force: true });
+          if (now - fileStat.mtimeMs > MAX_AGE_MS) {
+            const manifestPath = join(filePath, 'manifest.json');
+            if (existsSync(manifestPath)) {
+              try {
+                const manifest = JSON.parse(
+                  await readFile(manifestPath, 'utf8'),
+                );
+                if (
+                  manifest?.s3UploadId &&
+                  manifest?.s3Key &&
+                  manifest?.disk &&
+                  this.storage
+                ) {
+                  const driver = this.storage.disk(manifest.disk);
+                  if (isMultipartCapable(driver)) {
+                    await driver.abortMultipartUpload(
+                      manifest.s3Key,
+                      manifest.s3UploadId,
+                    );
+                  }
+                }
+              } catch {
+                // Ignore manifest parsing/cleanup errors
+              }
+            }
+
+            await rm(filePath, { recursive: true, force: true });
             deletedCount++;
           }
         }

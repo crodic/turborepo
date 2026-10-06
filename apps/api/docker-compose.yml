@@ -135,6 +135,25 @@ services:
     networks:
       - app-network
 
+  minio-init:
+    image: minio/mc:latest
+    container_name: api_minio_init
+    depends_on:
+      - minio
+    env_file:
+      - path: .env
+        required: false
+    networks:
+      - app-network
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc alias set myminio http://minio:9000 $${AWS_ACCESS_KEY_ID:-minioadmin} $${AWS_SECRET_ACCESS_KEY:-minioadmin}) do echo '...waiting for minio...' && sleep 1; done;
+      /usr/bin/mc mb --ignore-existing myminio/$${AWS_DEFAULT_S3_BUCKET:-$${AWS_BUCKET:-nest-uploads}};
+      /usr/bin/mc mb --ignore-existing myminio/$${AWS_PRIVATE_BUCKET:-nest-uploads-private};
+      /usr/bin/mc anonymous set download myminio/$${AWS_DEFAULT_S3_BUCKET:-$${AWS_BUCKET:-nest-uploads}};
+      exit 0;
+      "
+
 volumes:
   app_node_modules:
   api_node_modules:

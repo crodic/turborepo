@@ -35,6 +35,11 @@ import {
 } from '@/components/ui/sheet'
 import { formatBytes } from '../columns'
 import {
+  getFileDiskLabel,
+  getFileDiskTooltip,
+  isFilePrivate,
+} from '../disk-helper'
+import {
   FilePreviewThumbnail,
   isPreviewableAudio,
   isPreviewableImage,
@@ -78,7 +83,7 @@ export function FileInspector({
   }, [file])
 
   const updateDiskMutation = useMutation({
-    mutationFn: async (disk: 'public' | 'local') => {
+    mutationFn: async (disk: string) => {
       if (!currentFile) return
       return apiUpdateFile({
         publicId: currentFile.public_id,
@@ -194,20 +199,21 @@ export function FileInspector({
                       variant='outline'
                       className={cn(
                         'gap-1 text-xs',
-                        activeFile.disk === 'local'
+                        isFilePrivate(activeFile)
                           ? 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
                           : 'border-border bg-muted/40 text-muted-foreground'
                       )}
                     >
-                      {activeFile.disk === 'local' ? (
+                      {isFilePrivate(activeFile) ? (
                         <Lock className='size-3' />
                       ) : (
                         <Globe className='size-3' />
                       )}
                       <span>
-                        {activeFile.disk === 'local'
-                          ? t('files.disk.local')
-                          : t('files.disk.public')}
+                        {getFileDiskLabel(
+                          activeFile.disk,
+                          isFilePrivate(activeFile)
+                        )}
                       </span>
                     </Badge>
                   )}
@@ -305,9 +311,10 @@ export function FileInspector({
                         {t('files.disk.title')}
                       </span>
                       <span className='text-muted-foreground/80 max-w-50 text-[11px] leading-tight'>
-                        {activeFile.disk === 'local'
-                          ? t('files.disk.localTooltip')
-                          : t('files.disk.publicTooltip')}
+                        {getFileDiskTooltip(
+                          activeFile.disk,
+                          isFilePrivate(activeFile)
+                        )}
                       </span>
                     </div>
 
@@ -318,25 +325,37 @@ export function FileInspector({
                         )}
                         <Select
                           value={activeFile.disk ?? 'public'}
-                          onValueChange={(val: 'public' | 'local') =>
+                          onValueChange={(val: string) =>
                             updateDiskMutation.mutate(val)
                           }
                           disabled={updateDiskMutation.isPending}
                         >
-                          <SelectTrigger className='h-8 w-30 text-xs'>
+                          <SelectTrigger className='h-8 w-34 text-xs'>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value='public' className='text-xs'>
                               <div className='flex items-center gap-1.5'>
                                 <Globe className='size-3.5 text-blue-500' />
-                                <span>{t('files.disk.public')}</span>
+                                <span>{getFileDiskLabel('public')}</span>
                               </div>
                             </SelectItem>
                             <SelectItem value='local' className='text-xs'>
                               <div className='flex items-center gap-1.5'>
                                 <Lock className='size-3.5 text-amber-500' />
-                                <span>{t('files.disk.local')}</span>
+                                <span>{getFileDiskLabel('local')}</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value='s3' className='text-xs'>
+                              <div className='flex items-center gap-1.5'>
+                                <Globe className='size-3.5 text-blue-500' />
+                                <span>{getFileDiskLabel('s3')}</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value='s3-private' className='text-xs'>
+                              <div className='flex items-center gap-1.5'>
+                                <Lock className='size-3.5 text-amber-500' />
+                                <span>{getFileDiskLabel('s3-private')}</span>
                               </div>
                             </SelectItem>
                           </SelectContent>
@@ -344,9 +363,10 @@ export function FileInspector({
                       </div>
                     ) : (
                       <span className='font-medium capitalize'>
-                        {activeFile.disk === 'local'
-                          ? t('files.disk.local')
-                          : t('files.disk.public')}
+                        {getFileDiskLabel(
+                          activeFile.disk,
+                          isFilePrivate(activeFile)
+                        )}
                       </span>
                     )}
                   </div>

@@ -1,5 +1,8 @@
 import {
+  AbortMultipartUploadCommand,
+  CompleteMultipartUploadCommand,
   CopyObjectCommand,
+  CreateMultipartUploadCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
@@ -7,35 +10,69 @@ import {
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
+  UploadPartCommand,
 } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { Logger } from '@nestjs/common';
 import * as mime from 'mime-types';
 import { Readable } from 'node:stream';
-import type { StorageConfig } from '../config/storage-config.type';
-import type { PutOptions, StorageDriver } from './storage-driver.interface';
+import type {
+  MultipartCapable,
+  MultipartPartInput,
+  PutOptions,
+  StorageDriver,
+} from './storage-driver.interface';
 
-export class S3Driver implements StorageDriver {
+export interface S3DriverConfig {
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  region: string;
+  bucket: string;
+  endpoint?: string;
+  forcePathStyle?: boolean;
+  url?: string;
+  visibility?: 'public' | 'private';
+}
+
+export class S3Driver implements StorageDriver, MultipartCapable {
+  private readonly logger = new Logger(S3Driver.name);
   private readonly client: S3Client;
   private readonly bucket: string;
   private readonly region: string;
   private readonly endpoint?: string;
   private readonly forcePathStyle: boolean;
+  private readonly customUrl?: string;
 
-  constructor(config: StorageConfig['s3']) {
+  constructor(config: S3DriverConfig) {
     this.bucket = config.bucket;
     this.region = config.region;
     this.endpoint = config.endpoint;
     this.forcePathStyle = config.forcePathStyle ?? false;
+    this.customUrl = config.url;
+
+    const credentials =
+      config.accessKeyId && config.secretAccessKey
+        ? {
+            accessKeyId: config.accessKeyId,
+            secretAccessKey: config.secretAccessKey,
+          }
+        : undefined;
 
     this.client = new S3Client({
       region: this.region,
-      credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
-      },
+      credentials,
       endpoint: this.endpoint,
       forcePathStyle: this.forcePathStyle,
     });
+  }
+
+  getBucketName(): string {
+    return this.bucket;
+  }
+
+  getClient(): S3Client {
+    return this.client;
   }
 
   private normalizeKey(key: string): string {
@@ -55,24 +92,28 @@ export class S3Driver implements StorageDriver {
         ? mimeLookup
         : 'application/octet-stream');
 
-    let body: Buffer | Uint8Array | string | Readable;
-
     if (content instanceof Readable) {
-      const chunks: Buffer[] = [];
-      for await (const chunk of content) {
-        chunks.push(
-          Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array),
-        );
-      }
-      body = Buffer.concat(chunks);
-    } else {
-      body = content;
+      const upload = new Upload({
+        client: this.client,
+        params: {
+          Bucket: this.bucket,
+          Key: key,
+          Body: content,
+          ContentType:
+            typeof contentType === 'string'
+              ? contentType
+              : 'application/octet-stream',
+        },
+      });
+
+      await upload.done();
+      return key;
     }
 
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: key,
-      Body: body,
+      Body: content,
       ContentType:
         typeof contentType === 'string'
           ? contentType
@@ -131,7 +172,17 @@ export class S3Driver implements StorageDriver {
 
       await this.client.send(command);
       return true;
-    } catch {
+    } catch (error: any) {
+      if (
+        error?.name === 'NotFound' ||
+        error?.$metadata?.httpStatusCode === 404 ||
+        error?.code === 'NoSuchKey'
+      ) {
+        return false;
+      }
+      this.logger.warn(
+        `Failed to check existence for ${filePath}: ${error?.message || error}`,
+      );
       return false;
     }
   }
@@ -146,37 +197,59 @@ export class S3Driver implements StorageDriver {
 
       await this.client.send(command);
       return true;
-    } catch {
-      return false;
+    } catch (error: any) {
+      if (
+        error?.name === 'NotFound' ||
+        error?.$metadata?.httpStatusCode === 404 ||
+        error?.code === 'NoSuchKey'
+      ) {
+        return false;
+      }
+      this.logger.error(
+        `Failed to delete file ${filePath}: ${error?.message || error}`,
+      );
+      throw error;
     }
   }
 
   async deleteDirectory(prefix: string): Promise<boolean> {
     try {
       const normalizedPrefix = this.normalizeKey(prefix).replace(/\/*$/, '/');
-      const listCommand = new ListObjectsV2Command({
-        Bucket: this.bucket,
-        Prefix: normalizedPrefix,
-      });
+      let continuationToken: string | undefined;
 
-      const listResponse = await this.client.send(listCommand);
-      if (!listResponse.Contents || listResponse.Contents.length === 0) {
-        return true;
-      }
+      do {
+        const listCommand = new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: normalizedPrefix,
+          ContinuationToken: continuationToken,
+        });
 
-      const objectsToDelete = listResponse.Contents.map((item) => ({
-        Key: item.Key,
-      }));
+        const listResponse = await this.client.send(listCommand);
+        if (listResponse.Contents && listResponse.Contents.length > 0) {
+          const objectsToDelete = listResponse.Contents.filter((item) =>
+            Boolean(item.Key),
+          ).map((item) => ({
+            Key: item.Key!,
+          }));
 
-      const deleteCommand = new DeleteObjectsCommand({
-        Bucket: this.bucket,
-        Delete: { Objects: objectsToDelete },
-      });
+          if (objectsToDelete.length > 0) {
+            const deleteCommand = new DeleteObjectsCommand({
+              Bucket: this.bucket,
+              Delete: { Objects: objectsToDelete },
+            });
+            await this.client.send(deleteCommand);
+          }
+        }
 
-      await this.client.send(deleteCommand);
+        continuationToken = listResponse.NextContinuationToken;
+      } while (continuationToken);
+
       return true;
-    } catch {
-      return false;
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to delete directory ${prefix}: ${error?.message || error}`,
+      );
+      throw error;
     }
   }
 
@@ -213,6 +286,11 @@ export class S3Driver implements StorageDriver {
 
   url(filePath: string): string {
     const key = this.normalizeKey(filePath);
+    if (this.customUrl) {
+      const base = this.customUrl.replace(/\/+$/, '');
+      return `${base}/${key}`;
+    }
+
     if (this.endpoint) {
       const endpointTrimmed = this.endpoint.replace(/\/+$/, '');
       return `${endpointTrimmed}/${this.bucket}/${key}`;
@@ -236,30 +314,141 @@ export class S3Driver implements StorageDriver {
     });
   }
 
-  async copy(from: string, to: string): Promise<boolean> {
+  async copy(
+    from: string,
+    to: string,
+    options?: { sourceBucket?: string },
+  ): Promise<boolean> {
     try {
       const sourceKey = this.normalizeKey(from);
       const targetKey = this.normalizeKey(to);
+      const sourceBucket = options?.sourceBucket ?? this.bucket;
 
       const command = new CopyObjectCommand({
         Bucket: this.bucket,
-        CopySource: `${this.bucket}/${sourceKey}`,
+        CopySource: `${sourceBucket}/${sourceKey}`,
         Key: targetKey,
       });
 
       await this.client.send(command);
       return true;
-    } catch {
-      return false;
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to copy ${from} to ${to}: ${error?.message || error}`,
+      );
+      throw error;
     }
   }
 
-  async move(from: string, to: string): Promise<boolean> {
-    const copied = await this.copy(from, to);
+  async move(
+    from: string,
+    to: string,
+    options?: { sourceBucket?: string },
+  ): Promise<boolean> {
+    const copied = await this.copy(from, to, options);
     if (copied) {
       await this.delete(from);
       return true;
     }
     return false;
+  }
+
+  async createMultipartUpload(
+    filePath: string,
+    options?: PutOptions,
+  ): Promise<{ uploadId: string; key: string }> {
+    const key = this.normalizeKey(filePath);
+    const mimeLookup = mime.lookup(key);
+    const contentType =
+      options?.mimeType ??
+      (typeof mimeLookup === 'string'
+        ? mimeLookup
+        : 'application/octet-stream');
+
+    const command = new CreateMultipartUploadCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ContentType: contentType,
+    });
+
+    const response = await this.client.send(command);
+    if (!response.UploadId) {
+      throw new Error(`Failed to create multipart upload for ${key}`);
+    }
+
+    return { uploadId: response.UploadId, key };
+  }
+
+  async uploadPart(
+    filePath: string,
+    uploadId: string,
+    partNumber: number,
+    content: Buffer | Uint8Array,
+  ): Promise<{ etag: string; partNumber: number }> {
+    const key = this.normalizeKey(filePath);
+    const command = new UploadPartCommand({
+      Bucket: this.bucket,
+      Key: key,
+      UploadId: uploadId,
+      PartNumber: partNumber,
+      Body: content,
+    });
+
+    const response = await this.client.send(command);
+    if (!response.ETag) {
+      throw new Error(
+        `Failed to upload part ${partNumber} for ${key}: missing ETag`,
+      );
+    }
+
+    return { etag: response.ETag, partNumber };
+  }
+
+  async completeMultipartUpload(
+    filePath: string,
+    uploadId: string,
+    parts: MultipartPartInput[],
+  ): Promise<string> {
+    const key = this.normalizeKey(filePath);
+    const sortedParts = [...parts]
+      .sort((a, b) => a.partNumber - b.partNumber)
+      .map((p) => ({
+        PartNumber: p.partNumber,
+        ETag: p.etag,
+      }));
+
+    const command = new CompleteMultipartUploadCommand({
+      Bucket: this.bucket,
+      Key: key,
+      UploadId: uploadId,
+      MultipartUpload: {
+        Parts: sortedParts,
+      },
+    });
+
+    await this.client.send(command);
+    return key;
+  }
+
+  async abortMultipartUpload(
+    filePath: string,
+    uploadId: string,
+  ): Promise<boolean> {
+    try {
+      const key = this.normalizeKey(filePath);
+      const command = new AbortMultipartUploadCommand({
+        Bucket: this.bucket,
+        Key: key,
+        UploadId: uploadId,
+      });
+
+      await this.client.send(command);
+      return true;
+    } catch (error: any) {
+      this.logger.warn(
+        `Failed to abort multipart upload for ${filePath} (${uploadId}): ${error?.message || error}`,
+      );
+      return false;
+    }
   }
 }

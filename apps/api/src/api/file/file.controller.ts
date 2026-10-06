@@ -1,5 +1,6 @@
 import { ApiAuth, ApiPublic } from '@/decorators/http.decorators';
 import { CheckPolicies } from '@/decorators/policies.decorator';
+import { FilesystemService } from '@/filesystem/filesystem.service';
 import { AdminAuthGuard } from '@/guards/admin-auth.guard';
 import { PoliciesGuard } from '@/guards/policies.guard';
 import { AppAbility } from '@/shared/casl/ability.factory';
@@ -9,6 +10,7 @@ import {
   Controller,
   Delete,
   Get,
+  Optional,
   Param,
   ParseIntPipe,
   Post,
@@ -63,7 +65,18 @@ export class FileController {
     private readonly fileFolderService: FileFolderService,
     private readonly fileChunkUploadService: FileChunkUploadService,
     private readonly sortableImageCacheService: SortableImageCacheService,
+    @Optional()
+    private readonly storage?: FilesystemService,
   ) {}
+
+  @Get('disks')
+  @ApiAuth({ summary: 'Get configured storage disks' })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.File),
+  )
+  getDisks() {
+    return this.storage?.getAvailableDisks() ?? [];
+  }
 
   @Get()
   @ApiAuth({
@@ -179,7 +192,7 @@ export class FileController {
         },
         disk: {
           type: 'string',
-          enum: ['local', 'public'],
+          enum: ['local', 'public', 's3', 's3-private'],
           example: 'public',
         },
       },

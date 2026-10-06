@@ -18,6 +18,8 @@ import {
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { plainToInstance } from 'class-transformer';
+import { extname } from 'path';
+import { v4 as uuidv4 } from 'uuid';
 import {
   WEBSITE_MAX_FILE_SIZE,
   websiteUploadOptions,
@@ -178,6 +180,35 @@ export class SettingsController {
     const removeOgImage = this.isRemoveRequested(dto.remove_og_image);
     const removeTwitterImage = this.isRemoveRequested(dto.remove_twitter_image);
 
+    const [site_logo, site_dark_logo, site_favicon, og_image, twitter_image] =
+      await Promise.all([
+        this.resolveWebsiteAsset(
+          files.site_logo?.[0],
+          removeSiteLogo,
+          setting.site_logo,
+        ),
+        this.resolveWebsiteAsset(
+          files.site_dark_logo?.[0],
+          removeSiteDarkLogo,
+          setting.site_dark_logo,
+        ),
+        this.resolveWebsiteAsset(
+          files.site_favicon?.[0],
+          removeSiteFavicon,
+          setting.site_favicon,
+        ),
+        this.resolveWebsiteAsset(
+          files.og_image?.[0],
+          removeOgImage,
+          setting.og_image,
+        ),
+        this.resolveWebsiteAsset(
+          files.twitter_image?.[0],
+          removeTwitterImage,
+          setting.twitter_image,
+        ),
+      ]);
+
     const payload = {
       site_brand: dto.site_brand,
       site_title: dto.site_title,
@@ -189,31 +220,11 @@ export class SettingsController {
       og_description: dto.og_description,
       twitter_title: dto.twitter_title,
       twitter_description: dto.twitter_description,
-      site_logo: this.resolveWebsiteAsset(
-        files.site_logo?.[0],
-        removeSiteLogo,
-        setting.site_logo,
-      ),
-      site_dark_logo: this.resolveWebsiteAsset(
-        files.site_dark_logo?.[0],
-        removeSiteDarkLogo,
-        setting.site_dark_logo,
-      ),
-      site_favicon: this.resolveWebsiteAsset(
-        files.site_favicon?.[0],
-        removeSiteFavicon,
-        setting.site_favicon,
-      ),
-      og_image: this.resolveWebsiteAsset(
-        files.og_image?.[0],
-        removeOgImage,
-        setting.og_image,
-      ),
-      twitter_image: this.resolveWebsiteAsset(
-        files.twitter_image?.[0],
-        removeTwitterImage,
-        setting.twitter_image,
-      ),
+      site_logo,
+      site_dark_logo,
+      site_favicon,
+      og_image,
+      twitter_image,
     };
 
     const newSetting = { ...setting, ...payload };
@@ -236,16 +247,6 @@ export class SettingsController {
         excludeExtraneousValues: true,
       },
     );
-  }
-
-  private getPublicUploadPath(file?: Express.Multer.File): string | undefined {
-    if (!file) {
-      return undefined;
-    }
-
-    return this.storage
-      .disk('public')
-      .url(`${this.uploadFolder}/${file.filename}`);
   }
 
   private async cleanupUnusedWebsiteAssets(
@@ -296,22 +297,27 @@ export class SettingsController {
 
     if (relativePath) {
       try {
-        await this.storage.disk('public').delete(relativePath);
+        await this.storage.disk().delete(relativePath);
       } catch {
         // Ignore deletion errors gracefully
       }
     }
   }
 
-  private resolveWebsiteAsset(
+  private async resolveWebsiteAsset(
     file: Express.Multer.File | undefined,
     shouldRemove: boolean | undefined,
     currentValue: string | undefined,
-  ): string | null | undefined {
-    const publicPath = this.getPublicUploadPath(file);
-
-    if (publicPath) {
-      return publicPath;
+  ): Promise<string | null | undefined> {
+    if (file) {
+      const ext = extname(file.originalname);
+      const filename = `${uuidv4()}${ext}`;
+      const relativePath = `${this.uploadFolder}/${filename}`;
+      await this.storage.disk().put(relativePath, file.buffer, {
+        mimeType: file.mimetype,
+        visibility: 'public',
+      });
+      return this.storage.disk().url(relativePath);
     }
 
     if (shouldRemove) {
