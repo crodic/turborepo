@@ -172,6 +172,7 @@ export class FileChunkUploadService {
   private detectResourceType(mime: string): string {
     if (mime.includes('image')) return 'image';
     if (mime.includes('video')) return 'video';
+    if (mime.includes('audio')) return 'audio';
     return 'raw';
   }
 

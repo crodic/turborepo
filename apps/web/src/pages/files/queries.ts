@@ -200,6 +200,25 @@ export async function apiDeleteFolder({
   })
 }
 
+export async function apiGetTemporaryUrl({
+  publicId,
+  expiresIn = 900,
+}: {
+  publicId: string
+  expiresIn?: number
+}) {
+  const response = await http.get(`/files/${publicId}/temporary-url`, {
+    params: { expiresIn },
+  })
+  return z
+    .object({
+      url: z.string(),
+      expiresIn: z.number(),
+      expiresAt: z.string(),
+    })
+    .parse(response.data)
+}
+
 export const useDataFileOverview = (
   params: PaginateQueryParams,
   options?: { enabled?: boolean }

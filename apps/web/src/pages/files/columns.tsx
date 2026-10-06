@@ -4,14 +4,17 @@ import i18n from '@/i18n'
 import {
   Calendar,
   Copy,
+  Download,
   Eye,
   FileIcon,
   FileImage,
   Folder,
   Globe,
+  Link2,
   Lock,
   MoreHorizontal,
   MoveRight,
+  Pencil,
   Tag,
   Trash2,
 } from 'lucide-react'
@@ -37,6 +40,7 @@ import {
   getFileDiskTooltip,
   isFilePrivate,
 } from './disk-helper'
+import { downloadFile } from './download-helper'
 import { FilePreviewThumbnail } from './file-preview'
 import { ColumnKey, type FileSchema } from './schema'
 
@@ -45,6 +49,8 @@ type FileTableColumnOptions = {
   onCopyUrl: (file: FileSchema) => void
   onMove: (file: FileSchema) => void
   onDelete: (file: FileSchema) => void
+  onRename?: (file: FileSchema) => void
+  onShare?: (file: FileSchema) => void
   canUpdate: boolean
   canDelete: boolean
 }
@@ -54,6 +60,8 @@ export function getFilesTableColumns({
   onCopyUrl,
   onMove,
   onDelete,
+  onRename,
+  onShare,
   canUpdate,
   canDelete,
 }: FileTableColumnOptions): ColumnDef<FileSchema>[] {
@@ -314,10 +322,29 @@ export function getFilesTableColumns({
               <Eye className='size-4' />
               {i18n.t('files.actions.preview')}
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => downloadFile(row.original)}>
+              <Download className='size-4' />
+              {i18n.t('files.actions.download', 'Download')}
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onCopyUrl(row.original)}>
               <Copy className='size-4' />
               {i18n.t('files.actions.copyUrl')}
             </DropdownMenuItem>
+            {isFilePrivate(row.original) && onShare && (
+              <DropdownMenuItem
+                onClick={() => onShare(row.original)}
+                className='text-amber-600 dark:text-amber-400'
+              >
+                <Link2 className='size-4' />
+                {i18n.t('files.actions.share', 'Share link')}
+              </DropdownMenuItem>
+            )}
+            {canUpdate && onRename && (
+              <DropdownMenuItem onClick={() => onRename(row.original)}>
+                <Pencil className='size-4' />
+                {i18n.t('files.actions.rename', 'Rename')}
+              </DropdownMenuItem>
+            )}
             {canUpdate && (
               <DropdownMenuItem onClick={() => onMove(row.original)}>
                 <MoveRight className='size-4' />

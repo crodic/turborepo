@@ -19,6 +19,12 @@ export class UpdateFileDto {
   @Matches(FILE_FOLDER_NAME_PATTERN, { message: FILE_FOLDER_NAME_MESSAGE })
   folder?: string | null;
 
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  original_name?: string;
+
   @IsOptional()
   @IsString()
   @IsIn(['active', 'archived'])

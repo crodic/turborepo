@@ -161,6 +161,10 @@ export class FileService {
       file.folder = normalizedFolder;
     }
 
+    if (dto.original_name !== undefined && dto.original_name.trim() !== '') {
+      file.original_name = dto.original_name.trim();
+    }
+
     if (dto.status !== undefined) {
       file.status = dto.status;
     }
@@ -250,6 +254,34 @@ export class FileService {
 
     return {
       message: 'Successfully deleted',
+    };
+  }
+
+  async getTemporaryUrl(
+    publicId: string,
+    expiresInSeconds: number = 900,
+  ): Promise<{ url: string; expiresIn: number; expiresAt: string }> {
+    const file = await this.fileRepository.findOneByOrFail({
+      public_id: publicId,
+    });
+
+    const diskName = this.normalizeUploadDisk(
+      file.disk ?? this.currentDiskName,
+    );
+    const storageKey = this.toStorageKey(file.path);
+    const disk = this.writeDisk(diskName);
+
+    let url: string;
+    try {
+      url = await disk.temporaryUrl(storageKey, expiresInSeconds);
+    } catch {
+      url = file.url;
+    }
+
+    return {
+      url,
+      expiresIn: expiresInSeconds,
+      expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
     };
   }
 
@@ -435,6 +467,7 @@ export class FileService {
   private detectResourceType(mime: string): string {
     if (mime.includes('image')) return 'image';
     if (mime.includes('video')) return 'video';
+    if (mime.includes('audio')) return 'audio';
     return 'raw';
   }
 

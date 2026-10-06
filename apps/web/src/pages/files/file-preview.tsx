@@ -331,6 +331,54 @@ export function DocumentPreviewViewer({
   className?: string
 }) {
   const previewUrl = url ?? file.url
+  const ext = getFileExtension(file.original_name || file.url).toLowerCase()
+  const isPdf = file.mime === 'application/pdf' || ext === 'pdf'
+
+  if (isPdf) {
+    return (
+      <div
+        className={cn(
+          'bg-muted/10 relative flex size-full min-h-[500px] flex-col overflow-hidden rounded-xl border',
+          className
+        )}
+      >
+        <div className='bg-muted/40 flex items-center justify-between border-b px-4 py-2 text-xs'>
+          <span className='text-foreground max-w-sm truncate font-medium'>
+            {file.original_name}
+          </span>
+          <div className='flex items-center gap-2'>
+            <Button
+              size='sm'
+              variant='outline'
+              className='h-7 gap-1 text-xs'
+              asChild
+            >
+              <a href={previewUrl} download={file.original_name}>
+                <Download className='size-3.5' />
+                Download
+              </a>
+            </Button>
+            <Button
+              size='sm'
+              variant='ghost'
+              className='h-7 gap-1 text-xs'
+              asChild
+            >
+              <a href={previewUrl} target='_blank' rel='noreferrer'>
+                <ExternalLink className='size-3.5' />
+                Open tab
+              </a>
+            </Button>
+          </div>
+        </div>
+        <iframe
+          src={`${previewUrl}#toolbar=1`}
+          className='size-full min-h-[500px] flex-1 border-0'
+          title={file.original_name}
+        />
+      </div>
+    )
+  }
 
   return (
     <div

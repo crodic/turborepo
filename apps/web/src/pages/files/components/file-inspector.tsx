@@ -4,14 +4,17 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Check,
   Copy,
+  Download,
   ExternalLink,
   Eye,
   FileIcon,
   Globe,
   Info,
+  Link2,
   Loader2,
   Lock,
   MoveRight,
+  Pencil,
   Trash2,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -39,6 +42,7 @@ import {
   getFileDiskTooltip,
   isFilePrivate,
 } from '../disk-helper'
+import { downloadFile } from '../download-helper'
 import {
   FilePreviewThumbnail,
   isPreviewableAudio,
@@ -56,6 +60,8 @@ interface FileInspectorProps {
   onCopyUrl: (file: FileSchema) => void
   onMove: (file: FileSchema) => void
   onDelete: (file: FileSchema) => void
+  onRename?: (file: FileSchema) => void
+  onShare?: (file: FileSchema) => void
   onFileUpdated?: (file: FileSchema) => void
   canUpdate?: boolean
   canDelete?: boolean
@@ -69,6 +75,8 @@ export function FileInspector({
   onCopyUrl,
   onMove,
   onDelete,
+  onRename,
+  onShare,
   onFileUpdated,
   canUpdate,
   canDelete,
@@ -223,6 +231,26 @@ export function FileInspector({
               {/* Quick Actions */}
               <div className='grid grid-cols-2 gap-2'>
                 <Button
+                  variant='default'
+                  size='sm'
+                  onClick={() => downloadFile(activeFile)}
+                  className='h-9 justify-center gap-2'
+                >
+                  <Download className='size-4' />
+                  <span>{t('files.actions.download', 'Download')}</span>
+                </Button>
+
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => onPreview(activeFile)}
+                  className='h-9 justify-center gap-2'
+                >
+                  <Eye className='size-4' />
+                  <span>{t('files.actions.preview')}</span>
+                </Button>
+
+                <Button
                   variant='outline'
                   size='sm'
                   onClick={handleCopy}
@@ -238,15 +266,29 @@ export function FileInspector({
                   </span>
                 </Button>
 
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={() => onPreview(activeFile)}
-                  className='h-9 justify-center gap-2'
-                >
-                  <Eye className='size-4' />
-                  <span>{t('files.actions.preview')}</span>
-                </Button>
+                {isFilePrivate(activeFile) && onShare && (
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={() => onShare(activeFile)}
+                    className='h-9 justify-center gap-2 text-amber-600 hover:text-amber-700 dark:text-amber-400'
+                  >
+                    <Link2 className='size-4' />
+                    <span>{t('files.actions.share', 'Share Link')}</span>
+                  </Button>
+                )}
+
+                {canUpdate && onRename && (
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={() => onRename(activeFile)}
+                    className='h-9 justify-center gap-2'
+                  >
+                    <Pencil className='size-4' />
+                    <span>{t('files.actions.rename', 'Rename')}</span>
+                  </Button>
+                )}
 
                 {canUpdate && (
                   <Button
@@ -265,7 +307,7 @@ export function FileInspector({
                     variant='outline'
                     size='sm'
                     onClick={() => onDelete(activeFile)}
-                    className='text-destructive hover:text-destructive hover:bg-destructive/10 h-9 justify-center gap-2'
+                    className='text-destructive hover:text-destructive hover:bg-destructive/10 col-span-2 h-9 justify-center gap-2'
                   >
                     <Trash2 className='size-4' />
                     <span>{t('files.actions.delete')}</span>

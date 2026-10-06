@@ -54,6 +54,7 @@ export const folderSchema = z.object({
 
 export const updateFileSchema = z.object({
   folder: folderNameSchema.nullable().optional(),
+  original_name: z.string().trim().min(1).max(255).optional(),
   status: fileStatusSchema.optional(),
   disk: z.string().optional(),
 })

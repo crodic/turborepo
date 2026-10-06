@@ -8,6 +8,7 @@ import { AppActions, AppSubjects } from '@/utils/permissions.constant';
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   Optional,
@@ -329,6 +330,19 @@ export class FileController {
       files,
       coverIndex,
     );
+  }
+
+  @Get(':publicId/temporary-url')
+  @ApiAuth({ summary: 'Get temporary presigned access URL' })
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(AppActions.Read, AppSubjects.File),
+  )
+  getTemporaryUrl(
+    @Param('publicId') publicId: string,
+    @Query('expiresIn', new DefaultValuePipe(900), ParseIntPipe)
+    expiresIn: number,
+  ) {
+    return this.fileService.getTemporaryUrl(publicId, expiresIn);
   }
 
   @Get(':publicId')

@@ -48,8 +48,12 @@ import {
   FolderPanel,
   MoveFileDialog,
   PreviewDialog,
+  QuickFilterChips,
+  RenameFileDialog,
+  ShareUrlDialog,
   UploadDialog,
 } from './components'
+import { bulkDownloadFiles } from './download-helper'
 import { FilePickerDialog } from './file-picker-dialog'
 import { FilesTableActionBar } from './file-table-action-bar'
 import {
@@ -114,6 +118,8 @@ export function PageFileOverview() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickedUrl, setPickedUrl] = useState<string | null>(null)
   const [movingFile, setMovingFile] = useState<FileSchema | null>(null)
+  const [renamingFile, setRenamingFile] = useState<FileSchema | null>(null)
+  const [sharingFile, setSharingFile] = useState<FileSchema | null>(null)
   const [deletingFile, setDeletingFile] = useState<FileSchema | null>(null)
   const [bulkDeletingFiles, setBulkDeletingFiles] = useState<FileSchema[]>([])
   const [deletingFolder, setDeletingFolder] = useState<string | null>(null)
@@ -263,6 +269,8 @@ export function PageFileOverview() {
         onCopyUrl: copyFileUrl,
         onMove: setMovingFile,
         onDelete: setDeletingFile,
+        onRename: setRenamingFile,
+        onShare: setSharingFile,
         canUpdate: ability.can('update', 'FILE'),
         canDelete: ability.can('delete', 'FILE'),
       }),
@@ -534,6 +542,8 @@ export function PageFileOverview() {
                   onCopyUrl={copyFileUrl}
                   onMoveFile={setMovingFile}
                   onDeleteFile={setDeletingFile}
+                  onRenameFile={setRenamingFile}
+                  onShareFile={setSharingFile}
                   canUpdate={ability.can('update', 'FILE')}
                   canDelete={ability.can('delete', 'FILE')}
                   hasNextPage={hasNextPage}
@@ -544,15 +554,21 @@ export function PageFileOverview() {
               </div>
             ) : (
               /* Table View Mode */
-              <DataTable
-                table={table}
-                onClickRowAction={handleInspectFile}
-                isFetching={isFetching}
-              >
-                <DataTableToolbar table={table}>
-                  <DataTableSortList table={table} />
-                </DataTableToolbar>
-              </DataTable>
+              <div className='flex flex-col gap-3'>
+                <QuickFilterChips
+                  activeType={activeCategory}
+                  onSelectType={handleCategorySelect}
+                />
+                <DataTable
+                  table={table}
+                  onClickRowAction={handleInspectFile}
+                  isFetching={isFetching}
+                >
+                  <DataTableToolbar table={table}>
+                    <DataTableSortList table={table} />
+                  </DataTableToolbar>
+                </DataTable>
+              </div>
             )}
           </div>
         </div>
@@ -562,6 +578,7 @@ export function PageFileOverview() {
       <FilesTableActionBar
         table={table}
         onDelete={(files) => setBulkDeletingFiles(files)}
+        onBulkDownload={(files) => void bulkDownloadFiles(files)}
         disabled={ability.can('delete', 'FILE') === false}
       />
 
@@ -574,6 +591,8 @@ export function PageFileOverview() {
         onCopyUrl={copyFileUrl}
         onMove={setMovingFile}
         onDelete={setDeletingFile}
+        onRename={setRenamingFile}
+        onShare={setSharingFile}
         onFileUpdated={(file) => setInspectedFile(file)}
         canUpdate={ability.can('update', 'FILE')}
         canDelete={ability.can('delete', 'FILE')}
@@ -659,6 +678,25 @@ export function PageFileOverview() {
       <PreviewDialog
         file={previewFile}
         onOpenChange={(open) => !open && setPreviewFile(null)}
+      />
+
+      {/* Rename File Dialog */}
+      <RenameFileDialog
+        open={Boolean(renamingFile)}
+        file={renamingFile}
+        onOpenChange={(open) => !open && setRenamingFile(null)}
+        onRenamed={(updated) => {
+          if (inspectedFile?.public_id === updated.public_id) {
+            setInspectedFile(updated)
+          }
+        }}
+      />
+
+      {/* Share / Presigned URL Dialog */}
+      <ShareUrlDialog
+        open={Boolean(sharingFile)}
+        file={sharingFile}
+        onOpenChange={(open) => !open && setSharingFile(null)}
       />
 
       {/* Demo File Picker Dialog */}

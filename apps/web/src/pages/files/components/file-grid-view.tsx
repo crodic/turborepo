@@ -4,6 +4,7 @@ import type { Table } from '@tanstack/react-table'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
 import {
   Copy,
+  Download,
   Eye,
   File,
   FileArchive,
@@ -12,10 +13,12 @@ import {
   FileSpreadsheet,
   FileText,
   Globe,
+  Link2,
   Loader2,
   Lock,
   MoreVertical,
   MoveRight,
+  Pencil,
   Trash2,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -23,6 +26,13 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +52,7 @@ import {
   getFileDiskTooltip,
   isFilePrivate,
 } from '../disk-helper'
+import { downloadFile } from '../download-helper'
 import {
   FilePreviewThumbnail,
   isPreviewableImage,
@@ -59,6 +70,8 @@ export interface FileGridViewProps {
   onCopyUrl: (file: FileSchema) => void
   onMoveFile: (file: FileSchema) => void
   onDeleteFile: (file: FileSchema) => void
+  onRenameFile?: (file: FileSchema) => void
+  onShareFile?: (file: FileSchema) => void
   canUpdate?: boolean
   canDelete?: boolean
   hasNextPage?: boolean
@@ -165,6 +178,8 @@ interface FileCardItemProps {
   onCopyUrl: (file: FileSchema) => void
   onMoveFile: (file: FileSchema) => void
   onDeleteFile: (file: FileSchema) => void
+  onRenameFile?: (file: FileSchema) => void
+  onShareFile?: (file: FileSchema) => void
   onToggleSelect?: () => void
 }
 
@@ -179,6 +194,8 @@ const FileCardItem = memo(function FileCardItem({
   onCopyUrl,
   onMoveFile,
   onDeleteFile,
+  onRenameFile,
+  onShareFile,
   onToggleSelect,
 }: FileCardItemProps) {
   const { t } = useTranslation()
@@ -187,194 +204,282 @@ const FileCardItem = memo(function FileCardItem({
   const DocIcon = docBadge.icon
 
   return (
-    <div
-      role='button'
-      tabIndex={0}
-      onClick={() => onInspectFile(file)}
-      onDoubleClick={() => onPreviewFile(file)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault()
-          onPreviewFile(file)
-        } else if (e.key === ' ') {
-          e.preventDefault()
-          onInspectFile(file)
-        }
-      }}
-      className={cn(
-        'group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border text-left transition-all duration-200 select-none',
-        'hover:border-primary/50 hover:-translate-y-0.5 hover:shadow-md',
-        isSelected
-          ? 'border-primary bg-primary/5 ring-primary/40 shadow-sm ring-2'
-          : isInspected
-            ? 'border-primary/80 bg-accent/30 ring-primary/30 ring-1'
-            : 'border-border/70 bg-card'
-      )}
-    >
-      {/* Top Toolbar Overlay */}
-      <div className='pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between p-2'>
-        {/* Checkbox */}
-        {canDelete && (
-          <div
-            className={cn(
-              'pointer-events-auto transition-opacity',
-              isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-            )}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Checkbox
-              checked={isSelected}
-              onCheckedChange={onToggleSelect}
-              aria-label={t('files.table.selectRow')}
-              className='bg-background/90 border-border/80 shadow-xs backdrop-blur-xs'
-            />
-          </div>
-        )}
-
-        {/* Action Dropdown */}
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
         <div
-          className='pointer-events-auto ml-auto opacity-0 transition-opacity group-hover:opacity-100'
-          onClick={(e) => e.stopPropagation()}
+          role='button'
+          tabIndex={0}
+          onClick={() => onInspectFile(file)}
+          onDoubleClick={() => onPreviewFile(file)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              onPreviewFile(file)
+            } else if (e.key === ' ') {
+              e.preventDefault()
+              onInspectFile(file)
+            } else if (e.key === 'F2') {
+              e.preventDefault()
+              onRenameFile?.(file)
+            }
+          }}
+          className={cn(
+            'group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border text-left transition-all duration-200 select-none',
+            'hover:border-primary/50 hover:-translate-y-0.5 hover:shadow-md',
+            isSelected
+              ? 'border-primary bg-primary/5 ring-primary/40 shadow-sm ring-2'
+              : isInspected
+                ? 'border-primary/80 bg-accent/30 ring-primary/30 ring-1'
+                : 'border-border/70 bg-card'
+          )}
         >
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant='ghost'
-                size='icon'
-                className='bg-background/85 text-foreground hover:bg-background size-7 rounded-lg shadow-xs backdrop-blur-xs'
+          {/* Top Toolbar Overlay */}
+          <div className='pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between p-2'>
+            {/* Checkbox */}
+            {canDelete && (
+              <div
+                className={cn(
+                  'pointer-events-auto transition-opacity',
+                  isSelected
+                    ? 'opacity-100'
+                    : 'opacity-0 group-hover:opacity-100'
+                )}
+                onClick={(e) => e.stopPropagation()}
               >
-                <MoreVertical className='size-3.5' />
-                <span className='sr-only'>File actions</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align='end' className='w-44'>
-              <DropdownMenuItem
-                onClick={() => onPreviewFile(file)}
-                className='gap-2'
-              >
-                <Eye className='size-4' />
-                {t('files.actions.preview')}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  onCopyUrl(file)
-                  toast.success(t('files.inspector.urlCopied'))
-                }}
-                className='gap-2'
-              >
-                <Copy className='size-4' />
-                {t('files.actions.copyUrl')}
-              </DropdownMenuItem>
-              {canUpdate && (
-                <DropdownMenuItem
-                  onClick={() => onMoveFile(file)}
-                  className='gap-2'
-                >
-                  <MoveRight className='size-4' />
-                  {t('files.actions.move')}
-                </DropdownMenuItem>
-              )}
-              {canDelete && (
-                <>
-                  <DropdownMenuSeparator />
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={onToggleSelect}
+                  aria-label={t('files.table.selectRow')}
+                  className='bg-background/90 border-border/80 shadow-xs backdrop-blur-xs'
+                />
+              </div>
+            )}
+
+            {/* Action Dropdown */}
+            <div
+              className='pointer-events-auto ml-auto opacity-0 transition-opacity group-hover:opacity-100'
+              onClick={(e) => e.stopPropagation()}
+            >
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant='ghost'
+                    size='icon'
+                    className='bg-background/85 text-foreground hover:bg-background size-7 rounded-lg shadow-xs backdrop-blur-xs'
+                  >
+                    <MoreVertical className='size-3.5' />
+                    <span className='sr-only'>File actions</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align='end' className='w-44'>
                   <DropdownMenuItem
-                    variant='destructive'
-                    onClick={() => onDeleteFile(file)}
+                    onClick={() => onPreviewFile(file)}
                     className='gap-2'
                   >
-                    <Trash2 className='size-4' />
-                    {t('files.actions.delete')}
+                    <Eye className='size-4' />
+                    {t('files.actions.preview')}
                   </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/* Thumbnail Box */}
-      <div className='bg-muted/40 border-border/50 relative flex aspect-16/10 w-full items-center justify-center overflow-hidden border-b'>
-        {isMedia ? (
-          <div className='size-full overflow-hidden transition-transform duration-300 group-hover:scale-105'>
-            <FilePreviewThumbnail
-              file={file}
-              className='size-full object-cover'
-            />
-          </div>
-        ) : (
-          <div className='flex flex-col items-center justify-center gap-1.5 p-4 transition-transform duration-300 group-hover:scale-105'>
-            <div
-              className={cn(
-                'flex size-12 items-center justify-center rounded-xl border',
-                docBadge.color
-              )}
-            >
-              <DocIcon className='size-6' />
-            </div>
-            <span className='text-muted-foreground text-[10px] font-semibold tracking-wider uppercase'>
-              {docBadge.label}
-            </span>
-          </div>
-        )}
-
-        {/* Media dimension tag */}
-        {file.width && file.height && (
-          <div className='absolute bottom-1.5 left-1.5 z-10'>
-            <span className='rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-xs'>
-              {file.width}&times;{file.height}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Content Details */}
-      <div className='flex flex-col p-2.5'>
-        <p
-          title={file.original_name}
-          className='text-foreground group-hover:text-primary truncate text-xs font-semibold transition-colors'
-        >
-          {file.original_name}
-        </p>
-
-        <div className='text-muted-foreground mt-1.5 flex items-center justify-between text-[11px]'>
-          <div className='flex items-center gap-1.5'>
-            <span>{formatBytes(file.size)}</span>
-            {(() => {
-              const isPrivate = isFilePrivate(file)
-              const diskLabel = getFileDiskLabel(file.disk, isPrivate)
-              const diskTooltip = getFileDiskTooltip(file.disk, isPrivate)
-
-              return (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span
-                      className={cn(
-                        'inline-flex shrink-0 cursor-default items-center gap-1 rounded-sm px-1 py-0.5 text-[10px] font-medium',
-                        isPrivate
-                          ? 'border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                          : 'bg-muted text-muted-foreground border-border/60 border'
-                      )}
-                      onClick={(e) => e.stopPropagation()}
+                  <DropdownMenuItem
+                    onClick={() => downloadFile(file)}
+                    className='gap-2'
+                  >
+                    <Download className='size-4' />
+                    {t('files.actions.download', 'Download')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      onCopyUrl(file)
+                      toast.success(t('files.inspector.urlCopied'))
+                    }}
+                    className='gap-2'
+                  >
+                    <Copy className='size-4' />
+                    {t('files.actions.copyUrl')}
+                  </DropdownMenuItem>
+                  {isFilePrivate(file) && onShareFile && (
+                    <DropdownMenuItem
+                      onClick={() => onShareFile(file)}
+                      className='gap-2 text-amber-600 dark:text-amber-400'
                     >
-                      {isPrivate ? (
-                        <Lock className='size-2.5' />
-                      ) : (
-                        <Globe className='size-2.5' />
-                      )}
-                      <span>{diskLabel}</span>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side='top' className='max-w-xs text-xs'>
-                    {diskTooltip}
-                  </TooltipContent>
-                </Tooltip>
-              )
-            })()}
+                      <Link2 className='size-4' />
+                      {t('files.actions.share', 'Share link')}
+                    </DropdownMenuItem>
+                  )}
+                  {canUpdate && onRenameFile && (
+                    <DropdownMenuItem
+                      onClick={() => onRenameFile(file)}
+                      className='gap-2'
+                    >
+                      <Pencil className='size-4' />
+                      {t('files.actions.rename', 'Rename')}
+                    </DropdownMenuItem>
+                  )}
+                  {canUpdate && (
+                    <DropdownMenuItem
+                      onClick={() => onMoveFile(file)}
+                      className='gap-2'
+                    >
+                      <MoveRight className='size-4' />
+                      {t('files.actions.move')}
+                    </DropdownMenuItem>
+                  )}
+                  {canDelete && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        variant='destructive'
+                        onClick={() => onDeleteFile(file)}
+                        className='gap-2'
+                      >
+                        <Trash2 className='size-4' />
+                        {t('files.actions.delete')}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-          <span>{format(new Date(file.createdAt), 'MMM d')}</span>
+
+          {/* Thumbnail Box */}
+          <div className='bg-muted/40 border-border/50 relative flex aspect-16/10 w-full items-center justify-center overflow-hidden border-b'>
+            {isMedia ? (
+              <div className='size-full overflow-hidden transition-transform duration-300 group-hover:scale-105'>
+                <FilePreviewThumbnail
+                  file={file}
+                  className='size-full object-cover'
+                />
+              </div>
+            ) : (
+              <div className='flex flex-col items-center justify-center gap-1.5 p-4 transition-transform duration-300 group-hover:scale-105'>
+                <div
+                  className={cn(
+                    'flex size-12 items-center justify-center rounded-xl border',
+                    docBadge.color
+                  )}
+                >
+                  <DocIcon className='size-6' />
+                </div>
+                <span className='text-muted-foreground text-[10px] font-semibold tracking-wider uppercase'>
+                  {docBadge.label}
+                </span>
+              </div>
+            )}
+
+            {/* Media dimension tag */}
+            {file.width && file.height && (
+              <div className='absolute bottom-1.5 left-1.5 z-10'>
+                <span className='rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-xs'>
+                  {file.width}&times;{file.height}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Content Details */}
+          <div className='flex flex-col p-2.5'>
+            <p
+              title={file.original_name}
+              className='text-foreground group-hover:text-primary truncate text-xs font-semibold transition-colors'
+            >
+              {file.original_name}
+            </p>
+
+            <div className='text-muted-foreground mt-1.5 flex items-center justify-between text-[11px]'>
+              <div className='flex items-center gap-1.5'>
+                <span>{formatBytes(file.size)}</span>
+                {(() => {
+                  const isPrivate = isFilePrivate(file)
+                  const diskLabel = getFileDiskLabel(file.disk, isPrivate)
+                  const diskTooltip = getFileDiskTooltip(file.disk, isPrivate)
+
+                  return (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          className={cn(
+                            'inline-flex shrink-0 cursor-default items-center gap-1 rounded-sm px-1 py-0.5 text-[10px] font-medium',
+                            isPrivate
+                              ? 'border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                              : 'bg-muted text-muted-foreground border-border/60 border'
+                          )}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {isPrivate ? (
+                            <Lock className='size-2.5' />
+                          ) : (
+                            <Globe className='size-2.5' />
+                          )}
+                          <span>{diskLabel}</span>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side='top' className='max-w-xs text-xs'>
+                        {diskTooltip}
+                      </TooltipContent>
+                    </Tooltip>
+                  )
+                })()}
+              </div>
+              <span>{format(new Date(file.createdAt), 'MMM d')}</span>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className='w-48'>
+        <ContextMenuItem onClick={() => onPreviewFile(file)} className='gap-2'>
+          <Eye className='size-4' />
+          {t('files.actions.preview')}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => downloadFile(file)} className='gap-2'>
+          <Download className='size-4' />
+          {t('files.actions.download', 'Download')}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => {
+            onCopyUrl(file)
+            toast.success(t('files.inspector.urlCopied'))
+          }}
+          className='gap-2'
+        >
+          <Copy className='size-4' />
+          {t('files.actions.copyUrl')}
+        </ContextMenuItem>
+        {isFilePrivate(file) && onShareFile && (
+          <ContextMenuItem
+            onClick={() => onShareFile(file)}
+            className='gap-2 text-amber-600 dark:text-amber-400'
+          >
+            <Link2 className='size-4' />
+            {t('files.actions.share', 'Share link')}
+          </ContextMenuItem>
+        )}
+        {canUpdate && onRenameFile && (
+          <ContextMenuItem onClick={() => onRenameFile(file)} className='gap-2'>
+            <Pencil className='size-4' />
+            {t('files.actions.rename', 'Rename')}
+          </ContextMenuItem>
+        )}
+        {canUpdate && (
+          <ContextMenuItem onClick={() => onMoveFile(file)} className='gap-2'>
+            <MoveRight className='size-4' />
+            {t('files.actions.move')}
+          </ContextMenuItem>
+        )}
+        {canDelete && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              variant='destructive'
+              onClick={() => onDeleteFile(file)}
+              className='gap-2'
+            >
+              <Trash2 className='size-4' />
+              {t('files.actions.delete')}
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   )
 })
 
@@ -388,6 +493,8 @@ export function FileGridView({
   onCopyUrl,
   onMoveFile,
   onDeleteFile,
+  onRenameFile,
+  onShareFile,
   canUpdate,
   canDelete,
   hasNextPage,
@@ -562,6 +669,8 @@ export function FileGridView({
                       onCopyUrl={onCopyUrl}
                       onMoveFile={onMoveFile}
                       onDeleteFile={onDeleteFile}
+                      onRenameFile={onRenameFile}
+                      onShareFile={onShareFile}
                       onToggleSelect={() => row?.toggleSelected()}
                     />
                   )

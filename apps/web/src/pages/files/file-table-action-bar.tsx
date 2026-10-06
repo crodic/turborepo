@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import type { Table } from '@tanstack/react-table'
-import { Trash2, X } from 'lucide-react'
+import { Download, Trash2, X } from 'lucide-react'
 import {
   ActionBar,
   ActionBarClose,
@@ -16,12 +16,14 @@ import { type FileSchema } from './schema'
 interface FilesTableActionBarBarProps {
   table: Table<FileSchema>
   onDelete: (files: FileSchema[]) => void
+  onBulkDownload?: (files: FileSchema[]) => void
   disabled?: boolean
 }
 
 export function FilesTableActionBar({
   table,
   onDelete,
+  onBulkDownload,
   disabled = false,
 }: FilesTableActionBarBarProps) {
   const rows = table.getFilteredSelectedRowModel().rows
@@ -47,6 +49,15 @@ export function FilesTableActionBar({
       </ActionBarSelection>
       <ActionBarSeparator />
       <ActionBarGroup>
+        {onBulkDownload && (
+          <ActionBarItem
+            onClick={() => onBulkDownload(rows.map((row) => row.original))}
+            disabled={disabled}
+          >
+            <Download />
+            Download
+          </ActionBarItem>
+        )}
         <ActionBarItem
           variant='destructive'
           onClick={() => onDelete(rows.map((row) => row.original))}
