@@ -71,7 +71,10 @@ export default registerAs<StorageConfig>('storage', () => {
     bucket,
     privateBucket,
     endpoint: process.env.AWS_ENDPOINT,
-    forcePathStyle: process.env.AWS_USE_PATH_STYLE_ENDPOINT === 'true',
+    forcePathStyle:
+      process.env.AWS_USE_PATH_STYLE_ENDPOINT !== undefined
+        ? process.env.AWS_USE_PATH_STYLE_ENDPOINT === 'true'
+        : Boolean(process.env.AWS_ENDPOINT),
     url: awsUrl,
   };
 

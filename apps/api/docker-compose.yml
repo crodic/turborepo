@@ -117,7 +117,7 @@ services:
       postgres:
         condition: service_healthy
   minio:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
     container_name: api_minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -136,7 +136,7 @@ services:
       - app-network
 
   minio-init:
-    image: minio/mc:latest
+    image: cgr.dev/chainguard/minio-client:latest-dev
     container_name: api_minio_init
     depends_on:
       - minio

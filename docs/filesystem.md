@@ -209,7 +209,7 @@ pnpm run setup
 Docker Compose spins up:
 
 1. `minio`: S3 API on port `9000`, MinIO Console on port `9001`.
-2. `minio-init`: A lightweight `minio/mc` container that runs once on startup to:
+2. `minio-init`: A lightweight MinIO Client (`mc`) container that runs once on startup to:
    - Create public bucket `nest-uploads` with anonymous download permissions enabled.
    - Create private bucket `nest-uploads-private`.
 
