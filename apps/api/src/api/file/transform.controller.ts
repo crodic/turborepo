@@ -39,7 +39,8 @@ export class TransformController {
     res.setHeader('Content-Type', file.mime);
     res.setHeader('Content-Length', String(file.size));
 
-    return res.send(file.buffer);
+    res.send(file.buffer);
+    return;
   }
 
   @Get(':resourceType/:publicId.:ext')
@@ -80,7 +81,8 @@ export class TransformController {
         error.getStatus() === HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE
       ) {
         res.setHeader('Accept-Ranges', 'bytes');
-        return res.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE).send();
+        res.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE).send();
+        return;
       }
       throw error;
     }
