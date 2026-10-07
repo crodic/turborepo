@@ -107,6 +107,10 @@ export default {
   'files.share.generated': 'Temporary link generated',
   'files.share.error': 'Failed to generate temporary link',
   'files.share.copied': 'Copied temporary link to clipboard',
+  'files.preview.docNotSupportedTitle':
+    'Legacy Word (.doc) format is not supported for in-browser preview',
+  'files.preview.docNotSupportedDesc':
+    'In-browser preview only supports modern Word documents (.docx). Please download this file to open in Microsoft Word or save it as .docx.',
   'files.bulk.selected': '{{count}} file(s) selected',
   'files.bulk.delete': 'Delete selected',
   'files.folders.title': 'Folders',

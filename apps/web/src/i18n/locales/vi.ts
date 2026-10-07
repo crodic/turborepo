@@ -107,6 +107,10 @@ export default {
   'files.share.generated': 'Đã tạo liên kết tạm thời',
   'files.share.error': 'Tạo liên kết tạm thời thất bại',
   'files.share.copied': 'Đã sao chép liên kết vào bộ nhớ tạm',
+  'files.preview.docNotSupportedTitle':
+    'Định dạng Word cũ (.doc) không hỗ trợ xem trước trực tiếp',
+  'files.preview.docNotSupportedDesc':
+    'Trình xem trước trên trình duyệt chỉ hỗ trợ định dạng Word hiện đại (.docx). Vui lòng tải về để mở trong Microsoft Word hoặc chuyển đổi sang định dạng .docx.',
   'files.bulk.selected': 'Đã chọn {{count}} tệp',
   'files.bulk.delete': 'Xóa các tệp đã chọn',
   'files.folders.title': 'Thư mục',
