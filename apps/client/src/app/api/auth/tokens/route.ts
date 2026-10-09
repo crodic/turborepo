@@ -4,9 +4,8 @@ import { decodeJwt } from "jose";
 export const GET = async () => {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get("accessToken")?.value || "";
-  const refreshToken = cookieStore.get("refreshToken")?.value || "";
 
-  return Response.json({ accessToken, refreshToken }, { status: 200 });
+  return Response.json({ accessToken }, { status: 200 });
 };
 
 export const POST = async (req: Request) => {
@@ -36,7 +35,7 @@ export const POST = async (req: Request) => {
     sameSite: "lax",
   });
 
-  return Response.json({ accessToken, refreshToken }, { status: 200 });
+  return Response.json({ success: true }, { status: 200 });
 };
 
 export const DELETE = async () => {

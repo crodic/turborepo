@@ -127,7 +127,6 @@ export class WsClient {
 
   private async fetchTokens(): Promise<{
     accessToken?: string;
-    refreshToken?: string;
   }> {
     try {
       const response = await fetch("/api/auth/tokens", {
@@ -135,14 +134,13 @@ export class WsClient {
         cache: "no-store",
       });
       if (!response.ok) {
-        return { accessToken: "", refreshToken: "" };
+        return { accessToken: "" };
       }
       return (await response.json()) as {
         accessToken?: string;
-        refreshToken?: string;
       };
     } catch {
-      return { accessToken: "", refreshToken: "" };
+      return { accessToken: "" };
     }
   }
 

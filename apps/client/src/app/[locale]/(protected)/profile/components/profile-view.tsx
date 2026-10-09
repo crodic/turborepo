@@ -54,7 +54,7 @@ export function ProfileView() {
       <div className="mx-auto w-full max-w-2xl px-4 py-16">
         <Alert variant="destructive">
           <AlertCircle className="size-4" />
-          <AlertTitle>Authentication Required</AlertTitle>
+          <AlertTitle>{t("authRequired")}</AlertTitle>
           <AlertDescription className="mt-2 flex flex-col gap-3">
             <span>{t("errorLoading")}</span>
             <div className="flex gap-2">
@@ -63,14 +63,14 @@ export function ProfileView() {
                 variant="outline"
                 onClick={() => void refetch()}
               >
-                Retry
+                {t("retry")}
               </Button>
               <Button
                 size="sm"
                 disabled={signOutMutation.isPending}
                 onClick={() => signOutMutation.mutate()}
               >
-                {signOutMutation.isPending ? "Signing out..." : "Sign in"}
+                {signOutMutation.isPending ? t("signingOut") : t("signIn")}
               </Button>
             </div>
           </AlertDescription>

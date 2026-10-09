@@ -1,5 +1,6 @@
 "use server";
 
+import { AUTH_CODE, AUTH_QUERY_PARAM } from "@/constants/auth";
 import { decodeToken } from "@/lib/utils";
 import { JWTPayload } from "jose";
 import { cookies } from "next/headers";
@@ -19,12 +20,10 @@ export const validateAuthActionRequest = async () => {
   const refreshToken = cookie.get("refreshToken")?.value || "";
   const accessToken = cookie.get("accessToken")?.value || "";
   if (!refreshToken) {
-    console.log(">>> Server Action: No refresh token");
     cookie.delete("accessToken");
-    const message = encodeURIComponent(
-      "Session is expired, please login again"
+    redirect(
+      `/auth/login?${AUTH_QUERY_PARAM.CODE}=${AUTH_CODE.SESSION_EXPIRED}`
     );
-    redirect(`/auth/login?msg=${message}`);
   }
 
   if (!accessToken && refreshToken) {
@@ -36,10 +35,9 @@ export const validateAuthActionRequest = async () => {
     if (!payload) {
       cookie.delete("accessToken");
       cookie.delete("refreshToken");
-      const message = encodeURIComponent(
-        "Session is expired, please login again"
+      redirect(
+        `/auth/login?${AUTH_QUERY_PARAM.CODE}=${AUTH_CODE.INVALID_TOKEN}`
       );
-      redirect(`/auth/login?msg=${message}`);
     }
 
     const tokenExpiresAt = (payload.exp as number) * 1000;
@@ -55,14 +53,19 @@ export const validateAuthActionRequest = async () => {
 const refreshTokenFormServerAction = async () => {
   const cookie = await cookies();
   const refreshToken = cookie.get("refreshToken")?.value;
+  if (!refreshToken) {
+    cookie.delete("accessToken");
+    redirect(
+      `/auth/login?${AUTH_QUERY_PARAM.CODE}=${AUTH_CODE.SESSION_EXPIRED}`
+    );
+  }
 
   try {
-    const { data } = await xior.post(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/v1/user/auth/refresh`,
-      {
-        token: refreshToken,
-      }
-    );
+    const apiUrl =
+      process.env.SERVER_API_URL || process.env.NEXT_PUBLIC_API_URL;
+    const { data } = await xior.post(`${apiUrl}/api/v1/user/auth/refresh`, {
+      refreshToken,
+    });
     const { accessToken: newAccessToken, refreshToken: newRefreshToken } = data;
     const { exp: expAccessToken } = decodeToken(newAccessToken) as JWTPayload;
     const { exp: expRefreshToken } = decodeToken(newRefreshToken) as JWTPayload;
@@ -87,10 +90,25 @@ const refreshTokenFormServerAction = async () => {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
     });
-  } catch (error) {
-    console.log(error);
-    cookie.delete("accessToken");
-    cookie.delete("refreshToken");
-    redirect("/auth/login");
+  } catch (error: any) {
+    // If error is already a Next.js redirect exception, re-throw it
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error;
+    }
+
+    console.error(
+      "Refresh token server action error:",
+      error?.message || error
+    );
+    const status = error?.response?.status;
+    if (status === 401 || status === 400) {
+      cookie.delete("accessToken");
+      cookie.delete("refreshToken");
+      redirect(
+        `/auth/login?${AUTH_QUERY_PARAM.CODE}=${AUTH_CODE.SESSION_EXPIRED}`
+      );
+    }
+    // For transient/network errors, re-throw without clearing user's stored cookies
+    throw error;
   }
 };

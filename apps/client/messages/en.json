@@ -124,7 +124,11 @@
     "unverified": "Unverified",
     "role": "Member",
     "loading": "Loading profile details...",
-    "errorLoading": "Failed to load profile details. Please try again."
+    "errorLoading": "Failed to load profile details. Please try again.",
+    "authRequired": "Authentication Required",
+    "retry": "Retry",
+    "signIn": "Sign In",
+    "signingOut": "Signing out..."
   },
   "GeneralInfo": {
     "title": "Personal Information",

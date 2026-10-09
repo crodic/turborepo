@@ -3,7 +3,11 @@ import { UserResDto } from '@/api/user/dto/user.res.dto';
 import { AutoIncrementID } from '@/common/types/common.type';
 import { ESessionUserType } from '@/constants/entity.enum';
 import { CurrentUser } from '@/decorators/current-user.decorator';
-import { ApiAuth, ApiPublic } from '@/decorators/http.decorators';
+import {
+  ApiAuth,
+  ApiAuthOptional,
+  ApiPublic,
+} from '@/decorators/http.decorators';
 import { SkipPolicies } from '@/decorators/skip-policies.decorator';
 import { GoogleOAuthGuard } from '@/guards/google-oauth.guard';
 import { UserAuthGuard } from '@/guards/user-auth.guard';
@@ -118,23 +122,28 @@ export class UserAuthenticationController {
     return result;
   }
 
-  @ApiAuth({
+  @ApiAuthOptional({
     summary: 'Logout for client',
     errorResponses: [304, 500, 401, 403],
+    statusCode: 204,
   })
   @SkipThrottle()
   @SkipPolicies()
   @Post('logout')
   async logout(
-    @CurrentUser() userToken: JwtPayloadType,
-    @Res({ passthrough: true }) res: Response,
+    @CurrentUser() userToken?: JwtPayloadType,
+    @Res({ passthrough: true }) res?: Response,
   ): Promise<void> {
-    await this.authSessionService.logout(userToken, ESessionUserType.USER);
-    clearAuthCookies({
-      res,
-      configService: this.configService,
-      prefix: 'user',
-    });
+    if (userToken) {
+      await this.authSessionService.logout(userToken, ESessionUserType.USER);
+    }
+    if (res) {
+      clearAuthCookies({
+        res,
+        configService: this.configService,
+        prefix: 'user',
+      });
+    }
   }
 
   @ApiAuth({

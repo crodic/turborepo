@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { http } from "@/lib/http";
-import { getClientToken } from "@/services/apis";
 import { SocialAccount, User } from "@/types/apis";
 import { useRouter } from "@/i18n/navigation";
 import xior from "xior";
@@ -187,26 +186,16 @@ export function useSignOut() {
 
   return useMutation({
     mutationFn: async () => {
-      try {
-        const tokens = await getClientToken();
-        if (tokens?.refreshToken) {
-          await http.post("/api/v1/user/auth/logout", {
-            refreshToken: tokens.refreshToken,
-          });
-        }
-      } catch (err) {
-        // Proceed with client logout even if server token revocation fails
-        console.error("Server logout error:", err);
-      }
+      await xior
+        .post<{ message: string }>(
+          `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/logout`,
+          {},
+          {
+            credentials: "same-origin",
+          }
+        )
+        .catch(() => null);
 
-      await xior.post<{ message: string }>(
-        `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/logout`,
-        {
-          credentials: "same-origin",
-        }
-      );
-
-      window.dispatchEvent(new Event("auth:tokens-updated"));
       queryClient.setQueryData(PROFILE_QUERY_KEY, null);
       queryClient.setQueryData(SOCIAL_ACCOUNTS_QUERY_KEY, []);
       router.push("/auth/login");

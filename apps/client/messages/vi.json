@@ -124,7 +124,11 @@
     "unverified": "Chưa xác thực",
     "role": "Thành viên",
     "loading": "Đang tải thông tin hồ sơ...",
-    "errorLoading": "Không thể tải thông tin hồ sơ. Vui lòng thử lại."
+    "errorLoading": "Không thể tải thông tin hồ sơ. Vui lòng thử lại.",
+    "authRequired": "Yêu cầu xác thực",
+    "retry": "Thử lại",
+    "signIn": "Đăng nhập",
+    "signingOut": "Đang đăng xuất..."
   },
   "GeneralInfo": {
     "title": "Thông tin cá nhân",

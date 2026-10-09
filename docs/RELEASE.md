@@ -1,5 +1,7 @@
 # 🚀 Release Process & Semantic Release Guide
 
+> **English** | [Tiếng Việt](RELEASE.vi.md)
+
 This document provides a detailed guide on the automated release workflow (**Semantic Release**) in this Monorepo project.
 
 ---

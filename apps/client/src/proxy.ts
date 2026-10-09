@@ -11,80 +11,107 @@ const handleI18nRouting = createMiddleware(routing);
 
 export async function proxy(request: NextRequest) {
   const intlResponse = handleI18nRouting(request);
+  if (!intlResponse.ok) {
+    return intlResponse;
+  }
 
-  if (intlResponse.ok) {
-    const [, locale, ...rest] = new URL(
-      intlResponse.headers.get("x-middleware-rewrite") || request.url
-    ).pathname.split("/");
+  const { locale, pathname } = extractLocaleAndPathname(request, intlResponse);
+  const accessToken = request.cookies.get("accessToken")?.value || "";
+  const refreshToken = request.cookies.get("refreshToken")?.value || "";
 
-    const pathname = "/" + rest.join("/");
+  const { isCorrupt, shouldRefresh } = evaluateTokenState(
+    accessToken,
+    refreshToken
+  );
 
-    const refreshToken = request.cookies.get("refreshToken")?.value || "";
-    const accessToken = request.cookies.get("accessToken")?.value || "";
-
-    console.log(">>> Entered middleware with pathname: ", pathname);
-
-    // Proactive token refresh & session validation for authenticated users
-    if (accessToken && refreshToken) {
-      const payload = decodeToken(accessToken);
-      if (payload === null) {
-        return unauthorizedResponse(
-          request,
-          intlResponse,
-          locale,
-          pathname,
-          AUTH_CODE.INVALID_TOKEN
-        );
-      }
-
-      const tokenExpiresAt = (payload.exp as number) * 1000;
-      const now = Date.now();
-      const oneMinuteLater = now + 1 * 60 * 1000;
-
-      if (tokenExpiresAt < oneMinuteLater) {
-        return await refreshTokenMiddleware(
-          request,
-          intlResponse,
-          locale,
-          pathname
-        );
-      }
+  if (isCorrupt) {
+    const unauthRes = unauthorizedResponse(
+      request,
+      intlResponse,
+      locale,
+      pathname,
+      AUTH_CODE.INVALID_TOKEN
+    );
+    if (unauthRes !== intlResponse) {
+      return unauthRes;
     }
+  }
 
-    if (refreshToken && !accessToken) {
-      return await refreshTokenMiddleware(
-        request,
-        intlResponse,
-        locale,
-        pathname
-      );
+  if (shouldRefresh) {
+    const refreshRes = await refreshTokenMiddleware(
+      request,
+      intlResponse,
+      locale,
+      pathname
+    );
+    if (refreshRes !== intlResponse) {
+      return refreshRes;
     }
+  }
 
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set("x-pathname", pathname);
+  return finalizeResponse(request, intlResponse, pathname);
+}
 
-    // Forward any internal request headers set by next-intl middleware (e.g. x-next-intl-locale)
-    intlResponse.headers.forEach((value, key) => {
-      if (key.startsWith("x-middleware-request-")) {
-        requestHeaders.set(key.replace("x-middleware-request-", ""), value);
-      }
-    });
+function extractLocaleAndPathname(
+  request: NextRequest,
+  intlResponse: NextResponse
+) {
+  const [, locale, ...rest] = new URL(
+    intlResponse.headers.get("x-middleware-rewrite") || request.url
+  ).pathname.split("/");
 
-    const rewriteUrl = intlResponse.headers.get("x-middleware-rewrite");
-    if (rewriteUrl) {
-      return NextResponse.rewrite(new URL(rewriteUrl, request.url), {
-        request: { headers: requestHeaders },
-        headers: intlResponse.headers,
-      });
+  return {
+    locale,
+    pathname: "/" + rest.join("/"),
+  };
+}
+
+function evaluateTokenState(accessToken: string, refreshToken: string) {
+  if (!refreshToken) {
+    return { shouldRefresh: false, isCorrupt: false };
+  }
+
+  if (!accessToken) {
+    return { shouldRefresh: true, isCorrupt: false };
+  }
+
+  const payload = decodeToken(accessToken);
+  if (!payload?.exp) {
+    return { shouldRefresh: false, isCorrupt: true };
+  }
+
+  const oneMinuteFromNow = Date.now() + 60_000;
+  const isExpiringSoon = payload.exp * 1000 < oneMinuteFromNow;
+
+  return { shouldRefresh: isExpiringSoon, isCorrupt: false };
+}
+
+function finalizeResponse(
+  request: NextRequest,
+  intlResponse: NextResponse,
+  pathname: string
+) {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+
+  intlResponse.headers.forEach((value, key) => {
+    if (key.startsWith("x-middleware-request-")) {
+      requestHeaders.set(key.replace("x-middleware-request-", ""), value);
     }
+  });
 
-    return NextResponse.next({
+  const rewriteUrl = intlResponse.headers.get("x-middleware-rewrite");
+  if (rewriteUrl) {
+    return NextResponse.rewrite(new URL(rewriteUrl, request.url), {
       request: { headers: requestHeaders },
       headers: intlResponse.headers,
     });
   }
 
-  return intlResponse;
+  return NextResponse.next({
+    request: { headers: requestHeaders },
+    headers: intlResponse.headers,
+  });
 }
 
 const refreshTokenMiddleware = async (
@@ -115,15 +142,14 @@ const refreshTokenMiddleware = async (
       );
     }
 
-    const response = intlResponse;
-    response.cookies.set("accessToken", newAccessToken, {
+    intlResponse.cookies.set("accessToken", newAccessToken, {
       httpOnly: true,
       path: "/",
       expires: new Date(expAccessToken * 1000),
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
     });
-    response.cookies.set("refreshToken", newRefreshToken, {
+    intlResponse.cookies.set("refreshToken", newRefreshToken, {
       httpOnly: true,
       path: "/",
       expires: new Date(expRefreshToken * 1000),
@@ -131,16 +157,21 @@ const refreshTokenMiddleware = async (
       sameSite: "lax",
     });
 
-    return response;
-  } catch (error) {
-    console.log(error);
-    return unauthorizedResponse(
-      request,
-      intlResponse,
-      locale,
-      pathname,
-      AUTH_CODE.SESSION_EXPIRED
-    );
+    return intlResponse;
+  } catch (error: any) {
+    console.error("Middleware refresh token failed:", error?.message || error);
+    const status = error?.response?.status;
+    if (status === 401 || status === 400) {
+      return unauthorizedResponse(
+        request,
+        intlResponse,
+        locale,
+        pathname,
+        AUTH_CODE.SESSION_EXPIRED
+      );
+    }
+    // Network error or transient 5xx error: do not wipe cookies, proceed with request
+    return intlResponse;
   }
 };
 
@@ -151,11 +182,17 @@ const unauthorizedResponse = (
   pathname: string,
   code: AuthCode = AUTH_CODE.SESSION_EXPIRED
 ) => {
+  intlResponse.cookies.delete("accessToken");
+  intlResponse.cookies.delete("refreshToken");
+
+  // If already on an auth page, or on public home page, do not force-redirect to login
+  if (!pathname || pathname === "/" || pathname.startsWith("/auth")) {
+    return intlResponse;
+  }
+
   const redirectUrl = new URL(`/${locale}/auth/login`, request.url);
   redirectUrl.searchParams.set(AUTH_QUERY_PARAM.CODE, code);
-  if (pathname && pathname !== "/" && !pathname.startsWith("/auth")) {
-    redirectUrl.searchParams.set(AUTH_QUERY_PARAM.FROM, pathname);
-  }
+  redirectUrl.searchParams.set(AUTH_QUERY_PARAM.FROM, pathname);
 
   const response = NextResponse.redirect(redirectUrl, {
     headers: intlResponse.headers,

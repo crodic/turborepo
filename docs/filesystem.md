@@ -1,5 +1,7 @@
 # Filesystem & Storage Architecture
 
+> **English** | [Tiếng Việt](filesystem.vi.md)
+
 This document describes the unified Filesystem architecture implemented in the Monorepo. Inspired by **Laravel's Storage System (`Storage::disk()`)**, it provides a driver-based abstraction for managing files across local storage, local public assets, AWS S3, and MinIO.
 
 ---

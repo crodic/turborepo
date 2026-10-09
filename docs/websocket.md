@@ -1,5 +1,7 @@
 # WebSocket Architecture & Developer Guide
 
+> **English** | [Tiếng Việt](websocket.vi.md)
+
 > **Production-Hardened WebSocket Infrastructure** for high-frequency, bidirectional realtime features with multi-pod clustering, thin gateway routing, session revocation sweeps, rate limiting, and end-to-end TypeScript contracts.
 
 ---

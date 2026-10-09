@@ -1,5 +1,7 @@
 # NestJS API
 
+> **English** | [Tiếng Việt](README.vi.md)
+
 The backend REST API for the monorepo, built with NestJS, PostgreSQL, Redis, TypeORM, BullMQ, and Mailpit.
 
 > **Note**: For root monorepo commands and orchestrations, refer to the root [README.md](../../README.md).

@@ -1,5 +1,7 @@
 # Sortable Image Upload
 
+> **English** | [Tiếng Việt](SORTABLE.vi.md)
+
 This document explains how to use `SortableImageUpload` on the frontend and how to structure backend APIs to handle image lists that support upload, deletion, reordering, and submission via `FormData`.
 
 The component is designed for the following workflow:

@@ -1,5 +1,7 @@
 # Deployment Guide
 
+> **English** | [Tiếng Việt](DEPLOYMENT.vi.md)
+
 This guide explains how to deploy the monorepo applications:
 
 - API: `apps/api`
