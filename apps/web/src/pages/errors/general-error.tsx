@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useRouteError } from 'react-router'
+import { useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -47,12 +48,21 @@ export function GeneralError({
           </CollapsibleContent>
         </Collapsible>
         {!minimal && (
-          <div className='mt-6 flex gap-4'>
+          <div className='mt-6 flex flex-wrap justify-center gap-4'>
             <Button variant='outline' onClick={() => navigate(-1)}>
               {t('errors.common.goBack')}
             </Button>
             <Button onClick={() => navigate('/')}>
               {t('errors.common.backHome')}
+            </Button>
+            <Button
+              variant='secondary'
+              onClick={() => {
+                useAuthStore.getState().logout()
+                navigate('/sign-in')
+              }}
+            >
+              {t('auth.signIn.messageSignIn')}
             </Button>
           </div>
         )}

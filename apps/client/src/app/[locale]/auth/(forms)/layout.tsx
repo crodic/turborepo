@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import { cn } from "@/lib/utils";
+import { cn, decodeToken } from "@/lib/utils";
 import { WhiteLabelLogo } from "@/lib/white-label";
 import Image from "next/image";
 import React from "react";
@@ -19,11 +19,15 @@ export default async function AuthLayout({
   const { locale } = await params;
   setRequestLocale(locale);
 
+  // Guard for guest routes: If user is authenticated with a valid token, redirect to profile
   const cookieStore = await cookies();
   const refreshToken = cookieStore.get("refreshToken")?.value;
 
   if (refreshToken) {
-    redirect(`/${locale}/profile`);
+    const payload = decodeToken(refreshToken);
+    if (payload?.exp && payload.exp * 1000 > Date.now()) {
+      redirect(`/${locale}/profile`);
+    }
   }
 
   const t = await getTranslations({ locale, namespace: "Auth.layout" });

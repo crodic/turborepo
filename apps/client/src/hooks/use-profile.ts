@@ -53,12 +53,28 @@ export function useProfile() {
       try {
         const response = await http.get<User>("/api/v1/user/auth/me");
         return response.data;
-      } catch {
-        return null;
+      } catch (error: unknown) {
+        const status =
+          error && typeof error === "object" && "response" in error
+            ? (error as { response?: { status?: number } }).response?.status
+            : undefined;
+        // Genuinely unauthenticated: return null
+        if (status === 401) {
+          return null;
+        }
+        // Network error / server down: throw so React Query can track error & retry
+        throw error;
       }
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    retry: false,
+    staleTime: 1000 * 60 * 2,
+    retry: (count, error: unknown) => {
+      const status =
+        error && typeof error === "object" && "response" in error
+          ? (error as { response?: { status?: number } }).response?.status
+          : undefined;
+      return status !== 401 && count < 3;
+    },
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -71,12 +87,26 @@ export function useSocialAccounts() {
           "/api/v1/user/auth/me/social-accounts"
         );
         return response.data;
-      } catch {
-        return [];
+      } catch (error: unknown) {
+        const status =
+          error && typeof error === "object" && "response" in error
+            ? (error as { response?: { status?: number } }).response?.status
+            : undefined;
+        if (status === 401) {
+          return [];
+        }
+        throw error;
       }
     },
-    staleTime: 1000 * 60 * 5,
-    retry: false,
+    staleTime: 1000 * 60 * 2,
+    retry: (count, error: unknown) => {
+      const status =
+        error && typeof error === "object" && "response" in error
+          ? (error as { response?: { status?: number } }).response?.status
+          : undefined;
+      return status !== 401 && count < 3;
+    },
+    refetchOnWindowFocus: true,
   });
 }
 

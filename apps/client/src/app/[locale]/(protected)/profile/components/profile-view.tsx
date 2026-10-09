@@ -4,8 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useProfile } from "@/hooks/use-profile";
-import { Link } from "@/i18n/navigation";
+import { useProfile, useSignOut } from "@/hooks/use-profile";
 import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import React from "react";
@@ -20,6 +19,7 @@ import { SocialAccountsCard } from "./social-accounts-card";
 export function ProfileView() {
   const t = useTranslations("Profile");
   const { data: profile, isLoading, isError, refetch } = useProfile();
+  const signOutMutation = useSignOut();
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -65,8 +65,12 @@ export function ProfileView() {
               >
                 Retry
               </Button>
-              <Button size="sm" asChild>
-                <Link href="/auth/login">Sign in</Link>
+              <Button
+                size="sm"
+                disabled={signOutMutation.isPending}
+                onClick={() => signOutMutation.mutate()}
+              >
+                {signOutMutation.isPending ? "Signing out..." : "Sign in"}
               </Button>
             </div>
           </AlertDescription>

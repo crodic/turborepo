@@ -23,13 +23,7 @@ export function usePermissionLoader() {
 
       return true
     },
-    throwOnError: (error) => {
-      if (!axios.isAxiosError(error)) {
-        return false
-      }
-
-      return error.response?.status !== 401 // Only throw unauthenticated error
-    },
+    throwOnError: false,
   })
 
   useEffect(() => {
@@ -45,5 +39,9 @@ export function usePermissionLoader() {
 
   return {
     permissionStatus,
+    isError: authUserQuery.isError,
+    error: authUserQuery.error,
+    refetch: authUserQuery.refetch,
+    isFetching: authUserQuery.isFetching,
   }
 }
