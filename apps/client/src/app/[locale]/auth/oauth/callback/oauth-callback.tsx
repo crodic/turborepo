@@ -44,7 +44,6 @@ export default function OAuthCallback() {
         });
 
         await queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY });
-        window.dispatchEvent(new Event("auth:tokens-updated"));
         toast.success(t("successToast"));
         router.replace("/profile");
       } catch {

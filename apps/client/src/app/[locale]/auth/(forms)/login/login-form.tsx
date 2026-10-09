@@ -118,10 +118,11 @@ export default function LoginForm() {
       // Clear the cached null profile so /profile fetches fresh user data
       await queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY });
 
-      window.dispatchEvent(new Event("auth:tokens-updated"));
-
       const from = searchParams.get(AUTH_QUERY_PARAM.FROM);
-      const redirectTarget = from && from.startsWith("/") ? from : "/profile";
+      const redirectTarget =
+        from && from.startsWith("/") && !from.startsWith("//")
+          ? from
+          : "/profile";
       router.push(redirectTarget);
     } catch (error) {
       if (error instanceof XiorError) {

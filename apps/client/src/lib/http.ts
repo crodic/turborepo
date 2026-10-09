@@ -11,6 +11,10 @@ export const http = xior.create({
 
 http.interceptors.request.use(
   async (config) => {
+    if (config.headers.Authorization) {
+      return config;
+    }
+
     try {
       const { data } = await xior.get<{ accessToken?: string }>(
         `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/tokens`
