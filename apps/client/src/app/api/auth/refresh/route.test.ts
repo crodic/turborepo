@@ -84,9 +84,9 @@ describe("POST /api/auth/refresh (BFF Route Handler Unit Tests)", () => {
     expect(json.refreshToken).toBeUndefined();
     expect(Object.keys(json)).toEqual(["accessToken"]);
 
-    // Cookies must have been updated
+    // Cookies must have been updated: accessToken is readable by client (httpOnly: false), refreshToken is secure (httpOnly: true)
     expect(mockCookies.get("accessToken")?.value).toBe(newAccess);
-    expect(mockCookies.get("accessToken")?.httpOnly).toBe(true);
+    expect(mockCookies.get("accessToken")?.httpOnly).toBe(false);
     expect(mockCookies.get("refreshToken")?.value).toBe(newRefresh);
     expect(mockCookies.get("refreshToken")?.httpOnly).toBe(true);
   });

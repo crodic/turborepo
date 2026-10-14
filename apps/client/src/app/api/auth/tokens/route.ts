@@ -22,7 +22,7 @@ export const POST = async (req: Request) => {
 
   cookieStore.set("accessToken", accessToken, {
     path: "/",
-    httpOnly: true,
+    httpOnly: false,
     expires: new Date(expAccessToken * 1000),
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

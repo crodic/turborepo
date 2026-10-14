@@ -143,7 +143,7 @@ const refreshTokenMiddleware = async (
     }
 
     intlResponse.cookies.set("accessToken", newAccessToken, {
-      httpOnly: true,
+      httpOnly: false,
       path: "/",
       expires: new Date(expAccessToken * 1000),
       secure: process.env.NODE_ENV === "production",

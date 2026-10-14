@@ -1,6 +1,14 @@
 import xior, { XiorInterceptorRequestConfig } from "xior";
 import { AUTH_CODE, AUTH_QUERY_PARAM } from "@/constants/auth";
 
+export function getClientCookie(name: string): string | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 export const http = xior.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL!,
   headers: {
@@ -10,22 +18,15 @@ export const http = xior.create({
 });
 
 http.interceptors.request.use(
-  async (config) => {
+  (config) => {
     if (config.headers.Authorization) {
       return config;
     }
 
-    try {
-      const { data } = await xior.get<{ accessToken?: string }>(
-        `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/tokens`
-      );
-      const accessToken = data?.accessToken;
-      if (accessToken) {
-        config.headers.Authorization = `Bearer ${accessToken}`;
-      } else {
-        delete config.headers.Authorization;
-      }
-    } catch {
+    const accessToken = getClientCookie("accessToken");
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    } else {
       delete config.headers.Authorization;
     }
     return config;
@@ -53,6 +54,9 @@ export async function refreshClientToken(): Promise<string | null> {
         return null;
       }
 
+      if (typeof document !== "undefined") {
+        document.cookie = `accessToken=${encodeURIComponent(newAccessToken)}; path=/; sameSite=lax`;
+      }
       http.defaults.headers.Authorization = `Bearer ${newAccessToken}`;
       return newAccessToken;
     } catch (err: unknown) {
@@ -64,6 +68,9 @@ export async function refreshClientToken(): Promise<string | null> {
       const isAuthFailure = status === 401 || status === 400;
 
       if (isAuthFailure) {
+        if (typeof document !== "undefined") {
+          document.cookie = "accessToken=; path=/; max-age=0";
+        }
         await xior
           .post(
             `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/logout`,

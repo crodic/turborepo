@@ -1,5 +1,5 @@
 import { io, type Socket } from "socket.io-client";
-import { refreshClientToken } from "@/lib/http";
+import { getClientCookie, refreshClientToken } from "@/lib/http";
 
 export type PresenceCounts = {
   admins: number;
@@ -128,6 +128,13 @@ export class WsClient {
   private async fetchTokens(): Promise<{
     accessToken?: string;
   }> {
+    if (typeof document !== "undefined") {
+      const cookieToken = getClientCookie("accessToken");
+      if (cookieToken) {
+        return { accessToken: cookieToken };
+      }
+    }
+
     try {
       const response = await fetch("/api/auth/tokens", {
         credentials: "same-origin",

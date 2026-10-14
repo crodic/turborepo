@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 
-describe("HTTP Client & Refresh Token Interceptor (Unit & Concurrency Tests)", () => {
+describe("HTTP Client & Refresh Token Interceptor (Cookie Hybrid Architecture)", () => {
   const originalEnv = process.env;
   let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -12,6 +12,10 @@ describe("HTTP Client & Refresh Token Interceptor (Unit & Concurrency Tests)", (
       NEXT_PUBLIC_APP_URL: "http://client.example.com",
     };
 
+    if (typeof document !== "undefined") {
+      document.cookie = "accessToken=; path=/; max-age=0";
+    }
+
     fetchMock = vi.fn();
     globalThis.fetch = fetchMock as unknown as typeof fetch;
   });
@@ -21,16 +25,11 @@ describe("HTTP Client & Refresh Token Interceptor (Unit & Concurrency Tests)", (
     vi.restoreAllMocks();
   });
 
-  it("attaches Authorization header from /api/auth/tokens on requests", async () => {
+  it("SYNCHRONOUS ATTACH: attaches Authorization header directly from document.cookie with 0ms network overhead", async () => {
+    document.cookie = "accessToken=token-abc-123; path=/";
     const { http } = await import("./http");
 
     fetchMock.mockImplementation(async (url: string) => {
-      if (url.includes("/api/auth/tokens")) {
-        return new Response(JSON.stringify({ accessToken: "token-abc-123" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
       if (url.includes("/api/v1/test")) {
         return new Response(JSON.stringify({ success: true }), {
           status: 200,
@@ -43,6 +42,12 @@ describe("HTTP Client & Refresh Token Interceptor (Unit & Concurrency Tests)", (
     const res = await http.get("/api/v1/test");
     expect(res.data).toEqual({ success: true });
 
+    // Assert /api/auth/tokens was NEVER called (0ms overhead!)
+    const tokensCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).includes("/api/auth/tokens")
+    );
+    expect(tokensCall).toBeUndefined();
+
     // Assert Authorization header was sent
     const testCall = fetchMock.mock.calls.find(([url]) =>
       String(url).includes("/api/v1/test")
@@ -52,18 +57,48 @@ describe("HTTP Client & Refresh Token Interceptor (Unit & Concurrency Tests)", (
     expect(headers.get("authorization")).toBe("Bearer token-abc-123");
   });
 
-  it("handles 401 error: refreshes token and seamlessly retries the request", async () => {
+  it("F5 PAGE RELOAD: uses existing valid accessToken from cookie without calling /api/auth/refresh (0 redundant tokens)", async () => {
+    // Simulating user refreshing the page (cookie is preserved across browser reloads)
+    document.cookie =
+      "accessToken=still-valid-token-from-previous-session; path=/";
+    const { http } = await import("./http");
+
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("/api/v1/profile")) {
+        return new Response(JSON.stringify({ id: 1, name: "Alice" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    });
+
+    const res = await http.get("/api/v1/profile");
+    expect(res.data).toEqual({ id: 1, name: "Alice" });
+
+    // Assert /api/auth/refresh was NEVER called
+    const refreshCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).includes("/api/auth/refresh")
+    );
+    expect(refreshCall).toBeUndefined();
+
+    // Assert Authorization header used the existing cookie token directly
+    const profileCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).includes("/api/v1/profile")
+    );
+    const headers = new Headers(profileCall![1]?.headers);
+    expect(headers.get("authorization")).toBe(
+      "Bearer still-valid-token-from-previous-session"
+    );
+  });
+
+  it("handles 401 error: refreshes token, updates cookie, and seamlessly retries the request", async () => {
+    document.cookie = "accessToken=initial-expired-token; path=/";
     const { http } = await import("./http");
 
     let apiCallAttempts = 0;
     fetchMock.mockImplementation(async (url: string) => {
       const urlStr = String(url);
-
-      if (urlStr.includes("/api/auth/tokens")) {
-        return new Response(JSON.stringify({ accessToken: "initial-token" }), {
-          status: 200,
-        });
-      }
 
       if (urlStr.includes("/api/auth/refresh")) {
         return new Response(
@@ -99,9 +134,13 @@ describe("HTTP Client & Refresh Token Interceptor (Unit & Concurrency Tests)", (
       String(url).includes("/api/auth/refresh")
     );
     expect(refreshCall).toBeDefined();
+
+    // Verify document.cookie was updated with new token
+    expect(document.cookie).toContain("accessToken=refreshed-token-999");
   });
 
   it("SINGLE-FLIGHT DEDUPLICATION: 10 concurrent 401 requests trigger EXACTLY 1 refresh call", async () => {
+    document.cookie = "accessToken=expired-token; path=/";
     const { http } = await import("./http");
 
     let refreshCallCount = 0;
@@ -110,12 +149,6 @@ describe("HTTP Client & Refresh Token Interceptor (Unit & Concurrency Tests)", (
 
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
       const urlStr = String(url);
-
-      if (urlStr.includes("/api/auth/tokens")) {
-        return new Response(JSON.stringify({ accessToken: initialToken }), {
-          status: 200,
-        });
-      }
 
       if (urlStr.includes("/api/auth/refresh")) {
         refreshCallCount++;
@@ -162,9 +195,13 @@ describe("HTTP Client & Refresh Token Interceptor (Unit & Concurrency Tests)", (
     results.forEach((res) => {
       expect(res.data.ok).toBe(true);
     });
+
+    // Verify document.cookie was updated
+    expect(document.cookie).toContain(`accessToken=${newToken}`);
   });
 
   it("INFINITE LOOP PREVENTION: stops recursion when retried request also fails with 401", async () => {
+    document.cookie = "accessToken=token-1; path=/";
     const { http } = await import("./http");
 
     let refreshCallCount = 0;
@@ -172,12 +209,6 @@ describe("HTTP Client & Refresh Token Interceptor (Unit & Concurrency Tests)", (
 
     fetchMock.mockImplementation(async (url: string) => {
       const urlStr = String(url);
-
-      if (urlStr.includes("/api/auth/tokens")) {
-        return new Response(JSON.stringify({ accessToken: "token-1" }), {
-          status: 200,
-        });
-      }
 
       if (urlStr.includes("/api/auth/refresh")) {
         refreshCallCount++;
@@ -211,18 +242,13 @@ describe("HTTP Client & Refresh Token Interceptor (Unit & Concurrency Tests)", (
   });
 
   it("403 FORBIDDEN: does NOT trigger refresh token", async () => {
+    document.cookie = "accessToken=token-1; path=/";
     const { http } = await import("./http");
 
     let refreshCalled = false;
 
     fetchMock.mockImplementation(async (url: string) => {
       const urlStr = String(url);
-
-      if (urlStr.includes("/api/auth/tokens")) {
-        return new Response(JSON.stringify({ accessToken: "token-1" }), {
-          status: 200,
-        });
-      }
 
       if (urlStr.includes("/api/auth/refresh")) {
         refreshCalled = true;
@@ -246,19 +272,14 @@ describe("HTTP Client & Refresh Token Interceptor (Unit & Concurrency Tests)", (
     expect(refreshCalled).toBe(false);
   });
 
-  it("REFRESH 401 FAILURE: calls logout and rejects", async () => {
+  it("REFRESH 401 FAILURE: calls logout, cleans cookies, and rejects", async () => {
+    document.cookie = "accessToken=expired-token; path=/";
     const { http } = await import("./http");
 
     let logoutCalled = false;
 
     fetchMock.mockImplementation(async (url: string) => {
       const urlStr = String(url);
-
-      if (urlStr.includes("/api/auth/tokens")) {
-        return new Response(JSON.stringify({ accessToken: "expired-token" }), {
-          status: 200,
-        });
-      }
 
       if (urlStr.includes("/api/auth/refresh")) {
         // Refresh token itself is expired/revoked
@@ -287,21 +308,19 @@ describe("HTTP Client & Refresh Token Interceptor (Unit & Concurrency Tests)", (
 
     // Must trigger logout
     expect(logoutCalled).toBe(true);
+
+    // Cookie must be cleared
+    expect(document.cookie).not.toContain("accessToken=expired-token");
   });
 
   it("TRANSIENT 500 FAILURE: rejects without calling logout (preserves session)", async () => {
+    document.cookie = "accessToken=valid-token; path=/";
     const { http } = await import("./http");
 
     let logoutCalled = false;
 
     fetchMock.mockImplementation(async (url: string) => {
       const urlStr = String(url);
-
-      if (urlStr.includes("/api/auth/tokens")) {
-        return new Response(JSON.stringify({ accessToken: "token" }), {
-          status: 200,
-        });
-      }
 
       if (urlStr.includes("/api/auth/refresh")) {
         // Transient 500 server error
